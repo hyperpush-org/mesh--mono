@@ -18,1231 +18,1097 @@ target triple = "arm64-apple-darwin25.2.0"
 @.str = unnamed_addr constant [0 x i8] zeroinitializer
 @.str.1 = unnamed_addr constant [0 x i8] zeroinitializer
 @.str.2 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.3 = unnamed_addr constant [39 x i8] c"CREATE EXTENSION IF NOT EXISTS pgcrypto"
+@.str.3 = unnamed_addr constant [1 x i8] c"-"
+@.str.4 = unnamed_addr constant [1 x i8] c"-"
+@.str.5 = unnamed_addr constant [34 x i8] c"CREATE TABLE IF NOT EXISTS events_"
+@.str.6 = unnamed_addr constant [39 x i8] c" PARTITION OF events FOR VALUES FROM ('"
+@.str.7 = unnamed_addr constant [9 x i8] c"') TO (('"
+@.str.8 = unnamed_addr constant [13 x i8] c"'::date + 1))"
 @.panic_msg = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file = constant [9 x i8] c"<unknown>"
-@.str.4 = unnamed_addr constant [182 x i8] c"CREATE TABLE IF NOT EXISTS organizations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ NOT NULL DEFAULT now())"
-@.panic_msg.5 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.6 = constant [9 x i8] c"<unknown>"
-@.str.7 = unnamed_addr constant [212 x i8] c"CREATE TABLE IF NOT EXISTS users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, display_name TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())"
-@.panic_msg.8 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.9 = constant [9 x i8] c"<unknown>"
-@.str.10 = unnamed_addr constant [329 x i8] c"CREATE TABLE IF NOT EXISTS org_memberships (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, role TEXT NOT NULL DEFAULT 'member', joined_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(user_id, org_id))"
-@.panic_msg.11 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.12 = constant [9 x i8] c"<unknown>"
-@.str.13 = unnamed_addr constant [236 x i8] c"CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + interval '7 days')"
-@.panic_msg.14 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.15 = constant [9 x i8] c"<unknown>"
-@.str.16 = unnamed_addr constant [234 x i8] c"CREATE TABLE IF NOT EXISTS projects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, name TEXT NOT NULL, platform TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now())"
-@.panic_msg.17 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.18 = constant [9 x i8] c"<unknown>"
-@.str.19 = unnamed_addr constant [293 x i8] c"CREATE TABLE IF NOT EXISTS api_keys (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, key_value TEXT NOT NULL UNIQUE, label TEXT NOT NULL DEFAULT 'default', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), revoked_at TIMESTAMPTZ)"
-@.panic_msg.20 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.21 = constant [9 x i8] c"<unknown>"
-@.str.22 = unnamed_addr constant [424 x i8] c"CREATE TABLE IF NOT EXISTS issues (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), project_id UUID NOT NULL, fingerprint TEXT NOT NULL, title TEXT NOT NULL, level TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'unresolved', event_count INTEGER NOT NULL DEFAULT 0, first_seen TIMESTAMPTZ NOT NULL DEFAULT now(), last_seen TIMESTAMPTZ NOT NULL DEFAULT now(), assigned_to UUID REFERENCES users(id), UNIQUE(project_id, fingerprint))"
-@.panic_msg.23 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.24 = constant [9 x i8] c"<unknown>"
-@.str.25 = unnamed_addr constant [487 x i8] c"CREATE TABLE IF NOT EXISTS events (id UUID NOT NULL DEFAULT gen_random_uuid(), project_id UUID NOT NULL, issue_id UUID NOT NULL, level TEXT NOT NULL, message TEXT NOT NULL, fingerprint TEXT NOT NULL, exception JSONB, stacktrace JSONB, breadcrumbs JSONB, tags JSONB NOT NULL DEFAULT '{}', extra JSONB NOT NULL DEFAULT '{}', user_context JSONB, sdk_name TEXT, sdk_version TEXT, received_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (id, received_at)) PARTITION BY RANGE (received_at)"
-@.panic_msg.26 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.27 = constant [9 x i8] c"<unknown>"
-@.str.28 = unnamed_addr constant [319 x i8] c"CREATE TABLE IF NOT EXISTS alert_rules (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, name TEXT NOT NULL, condition_json JSONB NOT NULL, action_json JSONB NOT NULL, enabled BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())"
+@.str.9 = unnamed_addr constant [66 x i8] c"SELECT to_char(now() + ($1 || ' days')::interval, 'YYYYMMDD') AS d"
+@.panic_msg.10 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.11 = constant [9 x i8] c"<unknown>"
+@.str.12 = unnamed_addr constant [1 x i8] c"d"
+@.panic_msg.13 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.14 = constant [9 x i8] c"<unknown>"
+@.str.15 = unnamed_addr constant [478 x i8] c"INSERT INTO events (project_id, issue_id, level, message, fingerprint, exception, stacktrace, breadcrumbs, tags, extra, user_context, sdk_name, sdk_version) SELECT $1::uuid, $2::uuid, j->>'level', j->>'message', $3, (j->'exception')::jsonb, (j->'stacktrace')::jsonb, (j->'breadcrumbs')::jsonb, COALESCE((j->'tags')::jsonb, '{}'::jsonb), COALESCE((j->'extra')::jsonb, '{}'::jsonb), (j->'user_context')::jsonb, j->>'sdk_name', j->>'sdk_version' FROM (SELECT $4::jsonb AS j) AS sub"
+@.str.16 = unnamed_addr constant [11 x i8] c"alert_rules"
+@.str.17 = unnamed_addr constant [13 x i8] c"organizations"
+@.str.18 = unnamed_addr constant [8 x i8] c"projects"
+@.str.19 = unnamed_addr constant [5 x i8] c"users"
+@.str.20 = unnamed_addr constant [15 x i8] c"org_memberships"
+@.str.21 = unnamed_addr constant [3 x i8] c"|||"
+@.panic_msg.22 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.23 = constant [9 x i8] c"<unknown>"
+@.str.24 = unnamed_addr constant [34 x i8] c"[StorageWriter] Dropping batch of "
+@.str.25 = unnamed_addr constant [20 x i8] c" events for project "
+@.str.26 = unnamed_addr constant [16 x i8] c" after 3 retries"
+@.panic_msg.27 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.28 = constant [9 x i8] c"<unknown>"
 @.panic_msg.29 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.30 = constant [9 x i8] c"<unknown>"
-@.str.31 = unnamed_addr constant [417 x i8] c"CREATE TABLE IF NOT EXISTS alerts (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), rule_id UUID NOT NULL REFERENCES alert_rules(id) ON DELETE CASCADE, project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'active', message TEXT NOT NULL, condition_snapshot JSONB NOT NULL, triggered_at TIMESTAMPTZ NOT NULL DEFAULT now(), acknowledged_at TIMESTAMPTZ, resolved_at TIMESTAMPTZ)"
-@.panic_msg.32 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.33 = constant [9 x i8] c"<unknown>"
-@.str.34 = unnamed_addr constant [93 x i8] c"ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS cooldown_minutes INTEGER NOT NULL DEFAULT 60"
-@.panic_msg.35 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.36 = constant [9 x i8] c"<unknown>"
-@.str.37 = unnamed_addr constant [74 x i8] c"ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS last_fired_at TIMESTAMPTZ"
-@.panic_msg.38 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.39 = constant [9 x i8] c"<unknown>"
-@.str.40 = unnamed_addr constant [88 x i8] c"ALTER TABLE projects ADD COLUMN IF NOT EXISTS retention_days INTEGER NOT NULL DEFAULT 90"
-@.panic_msg.41 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.42 = constant [9 x i8] c"<unknown>"
-@.str.43 = unnamed_addr constant [83 x i8] c"ALTER TABLE projects ADD COLUMN IF NOT EXISTS sample_rate REAL NOT NULL DEFAULT 1.0"
-@.panic_msg.44 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.45 = constant [9 x i8] c"<unknown>"
-@.str.46 = unnamed_addr constant [55 x i8] c"ALTER TABLE projects ADD COLUMN IF NOT EXISTS slug TEXT"
-@.panic_msg.47 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.48 = constant [9 x i8] c"<unknown>"
-@.str.49 = unnamed_addr constant [118 x i8] c"UPDATE projects SET slug = 'default' WHERE slug IS NULL AND id = (SELECT id FROM projects ORDER BY created_at LIMIT 1)"
-@.panic_msg.50 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.51 = constant [9 x i8] c"<unknown>"
-@.str.52 = unnamed_addr constant [92 x i8] c"CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug) WHERE slug IS NOT NULL"
-@.panic_msg.53 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.54 = constant [9 x i8] c"<unknown>"
-@.str.55 = unnamed_addr constant [79 x i8] c"CREATE INDEX IF NOT EXISTS idx_org_memberships_user ON org_memberships(user_id)"
-@.panic_msg.56 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.57 = constant [9 x i8] c"<unknown>"
-@.str.58 = unnamed_addr constant [77 x i8] c"CREATE INDEX IF NOT EXISTS idx_org_memberships_org ON org_memberships(org_id)"
+@.panic_msg.31 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.32 = constant [9 x i8] c"<unknown>"
+@.str.33 = unnamed_addr constant [17 x i8] c"payload too large"
+@.str.34 = unnamed_addr constant [2 x i8] c"ok"
+@.str.35 = unnamed_addr constant [94 x i8] c"SELECT count(*)::text AS cnt FROM issues WHERE project_id = $1::uuid AND status = 'unresolved'"
+@.str.36 = unnamed_addr constant [55 x i8] c"SELECT project_id::text FROM issues WHERE id = $1::uuid"
+@.str.37 = unnamed_addr constant [4 x i8] c"name"
+@.str.38 = unnamed_addr constant [4 x i8] c"slug"
+@.panic_msg.39 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.40 = constant [9 x i8] c"<unknown>"
+@.str.41 = unnamed_addr constant [2 x i8] c"id"
+@.panic_msg.42 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.43 = constant [9 x i8] c"<unknown>"
+@.str.44 = unnamed_addr constant [2 x i8] c"id"
+@.str.45 = unnamed_addr constant [4 x i8] c"name"
+@.str.46 = unnamed_addr constant [4 x i8] c"slug"
+@.str.47 = unnamed_addr constant [10 x i8] c"created_at"
+@.str.48 = unnamed_addr constant [2 x i8] c"id"
+@.str.49 = unnamed_addr constant [4 x i8] c"name"
+@.str.50 = unnamed_addr constant [4 x i8] c"slug"
+@.str.51 = unnamed_addr constant [10 x i8] c"created_at"
+@.str.52 = unnamed_addr constant [4 x i8] c"name"
+@.str.53 = unnamed_addr constant [3 x i8] c"asc"
+@.panic_msg.54 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.55 = constant [9 x i8] c"<unknown>"
+@.str.56 = unnamed_addr constant [6 x i8] c"org_id"
+@.str.57 = unnamed_addr constant [4 x i8] c"name"
+@.str.58 = unnamed_addr constant [8 x i8] c"platform"
 @.panic_msg.59 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.60 = constant [9 x i8] c"<unknown>"
-@.str.61 = unnamed_addr constant [65 x i8] c"CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)"
-@.panic_msg.62 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.63 = constant [9 x i8] c"<unknown>"
-@.str.64 = unnamed_addr constant [71 x i8] c"CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)"
-@.panic_msg.65 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.66 = constant [9 x i8] c"<unknown>"
-@.str.67 = unnamed_addr constant [63 x i8] c"CREATE INDEX IF NOT EXISTS idx_projects_org ON projects(org_id)"
-@.panic_msg.68 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.69 = constant [9 x i8] c"<unknown>"
-@.str.70 = unnamed_addr constant [71 x i8] c"CREATE INDEX IF NOT EXISTS idx_api_keys_project ON api_keys(project_id)"
-@.panic_msg.71 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.72 = constant [9 x i8] c"<unknown>"
-@.str.73 = unnamed_addr constant [93 x i8] c"CREATE INDEX IF NOT EXISTS idx_api_keys_value ON api_keys(key_value) WHERE revoked_at IS NULL"
-@.panic_msg.74 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.75 = constant [9 x i8] c"<unknown>"
-@.str.76 = unnamed_addr constant [82 x i8] c"CREATE INDEX IF NOT EXISTS idx_issues_project_status ON issues(project_id, status)"
-@.panic_msg.77 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.78 = constant [9 x i8] c"<unknown>"
-@.str.79 = unnamed_addr constant [93 x i8] c"CREATE INDEX IF NOT EXISTS idx_issues_project_last_seen ON issues(project_id, last_seen DESC)"
-@.panic_msg.80 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.81 = constant [9 x i8] c"<unknown>"
-@.str.82 = unnamed_addr constant [94 x i8] c"CREATE INDEX IF NOT EXISTS idx_events_project_received ON events(project_id, received_at DESC)"
-@.panic_msg.83 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.84 = constant [9 x i8] c"<unknown>"
-@.str.85 = unnamed_addr constant [90 x i8] c"CREATE INDEX IF NOT EXISTS idx_events_issue_received ON events(issue_id, received_at DESC)"
-@.panic_msg.86 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.87 = constant [9 x i8] c"<unknown>"
-@.str.88 = unnamed_addr constant [78 x i8] c"CREATE INDEX IF NOT EXISTS idx_events_level ON events(level, received_at DESC)"
+@.str.61 = unnamed_addr constant [2 x i8] c"id"
+@.str.62 = unnamed_addr constant [4 x i8] c"slug"
+@.panic_msg.63 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.64 = constant [9 x i8] c"<unknown>"
+@.str.65 = unnamed_addr constant [2 x i8] c"id"
+@.panic_msg.66 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.67 = constant [9 x i8] c"<unknown>"
+@.str.68 = unnamed_addr constant [2 x i8] c"id"
+@.str.69 = unnamed_addr constant [6 x i8] c"org_id"
+@.str.70 = unnamed_addr constant [4 x i8] c"name"
+@.str.71 = unnamed_addr constant [8 x i8] c"platform"
+@.str.72 = unnamed_addr constant [10 x i8] c"created_at"
+@.str.73 = unnamed_addr constant [2 x i8] c"id"
+@.str.74 = unnamed_addr constant [6 x i8] c"org_id"
+@.str.75 = unnamed_addr constant [4 x i8] c"name"
+@.str.76 = unnamed_addr constant [8 x i8] c"platform"
+@.str.77 = unnamed_addr constant [10 x i8] c"created_at"
+@.str.78 = unnamed_addr constant [6 x i8] c"org_id"
+@.str.79 = unnamed_addr constant [4 x i8] c"name"
+@.str.80 = unnamed_addr constant [3 x i8] c"asc"
+@.panic_msg.81 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.82 = constant [9 x i8] c"<unknown>"
+@.str.83 = unnamed_addr constant [141 x i8] c"INSERT INTO api_keys (project_id, key_value, label) VALUES ($1::uuid, 'mshr_' || encode(gen_random_bytes(24), 'hex'), $2) RETURNING key_value"
+@.panic_msg.84 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.85 = constant [9 x i8] c"<unknown>"
+@.str.86 = unnamed_addr constant [9 x i8] c"key_value"
+@.str.87 = unnamed_addr constant [31 x i8] c"create_api_key: no key returned"
+@.str.88 = unnamed_addr constant [180 x i8] c"SELECT p.id::text, p.org_id::text, p.name, p.platform, p.created_at::text FROM projects p JOIN api_keys ak ON ak.project_id = p.id WHERE ak.key_value = $1 AND ak.revoked_at IS NULL"
 @.panic_msg.89 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.90 = constant [9 x i8] c"<unknown>"
-@.str.91 = unnamed_addr constant [72 x i8] c"CREATE INDEX IF NOT EXISTS idx_events_fingerprint ON events(fingerprint)"
-@.panic_msg.92 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.93 = constant [9 x i8] c"<unknown>"
-@.str.94 = unnamed_addr constant [83 x i8] c"CREATE INDEX IF NOT EXISTS idx_events_tags ON events USING GIN(tags jsonb_path_ops)"
-@.panic_msg.95 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.96 = constant [9 x i8] c"<unknown>"
-@.str.97 = unnamed_addr constant [98 x i8] c"CREATE INDEX IF NOT EXISTS idx_alert_rules_project ON alert_rules(project_id) WHERE enabled = true"
-@.panic_msg.98 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.99 = constant [9 x i8] c"<unknown>"
-@.str.100 = unnamed_addr constant [82 x i8] c"CREATE INDEX IF NOT EXISTS idx_alerts_project_status ON alerts(project_id, status)"
-@.panic_msg.101 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.102 = constant [9 x i8] c"<unknown>"
-@.str.103 = unnamed_addr constant [61 x i8] c"CREATE INDEX IF NOT EXISTS idx_alerts_rule ON alerts(rule_id)"
+@.str.91 = unnamed_addr constant [2 x i8] c"id"
+@.str.92 = unnamed_addr constant [6 x i8] c"org_id"
+@.str.93 = unnamed_addr constant [4 x i8] c"name"
+@.str.94 = unnamed_addr constant [8 x i8] c"platform"
+@.str.95 = unnamed_addr constant [10 x i8] c"created_at"
+@.str.96 = unnamed_addr constant [9 x i8] c"not found"
+@.str.97 = unnamed_addr constant [58 x i8] c"UPDATE api_keys SET revoked_at = now() WHERE id = $1::uuid"
+@.str.98 = unnamed_addr constant [120 x i8] c"INSERT INTO users (email, password_hash, display_name) VALUES ($1, crypt($2, gen_salt('bf', 12)), $3) RETURNING id::text"
+@.panic_msg.99 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.100 = constant [9 x i8] c"<unknown>"
+@.str.101 = unnamed_addr constant [2 x i8] c"id"
+@.str.102 = unnamed_addr constant [27 x i8] c"create_user: no id returned"
+@.str.103 = unnamed_addr constant [127 x i8] c"SELECT id::text, email, display_name, created_at::text FROM users WHERE email = $1 AND password_hash = crypt($2, password_hash)"
 @.panic_msg.104 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.105 = constant [9 x i8] c"<unknown>"
-@.str.106 = unnamed_addr constant [76 x i8] c"CREATE INDEX IF NOT EXISTS idx_alerts_triggered ON alerts(triggered_at DESC)"
-@.panic_msg.107 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.108 = constant [9 x i8] c"<unknown>"
-@.str.109 = unnamed_addr constant [1 x i8] c"-"
-@.str.110 = unnamed_addr constant [1 x i8] c"-"
-@.str.111 = unnamed_addr constant [34 x i8] c"CREATE TABLE IF NOT EXISTS events_"
-@.str.112 = unnamed_addr constant [39 x i8] c" PARTITION OF events FOR VALUES FROM ('"
-@.str.113 = unnamed_addr constant [9 x i8] c"') TO (('"
-@.str.114 = unnamed_addr constant [13 x i8] c"'::date + 1))"
-@.panic_msg.115 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.116 = constant [9 x i8] c"<unknown>"
-@.str.117 = unnamed_addr constant [66 x i8] c"SELECT to_char(now() + ($1 || ' days')::interval, 'YYYYMMDD') AS d"
+@.str.106 = unnamed_addr constant [2 x i8] c"id"
+@.str.107 = unnamed_addr constant [5 x i8] c"email"
+@.str.108 = unnamed_addr constant [12 x i8] c"display_name"
+@.str.109 = unnamed_addr constant [10 x i8] c"created_at"
+@.str.110 = unnamed_addr constant [9 x i8] c"not found"
+@.panic_msg.111 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.112 = constant [9 x i8] c"<unknown>"
+@.str.113 = unnamed_addr constant [2 x i8] c"id"
+@.str.114 = unnamed_addr constant [5 x i8] c"email"
+@.str.115 = unnamed_addr constant [12 x i8] c"display_name"
+@.str.116 = unnamed_addr constant [10 x i8] c"created_at"
+@.str.117 = unnamed_addr constant [108 x i8] c"INSERT INTO sessions (token, user_id) VALUES (encode(gen_random_bytes(32), 'hex'), $1::uuid) RETURNING token"
 @.panic_msg.118 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.119 = constant [9 x i8] c"<unknown>"
-@.str.120 = unnamed_addr constant [1 x i8] c"d"
-@.panic_msg.121 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.122 = constant [9 x i8] c"<unknown>"
-@.str.123 = unnamed_addr constant [478 x i8] c"INSERT INTO events (project_id, issue_id, level, message, fingerprint, exception, stacktrace, breadcrumbs, tags, extra, user_context, sdk_name, sdk_version) SELECT $1::uuid, $2::uuid, j->>'level', j->>'message', $3, (j->'exception')::jsonb, (j->'stacktrace')::jsonb, (j->'breadcrumbs')::jsonb, COALESCE((j->'tags')::jsonb, '{}'::jsonb), COALESCE((j->'extra')::jsonb, '{}'::jsonb), (j->'user_context')::jsonb, j->>'sdk_name', j->>'sdk_version' FROM (SELECT $4::jsonb AS j) AS sub"
-@.str.124 = unnamed_addr constant [3 x i8] c"|||"
-@.panic_msg.125 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.126 = constant [9 x i8] c"<unknown>"
-@.str.127 = unnamed_addr constant [34 x i8] c"[StorageWriter] Dropping batch of "
-@.str.128 = unnamed_addr constant [20 x i8] c" events for project "
-@.str.129 = unnamed_addr constant [16 x i8] c" after 3 retries"
-@.panic_msg.130 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.131 = constant [9 x i8] c"<unknown>"
-@.panic_msg.132 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.133 = constant [9 x i8] c"<unknown>"
+@.str.120 = unnamed_addr constant [5 x i8] c"token"
+@.str.121 = unnamed_addr constant [33 x i8] c"create_session: no token returned"
+@.str.122 = unnamed_addr constant [117 x i8] c"SELECT token, user_id::text, created_at::text, expires_at::text FROM sessions WHERE token = $1 AND expires_at > now()"
+@.panic_msg.123 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.124 = constant [9 x i8] c"<unknown>"
+@.str.125 = unnamed_addr constant [5 x i8] c"token"
+@.str.126 = unnamed_addr constant [7 x i8] c"user_id"
+@.str.127 = unnamed_addr constant [10 x i8] c"created_at"
+@.str.128 = unnamed_addr constant [10 x i8] c"expires_at"
+@.str.129 = unnamed_addr constant [9 x i8] c"not found"
+@.str.130 = unnamed_addr constant [37 x i8] c"DELETE FROM sessions WHERE token = $1"
+@.str.131 = unnamed_addr constant [7 x i8] c"user_id"
+@.str.132 = unnamed_addr constant [6 x i8] c"org_id"
+@.str.133 = unnamed_addr constant [4 x i8] c"role"
 @.panic_msg.134 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.135 = constant [9 x i8] c"<unknown>"
-@.str.136 = unnamed_addr constant [17 x i8] c"payload too large"
-@.str.137 = unnamed_addr constant [2 x i8] c"ok"
-@.str.138 = unnamed_addr constant [73 x i8] c"INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id::text"
-@.panic_msg.139 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.140 = constant [9 x i8] c"<unknown>"
-@.str.141 = unnamed_addr constant [2 x i8] c"id"
-@.str.142 = unnamed_addr constant [26 x i8] c"insert_org: no id returned"
-@.str.143 = unnamed_addr constant [84 x i8] c"SELECT id::text, name, slug, created_at::text FROM organizations WHERE id = $1::uuid"
-@.panic_msg.144 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.145 = constant [9 x i8] c"<unknown>"
-@.str.146 = unnamed_addr constant [2 x i8] c"id"
-@.str.147 = unnamed_addr constant [4 x i8] c"name"
-@.str.148 = unnamed_addr constant [4 x i8] c"slug"
-@.str.149 = unnamed_addr constant [10 x i8] c"created_at"
-@.str.150 = unnamed_addr constant [9 x i8] c"not found"
-@.str.151 = unnamed_addr constant [2 x i8] c"id"
-@.str.152 = unnamed_addr constant [4 x i8] c"name"
-@.str.153 = unnamed_addr constant [4 x i8] c"slug"
-@.str.154 = unnamed_addr constant [10 x i8] c"created_at"
-@.str.155 = unnamed_addr constant [78 x i8] c"SELECT id::text, name, slug, created_at::text FROM organizations ORDER BY name"
-@.panic_msg.156 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.157 = constant [9 x i8] c"<unknown>"
-@.str.158 = unnamed_addr constant [90 x i8] c"INSERT INTO projects (org_id, name, platform) VALUES ($1::uuid, $2, $3) RETURNING id::text"
-@.panic_msg.159 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.160 = constant [9 x i8] c"<unknown>"
-@.str.161 = unnamed_addr constant [2 x i8] c"id"
-@.str.162 = unnamed_addr constant [30 x i8] c"insert_project: no id returned"
-@.str.163 = unnamed_addr constant [45 x i8] c"SELECT id::text FROM projects WHERE slug = $1"
-@.panic_msg.164 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.165 = constant [9 x i8] c"<unknown>"
-@.str.166 = unnamed_addr constant [2 x i8] c"id"
-@.str.167 = unnamed_addr constant [28 x i8] c"project not found for slug: "
-@.str.168 = unnamed_addr constant [97 x i8] c"SELECT id::text, org_id::text, name, platform, created_at::text FROM projects WHERE id = $1::uuid"
+@.str.136 = unnamed_addr constant [2 x i8] c"id"
+@.str.137 = unnamed_addr constant [2 x i8] c"id"
+@.str.138 = unnamed_addr constant [7 x i8] c"user_id"
+@.str.139 = unnamed_addr constant [6 x i8] c"org_id"
+@.str.140 = unnamed_addr constant [4 x i8] c"role"
+@.str.141 = unnamed_addr constant [9 x i8] c"joined_at"
+@.str.142 = unnamed_addr constant [6 x i8] c"org_id"
+@.panic_msg.143 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.144 = constant [9 x i8] c"<unknown>"
+@.str.145 = unnamed_addr constant [319 x i8] c"INSERT INTO issues (project_id, fingerprint, title, level, event_count) VALUES ($1::uuid, $2, $3, $4, 1) ON CONFLICT (project_id, fingerprint) DO UPDATE SET event_count = issues.event_count + 1, last_seen = now(), status = CASE WHEN issues.status = 'resolved' THEN 'unresolved' ELSE issues.status END RETURNING id::text"
+@.panic_msg.146 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.147 = constant [9 x i8] c"<unknown>"
+@.str.148 = unnamed_addr constant [2 x i8] c"id"
+@.str.149 = unnamed_addr constant [28 x i8] c"upsert_issue: no id returned"
+@.str.150 = unnamed_addr constant [103 x i8] c"SELECT 1 AS found FROM issues WHERE project_id = $1::uuid AND fingerprint = $2 AND status = 'discarded'"
+@.panic_msg.151 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.152 = constant [9 x i8] c"<unknown>"
+@.str.153 = unnamed_addr constant [82 x i8] c"UPDATE issues SET status = 'resolved' WHERE id = $1::uuid AND status != 'resolved'"
+@.str.154 = unnamed_addr constant [57 x i8] c"UPDATE issues SET status = 'archived' WHERE id = $1::uuid"
+@.str.155 = unnamed_addr constant [59 x i8] c"UPDATE issues SET status = 'unresolved' WHERE id = $1::uuid"
+@.str.156 = unnamed_addr constant [60 x i8] c"UPDATE issues SET assigned_to = $2::uuid WHERE id = $1::uuid"
+@.str.157 = unnamed_addr constant [56 x i8] c"UPDATE issues SET assigned_to = NULL WHERE id = $1::uuid"
+@.str.158 = unnamed_addr constant [58 x i8] c"UPDATE issues SET status = 'discarded' WHERE id = $1::uuid"
+@.str.159 = unnamed_addr constant [44 x i8] c"DELETE FROM events WHERE issue_id = $1::uuid"
+@.panic_msg.160 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.161 = constant [9 x i8] c"<unknown>"
+@.str.162 = unnamed_addr constant [38 x i8] c"DELETE FROM issues WHERE id = $1::uuid"
+@.str.163 = unnamed_addr constant [374 x i8] c"UPDATE issues SET status = 'unresolved' WHERE status = 'archived' AND id IN (SELECT i.id FROM issues i JOIN events e ON e.issue_id = i.id AND e.received_at > now() - interval '1 hour' WHERE i.status = 'archived' GROUP BY i.id HAVING count(*) > GREATEST(10, (SELECT count(*) FROM events e2 WHERE e2.issue_id = i.id AND e2.received_at > now() - interval '7 days') / 168 * 10))"
+@.str.164 = unnamed_addr constant [870 x i8] c"SELECT CASE WHEN length(COALESCE(j->>'fingerprint', '')) > 0 THEN j->>'fingerprint' WHEN j->'stacktrace' IS NOT NULL AND jsonb_typeof(j->'stacktrace') = 'array' AND jsonb_array_length(j->'stacktrace') > 0 THEN (SELECT string_agg((frame->>'filename') || '|' || (frame->>'function_name'), ';' ORDER BY ordinality) FROM jsonb_array_elements(j->'stacktrace') WITH ORDINALITY AS t(frame, ordinality)) || ':' || lower(COALESCE(replace(j->>'message', '0x', ''), '')) WHEN j->'exception' IS NOT NULL AND j->'exception'->>'type_name' IS NOT NULL THEN (j->'exception'->>'type_name') || ':' || lower(COALESCE(replace(j->'exception'->>'value', '0x', ''), '')) ELSE 'msg:' || lower(COALESCE(replace(j->>'message', '0x', ''), '')) END AS fingerprint, COALESCE(NULLIF(j->>'message', ''), 'Untitled') AS title, COALESCE(j->>'level', 'error') AS level FROM (SELECT $1::jsonb AS j) AS sub"
+@.panic_msg.165 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.166 = constant [9 x i8] c"<unknown>"
+@.str.167 = unnamed_addr constant [31 x i8] c"extract_event_fields: no result"
+@.str.168 = unnamed_addr constant [404 x i8] c"SELECT id::text, project_id::text, fingerprint, title, level, status, event_count::text, first_seen::text, last_seen::text, COALESCE(assigned_to::text, '') as assigned_to FROM issues WHERE project_id = $1::uuid AND ($2 = '' OR status = $2) AND ($3 = '' OR level = $3) AND ($4 = '' OR assigned_to = $4::uuid) AND (last_seen, id) < ($5::timestamptz, $6::uuid) ORDER BY last_seen DESC, id DESC LIMIT $7::int"
 @.panic_msg.169 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.170 = constant [9 x i8] c"<unknown>"
-@.str.171 = unnamed_addr constant [2 x i8] c"id"
-@.str.172 = unnamed_addr constant [6 x i8] c"org_id"
-@.str.173 = unnamed_addr constant [4 x i8] c"name"
-@.str.174 = unnamed_addr constant [8 x i8] c"platform"
-@.str.175 = unnamed_addr constant [10 x i8] c"created_at"
-@.str.176 = unnamed_addr constant [9 x i8] c"not found"
-@.str.177 = unnamed_addr constant [2 x i8] c"id"
-@.str.178 = unnamed_addr constant [6 x i8] c"org_id"
-@.str.179 = unnamed_addr constant [4 x i8] c"name"
-@.str.180 = unnamed_addr constant [8 x i8] c"platform"
-@.str.181 = unnamed_addr constant [10 x i8] c"created_at"
-@.str.182 = unnamed_addr constant [115 x i8] c"SELECT id::text, org_id::text, name, platform, created_at::text FROM projects WHERE org_id = $1::uuid ORDER BY name"
-@.panic_msg.183 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.184 = constant [9 x i8] c"<unknown>"
-@.str.185 = unnamed_addr constant [141 x i8] c"INSERT INTO api_keys (project_id, key_value, label) VALUES ($1::uuid, 'mshr_' || encode(gen_random_bytes(24), 'hex'), $2) RETURNING key_value"
-@.panic_msg.186 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.187 = constant [9 x i8] c"<unknown>"
-@.str.188 = unnamed_addr constant [9 x i8] c"key_value"
-@.str.189 = unnamed_addr constant [31 x i8] c"create_api_key: no key returned"
-@.str.190 = unnamed_addr constant [180 x i8] c"SELECT p.id::text, p.org_id::text, p.name, p.platform, p.created_at::text FROM projects p JOIN api_keys ak ON ak.project_id = p.id WHERE ak.key_value = $1 AND ak.revoked_at IS NULL"
-@.panic_msg.191 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.192 = constant [9 x i8] c"<unknown>"
-@.str.193 = unnamed_addr constant [2 x i8] c"id"
-@.str.194 = unnamed_addr constant [6 x i8] c"org_id"
-@.str.195 = unnamed_addr constant [4 x i8] c"name"
-@.str.196 = unnamed_addr constant [8 x i8] c"platform"
-@.str.197 = unnamed_addr constant [10 x i8] c"created_at"
-@.str.198 = unnamed_addr constant [9 x i8] c"not found"
-@.str.199 = unnamed_addr constant [58 x i8] c"UPDATE api_keys SET revoked_at = now() WHERE id = $1::uuid"
-@.str.200 = unnamed_addr constant [120 x i8] c"INSERT INTO users (email, password_hash, display_name) VALUES ($1, crypt($2, gen_salt('bf', 12)), $3) RETURNING id::text"
-@.panic_msg.201 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.202 = constant [9 x i8] c"<unknown>"
-@.str.203 = unnamed_addr constant [2 x i8] c"id"
-@.str.204 = unnamed_addr constant [27 x i8] c"create_user: no id returned"
-@.str.205 = unnamed_addr constant [127 x i8] c"SELECT id::text, email, display_name, created_at::text FROM users WHERE email = $1 AND password_hash = crypt($2, password_hash)"
-@.panic_msg.206 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.207 = constant [9 x i8] c"<unknown>"
-@.str.208 = unnamed_addr constant [2 x i8] c"id"
-@.str.209 = unnamed_addr constant [5 x i8] c"email"
-@.str.210 = unnamed_addr constant [12 x i8] c"display_name"
-@.str.211 = unnamed_addr constant [10 x i8] c"created_at"
-@.str.212 = unnamed_addr constant [9 x i8] c"not found"
-@.str.213 = unnamed_addr constant [85 x i8] c"SELECT id::text, email, display_name, created_at::text FROM users WHERE id = $1::uuid"
+@.str.171 = unnamed_addr constant [354 x i8] c"SELECT id::text, project_id::text, fingerprint, title, level, status, event_count::text, first_seen::text, last_seen::text, COALESCE(assigned_to::text, '') as assigned_to FROM issues WHERE project_id = $1::uuid AND ($2 = '' OR status = $2) AND ($3 = '' OR level = $3) AND ($4 = '' OR assigned_to = $4::uuid) ORDER BY last_seen DESC, id DESC LIMIT $5::int"
+@.panic_msg.172 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.173 = constant [9 x i8] c"<unknown>"
+@.str.174 = unnamed_addr constant [361 x i8] c"SELECT id::text, issue_id::text, level, message, received_at::text, ts_rank(to_tsvector('english', message), plainto_tsquery('english', $2))::text AS rank FROM events WHERE project_id = $1::uuid AND to_tsvector('english', message) @@ plainto_tsquery('english', $2) AND received_at > now() - interval '24 hours' ORDER BY rank DESC, received_at DESC LIMIT $3::int"
+@.panic_msg.175 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.176 = constant [9 x i8] c"<unknown>"
+@.str.177 = unnamed_addr constant [226 x i8] c"SELECT id::text, issue_id::text, level, message, tags::text, received_at::text FROM events WHERE project_id = $1::uuid AND tags @> $2::jsonb AND received_at > now() - interval '24 hours' ORDER BY received_at DESC LIMIT $3::int"
+@.panic_msg.178 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.179 = constant [9 x i8] c"<unknown>"
+@.str.180 = unnamed_addr constant [189 x i8] c"SELECT id::text, level, message, received_at::text FROM events WHERE issue_id = $1::uuid AND (received_at, id) < ($2::timestamptz, $3::uuid) ORDER BY received_at DESC, id DESC LIMIT $4::int"
+@.panic_msg.181 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.182 = constant [9 x i8] c"<unknown>"
+@.str.183 = unnamed_addr constant [137 x i8] c"SELECT id::text, level, message, received_at::text FROM events WHERE issue_id = $1::uuid ORDER BY received_at DESC, id DESC LIMIT $2::int"
+@.panic_msg.184 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.185 = constant [9 x i8] c"<unknown>"
+@.str.186 = unnamed_addr constant [193 x i8] c"SELECT date_trunc($2, received_at)::text AS bucket, count(*)::text AS count FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours' GROUP BY bucket ORDER BY bucket"
+@.panic_msg.187 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.188 = constant [9 x i8] c"<unknown>"
+@.str.189 = unnamed_addr constant [158 x i8] c"SELECT level, count(*)::text AS count FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours' GROUP BY level ORDER BY count DESC"
+@.panic_msg.190 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.191 = constant [9 x i8] c"<unknown>"
+@.str.192 = unnamed_addr constant [179 x i8] c"SELECT id::text, title, level, status, event_count::text, last_seen::text FROM issues WHERE project_id = $1::uuid AND status = 'unresolved' ORDER BY event_count DESC LIMIT $2::int"
+@.panic_msg.193 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.194 = constant [9 x i8] c"<unknown>"
+@.str.195 = unnamed_addr constant [202 x i8] c"SELECT tags->>$2 AS tag_value, count(*)::text AS count FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours' AND tags ? $2 GROUP BY tag_value ORDER BY count DESC LIMIT 20"
+@.panic_msg.196 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.197 = constant [9 x i8] c"<unknown>"
+@.str.198 = unnamed_addr constant [128 x i8] c"SELECT id::text, level, message, received_at::text FROM events WHERE issue_id = $1::uuid ORDER BY received_at DESC LIMIT $2::int"
+@.panic_msg.199 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.200 = constant [9 x i8] c"<unknown>"
+@.str.201 = unnamed_addr constant [364 x i8] c"SELECT (SELECT count(*) FROM issues WHERE project_id = $1::uuid AND status = 'unresolved')::text AS unresolved_count, (SELECT count(*) FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours')::text AS events_24h, (SELECT count(*) FROM issues WHERE project_id = $1::uuid AND first_seen > now() - interval '24 hours')::text AS new_today"
+@.panic_msg.202 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.203 = constant [9 x i8] c"<unknown>"
+@.str.204 = unnamed_addr constant [481 x i8] c"SELECT id::text, project_id::text, issue_id::text, level, message, fingerprint, COALESCE(exception::text, 'null') AS exception, COALESCE(stacktrace::text, '[]') AS stacktrace, COALESCE(breadcrumbs::text, '[]') AS breadcrumbs, COALESCE(tags::text, '{}') AS tags, COALESCE(extra::text, '{}') AS extra, COALESCE(user_context::text, 'null') AS user_context, COALESCE(sdk_name, '') AS sdk_name, COALESCE(sdk_version, '') AS sdk_version, received_at::text FROM events WHERE id = $1::uuid"
+@.panic_msg.205 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.206 = constant [9 x i8] c"<unknown>"
+@.str.207 = unnamed_addr constant [321 x i8] c"SELECT (SELECT id::text FROM events WHERE issue_id = $1::uuid AND (received_at, id) > ($2::timestamptz, $3::uuid) ORDER BY received_at, id LIMIT 1) AS next_id, (SELECT id::text FROM events WHERE issue_id = $1::uuid AND (received_at, id) < ($2::timestamptz, $3::uuid) ORDER BY received_at DESC, id DESC LIMIT 1) AS prev_id"
+@.panic_msg.208 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.209 = constant [9 x i8] c"<unknown>"
+@.str.210 = unnamed_addr constant [95 x i8] c"UPDATE org_memberships SET role = $2 WHERE id = $1::uuid AND $2 IN ('owner', 'admin', 'member')"
+@.panic_msg.211 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.212 = constant [9 x i8] c"<unknown>"
+@.str.213 = unnamed_addr constant [205 x i8] c"SELECT m.id::text, m.user_id::text, m.org_id::text, m.role, m.joined_at::text, u.email, u.display_name FROM org_memberships m JOIN users u ON u.id = m.user_id WHERE m.org_id = $1::uuid ORDER BY m.joined_at"
 @.panic_msg.214 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.215 = constant [9 x i8] c"<unknown>"
-@.str.216 = unnamed_addr constant [2 x i8] c"id"
-@.str.217 = unnamed_addr constant [5 x i8] c"email"
-@.str.218 = unnamed_addr constant [12 x i8] c"display_name"
-@.str.219 = unnamed_addr constant [10 x i8] c"created_at"
-@.str.220 = unnamed_addr constant [9 x i8] c"not found"
-@.str.221 = unnamed_addr constant [108 x i8] c"INSERT INTO sessions (token, user_id) VALUES (encode(gen_random_bytes(32), 'hex'), $1::uuid) RETURNING token"
-@.panic_msg.222 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.223 = constant [9 x i8] c"<unknown>"
-@.str.224 = unnamed_addr constant [5 x i8] c"token"
-@.str.225 = unnamed_addr constant [33 x i8] c"create_session: no token returned"
-@.str.226 = unnamed_addr constant [117 x i8] c"SELECT token, user_id::text, created_at::text, expires_at::text FROM sessions WHERE token = $1 AND expires_at > now()"
-@.panic_msg.227 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.228 = constant [9 x i8] c"<unknown>"
-@.str.229 = unnamed_addr constant [5 x i8] c"token"
-@.str.230 = unnamed_addr constant [7 x i8] c"user_id"
-@.str.231 = unnamed_addr constant [10 x i8] c"created_at"
-@.str.232 = unnamed_addr constant [10 x i8] c"expires_at"
-@.str.233 = unnamed_addr constant [9 x i8] c"not found"
-@.str.234 = unnamed_addr constant [37 x i8] c"DELETE FROM sessions WHERE token = $1"
-@.str.235 = unnamed_addr constant [102 x i8] c"INSERT INTO org_memberships (user_id, org_id, role) VALUES ($1::uuid, $2::uuid, $3) RETURNING id::text"
-@.panic_msg.236 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.237 = constant [9 x i8] c"<unknown>"
-@.str.238 = unnamed_addr constant [2 x i8] c"id"
-@.str.239 = unnamed_addr constant [26 x i8] c"add_member: no id returned"
-@.str.240 = unnamed_addr constant [2 x i8] c"id"
-@.str.241 = unnamed_addr constant [7 x i8] c"user_id"
-@.str.242 = unnamed_addr constant [6 x i8] c"org_id"
-@.str.243 = unnamed_addr constant [4 x i8] c"role"
-@.str.244 = unnamed_addr constant [9 x i8] c"joined_at"
-@.str.245 = unnamed_addr constant [112 x i8] c"SELECT id::text, user_id::text, org_id::text, role, joined_at::text FROM org_memberships WHERE org_id = $1::uuid"
+@.str.216 = unnamed_addr constant [182 x i8] c"SELECT id::text, project_id::text, key_value, label, created_at::text, COALESCE(revoked_at::text, '') AS revoked_at FROM api_keys WHERE project_id = $1::uuid ORDER BY created_at DESC"
+@.panic_msg.217 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.218 = constant [9 x i8] c"<unknown>"
+@.str.219 = unnamed_addr constant [354 x i8] c"INSERT INTO alert_rules (project_id, name, condition_json, action_json, cooldown_minutes) SELECT $1::uuid, COALESCE(j->>'name', 'Unnamed Rule'), COALESCE((j->'condition')::jsonb, '{}'::jsonb), COALESCE((j->'action')::jsonb, '{\22type\22:\22websocket\22}'::jsonb), COALESCE((j->>'cooldown_minutes')::int, 60) FROM (SELECT $2::jsonb AS j) AS sub RETURNING id::text"
+@.panic_msg.220 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.221 = constant [9 x i8] c"<unknown>"
+@.str.222 = unnamed_addr constant [2 x i8] c"id"
+@.str.223 = unnamed_addr constant [33 x i8] c"create_alert_rule: no id returned"
+@.str.224 = unnamed_addr constant [259 x i8] c"SELECT id::text, project_id::text, name, condition_json::text, action_json::text, enabled::text, cooldown_minutes::text, COALESCE(last_fired_at::text, '') AS last_fired_at, created_at::text FROM alert_rules WHERE project_id = $1::uuid ORDER BY created_at DESC"
+@.panic_msg.225 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.226 = constant [9 x i8] c"<unknown>"
+@.str.227 = unnamed_addr constant [64 x i8] c"UPDATE alert_rules SET enabled = $2::boolean WHERE id = $1::uuid"
+@.panic_msg.228 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.229 = constant [9 x i8] c"<unknown>"
+@.str.230 = unnamed_addr constant [375 x i8] c"SELECT CASE WHEN event_count > $3::int AND (last_fired IS NULL OR last_fired < now() - interval '1 minute' * $6::int) THEN 1 ELSE 0 END AS should_fire FROM (SELECT count(*) AS event_count FROM events WHERE project_id = $2::uuid AND received_at > now() - interval '1 minute' * $4::int) counts, (SELECT last_fired_at AS last_fired FROM alert_rules WHERE id = $1::uuid) cooldown"
+@.str.231 = unnamed_addr constant [0 x i8] zeroinitializer
+@.panic_msg.232 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.233 = constant [9 x i8] c"<unknown>"
+@.str.234 = unnamed_addr constant [11 x i8] c"should_fire"
+@.str.235 = unnamed_addr constant [1 x i8] c"1"
+@.str.236 = unnamed_addr constant [197 x i8] c"INSERT INTO alerts (rule_id, project_id, status, message, condition_snapshot) VALUES ($1::uuid, $2::uuid, 'active', $3, jsonb_build_object('condition_type', $4, 'rule_name', $5)) RETURNING id::text"
+@.panic_msg.237 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.238 = constant [9 x i8] c"<unknown>"
+@.str.239 = unnamed_addr constant [2 x i8] c"id"
+@.str.240 = unnamed_addr constant [64 x i8] c"UPDATE alert_rules SET last_fired_at = now() WHERE id = $1::uuid"
+@.str.241 = unnamed_addr constant [26 x i8] c"fire_alert: no id returned"
+@.str.242 = unnamed_addr constant [77 x i8] c"SELECT 1 AS is_new FROM issues WHERE id = $1::uuid AND first_seen = last_seen"
+@.panic_msg.243 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.244 = constant [9 x i8] c"<unknown>"
+@.str.245 = unnamed_addr constant [152 x i8] c"SELECT id::text, name, cooldown_minutes::text FROM alert_rules WHERE project_id = $1::uuid AND enabled = true AND condition_json->>'condition_type' = $2"
 @.panic_msg.246 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.247 = constant [9 x i8] c"<unknown>"
-@.str.248 = unnamed_addr constant [319 x i8] c"INSERT INTO issues (project_id, fingerprint, title, level, event_count) VALUES ($1::uuid, $2, $3, $4, 1) ON CONFLICT (project_id, fingerprint) DO UPDATE SET event_count = issues.event_count + 1, last_seen = now(), status = CASE WHEN issues.status = 'resolved' THEN 'unresolved' ELSE issues.status END RETURNING id::text"
+@.str.248 = unnamed_addr constant [136 x i8] c"SELECT 1 AS ok FROM alert_rules WHERE id = $1::uuid AND (last_fired_at IS NULL OR last_fired_at < now() - interval '1 minute' * $2::int)"
 @.panic_msg.249 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.250 = constant [9 x i8] c"<unknown>"
-@.str.251 = unnamed_addr constant [2 x i8] c"id"
-@.str.252 = unnamed_addr constant [28 x i8] c"upsert_issue: no id returned"
-@.str.253 = unnamed_addr constant [103 x i8] c"SELECT 1 AS found FROM issues WHERE project_id = $1::uuid AND fingerprint = $2 AND status = 'discarded'"
+@.str.251 = unnamed_addr constant [108 x i8] c"UPDATE alerts SET status = 'acknowledged', acknowledged_at = now() WHERE id = $1::uuid AND status = 'active'"
+@.str.252 = unnamed_addr constant [119 x i8] c"UPDATE alerts SET status = 'resolved', resolved_at = now() WHERE id = $1::uuid AND status IN ('active', 'acknowledged')"
+@.str.253 = unnamed_addr constant [406 x i8] c"SELECT a.id::text, a.rule_id::text, a.project_id::text, a.status, a.message, a.condition_snapshot::text, a.triggered_at::text, COALESCE(a.acknowledged_at::text, '') AS acknowledged_at, COALESCE(a.resolved_at::text, '') AS resolved_at, r.name AS rule_name FROM alerts a JOIN alert_rules r ON r.id = a.rule_id WHERE a.project_id = $1::uuid AND ($2 = '' OR a.status = $2) ORDER BY a.triggered_at DESC LIMIT 50"
 @.panic_msg.254 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.255 = constant [9 x i8] c"<unknown>"
-@.str.256 = unnamed_addr constant [82 x i8] c"UPDATE issues SET status = 'resolved' WHERE id = $1::uuid AND status != 'resolved'"
-@.str.257 = unnamed_addr constant [57 x i8] c"UPDATE issues SET status = 'archived' WHERE id = $1::uuid"
-@.str.258 = unnamed_addr constant [59 x i8] c"UPDATE issues SET status = 'unresolved' WHERE id = $1::uuid"
-@.str.259 = unnamed_addr constant [60 x i8] c"UPDATE issues SET assigned_to = $2::uuid WHERE id = $1::uuid"
-@.str.260 = unnamed_addr constant [56 x i8] c"UPDATE issues SET assigned_to = NULL WHERE id = $1::uuid"
-@.str.261 = unnamed_addr constant [58 x i8] c"UPDATE issues SET status = 'discarded' WHERE id = $1::uuid"
-@.str.262 = unnamed_addr constant [44 x i8] c"DELETE FROM events WHERE issue_id = $1::uuid"
-@.panic_msg.263 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.264 = constant [9 x i8] c"<unknown>"
-@.str.265 = unnamed_addr constant [38 x i8] c"DELETE FROM issues WHERE id = $1::uuid"
-@.str.266 = unnamed_addr constant [374 x i8] c"UPDATE issues SET status = 'unresolved' WHERE status = 'archived' AND id IN (SELECT i.id FROM issues i JOIN events e ON e.issue_id = i.id AND e.received_at > now() - interval '1 hour' WHERE i.status = 'archived' GROUP BY i.id HAVING count(*) > GREATEST(10, (SELECT count(*) FROM events e2 WHERE e2.issue_id = i.id AND e2.received_at > now() - interval '7 days') / 168 * 10))"
-@.str.267 = unnamed_addr constant [866 x i8] c"SELECT CASE WHEN length(COALESCE(j->>'fingerprint', '')) > 0 THEN j->>'fingerprint' WHEN j->'stacktrace' IS NOT NULL AND jsonb_typeof(j->'stacktrace') = 'array' AND jsonb_array_length(j->'stacktrace') > 0 THEN (SELECT string_agg(frame->>'filename' || '|' || frame->>'function_name', ';' ORDER BY ordinality) FROM jsonb_array_elements(j->'stacktrace') WITH ORDINALITY AS t(frame, ordinality)) || ':' || lower(COALESCE(replace(j->>'message', '0x', ''), '')) WHEN j->'exception' IS NOT NULL AND j->'exception'->>'type_name' IS NOT NULL THEN (j->'exception'->>'type_name') || ':' || lower(COALESCE(replace(j->'exception'->>'value', '0x', ''), '')) ELSE 'msg:' || lower(COALESCE(replace(j->>'message', '0x', ''), '')) END AS fingerprint, COALESCE(NULLIF(j->>'message', ''), 'Untitled') AS title, COALESCE(j->>'level', 'error') AS level FROM (SELECT $1::jsonb AS j) AS sub"
+@.str.256 = unnamed_addr constant [175 x i8] c"SELECT id::text, project_id::text, name, condition_json::text, cooldown_minutes::text FROM alert_rules WHERE enabled = true AND condition_json->>'condition_type' = 'threshold'"
+@.panic_msg.257 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.258 = constant [9 x i8] c"<unknown>"
+@.str.259 = unnamed_addr constant [98 x i8] c"DELETE FROM events WHERE project_id = $1::uuid AND received_at < now() - ($2 || ' days')::interval"
+@.str.260 = unnamed_addr constant [307 x i8] c"SELECT c.relname::text AS partition_name FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid JOIN pg_class p ON p.oid = i.inhparent WHERE p.relname = 'events' AND c.relname ~ '^events_[0-9]{8}$' AND to_date(substring(c.relname from '[0-9]{8}$'), 'YYYYMMDD') < (current_date - ($1 || ' days')::interval)"
+@.panic_msg.261 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.262 = constant [9 x i8] c"<unknown>"
+@.str.263 = unnamed_addr constant [21 x i8] c"DROP TABLE IF EXISTS "
+@.str.264 = unnamed_addr constant [51 x i8] c"SELECT id::text, retention_days::text FROM projects"
+@.panic_msg.265 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.266 = constant [9 x i8] c"<unknown>"
+@.str.267 = unnamed_addr constant [120 x i8] c"SELECT count(*)::text AS event_count, (count(*) * 1024)::text AS estimated_bytes FROM events WHERE project_id = $1::uuid"
 @.panic_msg.268 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.269 = constant [9 x i8] c"<unknown>"
-@.str.270 = unnamed_addr constant [31 x i8] c"extract_event_fields: no result"
-@.str.271 = unnamed_addr constant [404 x i8] c"SELECT id::text, project_id::text, fingerprint, title, level, status, event_count::text, first_seen::text, last_seen::text, COALESCE(assigned_to::text, '') as assigned_to FROM issues WHERE project_id = $1::uuid AND ($2 = '' OR status = $2) AND ($3 = '' OR level = $3) AND ($4 = '' OR assigned_to = $4::uuid) AND (last_seen, id) < ($5::timestamptz, $6::uuid) ORDER BY last_seen DESC, id DESC LIMIT $7::int"
+@.str.270 = unnamed_addr constant [190 x i8] c"UPDATE projects SET retention_days = COALESCE(($2::jsonb->>'retention_days')::int, retention_days), sample_rate = COALESCE(($2::jsonb->>'sample_rate')::real, sample_rate) WHERE id = $1::uuid"
+@.str.271 = unnamed_addr constant [80 x i8] c"SELECT retention_days::text, sample_rate::text FROM projects WHERE id = $1::uuid"
 @.panic_msg.272 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.273 = constant [9 x i8] c"<unknown>"
-@.str.274 = unnamed_addr constant [354 x i8] c"SELECT id::text, project_id::text, fingerprint, title, level, status, event_count::text, first_seen::text, last_seen::text, COALESCE(assigned_to::text, '') as assigned_to FROM issues WHERE project_id = $1::uuid AND ($2 = '' OR status = $2) AND ($3 = '' OR level = $3) AND ($4 = '' OR assigned_to = $4::uuid) ORDER BY last_seen DESC, id DESC LIMIT $5::int"
+@.str.274 = unnamed_addr constant [95 x i8] c"SELECT random() < COALESCE((SELECT sample_rate FROM projects WHERE id = $1::uuid), 1.0) AS keep"
 @.panic_msg.275 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.276 = constant [9 x i8] c"<unknown>"
-@.str.277 = unnamed_addr constant [361 x i8] c"SELECT id::text, issue_id::text, level, message, received_at::text, ts_rank(to_tsvector('english', message), plainto_tsquery('english', $2))::text AS rank FROM events WHERE project_id = $1::uuid AND to_tsvector('english', message) @@ plainto_tsquery('english', $2) AND received_at > now() - interval '24 hours' ORDER BY rank DESC, received_at DESC LIMIT $3::int"
-@.panic_msg.278 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.279 = constant [9 x i8] c"<unknown>"
-@.str.280 = unnamed_addr constant [226 x i8] c"SELECT id::text, issue_id::text, level, message, tags::text, received_at::text FROM events WHERE project_id = $1::uuid AND tags @> $2::jsonb AND received_at > now() - interval '24 hours' ORDER BY received_at DESC LIMIT $3::int"
-@.panic_msg.281 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.282 = constant [9 x i8] c"<unknown>"
-@.str.283 = unnamed_addr constant [189 x i8] c"SELECT id::text, level, message, received_at::text FROM events WHERE issue_id = $1::uuid AND (received_at, id) < ($2::timestamptz, $3::uuid) ORDER BY received_at DESC, id DESC LIMIT $4::int"
+@.str.277 = unnamed_addr constant [4 x i8] c"keep"
+@.str.278 = unnamed_addr constant [1 x i8] c"t"
+@.str.279 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.280 = unnamed_addr constant [15 x i8] c"mesher_registry"
+@.str.281 = unnamed_addr constant [15 x i8] c"mesher_registry"
+@.str.282 = unnamed_addr constant [15 x i8] c"mesher_registry"
+@.str.283 = unnamed_addr constant [0 x i8] zeroinitializer
 @.panic_msg.284 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.285 = constant [9 x i8] c"<unknown>"
-@.str.286 = unnamed_addr constant [137 x i8] c"SELECT id::text, level, message, received_at::text FROM events WHERE issue_id = $1::uuid ORDER BY received_at DESC, id DESC LIMIT $2::int"
-@.panic_msg.287 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.288 = constant [9 x i8] c"<unknown>"
-@.str.289 = unnamed_addr constant [193 x i8] c"SELECT date_trunc($2, received_at)::text AS bucket, count(*)::text AS count FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours' GROUP BY bucket ORDER BY bucket"
-@.panic_msg.290 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.291 = constant [9 x i8] c"<unknown>"
-@.str.292 = unnamed_addr constant [158 x i8] c"SELECT level, count(*)::text AS count FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours' GROUP BY level ORDER BY count DESC"
-@.panic_msg.293 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.294 = constant [9 x i8] c"<unknown>"
-@.str.295 = unnamed_addr constant [179 x i8] c"SELECT id::text, title, level, status, event_count::text, last_seen::text FROM issues WHERE project_id = $1::uuid AND status = 'unresolved' ORDER BY event_count DESC LIMIT $2::int"
-@.panic_msg.296 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.297 = constant [9 x i8] c"<unknown>"
-@.str.298 = unnamed_addr constant [202 x i8] c"SELECT tags->>$2 AS tag_value, count(*)::text AS count FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours' AND tags ? $2 GROUP BY tag_value ORDER BY count DESC LIMIT 20"
-@.panic_msg.299 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.300 = constant [9 x i8] c"<unknown>"
-@.str.301 = unnamed_addr constant [128 x i8] c"SELECT id::text, level, message, received_at::text FROM events WHERE issue_id = $1::uuid ORDER BY received_at DESC LIMIT $2::int"
-@.panic_msg.302 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.303 = constant [9 x i8] c"<unknown>"
-@.str.304 = unnamed_addr constant [364 x i8] c"SELECT (SELECT count(*) FROM issues WHERE project_id = $1::uuid AND status = 'unresolved')::text AS unresolved_count, (SELECT count(*) FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours')::text AS events_24h, (SELECT count(*) FROM issues WHERE project_id = $1::uuid AND first_seen > now() - interval '24 hours')::text AS new_today"
+@.panic_msg.286 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.287 = constant [9 x i8] c"<unknown>"
+@.str.288 = unnamed_addr constant [0 x i8] zeroinitializer
+@.panic_msg.289 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.290 = constant [9 x i8] c"<unknown>"
+@.str.291 = unnamed_addr constant [1 x i8] c"["
+@.str.292 = unnamed_addr constant [1 x i8] c","
+@.str.293 = unnamed_addr constant [1 x i8] c"]"
+@.str.294 = unnamed_addr constant [13 x i8] c"authorization"
+@.panic_msg.295 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.296 = constant [9 x i8] c"<unknown>"
+@.str.297 = unnamed_addr constant [13 x i8] c"x-sentry-auth"
+@.panic_msg.298 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.299 = constant [9 x i8] c"<unknown>"
+@.str.300 = unnamed_addr constant [15 x i8] c"missing API key"
+@.panic_msg.301 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.302 = constant [9 x i8] c"<unknown>"
+@.str.303 = unnamed_addr constant [3 x i8] c"|||"
+@.str.304 = unnamed_addr constant [3 x i8] c"|||"
 @.panic_msg.305 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.306 = constant [9 x i8] c"<unknown>"
-@.str.307 = unnamed_addr constant [481 x i8] c"SELECT id::text, project_id::text, issue_id::text, level, message, fingerprint, COALESCE(exception::text, 'null') AS exception, COALESCE(stacktrace::text, '[]') AS stacktrace, COALESCE(breadcrumbs::text, '[]') AS breadcrumbs, COALESCE(tags::text, '{}') AS tags, COALESCE(extra::text, '{}') AS extra, COALESCE(user_context::text, 'null') AS user_context, COALESCE(sdk_name, '') AS sdk_name, COALESCE(sdk_version, '') AS sdk_version, received_at::text FROM events WHERE id = $1::uuid"
+@.str.307 = unnamed_addr constant [9 x i8] c"discarded"
 @.panic_msg.308 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.309 = constant [9 x i8] c"<unknown>"
-@.str.310 = unnamed_addr constant [321 x i8] c"SELECT (SELECT id::text FROM events WHERE issue_id = $1::uuid AND (received_at, id) > ($2::timestamptz, $3::uuid) ORDER BY received_at, id LIMIT 1) AS next_id, (SELECT id::text FROM events WHERE issue_id = $1::uuid AND (received_at, id) < ($2::timestamptz, $3::uuid) ORDER BY received_at DESC, id DESC LIMIT 1) AS prev_id"
-@.panic_msg.311 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.312 = constant [9 x i8] c"<unknown>"
-@.str.313 = unnamed_addr constant [95 x i8] c"UPDATE org_memberships SET role = $2 WHERE id = $1::uuid AND $2 IN ('owner', 'admin', 'member')"
-@.str.314 = unnamed_addr constant [47 x i8] c"DELETE FROM org_memberships WHERE id = $1::uuid"
-@.str.315 = unnamed_addr constant [205 x i8] c"SELECT m.id::text, m.user_id::text, m.org_id::text, m.role, m.joined_at::text, u.email, u.display_name FROM org_memberships m JOIN users u ON u.id = m.user_id WHERE m.org_id = $1::uuid ORDER BY m.joined_at"
-@.panic_msg.316 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.317 = constant [9 x i8] c"<unknown>"
-@.str.318 = unnamed_addr constant [182 x i8] c"SELECT id::text, project_id::text, key_value, label, created_at::text, COALESCE(revoked_at::text, '') AS revoked_at FROM api_keys WHERE project_id = $1::uuid ORDER BY created_at DESC"
-@.panic_msg.319 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.320 = constant [9 x i8] c"<unknown>"
-@.str.321 = unnamed_addr constant [358 x i8] c"INSERT INTO alert_rules (project_id, name, condition_json, action_json, cooldown_minutes) SELECT $1::uuid, COALESCE(j->>'name', 'Unnamed Rule'), COALESCE((j->'condition')::jsonb, '{}'::jsonb), COALESCE((j->'action')::jsonb, '{\\\22type\\\22:\\\22websocket\\\22}'::jsonb), COALESCE((j->>'cooldown_minutes')::int, 60) FROM (SELECT $2::jsonb AS j) AS sub RETURNING id::text"
-@.panic_msg.322 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.323 = constant [9 x i8] c"<unknown>"
-@.str.324 = unnamed_addr constant [2 x i8] c"id"
-@.str.325 = unnamed_addr constant [33 x i8] c"create_alert_rule: no id returned"
-@.str.326 = unnamed_addr constant [259 x i8] c"SELECT id::text, project_id::text, name, condition_json::text, action_json::text, enabled::text, cooldown_minutes::text, COALESCE(last_fired_at::text, '') AS last_fired_at, created_at::text FROM alert_rules WHERE project_id = $1::uuid ORDER BY created_at DESC"
-@.panic_msg.327 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.328 = constant [9 x i8] c"<unknown>"
-@.str.329 = unnamed_addr constant [64 x i8] c"UPDATE alert_rules SET enabled = $2::boolean WHERE id = $1::uuid"
-@.str.330 = unnamed_addr constant [43 x i8] c"DELETE FROM alert_rules WHERE id = $1::uuid"
-@.str.331 = unnamed_addr constant [375 x i8] c"SELECT CASE WHEN event_count > $3::int AND (last_fired IS NULL OR last_fired < now() - interval '1 minute' * $6::int) THEN 1 ELSE 0 END AS should_fire FROM (SELECT count(*) AS event_count FROM events WHERE project_id = $2::uuid AND received_at > now() - interval '1 minute' * $4::int) counts, (SELECT last_fired_at AS last_fired FROM alert_rules WHERE id = $1::uuid) cooldown"
-@.str.332 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.310 = unnamed_addr constant [11 x i8] c"fingerprint"
+@.str.311 = unnamed_addr constant [5 x i8] c"title"
+@.str.312 = unnamed_addr constant [5 x i8] c"level"
+@.panic_msg.313 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.314 = constant [9 x i8] c"<unknown>"
+@.str.315 = unnamed_addr constant [36 x i8] c"[Mesher] Retention cleanup: deleted "
+@.str.316 = unnamed_addr constant [15 x i8] c" expired events"
+@.str.317 = unnamed_addr constant [34 x i8] c"[Mesher] Retention cleanup error: "
+@.str.318 = unnamed_addr constant [36 x i8] c"[Mesher] Dropped expired partition: "
+@.str.319 = unnamed_addr constant [2 x i8] c"id"
+@.str.320 = unnamed_addr constant [14 x i8] c"retention_days"
+@.panic_msg.321 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.322 = constant [9 x i8] c"<unknown>"
+@.str.323 = unnamed_addr constant [14 x i8] c"partition_name"
+@.panic_msg.324 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.325 = constant [9 x i8] c"<unknown>"
+@.panic_msg.326 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.327 = constant [9 x i8] c"<unknown>"
+@.panic_msg.328 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.329 = constant [9 x i8] c"<unknown>"
+@.str.330 = unnamed_addr constant [2 x i8] c"90"
+@.panic_msg.331 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.332 = constant [9 x i8] c"<unknown>"
 @.panic_msg.333 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.334 = constant [9 x i8] c"<unknown>"
-@.str.335 = unnamed_addr constant [11 x i8] c"should_fire"
-@.str.336 = unnamed_addr constant [1 x i8] c"1"
-@.str.337 = unnamed_addr constant [197 x i8] c"INSERT INTO alerts (rule_id, project_id, status, message, condition_snapshot) VALUES ($1::uuid, $2::uuid, 'active', $3, jsonb_build_object('condition_type', $4, 'rule_name', $5)) RETURNING id::text"
+@.panic_msg.335 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.336 = constant [9 x i8] c"<unknown>"
+@.str.337 = unnamed_addr constant [21 x i8] c"authentication failed"
 @.panic_msg.338 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.339 = constant [9 x i8] c"<unknown>"
-@.str.340 = unnamed_addr constant [2 x i8] c"id"
-@.str.341 = unnamed_addr constant [64 x i8] c"UPDATE alert_rules SET last_fired_at = now() WHERE id = $1::uuid"
-@.str.342 = unnamed_addr constant [26 x i8] c"fire_alert: no id returned"
-@.str.343 = unnamed_addr constant [77 x i8] c"SELECT 1 AS is_new FROM issues WHERE id = $1::uuid AND first_seen = last_seen"
-@.panic_msg.344 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.345 = constant [9 x i8] c"<unknown>"
-@.str.346 = unnamed_addr constant [152 x i8] c"SELECT id::text, name, cooldown_minutes::text FROM alert_rules WHERE project_id = $1::uuid AND enabled = true AND condition_json->>'condition_type' = $2"
-@.panic_msg.347 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.348 = constant [9 x i8] c"<unknown>"
-@.str.349 = unnamed_addr constant [136 x i8] c"SELECT 1 AS ok FROM alert_rules WHERE id = $1::uuid AND (last_fired_at IS NULL OR last_fired_at < now() - interval '1 minute' * $2::int)"
-@.panic_msg.350 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.351 = constant [9 x i8] c"<unknown>"
-@.str.352 = unnamed_addr constant [108 x i8] c"UPDATE alerts SET status = 'acknowledged', acknowledged_at = now() WHERE id = $1::uuid AND status = 'active'"
-@.str.353 = unnamed_addr constant [119 x i8] c"UPDATE alerts SET status = 'resolved', resolved_at = now() WHERE id = $1::uuid AND status IN ('active', 'acknowledged')"
-@.str.354 = unnamed_addr constant [406 x i8] c"SELECT a.id::text, a.rule_id::text, a.project_id::text, a.status, a.message, a.condition_snapshot::text, a.triggered_at::text, COALESCE(a.acknowledged_at::text, '') AS acknowledged_at, COALESCE(a.resolved_at::text, '') AS resolved_at, r.name AS rule_name FROM alerts a JOIN alert_rules r ON r.id = a.rule_id WHERE a.project_id = $1::uuid AND ($2 = '' OR a.status = $2) ORDER BY a.triggered_at DESC LIMIT 50"
-@.panic_msg.355 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.356 = constant [9 x i8] c"<unknown>"
-@.str.357 = unnamed_addr constant [175 x i8] c"SELECT id::text, project_id::text, name, condition_json::text, cooldown_minutes::text FROM alert_rules WHERE enabled = true AND condition_json->>'condition_type' = 'threshold'"
-@.panic_msg.358 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.359 = constant [9 x i8] c"<unknown>"
-@.str.360 = unnamed_addr constant [98 x i8] c"DELETE FROM events WHERE project_id = $1::uuid AND received_at < now() - ($2 || ' days')::interval"
-@.str.361 = unnamed_addr constant [307 x i8] c"SELECT c.relname::text AS partition_name FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid JOIN pg_class p ON p.oid = i.inhparent WHERE p.relname = 'events' AND c.relname ~ '^events_[0-9]{8}$' AND to_date(substring(c.relname from '[0-9]{8}$'), 'YYYYMMDD') < (current_date - ($1 || ' days')::interval)"
+@.str.340 = unnamed_addr constant [15 x i8] c"mesher_registry"
+@.str.341 = unnamed_addr constant [46 x i8] c"[Mesher] Health check: all services responsive"
+@.str.342 = unnamed_addr constant [34 x i8] c"[Mesher] Spike checker: escalated "
+@.str.343 = unnamed_addr constant [16 x i8] c" archived issues"
+@.str.344 = unnamed_addr constant [30 x i8] c"[Mesher] Spike checker error: "
+@.panic_msg.345 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.346 = constant [9 x i8] c"<unknown>"
+@.str.347 = unnamed_addr constant [8 x i8] c"project:"
+@.str.348 = unnamed_addr constant [28 x i8] c"{\22type\22:\22alert\22,\22alert_id\22:\22"
+@.str.349 = unnamed_addr constant [15 x i8] c"\22,\22rule_name\22:\22"
+@.str.350 = unnamed_addr constant [15 x i8] c"\22,\22condition\22:\22"
+@.str.351 = unnamed_addr constant [13 x i8] c"\22,\22message\22:\22"
+@.str.352 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.353 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.354 = constant [9 x i8] c"<unknown>"
+@.str.355 = unnamed_addr constant [21 x i8] c"Event count exceeded "
+@.str.356 = unnamed_addr constant [4 x i8] c" in "
+@.str.357 = unnamed_addr constant [8 x i8] c" minutes"
+@.str.358 = unnamed_addr constant [9 x i8] c"threshold"
+@.panic_msg.359 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.360 = constant [9 x i8] c"<unknown>"
+@.str.361 = unnamed_addr constant [14 x i8] c"window_minutes"
 @.panic_msg.362 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.363 = constant [9 x i8] c"<unknown>"
-@.str.364 = unnamed_addr constant [21 x i8] c"DROP TABLE IF EXISTS "
-@.str.365 = unnamed_addr constant [51 x i8] c"SELECT id::text, retention_days::text FROM projects"
-@.panic_msg.366 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.367 = constant [9 x i8] c"<unknown>"
-@.str.368 = unnamed_addr constant [120 x i8] c"SELECT count(*)::text AS event_count, (count(*) * 1024)::text AS estimated_bytes FROM events WHERE project_id = $1::uuid"
-@.panic_msg.369 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.370 = constant [9 x i8] c"<unknown>"
-@.str.371 = unnamed_addr constant [190 x i8] c"UPDATE projects SET retention_days = COALESCE(($2::jsonb->>'retention_days')::int, retention_days), sample_rate = COALESCE(($2::jsonb->>'sample_rate')::real, sample_rate) WHERE id = $1::uuid"
-@.str.372 = unnamed_addr constant [80 x i8] c"SELECT retention_days::text, sample_rate::text FROM projects WHERE id = $1::uuid"
-@.panic_msg.373 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.374 = constant [9 x i8] c"<unknown>"
-@.str.375 = unnamed_addr constant [95 x i8] c"SELECT random() < COALESCE((SELECT sample_rate FROM projects WHERE id = $1::uuid), 1.0) AS keep"
-@.panic_msg.376 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.377 = constant [9 x i8] c"<unknown>"
-@.str.378 = unnamed_addr constant [4 x i8] c"keep"
-@.str.379 = unnamed_addr constant [1 x i8] c"t"
-@.str.380 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.381 = unnamed_addr constant [15 x i8] c"mesher_registry"
+@.str.364 = unnamed_addr constant [9 x i8] c"threshold"
+@.panic_msg.365 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.366 = constant [9 x i8] c"<unknown>"
+@.str.367 = unnamed_addr constant [2 x i8] c"id"
+@.str.368 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.369 = unnamed_addr constant [4 x i8] c"name"
+@.str.370 = unnamed_addr constant [14 x i8] c"condition_json"
+@.str.371 = unnamed_addr constant [16 x i8] c"cooldown_minutes"
+@.panic_msg.372 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.373 = constant [9 x i8] c"<unknown>"
+@.str.374 = unnamed_addr constant [41 x i8] c"[Mesher] Alert evaluator: checked rules, "
+@.str.375 = unnamed_addr constant [6 x i8] c" fired"
+@.str.376 = unnamed_addr constant [32 x i8] c"[Mesher] Alert evaluator error: "
+@.panic_msg.377 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.378 = constant [9 x i8] c"<unknown>"
+@.str.379 = unnamed_addr constant [23 x i8] c"[Mesher] Load monitor: "
+@.str.380 = unnamed_addr constant [12 x i8] c" events/5s, "
+@.str.381 = unnamed_addr constant [6 x i8] c" peers"
 @.str.382 = unnamed_addr constant [15 x i8] c"mesher_registry"
-@.str.383 = unnamed_addr constant [15 x i8] c"mesher_registry"
-@.str.384 = unnamed_addr constant [0 x i8] zeroinitializer
-@.panic_msg.385 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.386 = constant [9 x i8] c"<unknown>"
-@.panic_msg.387 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.388 = constant [9 x i8] c"<unknown>"
-@.str.389 = unnamed_addr constant [0 x i8] zeroinitializer
-@.panic_msg.390 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.391 = constant [9 x i8] c"<unknown>"
-@.str.392 = unnamed_addr constant [1 x i8] c"["
-@.str.393 = unnamed_addr constant [1 x i8] c","
-@.str.394 = unnamed_addr constant [1 x i8] c"]"
-@.str.395 = unnamed_addr constant [13 x i8] c"authorization"
-@.panic_msg.396 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.397 = constant [9 x i8] c"<unknown>"
-@.str.398 = unnamed_addr constant [13 x i8] c"x-sentry-auth"
-@.panic_msg.399 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.400 = constant [9 x i8] c"<unknown>"
-@.str.401 = unnamed_addr constant [15 x i8] c"missing API key"
-@.panic_msg.402 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.403 = constant [9 x i8] c"<unknown>"
-@.str.404 = unnamed_addr constant [3 x i8] c"|||"
-@.str.405 = unnamed_addr constant [3 x i8] c"|||"
-@.panic_msg.406 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.407 = constant [9 x i8] c"<unknown>"
-@.str.408 = unnamed_addr constant [9 x i8] c"discarded"
-@.panic_msg.409 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.410 = constant [9 x i8] c"<unknown>"
-@.str.411 = unnamed_addr constant [11 x i8] c"fingerprint"
-@.str.412 = unnamed_addr constant [5 x i8] c"title"
-@.str.413 = unnamed_addr constant [5 x i8] c"level"
-@.panic_msg.414 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.415 = constant [9 x i8] c"<unknown>"
-@.str.416 = unnamed_addr constant [36 x i8] c"[Mesher] Retention cleanup: deleted "
-@.str.417 = unnamed_addr constant [15 x i8] c" expired events"
-@.str.418 = unnamed_addr constant [34 x i8] c"[Mesher] Retention cleanup error: "
-@.str.419 = unnamed_addr constant [36 x i8] c"[Mesher] Dropped expired partition: "
-@.str.420 = unnamed_addr constant [2 x i8] c"id"
-@.str.421 = unnamed_addr constant [14 x i8] c"retention_days"
-@.panic_msg.422 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.423 = constant [9 x i8] c"<unknown>"
-@.str.424 = unnamed_addr constant [14 x i8] c"partition_name"
-@.panic_msg.425 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.426 = constant [9 x i8] c"<unknown>"
-@.panic_msg.427 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.428 = constant [9 x i8] c"<unknown>"
-@.panic_msg.429 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.430 = constant [9 x i8] c"<unknown>"
-@.str.431 = unnamed_addr constant [2 x i8] c"90"
-@.panic_msg.432 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.433 = constant [9 x i8] c"<unknown>"
-@.panic_msg.434 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.435 = constant [9 x i8] c"<unknown>"
-@.panic_msg.436 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.437 = constant [9 x i8] c"<unknown>"
-@.str.438 = unnamed_addr constant [21 x i8] c"authentication failed"
-@.panic_msg.439 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.440 = constant [9 x i8] c"<unknown>"
-@.str.441 = unnamed_addr constant [15 x i8] c"mesher_registry"
-@.str.442 = unnamed_addr constant [46 x i8] c"[Mesher] Health check: all services responsive"
-@.str.443 = unnamed_addr constant [34 x i8] c"[Mesher] Spike checker: escalated "
-@.str.444 = unnamed_addr constant [16 x i8] c" archived issues"
-@.str.445 = unnamed_addr constant [30 x i8] c"[Mesher] Spike checker error: "
-@.panic_msg.446 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.447 = constant [9 x i8] c"<unknown>"
-@.str.448 = unnamed_addr constant [8 x i8] c"project:"
-@.str.449 = unnamed_addr constant [35 x i8] c"{\\\22type\\\22:\\\22alert\\\22,\\\22alert_id\\\22:\\\22"
-@.str.450 = unnamed_addr constant [19 x i8] c"\\\22,\\\22rule_name\\\22:\\\22"
-@.str.451 = unnamed_addr constant [19 x i8] c"\\\22,\\\22condition\\\22:\\\22"
-@.str.452 = unnamed_addr constant [17 x i8] c"\\\22,\\\22message\\\22:\\\22"
-@.str.453 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.454 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.455 = constant [9 x i8] c"<unknown>"
-@.str.456 = unnamed_addr constant [42 x i8] c"SELECT COALESCE($1::jsonb->>$2, '') AS val"
-@.panic_msg.457 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.458 = constant [9 x i8] c"<unknown>"
-@.str.459 = unnamed_addr constant [3 x i8] c"val"
-@.str.460 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.461 = unnamed_addr constant [21 x i8] c"Event count exceeded "
-@.str.462 = unnamed_addr constant [4 x i8] c" in "
-@.str.463 = unnamed_addr constant [8 x i8] c" minutes"
-@.str.464 = unnamed_addr constant [9 x i8] c"threshold"
-@.panic_msg.465 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.466 = constant [9 x i8] c"<unknown>"
-@.str.467 = unnamed_addr constant [14 x i8] c"window_minutes"
-@.panic_msg.468 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.469 = constant [9 x i8] c"<unknown>"
-@.str.470 = unnamed_addr constant [9 x i8] c"threshold"
-@.panic_msg.471 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.472 = constant [9 x i8] c"<unknown>"
-@.str.473 = unnamed_addr constant [2 x i8] c"id"
-@.str.474 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.475 = unnamed_addr constant [4 x i8] c"name"
-@.str.476 = unnamed_addr constant [14 x i8] c"condition_json"
-@.str.477 = unnamed_addr constant [16 x i8] c"cooldown_minutes"
-@.panic_msg.478 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.479 = constant [9 x i8] c"<unknown>"
-@.str.480 = unnamed_addr constant [41 x i8] c"[Mesher] Alert evaluator: checked rules, "
-@.str.481 = unnamed_addr constant [6 x i8] c" fired"
-@.str.482 = unnamed_addr constant [32 x i8] c"[Mesher] Alert evaluator error: "
-@.panic_msg.483 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.484 = constant [9 x i8] c"<unknown>"
-@.str.485 = unnamed_addr constant [23 x i8] c"[Mesher] Load monitor: "
-@.str.486 = unnamed_addr constant [12 x i8] c" events/5s, "
-@.str.487 = unnamed_addr constant [6 x i8] c" peers"
-@.str.488 = unnamed_addr constant [15 x i8] c"mesher_registry"
-@.str.489 = unnamed_addr constant [46 x i8] c"[Mesher] Remote event processor worker started"
-@.str.490 = unnamed_addr constant [51 x i8] c"[Mesher] Load high -- spawning remote processor on "
+@.str.383 = unnamed_addr constant [46 x i8] c"[Mesher] Remote event processor worker started"
+@.str.384 = unnamed_addr constant [51 x i8] c"[Mesher] Load high -- spawning remote processor on "
 @spawn_fn_name = private unnamed_addr constant [43 x i8] c"Ingestion_Pipeline__event_processor_worker\00", align 1
-@.str.491 = unnamed_addr constant [50 x i8] c"[Mesher] Spawned remote event_processor_worker on "
-@.str.492 = unnamed_addr constant [26 x i8] c"[Mesher] Monitoring peer: "
-@.str.493 = unnamed_addr constant [33 x i8] c"[Mesher] Failed to monitor peer: "
-@.str.494 = unnamed_addr constant [15 x i8] c"mesher_registry"
-@.str.495 = unnamed_addr constant [29 x i8] c"[Mesher] New peers detected ("
-@.str.496 = unnamed_addr constant [4 x i8] c" -> "
-@.str.497 = unnamed_addr constant [22 x i8] c"), setting up monitors"
-@.str.498 = unnamed_addr constant [20 x i8] c"[Mesher] Peer lost ("
-@.str.499 = unnamed_addr constant [4 x i8] c" -> "
-@.str.500 = unnamed_addr constant [22 x i8] c") -- NODEDOWN detected"
-@.str.501 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.502 = unnamed_addr constant [16 x i8] c"mesher_registry@"
-@.str.503 = unnamed_addr constant [16 x i8] c"mesher_registry@"
-@.str.504 = unnamed_addr constant [15 x i8] c"mesher_registry"
-@.str.505 = unnamed_addr constant [15 x i8] c"mesher_registry"
-@.str.506 = unnamed_addr constant [57 x i8] c"[Mesher] Services registered globally as mesher_registry@"
-@.str.507 = unnamed_addr constant [66 x i8] c"[Mesher] Running in standalone mode (skipping global registration)"
-@.str.508 = unnamed_addr constant [14 x i8] c"stream_manager"
-@.str.509 = unnamed_addr constant [30 x i8] c"[Mesher] StreamManager started"
-@.str.510 = unnamed_addr constant [60 x i8] c"[Mesher] StreamManager drain ticker started (250ms interval)"
-@.str.511 = unnamed_addr constant [51 x i8] c"[Mesher] RateLimiter started (60s window, 1000 max)"
-@.str.512 = unnamed_addr constant [31 x i8] c"[Mesher] EventProcessor started"
-@.str.513 = unnamed_addr constant [7 x i8] c"default"
-@.str.514 = unnamed_addr constant [48 x i8] c"[Mesher] StorageWriter started (default project)"
-@.str.515 = unnamed_addr constant [15 x i8] c"mesher_registry"
-@.str.516 = unnamed_addr constant [48 x i8] c"[Mesher] PipelineRegistry started and registered"
-@.str.517 = unnamed_addr constant [46 x i8] c"[Mesher] Health checker started (10s interval)"
-@.str.518 = unnamed_addr constant [47 x i8] c"[Mesher] Spike checker started (5 min interval)"
-@.str.519 = unnamed_addr constant [47 x i8] c"[Mesher] Alert evaluator started (30s interval)"
-@.str.520 = unnamed_addr constant [49 x i8] c"[Mesher] Retention cleaner started (24h interval)"
-@.str.521 = unnamed_addr constant [66 x i8] c"[Mesher] Load monitor started (5s interval, threshold: 100 events)"
-@.str.522 = unnamed_addr constant [2 x i8] c"\\\22"
-@.str.523 = unnamed_addr constant [2 x i8] c"\\\22"
-@.str.524 = unnamed_addr constant [4 x i8] c"null"
-@.str.525 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.526 = unnamed_addr constant [2 x i8] c"id"
-@.str.527 = unnamed_addr constant [20 x i8] c"\\\22,\\\22project_id\\\22:\\\22"
-@.str.528 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.529 = unnamed_addr constant [14 x i8] c"\\\22,\\\22name\\\22:\\\22"
-@.str.530 = unnamed_addr constant [4 x i8] c"name"
-@.str.531 = unnamed_addr constant [17 x i8] c"\\\22,\\\22condition\\\22:"
-@.str.532 = unnamed_addr constant [14 x i8] c"condition_json"
-@.str.533 = unnamed_addr constant [12 x i8] c",\\\22action\\\22:"
-@.str.534 = unnamed_addr constant [11 x i8] c"action_json"
-@.str.535 = unnamed_addr constant [13 x i8] c",\\\22enabled\\\22:"
-@.str.536 = unnamed_addr constant [7 x i8] c"enabled"
-@.str.537 = unnamed_addr constant [22 x i8] c",\\\22cooldown_minutes\\\22:"
-@.str.538 = unnamed_addr constant [16 x i8] c"cooldown_minutes"
-@.str.539 = unnamed_addr constant [19 x i8] c",\\\22last_fired_at\\\22:"
-@.str.540 = unnamed_addr constant [13 x i8] c"last_fired_at"
-@.str.541 = unnamed_addr constant [18 x i8] c",\\\22created_at\\\22:\\\22"
-@.str.542 = unnamed_addr constant [10 x i8] c"created_at"
-@.str.543 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.544 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.545 = unnamed_addr constant [2 x i8] c"id"
-@.str.546 = unnamed_addr constant [17 x i8] c"\\\22,\\\22rule_id\\\22:\\\22"
-@.str.547 = unnamed_addr constant [7 x i8] c"rule_id"
-@.str.548 = unnamed_addr constant [20 x i8] c"\\\22,\\\22project_id\\\22:\\\22"
-@.str.549 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.550 = unnamed_addr constant [16 x i8] c"\\\22,\\\22status\\\22:\\\22"
-@.str.551 = unnamed_addr constant [6 x i8] c"status"
-@.str.552 = unnamed_addr constant [17 x i8] c"\\\22,\\\22message\\\22:\\\22"
-@.str.553 = unnamed_addr constant [7 x i8] c"message"
-@.str.554 = unnamed_addr constant [26 x i8] c"\\\22,\\\22condition_snapshot\\\22:"
-@.str.555 = unnamed_addr constant [18 x i8] c"condition_snapshot"
-@.str.556 = unnamed_addr constant [20 x i8] c",\\\22triggered_at\\\22:\\\22"
-@.str.557 = unnamed_addr constant [12 x i8] c"triggered_at"
-@.str.558 = unnamed_addr constant [23 x i8] c"\\\22,\\\22acknowledged_at\\\22:"
-@.str.559 = unnamed_addr constant [15 x i8] c"acknowledged_at"
-@.str.560 = unnamed_addr constant [17 x i8] c",\\\22resolved_at\\\22:"
-@.str.561 = unnamed_addr constant [11 x i8] c"resolved_at"
-@.str.562 = unnamed_addr constant [17 x i8] c",\\\22rule_name\\\22:\\\22"
-@.str.563 = unnamed_addr constant [9 x i8] c"rule_name"
-@.str.564 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.565 = unnamed_addr constant [7 x i8] c"enabled"
-@.str.566 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.567 = unnamed_addr constant [1 x i8] c"}"
-@.str.568 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.569 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.570 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.571 = constant [9 x i8] c"<unknown>"
-@.str.572 = unnamed_addr constant [28 x i8] c"{\\\22error\\\22:\\\22invalid body\\\22}"
-@.str.573 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.574 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.575 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.576 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.577 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.578 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.579 = constant [9 x i8] c"<unknown>"
-@.str.580 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.581 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.582 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.583 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.584 = constant [9 x i8] c"<unknown>"
-@.str.585 = unnamed_addr constant [7 x i8] c"rule_id"
-@.str.586 = unnamed_addr constant [57 x i8] c"SELECT COALESCE($1::jsonb->>'enabled', 'true') AS enabled"
-@.str.587 = unnamed_addr constant [28 x i8] c"{\\\22error\\\22:\\\22invalid json\\\22}"
-@.panic_msg.588 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.589 = constant [9 x i8] c"<unknown>"
-@.str.590 = unnamed_addr constant [7 x i8] c"rule_id"
-@.str.591 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.592 = unnamed_addr constant [1 x i8] c"}"
-@.str.593 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.594 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.595 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.596 = constant [9 x i8] c"<unknown>"
-@.str.597 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.598 = unnamed_addr constant [6 x i8] c"status"
-@.str.599 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.600 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.601 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.602 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.603 = constant [9 x i8] c"<unknown>"
-@.str.604 = unnamed_addr constant [2 x i8] c"id"
-@.str.605 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.606 = unnamed_addr constant [1 x i8] c"}"
-@.str.607 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.608 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.609 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.610 = constant [9 x i8] c"<unknown>"
-@.str.611 = unnamed_addr constant [2 x i8] c"id"
-@.str.612 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.613 = unnamed_addr constant [1 x i8] c"}"
-@.str.614 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.615 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.616 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.617 = constant [9 x i8] c"<unknown>"
-@.str.618 = unnamed_addr constant [6 x i8] c"bucket"
-@.str.619 = unnamed_addr constant [5 x i8] c"count"
-@.str.620 = unnamed_addr constant [14 x i8] c"{\\\22bucket\\\22:\\\22"
-@.str.621 = unnamed_addr constant [13 x i8] c"\\\22,\\\22count\\\22:"
-@.str.622 = unnamed_addr constant [1 x i8] c"}"
-@.str.623 = unnamed_addr constant [5 x i8] c"level"
-@.str.624 = unnamed_addr constant [5 x i8] c"count"
-@.str.625 = unnamed_addr constant [13 x i8] c"{\\\22level\\\22:\\\22"
-@.str.626 = unnamed_addr constant [13 x i8] c"\\\22,\\\22count\\\22:"
-@.str.627 = unnamed_addr constant [1 x i8] c"}"
-@.str.628 = unnamed_addr constant [2 x i8] c"id"
-@.str.629 = unnamed_addr constant [5 x i8] c"title"
-@.str.630 = unnamed_addr constant [5 x i8] c"level"
-@.str.631 = unnamed_addr constant [6 x i8] c"status"
-@.str.632 = unnamed_addr constant [11 x i8] c"event_count"
-@.str.633 = unnamed_addr constant [9 x i8] c"last_seen"
-@.str.634 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.635 = unnamed_addr constant [15 x i8] c"\\\22,\\\22title\\\22:\\\22"
-@.str.636 = unnamed_addr constant [15 x i8] c"\\\22,\\\22level\\\22:\\\22"
-@.str.637 = unnamed_addr constant [16 x i8] c"\\\22,\\\22status\\\22:\\\22"
-@.str.638 = unnamed_addr constant [19 x i8] c"\\\22,\\\22event_count\\\22:"
-@.str.639 = unnamed_addr constant [17 x i8] c",\\\22last_seen\\\22:\\\22"
-@.str.640 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.641 = unnamed_addr constant [9 x i8] c"tag_value"
-@.str.642 = unnamed_addr constant [5 x i8] c"count"
-@.str.643 = unnamed_addr constant [4 x i8] c"null"
-@.str.644 = unnamed_addr constant [2 x i8] c"\\\22"
-@.str.645 = unnamed_addr constant [2 x i8] c"\\\22"
-@.str.646 = unnamed_addr constant [11 x i8] c"{\\\22value\\\22:"
-@.str.647 = unnamed_addr constant [11 x i8] c",\\\22count\\\22:"
-@.str.648 = unnamed_addr constant [1 x i8] c"}"
-@.str.649 = unnamed_addr constant [2 x i8] c"id"
-@.str.650 = unnamed_addr constant [5 x i8] c"level"
-@.str.651 = unnamed_addr constant [7 x i8] c"message"
-@.str.652 = unnamed_addr constant [11 x i8] c"received_at"
-@.str.653 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.654 = unnamed_addr constant [15 x i8] c"\\\22,\\\22level\\\22:\\\22"
-@.str.655 = unnamed_addr constant [17 x i8] c"\\\22,\\\22message\\\22:\\\22"
-@.str.656 = unnamed_addr constant [21 x i8] c"\\\22,\\\22received_at\\\22:\\\22"
-@.str.657 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.658 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.659 = unnamed_addr constant [6 x i8] c"bucket"
-@.str.660 = unnamed_addr constant [4 x i8] c"hour"
-@.str.661 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.662 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.663 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.664 = constant [9 x i8] c"<unknown>"
-@.str.665 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.666 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.667 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.668 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.669 = constant [9 x i8] c"<unknown>"
-@.str.670 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.671 = unnamed_addr constant [5 x i8] c"limit"
-@.str.672 = unnamed_addr constant [2 x i8] c"10"
-@.str.673 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.674 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.675 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.676 = constant [9 x i8] c"<unknown>"
-@.str.677 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.678 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.679 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.680 = constant [9 x i8] c"<unknown>"
-@.str.681 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.682 = unnamed_addr constant [3 x i8] c"key"
-@.str.683 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.684 = unnamed_addr constant [37 x i8] c"{\\\22error\\\22:\\\22missing key parameter\\\22}"
-@.str.685 = unnamed_addr constant [8 x i8] c"issue_id"
-@.str.686 = unnamed_addr constant [5 x i8] c"limit"
-@.str.687 = unnamed_addr constant [2 x i8] c"50"
-@.str.688 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.689 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.690 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.691 = constant [9 x i8] c"<unknown>"
-@.str.692 = unnamed_addr constant [16 x i8] c"unresolved_count"
-@.str.693 = unnamed_addr constant [10 x i8] c"events_24h"
-@.str.694 = unnamed_addr constant [9 x i8] c"new_today"
-@.str.695 = unnamed_addr constant [22 x i8] c"{\\\22unresolved_count\\\22:"
-@.str.696 = unnamed_addr constant [16 x i8] c",\\\22events_24h\\\22:"
-@.str.697 = unnamed_addr constant [15 x i8] c",\\\22new_today\\\22:"
-@.str.698 = unnamed_addr constant [1 x i8] c"}"
-@.str.699 = unnamed_addr constant [33 x i8] c"{\\\22error\\\22:\\\22project not found\\\22}"
-@.str.700 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.701 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.702 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.703 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.704 = constant [9 x i8] c"<unknown>"
-@.str.705 = unnamed_addr constant [2 x i8] c"id"
-@.str.706 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.707 = unnamed_addr constant [8 x i8] c"issue_id"
-@.str.708 = unnamed_addr constant [5 x i8] c"level"
-@.str.709 = unnamed_addr constant [7 x i8] c"message"
-@.str.710 = unnamed_addr constant [11 x i8] c"fingerprint"
-@.str.711 = unnamed_addr constant [9 x i8] c"exception"
-@.str.712 = unnamed_addr constant [10 x i8] c"stacktrace"
-@.str.713 = unnamed_addr constant [11 x i8] c"breadcrumbs"
-@.str.714 = unnamed_addr constant [4 x i8] c"tags"
-@.str.715 = unnamed_addr constant [5 x i8] c"extra"
-@.str.716 = unnamed_addr constant [12 x i8] c"user_context"
-@.str.717 = unnamed_addr constant [8 x i8] c"sdk_name"
-@.str.718 = unnamed_addr constant [11 x i8] c"sdk_version"
-@.str.719 = unnamed_addr constant [11 x i8] c"received_at"
-@.str.720 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.721 = unnamed_addr constant [20 x i8] c"\\\22,\\\22project_id\\\22:\\\22"
-@.str.722 = unnamed_addr constant [18 x i8] c"\\\22,\\\22issue_id\\\22:\\\22"
-@.str.723 = unnamed_addr constant [15 x i8] c"\\\22,\\\22level\\\22:\\\22"
-@.str.724 = unnamed_addr constant [17 x i8] c"\\\22,\\\22message\\\22:\\\22"
-@.str.725 = unnamed_addr constant [21 x i8] c"\\\22,\\\22fingerprint\\\22:\\\22"
-@.str.726 = unnamed_addr constant [17 x i8] c"\\\22,\\\22exception\\\22:"
-@.str.727 = unnamed_addr constant [16 x i8] c",\\\22stacktrace\\\22:"
-@.str.728 = unnamed_addr constant [17 x i8] c",\\\22breadcrumbs\\\22:"
-@.str.729 = unnamed_addr constant [10 x i8] c",\\\22tags\\\22:"
-@.str.730 = unnamed_addr constant [11 x i8] c",\\\22extra\\\22:"
-@.str.731 = unnamed_addr constant [18 x i8] c",\\\22user_context\\\22:"
-@.str.732 = unnamed_addr constant [16 x i8] c",\\\22sdk_name\\\22:\\\22"
-@.str.733 = unnamed_addr constant [21 x i8] c"\\\22,\\\22sdk_version\\\22:\\\22"
-@.str.734 = unnamed_addr constant [21 x i8] c"\\\22,\\\22received_at\\\22:\\\22"
-@.str.735 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.736 = unnamed_addr constant [4 x i8] c"null"
-@.str.737 = unnamed_addr constant [2 x i8] c"\\\22"
-@.str.738 = unnamed_addr constant [2 x i8] c"\\\22"
-@.str.739 = unnamed_addr constant [7 x i8] c"next_id"
-@.str.740 = unnamed_addr constant [7 x i8] c"prev_id"
-@.str.741 = unnamed_addr constant [13 x i8] c"{\\\22next_id\\\22:"
-@.str.742 = unnamed_addr constant [13 x i8] c",\\\22prev_id\\\22:"
-@.str.743 = unnamed_addr constant [1 x i8] c"}"
-@.str.744 = unnamed_addr constant [11 x i8] c"{\\\22event\\\22:"
-@.str.745 = unnamed_addr constant [16 x i8] c",\\\22navigation\\\22:"
-@.str.746 = unnamed_addr constant [1 x i8] c"}"
-@.str.747 = unnamed_addr constant [35 x i8] c"{\\\22next_id\\\22:null,\\\22prev_id\\\22:null}"
-@.str.748 = unnamed_addr constant [35 x i8] c"{\\\22next_id\\\22:null,\\\22prev_id\\\22:null}"
+@.str.385 = unnamed_addr constant [50 x i8] c"[Mesher] Spawned remote event_processor_worker on "
+@.str.386 = unnamed_addr constant [26 x i8] c"[Mesher] Monitoring peer: "
+@.str.387 = unnamed_addr constant [33 x i8] c"[Mesher] Failed to monitor peer: "
+@.str.388 = unnamed_addr constant [15 x i8] c"mesher_registry"
+@.str.389 = unnamed_addr constant [29 x i8] c"[Mesher] New peers detected ("
+@.str.390 = unnamed_addr constant [4 x i8] c" -> "
+@.str.391 = unnamed_addr constant [22 x i8] c"), setting up monitors"
+@.str.392 = unnamed_addr constant [20 x i8] c"[Mesher] Peer lost ("
+@.str.393 = unnamed_addr constant [4 x i8] c" -> "
+@.str.394 = unnamed_addr constant [22 x i8] c") -- NODEDOWN detected"
+@.str.395 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.396 = unnamed_addr constant [16 x i8] c"mesher_registry@"
+@.str.397 = unnamed_addr constant [16 x i8] c"mesher_registry@"
+@.str.398 = unnamed_addr constant [15 x i8] c"mesher_registry"
+@.str.399 = unnamed_addr constant [15 x i8] c"mesher_registry"
+@.str.400 = unnamed_addr constant [57 x i8] c"[Mesher] Services registered globally as mesher_registry@"
+@.str.401 = unnamed_addr constant [66 x i8] c"[Mesher] Running in standalone mode (skipping global registration)"
+@.str.402 = unnamed_addr constant [14 x i8] c"stream_manager"
+@.str.403 = unnamed_addr constant [30 x i8] c"[Mesher] StreamManager started"
+@.str.404 = unnamed_addr constant [60 x i8] c"[Mesher] StreamManager drain ticker started (250ms interval)"
+@.str.405 = unnamed_addr constant [51 x i8] c"[Mesher] RateLimiter started (60s window, 1000 max)"
+@.str.406 = unnamed_addr constant [31 x i8] c"[Mesher] EventProcessor started"
+@.str.407 = unnamed_addr constant [7 x i8] c"default"
+@.str.408 = unnamed_addr constant [48 x i8] c"[Mesher] StorageWriter started (default project)"
+@.str.409 = unnamed_addr constant [15 x i8] c"mesher_registry"
+@.str.410 = unnamed_addr constant [48 x i8] c"[Mesher] PipelineRegistry started and registered"
+@.str.411 = unnamed_addr constant [46 x i8] c"[Mesher] Health checker started (10s interval)"
+@.str.412 = unnamed_addr constant [47 x i8] c"[Mesher] Spike checker started (5 min interval)"
+@.str.413 = unnamed_addr constant [47 x i8] c"[Mesher] Alert evaluator started (30s interval)"
+@.str.414 = unnamed_addr constant [49 x i8] c"[Mesher] Retention cleaner started (24h interval)"
+@.str.415 = unnamed_addr constant [66 x i8] c"[Mesher] Load monitor started (5s interval, threshold: 100 events)"
+@.str.416 = unnamed_addr constant [1 x i8] c"\22"
+@.str.417 = unnamed_addr constant [1 x i8] c"\22"
+@.str.418 = unnamed_addr constant [4 x i8] c"null"
+@.str.419 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.420 = unnamed_addr constant [2 x i8] c"id"
+@.str.421 = unnamed_addr constant [16 x i8] c"\22,\22project_id\22:\22"
+@.str.422 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.423 = unnamed_addr constant [10 x i8] c"\22,\22name\22:\22"
+@.str.424 = unnamed_addr constant [4 x i8] c"name"
+@.str.425 = unnamed_addr constant [14 x i8] c"\22,\22condition\22:"
+@.str.426 = unnamed_addr constant [14 x i8] c"condition_json"
+@.str.427 = unnamed_addr constant [10 x i8] c",\22action\22:"
+@.str.428 = unnamed_addr constant [11 x i8] c"action_json"
+@.str.429 = unnamed_addr constant [11 x i8] c",\22enabled\22:"
+@.str.430 = unnamed_addr constant [7 x i8] c"enabled"
+@.str.431 = unnamed_addr constant [20 x i8] c",\22cooldown_minutes\22:"
+@.str.432 = unnamed_addr constant [16 x i8] c"cooldown_minutes"
+@.str.433 = unnamed_addr constant [17 x i8] c",\22last_fired_at\22:"
+@.str.434 = unnamed_addr constant [13 x i8] c"last_fired_at"
+@.str.435 = unnamed_addr constant [15 x i8] c",\22created_at\22:\22"
+@.str.436 = unnamed_addr constant [10 x i8] c"created_at"
+@.str.437 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.438 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.439 = unnamed_addr constant [2 x i8] c"id"
+@.str.440 = unnamed_addr constant [13 x i8] c"\22,\22rule_id\22:\22"
+@.str.441 = unnamed_addr constant [7 x i8] c"rule_id"
+@.str.442 = unnamed_addr constant [16 x i8] c"\22,\22project_id\22:\22"
+@.str.443 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.444 = unnamed_addr constant [12 x i8] c"\22,\22status\22:\22"
+@.str.445 = unnamed_addr constant [6 x i8] c"status"
+@.str.446 = unnamed_addr constant [13 x i8] c"\22,\22message\22:\22"
+@.str.447 = unnamed_addr constant [7 x i8] c"message"
+@.str.448 = unnamed_addr constant [23 x i8] c"\22,\22condition_snapshot\22:"
+@.str.449 = unnamed_addr constant [18 x i8] c"condition_snapshot"
+@.str.450 = unnamed_addr constant [17 x i8] c",\22triggered_at\22:\22"
+@.str.451 = unnamed_addr constant [12 x i8] c"triggered_at"
+@.str.452 = unnamed_addr constant [20 x i8] c"\22,\22acknowledged_at\22:"
+@.str.453 = unnamed_addr constant [15 x i8] c"acknowledged_at"
+@.str.454 = unnamed_addr constant [15 x i8] c",\22resolved_at\22:"
+@.str.455 = unnamed_addr constant [11 x i8] c"resolved_at"
+@.str.456 = unnamed_addr constant [14 x i8] c",\22rule_name\22:\22"
+@.str.457 = unnamed_addr constant [9 x i8] c"rule_name"
+@.str.458 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.459 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.460 = unnamed_addr constant [1 x i8] c"}"
+@.str.461 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.462 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.463 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.464 = constant [9 x i8] c"<unknown>"
+@.str.465 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.466 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.467 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.468 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.469 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.470 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.471 = constant [9 x i8] c"<unknown>"
+@.str.472 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.473 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.474 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.475 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.476 = constant [9 x i8] c"<unknown>"
+@.str.477 = unnamed_addr constant [7 x i8] c"rule_id"
+@.str.478 = unnamed_addr constant [7 x i8] c"enabled"
+@.str.479 = unnamed_addr constant [4 x i8] c"true"
+@.str.480 = unnamed_addr constant [7 x i8] c"rule_id"
+@.str.481 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.482 = unnamed_addr constant [1 x i8] c"}"
+@.str.483 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.484 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.485 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.486 = constant [9 x i8] c"<unknown>"
+@.str.487 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.488 = unnamed_addr constant [6 x i8] c"status"
+@.str.489 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.490 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.491 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.492 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.493 = constant [9 x i8] c"<unknown>"
+@.str.494 = unnamed_addr constant [2 x i8] c"id"
+@.str.495 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.496 = unnamed_addr constant [1 x i8] c"}"
+@.str.497 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.498 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.499 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.500 = constant [9 x i8] c"<unknown>"
+@.str.501 = unnamed_addr constant [2 x i8] c"id"
+@.str.502 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.503 = unnamed_addr constant [1 x i8] c"}"
+@.str.504 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.505 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.506 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.507 = constant [9 x i8] c"<unknown>"
+@.str.508 = unnamed_addr constant [6 x i8] c"bucket"
+@.str.509 = unnamed_addr constant [5 x i8] c"count"
+@.str.510 = unnamed_addr constant [11 x i8] c"{\22bucket\22:\22"
+@.str.511 = unnamed_addr constant [10 x i8] c"\22,\22count\22:"
+@.str.512 = unnamed_addr constant [1 x i8] c"}"
+@.str.513 = unnamed_addr constant [5 x i8] c"level"
+@.str.514 = unnamed_addr constant [5 x i8] c"count"
+@.str.515 = unnamed_addr constant [10 x i8] c"{\22level\22:\22"
+@.str.516 = unnamed_addr constant [10 x i8] c"\22,\22count\22:"
+@.str.517 = unnamed_addr constant [1 x i8] c"}"
+@.str.518 = unnamed_addr constant [2 x i8] c"id"
+@.str.519 = unnamed_addr constant [5 x i8] c"title"
+@.str.520 = unnamed_addr constant [5 x i8] c"level"
+@.str.521 = unnamed_addr constant [6 x i8] c"status"
+@.str.522 = unnamed_addr constant [11 x i8] c"event_count"
+@.str.523 = unnamed_addr constant [9 x i8] c"last_seen"
+@.str.524 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.525 = unnamed_addr constant [11 x i8] c"\22,\22title\22:\22"
+@.str.526 = unnamed_addr constant [11 x i8] c"\22,\22level\22:\22"
+@.str.527 = unnamed_addr constant [12 x i8] c"\22,\22status\22:\22"
+@.str.528 = unnamed_addr constant [16 x i8] c"\22,\22event_count\22:"
+@.str.529 = unnamed_addr constant [14 x i8] c",\22last_seen\22:\22"
+@.str.530 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.531 = unnamed_addr constant [9 x i8] c"tag_value"
+@.str.532 = unnamed_addr constant [5 x i8] c"count"
+@.str.533 = unnamed_addr constant [4 x i8] c"null"
+@.str.534 = unnamed_addr constant [1 x i8] c"\22"
+@.str.535 = unnamed_addr constant [1 x i8] c"\22"
+@.str.536 = unnamed_addr constant [9 x i8] c"{\22value\22:"
+@.str.537 = unnamed_addr constant [9 x i8] c",\22count\22:"
+@.str.538 = unnamed_addr constant [1 x i8] c"}"
+@.str.539 = unnamed_addr constant [2 x i8] c"id"
+@.str.540 = unnamed_addr constant [5 x i8] c"level"
+@.str.541 = unnamed_addr constant [7 x i8] c"message"
+@.str.542 = unnamed_addr constant [11 x i8] c"received_at"
+@.str.543 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.544 = unnamed_addr constant [11 x i8] c"\22,\22level\22:\22"
+@.str.545 = unnamed_addr constant [13 x i8] c"\22,\22message\22:\22"
+@.str.546 = unnamed_addr constant [17 x i8] c"\22,\22received_at\22:\22"
+@.str.547 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.548 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.549 = unnamed_addr constant [6 x i8] c"bucket"
+@.str.550 = unnamed_addr constant [4 x i8] c"hour"
+@.str.551 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.552 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.553 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.554 = constant [9 x i8] c"<unknown>"
+@.str.555 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.556 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.557 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.558 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.559 = constant [9 x i8] c"<unknown>"
+@.str.560 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.561 = unnamed_addr constant [5 x i8] c"limit"
+@.str.562 = unnamed_addr constant [2 x i8] c"10"
+@.str.563 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.564 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.565 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.566 = constant [9 x i8] c"<unknown>"
+@.str.567 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.568 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.569 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.570 = constant [9 x i8] c"<unknown>"
+@.str.571 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.572 = unnamed_addr constant [3 x i8] c"key"
+@.str.573 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.574 = unnamed_addr constant [33 x i8] c"{\22error\22:\22missing key parameter\22}"
+@.str.575 = unnamed_addr constant [8 x i8] c"issue_id"
+@.str.576 = unnamed_addr constant [5 x i8] c"limit"
+@.str.577 = unnamed_addr constant [2 x i8] c"50"
+@.str.578 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.579 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.580 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.581 = constant [9 x i8] c"<unknown>"
+@.str.582 = unnamed_addr constant [16 x i8] c"unresolved_count"
+@.str.583 = unnamed_addr constant [10 x i8] c"events_24h"
+@.str.584 = unnamed_addr constant [9 x i8] c"new_today"
+@.str.585 = unnamed_addr constant [20 x i8] c"{\22unresolved_count\22:"
+@.str.586 = unnamed_addr constant [14 x i8] c",\22events_24h\22:"
+@.str.587 = unnamed_addr constant [13 x i8] c",\22new_today\22:"
+@.str.588 = unnamed_addr constant [1 x i8] c"}"
+@.str.589 = unnamed_addr constant [29 x i8] c"{\22error\22:\22project not found\22}"
+@.str.590 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.591 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.592 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.593 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.594 = constant [9 x i8] c"<unknown>"
+@.str.595 = unnamed_addr constant [2 x i8] c"id"
+@.str.596 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.597 = unnamed_addr constant [8 x i8] c"issue_id"
+@.str.598 = unnamed_addr constant [5 x i8] c"level"
+@.str.599 = unnamed_addr constant [7 x i8] c"message"
+@.str.600 = unnamed_addr constant [11 x i8] c"fingerprint"
+@.str.601 = unnamed_addr constant [9 x i8] c"exception"
+@.str.602 = unnamed_addr constant [10 x i8] c"stacktrace"
+@.str.603 = unnamed_addr constant [11 x i8] c"breadcrumbs"
+@.str.604 = unnamed_addr constant [4 x i8] c"tags"
+@.str.605 = unnamed_addr constant [5 x i8] c"extra"
+@.str.606 = unnamed_addr constant [12 x i8] c"user_context"
+@.str.607 = unnamed_addr constant [8 x i8] c"sdk_name"
+@.str.608 = unnamed_addr constant [11 x i8] c"sdk_version"
+@.str.609 = unnamed_addr constant [11 x i8] c"received_at"
+@.str.610 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.611 = unnamed_addr constant [16 x i8] c"\22,\22project_id\22:\22"
+@.str.612 = unnamed_addr constant [14 x i8] c"\22,\22issue_id\22:\22"
+@.str.613 = unnamed_addr constant [11 x i8] c"\22,\22level\22:\22"
+@.str.614 = unnamed_addr constant [13 x i8] c"\22,\22message\22:\22"
+@.str.615 = unnamed_addr constant [17 x i8] c"\22,\22fingerprint\22:\22"
+@.str.616 = unnamed_addr constant [14 x i8] c"\22,\22exception\22:"
+@.str.617 = unnamed_addr constant [14 x i8] c",\22stacktrace\22:"
+@.str.618 = unnamed_addr constant [15 x i8] c",\22breadcrumbs\22:"
+@.str.619 = unnamed_addr constant [8 x i8] c",\22tags\22:"
+@.str.620 = unnamed_addr constant [9 x i8] c",\22extra\22:"
+@.str.621 = unnamed_addr constant [16 x i8] c",\22user_context\22:"
+@.str.622 = unnamed_addr constant [13 x i8] c",\22sdk_name\22:\22"
+@.str.623 = unnamed_addr constant [17 x i8] c"\22,\22sdk_version\22:\22"
+@.str.624 = unnamed_addr constant [17 x i8] c"\22,\22received_at\22:\22"
+@.str.625 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.626 = unnamed_addr constant [4 x i8] c"null"
+@.str.627 = unnamed_addr constant [1 x i8] c"\22"
+@.str.628 = unnamed_addr constant [1 x i8] c"\22"
+@.str.629 = unnamed_addr constant [7 x i8] c"next_id"
+@.str.630 = unnamed_addr constant [7 x i8] c"prev_id"
+@.str.631 = unnamed_addr constant [11 x i8] c"{\22next_id\22:"
+@.str.632 = unnamed_addr constant [11 x i8] c",\22prev_id\22:"
+@.str.633 = unnamed_addr constant [1 x i8] c"}"
+@.str.634 = unnamed_addr constant [9 x i8] c"{\22event\22:"
+@.str.635 = unnamed_addr constant [14 x i8] c",\22navigation\22:"
+@.str.636 = unnamed_addr constant [1 x i8] c"}"
+@.str.637 = unnamed_addr constant [31 x i8] c"{\22next_id\22:null,\22prev_id\22:null}"
+@.str.638 = unnamed_addr constant [31 x i8] c"{\22next_id\22:null,\22prev_id\22:null}"
+@.panic_msg.639 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.640 = constant [9 x i8] c"<unknown>"
+@.str.641 = unnamed_addr constant [8 x i8] c"issue_id"
+@.str.642 = unnamed_addr constant [11 x i8] c"received_at"
+@.str.643 = unnamed_addr constant [27 x i8] c"{\22error\22:\22event not found\22}"
+@.str.644 = unnamed_addr constant [8 x i8] c"event_id"
+@.str.645 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.646 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.647 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.648 = constant [9 x i8] c"<unknown>"
+@.str.649 = unnamed_addr constant [2 x i8] c"25"
+@.str.650 = unnamed_addr constant [2 x i8] c"25"
+@.str.651 = unnamed_addr constant [2 x i8] c"25"
+@.panic_msg.652 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.653 = constant [9 x i8] c"<unknown>"
+@.str.654 = unnamed_addr constant [5 x i8] c"limit"
+@.str.655 = unnamed_addr constant [2 x i8] c"25"
+@.panic_msg.656 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.657 = constant [9 x i8] c"<unknown>"
+@.str.658 = unnamed_addr constant [2 x i8] c"id"
+@.str.659 = unnamed_addr constant [5 x i8] c"title"
+@.str.660 = unnamed_addr constant [5 x i8] c"level"
+@.str.661 = unnamed_addr constant [6 x i8] c"status"
+@.str.662 = unnamed_addr constant [11 x i8] c"event_count"
+@.str.663 = unnamed_addr constant [10 x i8] c"first_seen"
+@.str.664 = unnamed_addr constant [9 x i8] c"last_seen"
+@.str.665 = unnamed_addr constant [11 x i8] c"assigned_to"
+@.str.666 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.667 = unnamed_addr constant [11 x i8] c"\22,\22title\22:\22"
+@.str.668 = unnamed_addr constant [11 x i8] c"\22,\22level\22:\22"
+@.str.669 = unnamed_addr constant [12 x i8] c"\22,\22status\22:\22"
+@.str.670 = unnamed_addr constant [16 x i8] c"\22,\22event_count\22:"
+@.str.671 = unnamed_addr constant [15 x i8] c",\22first_seen\22:\22"
+@.str.672 = unnamed_addr constant [15 x i8] c"\22,\22last_seen\22:\22"
+@.str.673 = unnamed_addr constant [17 x i8] c"\22,\22assigned_to\22:\22"
+@.str.674 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.675 = unnamed_addr constant [2 x i8] c"id"
+@.str.676 = unnamed_addr constant [8 x i8] c"issue_id"
+@.str.677 = unnamed_addr constant [5 x i8] c"level"
+@.str.678 = unnamed_addr constant [7 x i8] c"message"
+@.str.679 = unnamed_addr constant [11 x i8] c"received_at"
+@.str.680 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.681 = unnamed_addr constant [14 x i8] c"\22,\22issue_id\22:\22"
+@.str.682 = unnamed_addr constant [11 x i8] c"\22,\22level\22:\22"
+@.str.683 = unnamed_addr constant [13 x i8] c"\22,\22message\22:\22"
+@.str.684 = unnamed_addr constant [17 x i8] c"\22,\22received_at\22:\22"
+@.str.685 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.686 = unnamed_addr constant [2 x i8] c"id"
+@.str.687 = unnamed_addr constant [8 x i8] c"issue_id"
+@.str.688 = unnamed_addr constant [5 x i8] c"level"
+@.str.689 = unnamed_addr constant [7 x i8] c"message"
+@.str.690 = unnamed_addr constant [4 x i8] c"tags"
+@.str.691 = unnamed_addr constant [11 x i8] c"received_at"
+@.str.692 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.693 = unnamed_addr constant [14 x i8] c"\22,\22issue_id\22:\22"
+@.str.694 = unnamed_addr constant [11 x i8] c"\22,\22level\22:\22"
+@.str.695 = unnamed_addr constant [13 x i8] c"\22,\22message\22:\22"
+@.str.696 = unnamed_addr constant [9 x i8] c"\22,\22tags\22:"
+@.str.697 = unnamed_addr constant [16 x i8] c",\22received_at\22:\22"
+@.str.698 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.699 = unnamed_addr constant [2 x i8] c"id"
+@.str.700 = unnamed_addr constant [5 x i8] c"level"
+@.str.701 = unnamed_addr constant [7 x i8] c"message"
+@.str.702 = unnamed_addr constant [11 x i8] c"received_at"
+@.str.703 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.704 = unnamed_addr constant [11 x i8] c"\22,\22level\22:\22"
+@.str.705 = unnamed_addr constant [13 x i8] c"\22,\22message\22:\22"
+@.str.706 = unnamed_addr constant [17 x i8] c"\22,\22received_at\22:\22"
+@.str.707 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.708 = unnamed_addr constant [16 x i8] c",\22next_cursor\22:\22"
+@.str.709 = unnamed_addr constant [20 x i8] c"\22,\22next_cursor_id\22:\22"
+@.str.710 = unnamed_addr constant [18 x i8] c"\22,\22has_more\22:true}"
+@.str.711 = unnamed_addr constant [8 x i8] c"{\22data\22:"
+@.str.712 = unnamed_addr constant [9 x i8] c"last_seen"
+@.str.713 = unnamed_addr constant [2 x i8] c"id"
+@.str.714 = unnamed_addr constant [8 x i8] c"{\22data\22:"
+@.str.715 = unnamed_addr constant [18 x i8] c",\22has_more\22:false}"
+@.str.716 = unnamed_addr constant [8 x i8] c"{\22data\22:"
+@.str.717 = unnamed_addr constant [11 x i8] c"received_at"
+@.str.718 = unnamed_addr constant [2 x i8] c"id"
+@.str.719 = unnamed_addr constant [8 x i8] c"{\22data\22:"
+@.str.720 = unnamed_addr constant [18 x i8] c",\22has_more\22:false}"
+@.panic_msg.721 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.722 = constant [9 x i8] c"<unknown>"
+@.str.723 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.724 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.725 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.726 = unnamed_addr constant [6 x i8] c"status"
+@.str.727 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.728 = unnamed_addr constant [5 x i8] c"level"
+@.str.729 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.730 = unnamed_addr constant [11 x i8] c"assigned_to"
+@.str.731 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.732 = unnamed_addr constant [6 x i8] c"cursor"
+@.str.733 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.734 = unnamed_addr constant [9 x i8] c"cursor_id"
+@.str.735 = unnamed_addr constant [0 x i8] zeroinitializer
+@.panic_msg.736 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.737 = constant [9 x i8] c"<unknown>"
+@.str.738 = unnamed_addr constant [32 x i8] c"{\22error\22:\22missing search query\22}"
+@.str.739 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.740 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.741 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.742 = constant [9 x i8] c"<unknown>"
+@.str.743 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.744 = unnamed_addr constant [1 x i8] c"q"
+@.str.745 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.746 = unnamed_addr constant [42 x i8] c"{\22error\22:\22missing key or value parameter\22}"
+@.str.747 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.748 = unnamed_addr constant [2 x i8] c"\22}"
 @.panic_msg.749 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.750 = constant [9 x i8] c"<unknown>"
-@.str.751 = unnamed_addr constant [8 x i8] c"issue_id"
-@.str.752 = unnamed_addr constant [11 x i8] c"received_at"
-@.str.753 = unnamed_addr constant [31 x i8] c"{\\\22error\\\22:\\\22event not found\\\22}"
-@.str.754 = unnamed_addr constant [8 x i8] c"event_id"
-@.str.755 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.756 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.757 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.758 = constant [9 x i8] c"<unknown>"
-@.str.759 = unnamed_addr constant [2 x i8] c"25"
-@.str.760 = unnamed_addr constant [2 x i8] c"25"
-@.str.761 = unnamed_addr constant [2 x i8] c"25"
-@.panic_msg.762 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.763 = constant [9 x i8] c"<unknown>"
-@.str.764 = unnamed_addr constant [5 x i8] c"limit"
-@.str.765 = unnamed_addr constant [2 x i8] c"25"
+@.str.751 = unnamed_addr constant [2 x i8] c"{\22"
+@.str.752 = unnamed_addr constant [3 x i8] c"\22:\22"
+@.str.753 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.754 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.755 = unnamed_addr constant [3 x i8] c"key"
+@.str.756 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.757 = unnamed_addr constant [5 x i8] c"value"
+@.str.758 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.759 = unnamed_addr constant [8 x i8] c"issue_id"
+@.str.760 = unnamed_addr constant [6 x i8] c"cursor"
+@.str.761 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.762 = unnamed_addr constant [9 x i8] c"cursor_id"
+@.str.763 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.764 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.765 = unnamed_addr constant [2 x i8] c"\22}"
 @.panic_msg.766 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.767 = constant [9 x i8] c"<unknown>"
-@.str.768 = unnamed_addr constant [2 x i8] c"id"
-@.str.769 = unnamed_addr constant [5 x i8] c"title"
-@.str.770 = unnamed_addr constant [5 x i8] c"level"
-@.str.771 = unnamed_addr constant [6 x i8] c"status"
-@.str.772 = unnamed_addr constant [11 x i8] c"event_count"
-@.str.773 = unnamed_addr constant [10 x i8] c"first_seen"
-@.str.774 = unnamed_addr constant [9 x i8] c"last_seen"
-@.str.775 = unnamed_addr constant [11 x i8] c"assigned_to"
-@.str.776 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.777 = unnamed_addr constant [15 x i8] c"\\\22,\\\22title\\\22:\\\22"
-@.str.778 = unnamed_addr constant [15 x i8] c"\\\22,\\\22level\\\22:\\\22"
-@.str.779 = unnamed_addr constant [16 x i8] c"\\\22,\\\22status\\\22:\\\22"
-@.str.780 = unnamed_addr constant [19 x i8] c"\\\22,\\\22event_count\\\22:"
-@.str.781 = unnamed_addr constant [18 x i8] c",\\\22first_seen\\\22:\\\22"
-@.str.782 = unnamed_addr constant [19 x i8] c"\\\22,\\\22last_seen\\\22:\\\22"
-@.str.783 = unnamed_addr constant [21 x i8] c"\\\22,\\\22assigned_to\\\22:\\\22"
-@.str.784 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.785 = unnamed_addr constant [2 x i8] c"id"
-@.str.786 = unnamed_addr constant [8 x i8] c"issue_id"
-@.str.787 = unnamed_addr constant [5 x i8] c"level"
-@.str.788 = unnamed_addr constant [7 x i8] c"message"
-@.str.789 = unnamed_addr constant [11 x i8] c"received_at"
-@.str.790 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.791 = unnamed_addr constant [18 x i8] c"\\\22,\\\22issue_id\\\22:\\\22"
-@.str.792 = unnamed_addr constant [15 x i8] c"\\\22,\\\22level\\\22:\\\22"
-@.str.793 = unnamed_addr constant [17 x i8] c"\\\22,\\\22message\\\22:\\\22"
-@.str.794 = unnamed_addr constant [21 x i8] c"\\\22,\\\22received_at\\\22:\\\22"
-@.str.795 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.796 = unnamed_addr constant [2 x i8] c"id"
-@.str.797 = unnamed_addr constant [8 x i8] c"issue_id"
-@.str.798 = unnamed_addr constant [5 x i8] c"level"
-@.str.799 = unnamed_addr constant [7 x i8] c"message"
-@.str.800 = unnamed_addr constant [4 x i8] c"tags"
-@.str.801 = unnamed_addr constant [11 x i8] c"received_at"
-@.str.802 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.803 = unnamed_addr constant [18 x i8] c"\\\22,\\\22issue_id\\\22:\\\22"
-@.str.804 = unnamed_addr constant [15 x i8] c"\\\22,\\\22level\\\22:\\\22"
-@.str.805 = unnamed_addr constant [17 x i8] c"\\\22,\\\22message\\\22:\\\22"
-@.str.806 = unnamed_addr constant [12 x i8] c"\\\22,\\\22tags\\\22:"
-@.str.807 = unnamed_addr constant [19 x i8] c",\\\22received_at\\\22:\\\22"
-@.str.808 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.809 = unnamed_addr constant [2 x i8] c"id"
-@.str.810 = unnamed_addr constant [5 x i8] c"level"
-@.str.811 = unnamed_addr constant [7 x i8] c"message"
-@.str.812 = unnamed_addr constant [11 x i8] c"received_at"
-@.str.813 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.814 = unnamed_addr constant [15 x i8] c"\\\22,\\\22level\\\22:\\\22"
-@.str.815 = unnamed_addr constant [17 x i8] c"\\\22,\\\22message\\\22:\\\22"
-@.str.816 = unnamed_addr constant [21 x i8] c"\\\22,\\\22received_at\\\22:\\\22"
-@.str.817 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.818 = unnamed_addr constant [19 x i8] c",\\\22next_cursor\\\22:\\\22"
-@.str.819 = unnamed_addr constant [24 x i8] c"\\\22,\\\22next_cursor_id\\\22:\\\22"
-@.str.820 = unnamed_addr constant [21 x i8] c"\\\22,\\\22has_more\\\22:true}"
-@.str.821 = unnamed_addr constant [10 x i8] c"{\\\22data\\\22:"
-@.str.822 = unnamed_addr constant [9 x i8] c"last_seen"
-@.str.823 = unnamed_addr constant [2 x i8] c"id"
-@.str.824 = unnamed_addr constant [10 x i8] c"{\\\22data\\\22:"
-@.str.825 = unnamed_addr constant [20 x i8] c",\\\22has_more\\\22:false}"
-@.str.826 = unnamed_addr constant [10 x i8] c"{\\\22data\\\22:"
-@.str.827 = unnamed_addr constant [11 x i8] c"received_at"
-@.str.828 = unnamed_addr constant [2 x i8] c"id"
-@.str.829 = unnamed_addr constant [10 x i8] c"{\\\22data\\\22:"
-@.str.830 = unnamed_addr constant [20 x i8] c",\\\22has_more\\\22:false}"
-@.panic_msg.831 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.832 = constant [9 x i8] c"<unknown>"
-@.str.833 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.834 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.835 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.836 = unnamed_addr constant [6 x i8] c"status"
-@.str.837 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.838 = unnamed_addr constant [5 x i8] c"level"
-@.str.839 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.840 = unnamed_addr constant [11 x i8] c"assigned_to"
-@.str.841 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.842 = unnamed_addr constant [6 x i8] c"cursor"
-@.str.843 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.844 = unnamed_addr constant [9 x i8] c"cursor_id"
-@.str.845 = unnamed_addr constant [0 x i8] zeroinitializer
-@.panic_msg.846 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.847 = constant [9 x i8] c"<unknown>"
-@.str.848 = unnamed_addr constant [36 x i8] c"{\\\22error\\\22:\\\22missing search query\\\22}"
-@.str.849 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.850 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.851 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.852 = constant [9 x i8] c"<unknown>"
-@.str.853 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.854 = unnamed_addr constant [1 x i8] c"q"
-@.str.855 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.856 = unnamed_addr constant [46 x i8] c"{\\\22error\\\22:\\\22missing key or value parameter\\\22}"
-@.str.857 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.858 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.859 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.860 = constant [9 x i8] c"<unknown>"
-@.str.861 = unnamed_addr constant [3 x i8] c"{\\\22"
-@.str.862 = unnamed_addr constant [5 x i8] c"\\\22:\\\22"
-@.str.863 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.864 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.865 = unnamed_addr constant [3 x i8] c"key"
-@.str.866 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.867 = unnamed_addr constant [5 x i8] c"value"
-@.str.868 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.869 = unnamed_addr constant [8 x i8] c"issue_id"
-@.str.870 = unnamed_addr constant [6 x i8] c"cursor"
-@.str.871 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.872 = unnamed_addr constant [9 x i8] c"cursor_id"
-@.str.873 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.874 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.875 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.876 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.877 = constant [9 x i8] c"<unknown>"
-@.str.878 = unnamed_addr constant [20 x i8] c"{\\\22retention_days\\\22:"
-@.str.879 = unnamed_addr constant [14 x i8] c"retention_days"
-@.str.880 = unnamed_addr constant [17 x i8] c",\\\22sample_rate\\\22:"
-@.str.881 = unnamed_addr constant [11 x i8] c"sample_rate"
-@.str.882 = unnamed_addr constant [1 x i8] c"}"
-@.str.883 = unnamed_addr constant [33 x i8] c"{\\\22error\\\22:\\\22project not found\\\22}"
-@.str.884 = unnamed_addr constant [17 x i8] c"{\\\22event_count\\\22:"
-@.str.885 = unnamed_addr constant [11 x i8] c"event_count"
-@.str.886 = unnamed_addr constant [21 x i8] c",\\\22estimated_bytes\\\22:"
-@.str.887 = unnamed_addr constant [15 x i8] c"estimated_bytes"
-@.str.888 = unnamed_addr constant [1 x i8] c"}"
-@.str.889 = unnamed_addr constant [33 x i8] c"{\\\22error\\\22:\\\22project not found\\\22}"
-@.str.890 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.891 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.892 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.893 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.894 = constant [9 x i8] c"<unknown>"
-@.str.895 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.896 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.897 = unnamed_addr constant [1 x i8] c"}"
-@.str.898 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.899 = unnamed_addr constant [3 x i8] c"\\\22}"
+@.str.768 = unnamed_addr constant [18 x i8] c"{\22retention_days\22:"
+@.str.769 = unnamed_addr constant [14 x i8] c"retention_days"
+@.str.770 = unnamed_addr constant [15 x i8] c",\22sample_rate\22:"
+@.str.771 = unnamed_addr constant [11 x i8] c"sample_rate"
+@.str.772 = unnamed_addr constant [1 x i8] c"}"
+@.str.773 = unnamed_addr constant [29 x i8] c"{\22error\22:\22project not found\22}"
+@.str.774 = unnamed_addr constant [15 x i8] c"{\22event_count\22:"
+@.str.775 = unnamed_addr constant [11 x i8] c"event_count"
+@.str.776 = unnamed_addr constant [19 x i8] c",\22estimated_bytes\22:"
+@.str.777 = unnamed_addr constant [15 x i8] c"estimated_bytes"
+@.str.778 = unnamed_addr constant [1 x i8] c"}"
+@.str.779 = unnamed_addr constant [29 x i8] c"{\22error\22:\22project not found\22}"
+@.str.780 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.781 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.782 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.783 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.784 = constant [9 x i8] c"<unknown>"
+@.str.785 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.786 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.787 = unnamed_addr constant [1 x i8] c"}"
+@.str.788 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.789 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.790 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.791 = constant [9 x i8] c"<unknown>"
+@.str.792 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.793 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.794 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.795 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.796 = constant [9 x i8] c"<unknown>"
+@.str.797 = unnamed_addr constant [2 x i8] c"id"
+@.str.798 = unnamed_addr constant [7 x i8] c"user_id"
+@.str.799 = unnamed_addr constant [5 x i8] c"email"
+@.str.800 = unnamed_addr constant [12 x i8] c"display_name"
+@.str.801 = unnamed_addr constant [4 x i8] c"role"
+@.str.802 = unnamed_addr constant [9 x i8] c"joined_at"
+@.str.803 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.804 = unnamed_addr constant [13 x i8] c"\22,\22user_id\22:\22"
+@.str.805 = unnamed_addr constant [11 x i8] c"\22,\22email\22:\22"
+@.str.806 = unnamed_addr constant [18 x i8] c"\22,\22display_name\22:\22"
+@.str.807 = unnamed_addr constant [10 x i8] c"\22,\22role\22:\22"
+@.str.808 = unnamed_addr constant [15 x i8] c"\22,\22joined_at\22:\22"
+@.str.809 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.810 = unnamed_addr constant [2 x i8] c"id"
+@.str.811 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.812 = unnamed_addr constant [9 x i8] c"key_value"
+@.str.813 = unnamed_addr constant [5 x i8] c"label"
+@.str.814 = unnamed_addr constant [10 x i8] c"created_at"
+@.str.815 = unnamed_addr constant [10 x i8] c"revoked_at"
+@.str.816 = unnamed_addr constant [4 x i8] c"null"
+@.str.817 = unnamed_addr constant [1 x i8] c"\22"
+@.str.818 = unnamed_addr constant [1 x i8] c"\22"
+@.str.819 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.820 = unnamed_addr constant [16 x i8] c"\22,\22project_id\22:\22"
+@.str.821 = unnamed_addr constant [15 x i8] c"\22,\22key_value\22:\22"
+@.str.822 = unnamed_addr constant [11 x i8] c"\22,\22label\22:\22"
+@.str.823 = unnamed_addr constant [16 x i8] c"\22,\22created_at\22:\22"
+@.str.824 = unnamed_addr constant [15 x i8] c"\22,\22revoked_at\22:"
+@.str.825 = unnamed_addr constant [1 x i8] c"}"
+@.str.826 = unnamed_addr constant [7 x i8] c"{\22id\22:\22"
+@.str.827 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.828 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.829 = unnamed_addr constant [1 x i8] c"}"
+@.str.830 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.831 = unnamed_addr constant [1 x i8] c"}"
+@.str.832 = unnamed_addr constant [14 x i8] c"{\22key_value\22:\22"
+@.str.833 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.834 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.835 = unnamed_addr constant [1 x i8] c"}"
+@.str.836 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.837 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.838 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.839 = constant [9 x i8] c"<unknown>"
+@.str.840 = unnamed_addr constant [4 x i8] c"role"
+@.str.841 = unnamed_addr constant [6 x i8] c"member"
+@.str.842 = unnamed_addr constant [24 x i8] c"{\22error\22:\22invalid json\22}"
+@.panic_msg.843 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.844 = constant [9 x i8] c"<unknown>"
+@.str.845 = unnamed_addr constant [31 x i8] c"{\22error\22:\22user_id is required\22}"
+@.str.846 = unnamed_addr constant [7 x i8] c"user_id"
+@.str.847 = unnamed_addr constant [24 x i8] c"{\22error\22:\22invalid json\22}"
+@.panic_msg.848 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.849 = constant [9 x i8] c"<unknown>"
+@.str.850 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.851 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.852 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.853 = constant [9 x i8] c"<unknown>"
+@.str.854 = unnamed_addr constant [4 x i8] c"role"
+@.str.855 = unnamed_addr constant [24 x i8] c"{\22error\22:\22invalid json\22}"
+@.panic_msg.856 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.857 = constant [9 x i8] c"<unknown>"
+@.str.858 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.859 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.860 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.861 = constant [9 x i8] c"<unknown>"
+@.str.862 = unnamed_addr constant [5 x i8] c"label"
+@.str.863 = unnamed_addr constant [7 x i8] c"default"
+@.str.864 = unnamed_addr constant [24 x i8] c"{\22error\22:\22invalid json\22}"
+@.panic_msg.865 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.866 = constant [9 x i8] c"<unknown>"
+@.str.867 = unnamed_addr constant [6 x i8] c"org_id"
+@.str.868 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.869 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.870 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.871 = constant [9 x i8] c"<unknown>"
+@.str.872 = unnamed_addr constant [6 x i8] c"org_id"
+@.str.873 = unnamed_addr constant [13 x i8] c"membership_id"
+@.str.874 = unnamed_addr constant [13 x i8] c"membership_id"
+@.str.875 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.876 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.877 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.878 = constant [9 x i8] c"<unknown>"
+@.str.879 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.880 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.881 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.882 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.883 = constant [9 x i8] c"<unknown>"
+@.str.884 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.885 = unnamed_addr constant [6 x i8] c"key_id"
+@.str.886 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.887 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.888 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.889 = constant [9 x i8] c"<unknown>"
+@.str.890 = unnamed_addr constant [24 x i8] c"{\22error\22:\22unauthorized\22}"
+@.str.891 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.892 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.893 = unnamed_addr constant [24 x i8] c"{\22error\22:\22rate limited\22}"
+@.str.894 = unnamed_addr constant [21 x i8] c"{\22status\22:\22accepted\22}"
+@.str.895 = unnamed_addr constant [3 x i8] c"cnt"
+@.str.896 = unnamed_addr constant [8 x i8] c"project:"
+@.str.897 = unnamed_addr constant [36 x i8] c"{\22type\22:\22issue_count\22,\22project_id\22:\22"
+@.str.898 = unnamed_addr constant [10 x i8] c"\22,\22count\22:"
+@.str.899 = unnamed_addr constant [1 x i8] c"}"
 @.panic_msg.900 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.901 = constant [9 x i8] c"<unknown>"
-@.str.902 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.903 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.904 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.905 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.906 = constant [9 x i8] c"<unknown>"
-@.str.907 = unnamed_addr constant [2 x i8] c"id"
-@.str.908 = unnamed_addr constant [7 x i8] c"user_id"
-@.str.909 = unnamed_addr constant [5 x i8] c"email"
-@.str.910 = unnamed_addr constant [12 x i8] c"display_name"
-@.str.911 = unnamed_addr constant [4 x i8] c"role"
-@.str.912 = unnamed_addr constant [9 x i8] c"joined_at"
-@.str.913 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.914 = unnamed_addr constant [17 x i8] c"\\\22,\\\22user_id\\\22:\\\22"
-@.str.915 = unnamed_addr constant [15 x i8] c"\\\22,\\\22email\\\22:\\\22"
-@.str.916 = unnamed_addr constant [22 x i8] c"\\\22,\\\22display_name\\\22:\\\22"
-@.str.917 = unnamed_addr constant [14 x i8] c"\\\22,\\\22role\\\22:\\\22"
-@.str.918 = unnamed_addr constant [19 x i8] c"\\\22,\\\22joined_at\\\22:\\\22"
-@.str.919 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.920 = unnamed_addr constant [2 x i8] c"id"
-@.str.921 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.922 = unnamed_addr constant [9 x i8] c"key_value"
-@.str.923 = unnamed_addr constant [5 x i8] c"label"
-@.str.924 = unnamed_addr constant [10 x i8] c"created_at"
-@.str.925 = unnamed_addr constant [10 x i8] c"revoked_at"
-@.str.926 = unnamed_addr constant [4 x i8] c"null"
-@.str.927 = unnamed_addr constant [2 x i8] c"\\\22"
-@.str.928 = unnamed_addr constant [2 x i8] c"\\\22"
-@.str.929 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.930 = unnamed_addr constant [20 x i8] c"\\\22,\\\22project_id\\\22:\\\22"
-@.str.931 = unnamed_addr constant [19 x i8] c"\\\22,\\\22key_value\\\22:\\\22"
-@.str.932 = unnamed_addr constant [15 x i8] c"\\\22,\\\22label\\\22:\\\22"
-@.str.933 = unnamed_addr constant [20 x i8] c"\\\22,\\\22created_at\\\22:\\\22"
-@.str.934 = unnamed_addr constant [18 x i8] c"\\\22,\\\22revoked_at\\\22:"
-@.str.935 = unnamed_addr constant [1 x i8] c"}"
-@.str.936 = unnamed_addr constant [42 x i8] c"SELECT COALESCE($1::jsonb->>$2, '') AS val"
-@.panic_msg.937 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.938 = constant [9 x i8] c"<unknown>"
-@.str.939 = unnamed_addr constant [3 x i8] c"val"
-@.str.940 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.941 = unnamed_addr constant [10 x i8] c"{\\\22id\\\22:\\\22"
-@.str.942 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.943 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.944 = unnamed_addr constant [1 x i8] c"}"
-@.str.945 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
+@.str.902 = unnamed_addr constant [8 x i8] c"project:"
+@.str.903 = unnamed_addr constant [28 x i8] c"{\22type\22:\22alert\22,\22alert_id\22:\22"
+@.str.904 = unnamed_addr constant [15 x i8] c"\22,\22rule_name\22:\22"
+@.str.905 = unnamed_addr constant [15 x i8] c"\22,\22condition\22:\22"
+@.str.906 = unnamed_addr constant [13 x i8] c"\22,\22message\22:\22"
+@.str.907 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.908 = unnamed_addr constant [20 x i8] c" detected for issue "
+@.panic_msg.909 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.910 = constant [9 x i8] c"<unknown>"
+@.panic_msg.911 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.912 = constant [9 x i8] c"<unknown>"
+@.str.913 = unnamed_addr constant [2 x i8] c"id"
+@.str.914 = unnamed_addr constant [4 x i8] c"name"
+@.str.915 = unnamed_addr constant [16 x i8] c"cooldown_minutes"
+@.panic_msg.916 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.917 = constant [9 x i8] c"<unknown>"
+@.str.918 = unnamed_addr constant [9 x i8] c"new_issue"
+@.panic_msg.919 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.920 = constant [9 x i8] c"<unknown>"
+@.str.921 = unnamed_addr constant [8 x i8] c"project:"
+@.str.922 = unnamed_addr constant [28 x i8] c"{\22type\22:\22event\22,\22issue_id\22:\22"
+@.str.923 = unnamed_addr constant [9 x i8] c"\22,\22data\22:"
+@.str.924 = unnamed_addr constant [1 x i8] c"}"
+@.panic_msg.925 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.926 = constant [9 x i8] c"<unknown>"
+@.panic_msg.927 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.928 = constant [9 x i8] c"<unknown>"
+@.panic_msg.929 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.930 = constant [9 x i8] c"<unknown>"
+@.panic_msg.931 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.932 = constant [9 x i8] c"<unknown>"
+@.panic_msg.933 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.934 = constant [9 x i8] c"<unknown>"
+@.panic_msg.935 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.936 = constant [9 x i8] c"<unknown>"
+@.str.937 = unnamed_addr constant [10 x i8] c"project_id"
+@.str.938 = unnamed_addr constant [8 x i8] c"project:"
+@.str.939 = unnamed_addr constant [26 x i8] c"{\22type\22:\22issue\22,\22action\22:\22"
+@.str.940 = unnamed_addr constant [14 x i8] c"\22,\22issue_id\22:\22"
+@.str.941 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.942 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.943 = constant [9 x i8] c"<unknown>"
+@.str.944 = unnamed_addr constant [8 x i8] c"resolved"
+@.str.945 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
 @.str.946 = unnamed_addr constant [1 x i8] c"}"
-@.str.947 = unnamed_addr constant [17 x i8] c"{\\\22key_value\\\22:\\\22"
-@.str.948 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.949 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.950 = unnamed_addr constant [1 x i8] c"}"
-@.str.951 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.952 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.953 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.954 = constant [9 x i8] c"<unknown>"
-@.str.955 = unnamed_addr constant [4 x i8] c"role"
-@.str.956 = unnamed_addr constant [6 x i8] c"member"
-@.str.957 = unnamed_addr constant [28 x i8] c"{\\\22error\\\22:\\\22invalid json\\\22}"
-@.panic_msg.958 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.959 = constant [9 x i8] c"<unknown>"
-@.str.960 = unnamed_addr constant [35 x i8] c"{\\\22error\\\22:\\\22user_id is required\\\22}"
-@.str.961 = unnamed_addr constant [7 x i8] c"user_id"
-@.str.962 = unnamed_addr constant [28 x i8] c"{\\\22error\\\22:\\\22invalid json\\\22}"
-@.panic_msg.963 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.964 = constant [9 x i8] c"<unknown>"
-@.str.965 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.966 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.967 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.968 = constant [9 x i8] c"<unknown>"
-@.str.969 = unnamed_addr constant [4 x i8] c"role"
-@.str.970 = unnamed_addr constant [28 x i8] c"{\\\22error\\\22:\\\22invalid json\\\22}"
-@.panic_msg.971 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.972 = constant [9 x i8] c"<unknown>"
-@.str.973 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.974 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.975 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.976 = constant [9 x i8] c"<unknown>"
-@.str.977 = unnamed_addr constant [5 x i8] c"label"
-@.str.978 = unnamed_addr constant [7 x i8] c"default"
-@.str.979 = unnamed_addr constant [28 x i8] c"{\\\22error\\\22:\\\22invalid json\\\22}"
-@.panic_msg.980 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.981 = constant [9 x i8] c"<unknown>"
-@.str.982 = unnamed_addr constant [6 x i8] c"org_id"
-@.str.983 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.984 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.985 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.986 = constant [9 x i8] c"<unknown>"
-@.str.987 = unnamed_addr constant [6 x i8] c"org_id"
-@.str.988 = unnamed_addr constant [13 x i8] c"membership_id"
-@.str.989 = unnamed_addr constant [13 x i8] c"membership_id"
-@.str.990 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.991 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.992 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.993 = constant [9 x i8] c"<unknown>"
-@.str.994 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.995 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.996 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.997 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.998 = constant [9 x i8] c"<unknown>"
-@.str.999 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.1000 = unnamed_addr constant [6 x i8] c"key_id"
-@.str.1001 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.1002 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.1003 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1004 = constant [9 x i8] c"<unknown>"
-@.str.1005 = unnamed_addr constant [28 x i8] c"{\\\22error\\\22:\\\22unauthorized\\\22}"
-@.str.1006 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.1007 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.1008 = unnamed_addr constant [11 x i8] c"Retry-After"
-@.str.1009 = unnamed_addr constant [2 x i8] c"60"
-@.str.1010 = unnamed_addr constant [28 x i8] c"{\\\22error\\\22:\\\22rate limited\\\22}"
-@.str.1011 = unnamed_addr constant [25 x i8] c"{\\\22status\\\22:\\\22accepted\\\22}"
-@.str.1012 = unnamed_addr constant [3 x i8] c"cnt"
-@.str.1013 = unnamed_addr constant [8 x i8] c"project:"
-@.str.1014 = unnamed_addr constant [43 x i8] c"{\\\22type\\\22:\\\22issue_count\\\22,\\\22project_id\\\22:\\\22"
-@.str.1015 = unnamed_addr constant [13 x i8] c"\\\22,\\\22count\\\22:"
-@.str.1016 = unnamed_addr constant [1 x i8] c"}"
-@.str.1017 = unnamed_addr constant [94 x i8] c"SELECT count(*)::text AS cnt FROM issues WHERE project_id = $1::uuid AND status = 'unresolved'"
-@.panic_msg.1018 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1019 = constant [9 x i8] c"<unknown>"
-@.str.1020 = unnamed_addr constant [8 x i8] c"project:"
-@.str.1021 = unnamed_addr constant [35 x i8] c"{\\\22type\\\22:\\\22alert\\\22,\\\22alert_id\\\22:\\\22"
-@.str.1022 = unnamed_addr constant [19 x i8] c"\\\22,\\\22rule_name\\\22:\\\22"
-@.str.1023 = unnamed_addr constant [19 x i8] c"\\\22,\\\22condition\\\22:\\\22"
-@.str.1024 = unnamed_addr constant [17 x i8] c"\\\22,\\\22message\\\22:\\\22"
-@.str.1025 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.1026 = unnamed_addr constant [20 x i8] c" detected for issue "
-@.panic_msg.1027 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1028 = constant [9 x i8] c"<unknown>"
-@.panic_msg.1029 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1030 = constant [9 x i8] c"<unknown>"
-@.str.1031 = unnamed_addr constant [2 x i8] c"id"
-@.str.1032 = unnamed_addr constant [4 x i8] c"name"
-@.str.1033 = unnamed_addr constant [16 x i8] c"cooldown_minutes"
+@.str.947 = unnamed_addr constant [8 x i8] c"archived"
+@.str.948 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.949 = unnamed_addr constant [1 x i8] c"}"
+@.str.950 = unnamed_addr constant [10 x i8] c"unresolved"
+@.str.951 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.952 = unnamed_addr constant [1 x i8] c"}"
+@.str.953 = unnamed_addr constant [9 x i8] c"discarded"
+@.str.954 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.955 = unnamed_addr constant [1 x i8] c"}"
+@.str.956 = unnamed_addr constant [2 x i8] c"id"
+@.str.957 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.958 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.959 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.960 = constant [9 x i8] c"<unknown>"
+@.str.961 = unnamed_addr constant [2 x i8] c"id"
+@.str.962 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.963 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.964 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.965 = constant [9 x i8] c"<unknown>"
+@.str.966 = unnamed_addr constant [2 x i8] c"id"
+@.str.967 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.968 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.969 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.970 = constant [9 x i8] c"<unknown>"
+@.str.971 = unnamed_addr constant [15 x i8] c"{\22status\22:\22ok\22}"
+@.str.972 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.973 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.974 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.975 = constant [9 x i8] c"<unknown>"
+@.str.976 = unnamed_addr constant [2 x i8] c"id"
+@.str.977 = unnamed_addr constant [7 x i8] c"user_id"
+@.str.978 = unnamed_addr constant [2 x i8] c"id"
+@.str.979 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.980 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.981 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.982 = constant [9 x i8] c"<unknown>"
+@.str.983 = unnamed_addr constant [2 x i8] c"id"
+@.str.984 = unnamed_addr constant [26 x i8] c"{\22status\22:\22ok\22,\22affected\22:"
+@.str.985 = unnamed_addr constant [1 x i8] c"}"
+@.str.986 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.987 = unnamed_addr constant [2 x i8] c"\22}"
+@.panic_msg.988 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.989 = constant [9 x i8] c"<unknown>"
+@.str.990 = unnamed_addr constant [13 x i8] c"authorization"
+@.str.991 = unnamed_addr constant [21 x i8] c"{\22status\22:\22accepted\22}"
+@.str.992 = unnamed_addr constant [10 x i8] c"{\22error\22:\22"
+@.str.993 = unnamed_addr constant [2 x i8] c"\22}"
+@.str.994 = unnamed_addr constant [1 x i8] c"/"
+@.str.995 = unnamed_addr constant [2 x i8] c"ws"
+@.str.996 = unnamed_addr constant [8 x i8] c"project:"
+@.str.997 = unnamed_addr constant [14 x i8] c"stream_manager"
+@.str.998 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.999 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.1000 = unnamed_addr constant [13 x i8] c"x-sentry-auth"
+@.str.1001 = unnamed_addr constant [17 x i8] c"/stream/projects/"
+@.str.1002 = unnamed_addr constant [7 x i8] c"filters"
+@.str.1003 = unnamed_addr constant [5 x i8] c"level"
+@.str.1004 = unnamed_addr constant [7 x i8] c"filters"
+@.str.1005 = unnamed_addr constant [11 x i8] c"environment"
+@.str.1006 = unnamed_addr constant [14 x i8] c"stream_manager"
+@.str.1007 = unnamed_addr constant [26 x i8] c"{\22type\22:\22filters_updated\22}"
+@.str.1008 = unnamed_addr constant [10 x i8] c"ws-project"
+@.panic_msg.1009 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.1010 = constant [9 x i8] c"<unknown>"
+@.str.1011 = unnamed_addr constant [14 x i8] c"stream_manager"
+@.str.1012 = unnamed_addr constant [14 x i8] c"stream_manager"
+@.str.1013 = unnamed_addr constant [24 x i8] c"[WS] Connection closed: "
+@.panic_msg.1014 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.1015 = constant [9 x i8] c"<unknown>"
+@.panic_msg.1016 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.1017 = constant [9 x i8] c"<unknown>"
+@.str.1018 = unnamed_addr constant [0 x i8] zeroinitializer
+@.str.1019 = unnamed_addr constant [28 x i8] c"[Mesher] Connected to peer: "
+@.str.1020 = unnamed_addr constant [36 x i8] c"[Mesher] Failed to connect to peer: "
+@.str.1021 = unnamed_addr constant [28 x i8] c"[Mesher] No peers configured"
+@.str.1022 = unnamed_addr constant [12 x i8] c"MESHER_PEERS"
+@.str.1023 = unnamed_addr constant [28 x i8] c"[Mesher] No peers configured"
+@.panic_msg.1024 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.1025 = constant [9 x i8] c"<unknown>"
+@.str.1026 = unnamed_addr constant [23 x i8] c"[Mesher] Node started: "
+@.str.1027 = unnamed_addr constant [32 x i8] c"[Mesher] Node start failed for: "
+@.str.1028 = unnamed_addr constant [13 x i8] c"MESHER_COOKIE"
+@.str.1029 = unnamed_addr constant [53 x i8] c"[Mesher] Running in standalone mode (no distribution)"
+@.panic_msg.1030 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.1031 = constant [9 x i8] c"<unknown>"
+@.str.1032 = unnamed_addr constant [16 x i8] c"MESHER_NODE_NAME"
+@.str.1033 = unnamed_addr constant [53 x i8] c"[Mesher] Running in standalone mode (no distribution)"
 @.panic_msg.1034 = constant [30 x i8] c"non-exhaustive match in switch"
 @.panic_file.1035 = constant [9 x i8] c"<unknown>"
-@.str.1036 = unnamed_addr constant [9 x i8] c"new_issue"
-@.panic_msg.1037 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1038 = constant [9 x i8] c"<unknown>"
-@.str.1039 = unnamed_addr constant [8 x i8] c"project:"
-@.str.1040 = unnamed_addr constant [35 x i8] c"{\\\22type\\\22:\\\22event\\\22,\\\22issue_id\\\22:\\\22"
-@.str.1041 = unnamed_addr constant [12 x i8] c"\\\22,\\\22data\\\22:"
-@.str.1042 = unnamed_addr constant [1 x i8] c"}"
-@.panic_msg.1043 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1044 = constant [9 x i8] c"<unknown>"
-@.panic_msg.1045 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1046 = constant [9 x i8] c"<unknown>"
-@.panic_msg.1047 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1048 = constant [9 x i8] c"<unknown>"
-@.panic_msg.1049 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1050 = constant [9 x i8] c"<unknown>"
-@.panic_msg.1051 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1052 = constant [9 x i8] c"<unknown>"
-@.panic_msg.1053 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1054 = constant [9 x i8] c"<unknown>"
-@.panic_msg.1055 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1056 = constant [9 x i8] c"<unknown>"
-@.str.1057 = unnamed_addr constant [10 x i8] c"project_id"
-@.str.1058 = unnamed_addr constant [8 x i8] c"project:"
-@.str.1059 = unnamed_addr constant [33 x i8] c"{\\\22type\\\22:\\\22issue\\\22,\\\22action\\\22:\\\22"
-@.str.1060 = unnamed_addr constant [18 x i8] c"\\\22,\\\22issue_id\\\22:\\\22"
-@.str.1061 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.1062 = unnamed_addr constant [55 x i8] c"SELECT project_id::text FROM issues WHERE id = $1::uuid"
-@.panic_msg.1063 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1064 = constant [9 x i8] c"<unknown>"
-@.str.1065 = unnamed_addr constant [8 x i8] c"resolved"
-@.str.1066 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.1067 = unnamed_addr constant [1 x i8] c"}"
-@.str.1068 = unnamed_addr constant [8 x i8] c"archived"
-@.str.1069 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.1070 = unnamed_addr constant [1 x i8] c"}"
-@.str.1071 = unnamed_addr constant [10 x i8] c"unresolved"
-@.str.1072 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.1073 = unnamed_addr constant [1 x i8] c"}"
-@.str.1074 = unnamed_addr constant [9 x i8] c"discarded"
-@.str.1075 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.1076 = unnamed_addr constant [1 x i8] c"}"
-@.str.1077 = unnamed_addr constant [2 x i8] c"id"
-@.str.1078 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.1079 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.1080 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1081 = constant [9 x i8] c"<unknown>"
-@.str.1082 = unnamed_addr constant [2 x i8] c"id"
-@.str.1083 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.1084 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.1085 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1086 = constant [9 x i8] c"<unknown>"
-@.str.1087 = unnamed_addr constant [2 x i8] c"id"
-@.str.1088 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.1089 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.1090 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1091 = constant [9 x i8] c"<unknown>"
-@.str.1092 = unnamed_addr constant [7 x i8] c"user_id"
-@.str.1093 = unnamed_addr constant [19 x i8] c"{\\\22status\\\22:\\\22ok\\\22}"
-@.str.1094 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.1095 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.1096 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1097 = constant [9 x i8] c"<unknown>"
-@.str.1098 = unnamed_addr constant [28 x i8] c"{\\\22error\\\22:\\\22invalid body\\\22}"
-@.str.1099 = unnamed_addr constant [2 x i8] c"id"
-@.str.1100 = unnamed_addr constant [53 x i8] c"SELECT COALESCE($1::jsonb->>'user_id', '') AS user_id"
-@.str.1101 = unnamed_addr constant [28 x i8] c"{\\\22error\\\22:\\\22invalid json\\\22}"
-@.panic_msg.1102 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1103 = constant [9 x i8] c"<unknown>"
-@.str.1104 = unnamed_addr constant [2 x i8] c"id"
-@.str.1105 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.1106 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.1107 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1108 = constant [9 x i8] c"<unknown>"
-@.str.1109 = unnamed_addr constant [2 x i8] c"id"
-@.str.1110 = unnamed_addr constant [32 x i8] c"{\\\22status\\\22:\\\22ok\\\22,\\\22affected\\\22:"
-@.str.1111 = unnamed_addr constant [1 x i8] c"}"
-@.str.1112 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.1113 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.panic_msg.1114 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1115 = constant [9 x i8] c"<unknown>"
-@.str.1116 = unnamed_addr constant [13 x i8] c"authorization"
-@.str.1117 = unnamed_addr constant [25 x i8] c"{\\\22status\\\22:\\\22accepted\\\22}"
-@.str.1118 = unnamed_addr constant [13 x i8] c"{\\\22error\\\22:\\\22"
-@.str.1119 = unnamed_addr constant [3 x i8] c"\\\22}"
-@.str.1120 = unnamed_addr constant [1 x i8] c"/"
-@.str.1121 = unnamed_addr constant [8 x i8] c"project:"
-@.str.1122 = unnamed_addr constant [14 x i8] c"stream_manager"
-@.str.1123 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.1124 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.1125 = unnamed_addr constant [13 x i8] c"x-sentry-auth"
-@.str.1126 = unnamed_addr constant [1 x i8] c"/"
-@.str.1127 = unnamed_addr constant [6 x i8] c"stream"
-@.str.1128 = unnamed_addr constant [8 x i8] c"projects"
-@.str.1129 = unnamed_addr constant [5 x i8] c"level"
-@.str.1130 = unnamed_addr constant [3 x i8] c"env"
-@.str.1131 = unnamed_addr constant [14 x i8] c"stream_manager"
-@.str.1132 = unnamed_addr constant [30 x i8] c"{\\\22type\\\22:\\\22filters_updated\\\22}"
-@.str.1133 = unnamed_addr constant [56 x i8] c"{\\\22type\\\22:\\\22error\\\22,\\\22message\\\22:\\\22filter parse failed\\\22}"
-@.str.1134 = unnamed_addr constant [119 x i8] c"SELECT COALESCE($1::jsonb->'filters'->>'level', '') AS level, COALESCE($1::jsonb->'filters'->>'environment', '') AS env"
-@.str.1135 = unnamed_addr constant [62 x i8] c"{\\\22type\\\22:\\\22error\\\22,\\\22message\\\22:\\\22invalid subscribe message\\\22}"
-@.panic_msg.1136 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1137 = constant [9 x i8] c"<unknown>"
-@.str.1138 = unnamed_addr constant [10 x i8] c"ws-project"
-@.panic_msg.1139 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1140 = constant [9 x i8] c"<unknown>"
-@.str.1141 = unnamed_addr constant [14 x i8] c"stream_manager"
-@.str.1142 = unnamed_addr constant [14 x i8] c"stream_manager"
-@.str.1143 = unnamed_addr constant [24 x i8] c"[WS] Connection closed: "
-@.panic_msg.1144 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1145 = constant [9 x i8] c"<unknown>"
-@.panic_msg.1146 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1147 = constant [9 x i8] c"<unknown>"
-@.str.1148 = unnamed_addr constant [0 x i8] zeroinitializer
-@.str.1149 = unnamed_addr constant [28 x i8] c"[Mesher] Connected to peer: "
-@.str.1150 = unnamed_addr constant [36 x i8] c"[Mesher] Failed to connect to peer: "
-@.str.1151 = unnamed_addr constant [28 x i8] c"[Mesher] No peers configured"
-@.str.1152 = unnamed_addr constant [12 x i8] c"MESHER_PEERS"
-@.str.1153 = unnamed_addr constant [28 x i8] c"[Mesher] No peers configured"
-@.panic_msg.1154 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1155 = constant [9 x i8] c"<unknown>"
-@.str.1156 = unnamed_addr constant [23 x i8] c"[Mesher] Node started: "
-@.str.1157 = unnamed_addr constant [32 x i8] c"[Mesher] Node start failed for: "
-@.str.1158 = unnamed_addr constant [13 x i8] c"MESHER_COOKIE"
-@.str.1159 = unnamed_addr constant [53 x i8] c"[Mesher] Running in standalone mode (no distribution)"
-@.panic_msg.1160 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1161 = constant [9 x i8] c"<unknown>"
-@.str.1162 = unnamed_addr constant [16 x i8] c"MESHER_NODE_NAME"
-@.str.1163 = unnamed_addr constant [53 x i8] c"[Mesher] Running in standalone mode (no distribution)"
-@.panic_msg.1164 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1165 = constant [9 x i8] c"<unknown>"
-@.str.1166 = unnamed_addr constant [32 x i8] c"[Mesher] Schema created/verified"
-@.str.1167 = unnamed_addr constant [21 x i8] c"[Mesher] Schema error"
-@.panic_msg.1168 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1169 = constant [9 x i8] c"<unknown>"
-@.str.1170 = unnamed_addr constant [42 x i8] c"[Mesher] Partitions created (7 days ahead)"
-@.str.1171 = unnamed_addr constant [24 x i8] c"[Mesher] Partition error"
-@.panic_msg.1172 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1173 = constant [9 x i8] c"<unknown>"
-@.str.1174 = unnamed_addr constant [27 x i8] c"[Mesher] OrgService started"
-@.str.1175 = unnamed_addr constant [31 x i8] c"[Mesher] ProjectService started"
-@.str.1176 = unnamed_addr constant [28 x i8] c"[Mesher] UserService started"
-@.str.1177 = unnamed_addr constant [25 x i8] c"[Mesher] Foundation ready"
-@.str.1178 = unnamed_addr constant [14 x i8] c"MESHER_WS_PORT"
-@.str.1179 = unnamed_addr constant [4 x i8] c"8081"
-@.str.1180 = unnamed_addr constant [16 x i8] c"MESHER_HTTP_PORT"
-@.str.1181 = unnamed_addr constant [4 x i8] c"8080"
-@.str.1182 = unnamed_addr constant [39 x i8] c"[Mesher] WebSocket server starting on :"
-@.str.1183 = unnamed_addr constant [34 x i8] c"[Mesher] HTTP server starting on :"
-@.str.1184 = unnamed_addr constant [14 x i8] c"/api/v1/events"
-@.str.1185 = unnamed_addr constant [19 x i8] c"/api/v1/events/bulk"
-@.str.1186 = unnamed_addr constant [35 x i8] c"/api/v1/projects/:project_id/issues"
-@.str.1187 = unnamed_addr constant [42 x i8] c"/api/v1/projects/:project_id/events/search"
-@.str.1188 = unnamed_addr constant [40 x i8] c"/api/v1/projects/:project_id/events/tags"
-@.str.1189 = unnamed_addr constant [31 x i8] c"/api/v1/issues/:issue_id/events"
-@.str.1190 = unnamed_addr constant [45 x i8] c"/api/v1/projects/:project_id/dashboard/volume"
-@.str.1191 = unnamed_addr constant [45 x i8] c"/api/v1/projects/:project_id/dashboard/levels"
-@.str.1192 = unnamed_addr constant [49 x i8] c"/api/v1/projects/:project_id/dashboard/top-issues"
-@.str.1193 = unnamed_addr constant [43 x i8] c"/api/v1/projects/:project_id/dashboard/tags"
-@.str.1194 = unnamed_addr constant [33 x i8] c"/api/v1/issues/:issue_id/timeline"
-@.str.1195 = unnamed_addr constant [45 x i8] c"/api/v1/projects/:project_id/dashboard/health"
-@.str.1196 = unnamed_addr constant [24 x i8] c"/api/v1/events/:event_id"
-@.str.1197 = unnamed_addr constant [26 x i8] c"/api/v1/issues/:id/resolve"
-@.str.1198 = unnamed_addr constant [26 x i8] c"/api/v1/issues/:id/archive"
-@.str.1199 = unnamed_addr constant [28 x i8] c"/api/v1/issues/:id/unresolve"
-@.str.1200 = unnamed_addr constant [25 x i8] c"/api/v1/issues/:id/assign"
-@.str.1201 = unnamed_addr constant [26 x i8] c"/api/v1/issues/:id/discard"
-@.str.1202 = unnamed_addr constant [25 x i8] c"/api/v1/issues/:id/delete"
-@.str.1203 = unnamed_addr constant [28 x i8] c"/api/v1/orgs/:org_id/members"
-@.str.1204 = unnamed_addr constant [28 x i8] c"/api/v1/orgs/:org_id/members"
-@.str.1205 = unnamed_addr constant [48 x i8] c"/api/v1/orgs/:org_id/members/:membership_id/role"
-@.str.1206 = unnamed_addr constant [50 x i8] c"/api/v1/orgs/:org_id/members/:membership_id/remove"
-@.str.1207 = unnamed_addr constant [37 x i8] c"/api/v1/projects/:project_id/api-keys"
-@.str.1208 = unnamed_addr constant [37 x i8] c"/api/v1/projects/:project_id/api-keys"
-@.str.1209 = unnamed_addr constant [31 x i8] c"/api/v1/api-keys/:key_id/revoke"
-@.str.1210 = unnamed_addr constant [40 x i8] c"/api/v1/projects/:project_id/alert-rules"
-@.str.1211 = unnamed_addr constant [40 x i8] c"/api/v1/projects/:project_id/alert-rules"
-@.str.1212 = unnamed_addr constant [35 x i8] c"/api/v1/alert-rules/:rule_id/toggle"
-@.str.1213 = unnamed_addr constant [35 x i8] c"/api/v1/alert-rules/:rule_id/delete"
-@.str.1214 = unnamed_addr constant [35 x i8] c"/api/v1/projects/:project_id/alerts"
-@.str.1215 = unnamed_addr constant [30 x i8] c"/api/v1/alerts/:id/acknowledge"
-@.str.1216 = unnamed_addr constant [26 x i8] c"/api/v1/alerts/:id/resolve"
-@.str.1217 = unnamed_addr constant [37 x i8] c"/api/v1/projects/:project_id/settings"
-@.str.1218 = unnamed_addr constant [37 x i8] c"/api/v1/projects/:project_id/settings"
-@.str.1219 = unnamed_addr constant [36 x i8] c"/api/v1/projects/:project_id/storage"
-@.str.1220 = unnamed_addr constant [36 x i8] c"[Mesher] Connecting to PostgreSQL..."
-@.str.1221 = unnamed_addr constant [42 x i8] c"postgres://mesh:mesh@localhost:5432/mesher"
-@.str.1222 = unnamed_addr constant [40 x i8] c"[Mesher] Failed to connect to PostgreSQL"
-@.panic_msg.1223 = constant [30 x i8] c"non-exhaustive match in switch"
-@.panic_file.1224 = constant [9 x i8] c"<unknown>"
+@.str.1036 = unnamed_addr constant [42 x i8] c"[Mesher] Partitions created (7 days ahead)"
+@.str.1037 = unnamed_addr constant [24 x i8] c"[Mesher] Partition error"
+@.panic_msg.1038 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.1039 = constant [9 x i8] c"<unknown>"
+@.str.1040 = unnamed_addr constant [27 x i8] c"[Mesher] OrgService started"
+@.str.1041 = unnamed_addr constant [31 x i8] c"[Mesher] ProjectService started"
+@.str.1042 = unnamed_addr constant [28 x i8] c"[Mesher] UserService started"
+@.str.1043 = unnamed_addr constant [25 x i8] c"[Mesher] Foundation ready"
+@.str.1044 = unnamed_addr constant [14 x i8] c"MESHER_WS_PORT"
+@.str.1045 = unnamed_addr constant [4 x i8] c"8081"
+@.str.1046 = unnamed_addr constant [16 x i8] c"MESHER_HTTP_PORT"
+@.str.1047 = unnamed_addr constant [4 x i8] c"8080"
+@.str.1048 = unnamed_addr constant [39 x i8] c"[Mesher] WebSocket server starting on :"
+@.str.1049 = unnamed_addr constant [34 x i8] c"[Mesher] HTTP server starting on :"
+@.str.1050 = unnamed_addr constant [14 x i8] c"/api/v1/events"
+@.str.1051 = unnamed_addr constant [19 x i8] c"/api/v1/events/bulk"
+@.str.1052 = unnamed_addr constant [35 x i8] c"/api/v1/projects/:project_id/issues"
+@.str.1053 = unnamed_addr constant [42 x i8] c"/api/v1/projects/:project_id/events/search"
+@.str.1054 = unnamed_addr constant [40 x i8] c"/api/v1/projects/:project_id/events/tags"
+@.str.1055 = unnamed_addr constant [31 x i8] c"/api/v1/issues/:issue_id/events"
+@.str.1056 = unnamed_addr constant [45 x i8] c"/api/v1/projects/:project_id/dashboard/volume"
+@.str.1057 = unnamed_addr constant [45 x i8] c"/api/v1/projects/:project_id/dashboard/levels"
+@.str.1058 = unnamed_addr constant [49 x i8] c"/api/v1/projects/:project_id/dashboard/top-issues"
+@.str.1059 = unnamed_addr constant [43 x i8] c"/api/v1/projects/:project_id/dashboard/tags"
+@.str.1060 = unnamed_addr constant [33 x i8] c"/api/v1/issues/:issue_id/timeline"
+@.str.1061 = unnamed_addr constant [45 x i8] c"/api/v1/projects/:project_id/dashboard/health"
+@.str.1062 = unnamed_addr constant [24 x i8] c"/api/v1/events/:event_id"
+@.str.1063 = unnamed_addr constant [26 x i8] c"/api/v1/issues/:id/resolve"
+@.str.1064 = unnamed_addr constant [26 x i8] c"/api/v1/issues/:id/archive"
+@.str.1065 = unnamed_addr constant [28 x i8] c"/api/v1/issues/:id/unresolve"
+@.str.1066 = unnamed_addr constant [25 x i8] c"/api/v1/issues/:id/assign"
+@.str.1067 = unnamed_addr constant [26 x i8] c"/api/v1/issues/:id/discard"
+@.str.1068 = unnamed_addr constant [25 x i8] c"/api/v1/issues/:id/delete"
+@.str.1069 = unnamed_addr constant [28 x i8] c"/api/v1/orgs/:org_id/members"
+@.str.1070 = unnamed_addr constant [28 x i8] c"/api/v1/orgs/:org_id/members"
+@.str.1071 = unnamed_addr constant [48 x i8] c"/api/v1/orgs/:org_id/members/:membership_id/role"
+@.str.1072 = unnamed_addr constant [50 x i8] c"/api/v1/orgs/:org_id/members/:membership_id/remove"
+@.str.1073 = unnamed_addr constant [37 x i8] c"/api/v1/projects/:project_id/api-keys"
+@.str.1074 = unnamed_addr constant [37 x i8] c"/api/v1/projects/:project_id/api-keys"
+@.str.1075 = unnamed_addr constant [31 x i8] c"/api/v1/api-keys/:key_id/revoke"
+@.str.1076 = unnamed_addr constant [40 x i8] c"/api/v1/projects/:project_id/alert-rules"
+@.str.1077 = unnamed_addr constant [40 x i8] c"/api/v1/projects/:project_id/alert-rules"
+@.str.1078 = unnamed_addr constant [35 x i8] c"/api/v1/alert-rules/:rule_id/toggle"
+@.str.1079 = unnamed_addr constant [35 x i8] c"/api/v1/alert-rules/:rule_id/delete"
+@.str.1080 = unnamed_addr constant [35 x i8] c"/api/v1/projects/:project_id/alerts"
+@.str.1081 = unnamed_addr constant [30 x i8] c"/api/v1/alerts/:id/acknowledge"
+@.str.1082 = unnamed_addr constant [26 x i8] c"/api/v1/alerts/:id/resolve"
+@.str.1083 = unnamed_addr constant [37 x i8] c"/api/v1/projects/:project_id/settings"
+@.str.1084 = unnamed_addr constant [37 x i8] c"/api/v1/projects/:project_id/settings"
+@.str.1085 = unnamed_addr constant [36 x i8] c"/api/v1/projects/:project_id/storage"
+@.str.1086 = unnamed_addr constant [36 x i8] c"[Mesher] Connecting to PostgreSQL..."
+@.str.1087 = unnamed_addr constant [42 x i8] c"postgres://mesh:mesh@localhost:5432/mesher"
+@.str.1088 = unnamed_addr constant [40 x i8] c"[Mesher] Failed to connect to PostgreSQL"
+@.panic_msg.1089 = constant [30 x i8] c"non-exhaustive match in switch"
+@.panic_file.1090 = constant [9 x i8] c"<unknown>"
 @fn_reg_Services_RateLimiter__check_limit_impl = private unnamed_addr constant [39 x i8] c"Services_RateLimiter__check_limit_impl\00", align 1
 @fn_reg_Services_RateLimiter__reset_window_impl = private unnamed_addr constant [40 x i8] c"Services_RateLimiter__reset_window_impl\00", align 1
 @fn_reg_Services_StreamManager__register_client = private unnamed_addr constant [40 x i8] c"Services_StreamManager__register_client\00", align 1
@@ -1257,11 +1123,15 @@ target triple = "arm64-apple-darwin25.2.0"
 @fn_reg_Services_StreamManager__drain_single_connection = private unnamed_addr constant [48 x i8] c"Services_StreamManager__drain_single_connection\00", align 1
 @fn_reg_Services_StreamManager__drain_connections_loop = private unnamed_addr constant [47 x i8] c"Services_StreamManager__drain_connections_loop\00", align 1
 @fn_reg_Services_StreamManager__drain_all_buffers = private unnamed_addr constant [42 x i8] c"Services_StreamManager__drain_all_buffers\00", align 1
-@fn_reg_create_schema = private unnamed_addr constant [14 x i8] c"create_schema\00", align 1
 @fn_reg_create_partition = private unnamed_addr constant [17 x i8] c"create_partition\00", align 1
 @fn_reg_Storage_Schema__create_partitions_loop = private unnamed_addr constant [39 x i8] c"Storage_Schema__create_partitions_loop\00", align 1
 @fn_reg_create_partitions_ahead = private unnamed_addr constant [24 x i8] c"create_partitions_ahead\00", align 1
 @fn_reg_insert_event = private unnamed_addr constant [13 x i8] c"insert_event\00", align 1
+@fn_reg_AlertRule____table__ = private unnamed_addr constant [21 x i8] c"AlertRule____table__\00", align 1
+@fn_reg_Organization____table__ = private unnamed_addr constant [24 x i8] c"Organization____table__\00", align 1
+@fn_reg_Project____table__ = private unnamed_addr constant [19 x i8] c"Project____table__\00", align 1
+@fn_reg_User____table__ = private unnamed_addr constant [16 x i8] c"User____table__\00", align 1
+@fn_reg_OrgMembership____table__ = private unnamed_addr constant [25 x i8] c"OrgMembership____table__\00", align 1
 @fn_reg_Services_Writer__flush_loop = private unnamed_addr constant [28 x i8] c"Services_Writer__flush_loop\00", align 1
 @fn_reg_Services_Writer__flush_batch = private unnamed_addr constant [29 x i8] c"Services_Writer__flush_batch\00", align 1
 @fn_reg_Services_Writer__flush_drop = private unnamed_addr constant [28 x i8] c"Services_Writer__flush_drop\00", align 1
@@ -1271,6 +1141,8 @@ target triple = "arm64-apple-darwin25.2.0"
 @fn_reg_Services_Writer__writer_store = private unnamed_addr constant [30 x i8] c"Services_Writer__writer_store\00", align 1
 @fn_reg_Services_Writer__writer_flush = private unnamed_addr constant [30 x i8] c"Services_Writer__writer_flush\00", align 1
 @fn_reg_validate_payload_size = private unnamed_addr constant [22 x i8] c"validate_payload_size\00", align 1
+@fn_reg_count_unresolved_issues = private unnamed_addr constant [24 x i8] c"count_unresolved_issues\00", align 1
+@fn_reg_get_issue_project_id = private unnamed_addr constant [21 x i8] c"get_issue_project_id\00", align 1
 @fn_reg_insert_org = private unnamed_addr constant [11 x i8] c"insert_org\00", align 1
 @fn_reg_get_org = private unnamed_addr constant [8 x i8] c"get_org\00", align 1
 @fn_reg_list_orgs = private unnamed_addr constant [10 x i8] c"list_orgs\00", align 1
@@ -1387,7 +1259,7 @@ target triple = "arm64-apple-darwin25.2.0"
 @fn_reg_Api_Alerts__format_nullable_ts = private unnamed_addr constant [31 x i8] c"Api_Alerts__format_nullable_ts\00", align 1
 @fn_reg_Api_Alerts__rule_row_to_json = private unnamed_addr constant [29 x i8] c"Api_Alerts__rule_row_to_json\00", align 1
 @fn_reg_Api_Alerts__alert_row_to_json = private unnamed_addr constant [30 x i8] c"Api_Alerts__alert_row_to_json\00", align 1
-@fn_reg_Api_Alerts__toggle_from_rows = private unnamed_addr constant [29 x i8] c"Api_Alerts__toggle_from_rows\00", align 1
+@fn_reg_Api_Alerts__do_toggle = private unnamed_addr constant [22 x i8] c"Api_Alerts__do_toggle\00", align 1
 @fn_reg_handle_create_alert_rule = private unnamed_addr constant [25 x i8] c"handle_create_alert_rule\00", align 1
 @fn_reg_handle_list_alert_rules = private unnamed_addr constant [24 x i8] c"handle_list_alert_rules\00", align 1
 @fn_reg_handle_toggle_alert_rule = private unnamed_addr constant [25 x i8] c"handle_toggle_alert_rule\00", align 1
@@ -1494,7 +1366,6 @@ target triple = "arm64-apple-darwin25.2.0"
 @fn_reg_Ingestion_Routes__route_to_processor = private unnamed_addr constant [37 x i8] c"Ingestion_Routes__route_to_processor\00", align 1
 @fn_reg_Ingestion_Routes__process_event_body = private unnamed_addr constant [37 x i8] c"Ingestion_Routes__process_event_body\00", align 1
 @fn_reg_Ingestion_Routes__handle_event_authed = private unnamed_addr constant [38 x i8] c"Ingestion_Routes__handle_event_authed\00", align 1
-@fn_reg_Ingestion_Routes__handle_event_sample_decision = private unnamed_addr constant [47 x i8] c"Ingestion_Routes__handle_event_sample_decision\00", align 1
 @fn_reg_Ingestion_Routes__handle_event_sampled = private unnamed_addr constant [39 x i8] c"Ingestion_Routes__handle_event_sampled\00", align 1
 @fn_reg_handle_event = private unnamed_addr constant [13 x i8] c"handle_event\00", align 1
 @fn_reg_Ingestion_Routes__handle_bulk_authed = private unnamed_addr constant [37 x i8] c"Ingestion_Routes__handle_bulk_authed\00", align 1
@@ -1510,7 +1381,7 @@ target triple = "arm64-apple-darwin25.2.0"
 @fn_reg_handle_resolve_issue = private unnamed_addr constant [21 x i8] c"handle_resolve_issue\00", align 1
 @fn_reg_handle_archive_issue = private unnamed_addr constant [21 x i8] c"handle_archive_issue\00", align 1
 @fn_reg_handle_unresolve_issue = private unnamed_addr constant [23 x i8] c"handle_unresolve_issue\00", align 1
-@fn_reg_Ingestion_Routes__assign_from_rows = private unnamed_addr constant [35 x i8] c"Ingestion_Routes__assign_from_rows\00", align 1
+@fn_reg_Ingestion_Routes__assign_with_user_id = private unnamed_addr constant [38 x i8] c"Ingestion_Routes__assign_with_user_id\00", align 1
 @fn_reg_handle_assign_issue = private unnamed_addr constant [20 x i8] c"handle_assign_issue\00", align 1
 @fn_reg_handle_discard_issue = private unnamed_addr constant [21 x i8] c"handle_discard_issue\00", align 1
 @fn_reg_handle_delete_issue = private unnamed_addr constant [20 x i8] c"handle_delete_issue\00", align 1
@@ -1522,7 +1393,6 @@ target triple = "arm64-apple-darwin25.2.0"
 @fn_reg_Ingestion_WsHandler__handle_ingest_connect = private unnamed_addr constant [43 x i8] c"Ingestion_WsHandler__handle_ingest_connect\00", align 1
 @fn_reg_Ingestion_WsHandler__is_stream_path = private unnamed_addr constant [36 x i8] c"Ingestion_WsHandler__is_stream_path\00", align 1
 @fn_reg_ws_on_connect = private unnamed_addr constant [14 x i8] c"ws_on_connect\00", align 1
-@fn_reg_Ingestion_WsHandler__apply_filter_update = private unnamed_addr constant [41 x i8] c"Ingestion_WsHandler__apply_filter_update\00", align 1
 @fn_reg_Ingestion_WsHandler__handle_subscribe_update = private unnamed_addr constant [45 x i8] c"Ingestion_WsHandler__handle_subscribe_update\00", align 1
 @fn_reg_Ingestion_WsHandler__handle_ingest_message = private unnamed_addr constant [43 x i8] c"Ingestion_WsHandler__handle_ingest_message\00", align 1
 @fn_reg_ws_on_message = private unnamed_addr constant [14 x i8] c"ws_on_message\00", align 1
@@ -1791,6 +1661,10 @@ declare ptr @mesh_json_from_float(double)
 declare ptr @mesh_json_from_bool(i8)
 
 declare ptr @mesh_json_from_string(ptr)
+
+declare ptr @mesh_json_get(ptr, ptr)
+
+declare ptr @mesh_json_get_nested(ptr, ptr, ptr)
 
 declare ptr @mesh_json_object_new()
 
@@ -2061,9 +1935,125 @@ declare ptr @mesh_list_collect(ptr)
 
 declare ptr @mesh_map_collect(ptr)
 
+declare ptr @mesh_map_collect_string_keys(ptr)
+
 declare ptr @mesh_set_collect(ptr)
 
 declare ptr @mesh_string_collect(ptr)
+
+declare ptr @mesh_orm_build_select(ptr, ptr, ptr, ptr, i64, i64)
+
+declare ptr @mesh_orm_build_insert(ptr, ptr, ptr)
+
+declare ptr @mesh_orm_build_update(ptr, ptr, ptr, ptr)
+
+declare ptr @mesh_orm_build_delete(ptr, ptr, ptr)
+
+declare ptr @mesh_query_from(ptr)
+
+declare ptr @mesh_query_where(ptr, ptr, ptr)
+
+declare ptr @mesh_query_where_op(ptr, ptr, ptr, ptr)
+
+declare ptr @mesh_query_where_in(ptr, ptr, ptr)
+
+declare ptr @mesh_query_where_null(ptr, ptr)
+
+declare ptr @mesh_query_where_not_null(ptr, ptr)
+
+declare ptr @mesh_query_select(ptr, ptr)
+
+declare ptr @mesh_query_order_by(ptr, ptr, ptr)
+
+declare ptr @mesh_query_limit(ptr, i64)
+
+declare ptr @mesh_query_offset(ptr, i64)
+
+declare ptr @mesh_query_join(ptr, ptr, ptr, ptr)
+
+declare ptr @mesh_query_group_by(ptr, ptr)
+
+declare ptr @mesh_query_having(ptr, ptr, ptr)
+
+declare ptr @mesh_query_fragment(ptr, ptr, ptr)
+
+declare ptr @mesh_query_select_raw(ptr, ptr)
+
+declare ptr @mesh_query_where_raw(ptr, ptr, ptr)
+
+declare ptr @mesh_repo_all(i64, ptr)
+
+declare ptr @mesh_repo_one(i64, ptr)
+
+declare ptr @mesh_repo_get(i64, ptr, ptr)
+
+declare ptr @mesh_repo_get_by(i64, ptr, ptr, ptr)
+
+declare ptr @mesh_repo_count(i64, ptr)
+
+declare ptr @mesh_repo_exists(i64, ptr)
+
+declare ptr @mesh_repo_insert(i64, ptr, ptr)
+
+declare ptr @mesh_repo_update(i64, ptr, ptr, ptr)
+
+declare ptr @mesh_repo_delete(i64, ptr, ptr)
+
+declare ptr @mesh_repo_transaction(i64, ptr, ptr)
+
+declare ptr @mesh_repo_update_where(i64, ptr, ptr, ptr)
+
+declare ptr @mesh_repo_delete_where(i64, ptr, ptr)
+
+declare ptr @mesh_repo_query_raw(i64, ptr, ptr)
+
+declare ptr @mesh_repo_execute_raw(i64, ptr, ptr)
+
+declare ptr @mesh_repo_preload(i64, ptr, ptr, ptr)
+
+declare ptr @mesh_repo_insert_changeset(i64, ptr, ptr)
+
+declare ptr @mesh_repo_update_changeset(i64, ptr, ptr, ptr)
+
+declare ptr @mesh_changeset_cast(ptr, ptr, ptr)
+
+declare ptr @mesh_changeset_cast_with_types(ptr, ptr, ptr, ptr)
+
+declare ptr @mesh_changeset_validate_required(ptr, ptr)
+
+declare ptr @mesh_changeset_validate_length(ptr, ptr, ptr, ptr)
+
+declare ptr @mesh_changeset_validate_format(ptr, ptr, ptr)
+
+declare ptr @mesh_changeset_validate_inclusion(ptr, ptr, ptr)
+
+declare ptr @mesh_changeset_validate_number(ptr, ptr, ptr, ptr, ptr, ptr)
+
+declare ptr @mesh_changeset_valid(ptr)
+
+declare ptr @mesh_changeset_errors(ptr)
+
+declare ptr @mesh_changeset_changes(ptr)
+
+declare ptr @mesh_changeset_get_change(ptr, ptr)
+
+declare ptr @mesh_changeset_get_error(ptr, ptr)
+
+declare ptr @mesh_migration_create_table(i64, ptr, ptr)
+
+declare ptr @mesh_migration_drop_table(i64, ptr)
+
+declare ptr @mesh_migration_add_column(i64, ptr, ptr)
+
+declare ptr @mesh_migration_drop_column(i64, ptr, ptr)
+
+declare ptr @mesh_migration_rename_column(i64, ptr, ptr, ptr)
+
+declare ptr @mesh_migration_create_index(i64, ptr, ptr, ptr)
+
+declare ptr @mesh_migration_drop_index(i64, ptr, ptr)
+
+declare ptr @mesh_migration_execute(i64, ptr)
 
 declare i64 @mesh_global_register(ptr, i64, i64)
 
@@ -2071,7 +2061,7 @@ declare i64 @mesh_global_whereis(ptr, i64)
 
 declare i64 @mesh_global_unregister(ptr, i64)
 
-define { %RateLimitState, i1 } @Services_RateLimiter__check_limit_impl(%RateLimitState %0, ptr %1) {
+define ptr @Services_RateLimiter__check_limit_impl(%RateLimitState %0, ptr %1) {
 entry:
   %state = alloca %RateLimitState, align 8
   store %RateLimitState %0, ptr %state, align 8
@@ -2095,7 +2085,7 @@ entry:
   %field_ptr7 = getelementptr inbounds nuw %RateLimitState, ptr %obj_tmp6, i32 0, i32 2
   %field_val8 = load i64, ptr %field_ptr7, align 8
   %ge = icmp sge i64 %count4, %field_val8
-  %if_result = alloca { %RateLimitState, i1 }, align 8
+  %if_result = alloca ptr, align 8
   br i1 %ge, label %then, label %else
 
 then:                                             ; preds = %entry
@@ -2169,8 +2159,8 @@ else:                                             ; preds = %entry
   br label %if_merge
 
 if_merge:                                         ; preds = %else, %then
-  %if_val = load { %RateLimitState, i1 }, ptr %if_result, align 8
-  ret { %RateLimitState, i1 } %if_val
+  %if_val = load ptr, ptr %if_result, align 8
+  ret ptr %if_val
 }
 
 define %RateLimitState @Services_RateLimiter__reset_window_impl(%RateLimitState %0) {
@@ -2227,11 +2217,9 @@ entry:
   store ptr %1, ptr %project_id, align 8
   %state1 = load %RateLimitState, ptr %state, align 8
   %project_id2 = load ptr, ptr %project_id, align 8
-  %call = call { %RateLimitState, i1 } @Services_RateLimiter__check_limit_impl(%RateLimitState %state1, ptr %project_id2)
+  %call = call ptr @Services_RateLimiter__check_limit_impl(%RateLimitState %state1, ptr %project_id2)
   call void @mesh_reduction_check()
-  %ret_coerce_heap = call ptr @mesh_gc_alloc_actor(i64 ptrtoint (ptr getelementptr ({ %RateLimitState, i1 }, ptr null, i32 1) to i64), i64 8)
-  store { %RateLimitState, i1 } %call, ptr %ret_coerce_heap, align 8
-  ret ptr %ret_coerce_heap
+  ret ptr %call
 }
 
 define %RateLimitState @__service_ratelimiter_handle_cast_reset_window(%RateLimitState %0) {
@@ -2244,7 +2232,7 @@ entry:
   ret %RateLimitState %call
 }
 
-define i64 @__service_ratelimiter_call_check_limit(i64 %0, ptr %1) {
+define i1 @__service_ratelimiter_call_check_limit(i64 %0, ptr %1) {
 entry:
   %__pid = alloca i64, align 8
   store i64 %0, ptr %__pid, align 8
@@ -2260,8 +2248,9 @@ entry:
   store i64 %ptr_to_i64, ptr %payload_elem, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid3, i64 0, ptr %call_payload, i64 8)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  %reply_bool = trunc i64 %reply_i64 to i1
+  ret i1 %reply_bool
 }
 
 define i64 @__service_ratelimiter_start(i64 %0, i64 %1) {
@@ -3243,7 +3232,7 @@ entry:
   ret %StreamState %call
 }
 
-define i64 @__service_streammanager_call_is_stream_client(i64 %0, i64 %1) {
+define i1 @__service_streammanager_call_is_stream_client(i64 %0, i64 %1) {
 entry:
   %__pid = alloca i64, align 8
   store i64 %0, ptr %__pid, align 8
@@ -3258,11 +3247,12 @@ entry:
   store i64 %conn4, ptr %payload_elem, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid3, i64 0, ptr %call_payload, i64 8)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  %reply_bool = trunc i64 %reply_i64 to i1
+  ret i1 %reply_bool
 }
 
-define i64 @__service_streammanager_call_get_project_id(i64 %0, i64 %1) {
+define ptr @__service_streammanager_call_get_project_id(i64 %0, i64 %1) {
 entry:
   %__pid = alloca i64, align 8
   store i64 %0, ptr %__pid, align 8
@@ -3277,8 +3267,9 @@ entry:
   store i64 %conn4, ptr %payload_elem, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid3, i64 1, ptr %call_payload, i64 8)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  %reply_ptr = inttoptr i64 %reply_i64 to ptr
+  ret ptr %reply_ptr
 }
 
 define {} @__service_streammanager_cast_register_client(i64 %0, i64 %1, ptr %2, ptr %3, ptr %4) {
@@ -3418,9 +3409,10 @@ handler_0:                                        ; preds = %continue_loop
   %reply_buf = alloca i64, align 8
   store i64 %reply, ptr %reply_buf, align 8
   call void @mesh_service_reply(i64 %caller_pid, ptr %reply_buf, i64 8)
-  %new_state_struct_ptr = inttoptr i64 %new_state to ptr
-  %new_state_struct = load %StreamState, ptr %new_state_struct_ptr, align 8
-  store %StreamState %new_state_struct, ptr %__state, align 8
+  %state_i64_tmp = alloca i64, align 8
+  store i64 %new_state, ptr %state_i64_tmp, align 8
+  %new_state_small_struct = load %StreamState, ptr %state_i64_tmp, align 8
+  store %StreamState %new_state_small_struct, ptr %__state, align 8
   br label %loop
 
 handler_1:                                        ; preds = %continue_loop
@@ -3432,9 +3424,10 @@ handler_1:                                        ; preds = %continue_loop
   %reply_buf6 = alloca i64, align 8
   store i64 %reply5, ptr %reply_buf6, align 8
   call void @mesh_service_reply(i64 %caller_pid, ptr %reply_buf6, i64 8)
-  %new_state_struct_ptr7 = inttoptr i64 %new_state4 to ptr
-  %new_state_struct8 = load %StreamState, ptr %new_state_struct_ptr7, align 8
-  store %StreamState %new_state_struct8, ptr %__state, align 8
+  %state_i64_tmp7 = alloca i64, align 8
+  store i64 %new_state4, ptr %state_i64_tmp7, align 8
+  %new_state_small_struct8 = load %StreamState, ptr %state_i64_tmp7, align 8
+  store %StreamState %new_state_small_struct8, ptr %__state, align 8
   br label %loop
 
 handler_2:                                        ; preds = %continue_loop
@@ -3450,9 +3443,10 @@ handler_2:                                        ; preds = %continue_loop
   %reply_buf14 = alloca i64, align 8
   store i64 %reply13, ptr %reply_buf14, align 8
   call void @mesh_service_reply(i64 %caller_pid, ptr %reply_buf14, i64 8)
-  %new_state_struct_ptr15 = inttoptr i64 %new_state12 to ptr
-  %new_state_struct16 = load %StreamState, ptr %new_state_struct_ptr15, align 8
-  store %StreamState %new_state_struct16, ptr %__state, align 8
+  %state_i64_tmp15 = alloca i64, align 8
+  store i64 %new_state12, ptr %state_i64_tmp15, align 8
+  %new_state_small_struct16 = load %StreamState, ptr %state_i64_tmp15, align 8
+  store %StreamState %new_state_small_struct16, ptr %__state, align 8
   br label %loop
 
 handler_3:                                        ; preds = %continue_loop
@@ -3490,1499 +3484,10 @@ handler_6:                                        ; preds = %continue_loop
   br label %loop
 }
 
-define { i8, ptr } @create_schema(i64 %0) {
-entry:
-  %__try_err_36 = alloca ptr, align 8
-  %__try_val_36 = alloca i64, align 8
-  %__try_err_35 = alloca ptr, align 8
-  %__try_val_35 = alloca i64, align 8
-  %__try_err_34 = alloca ptr, align 8
-  %__try_val_34 = alloca i64, align 8
-  %__try_err_33 = alloca ptr, align 8
-  %__try_val_33 = alloca i64, align 8
-  %__try_err_32 = alloca ptr, align 8
-  %__try_val_32 = alloca i64, align 8
-  %__try_err_31 = alloca ptr, align 8
-  %__try_val_31 = alloca i64, align 8
-  %__try_err_30 = alloca ptr, align 8
-  %__try_val_30 = alloca i64, align 8
-  %__try_err_29 = alloca ptr, align 8
-  %__try_val_29 = alloca i64, align 8
-  %__try_err_28 = alloca ptr, align 8
-  %__try_val_28 = alloca i64, align 8
-  %__try_err_27 = alloca ptr, align 8
-  %__try_val_27 = alloca i64, align 8
-  %__try_err_26 = alloca ptr, align 8
-  %__try_val_26 = alloca i64, align 8
-  %__try_err_25 = alloca ptr, align 8
-  %__try_val_25 = alloca i64, align 8
-  %__try_err_24 = alloca ptr, align 8
-  %__try_val_24 = alloca i64, align 8
-  %__try_err_23 = alloca ptr, align 8
-  %__try_val_23 = alloca i64, align 8
-  %__try_err_22 = alloca ptr, align 8
-  %__try_val_22 = alloca i64, align 8
-  %__try_err_21 = alloca ptr, align 8
-  %__try_val_21 = alloca i64, align 8
-  %__try_err_20 = alloca ptr, align 8
-  %__try_val_20 = alloca i64, align 8
-  %__try_err_19 = alloca ptr, align 8
-  %__try_val_19 = alloca i64, align 8
-  %__try_err_18 = alloca ptr, align 8
-  %__try_val_18 = alloca i64, align 8
-  %__try_err_17355 = alloca ptr, align 8
-  %__try_val_17 = alloca i64, align 8
-  %__try_err_16 = alloca ptr, align 8
-  %__try_val_16 = alloca i64, align 8
-  %__try_err_15 = alloca ptr, align 8
-  %__try_val_15 = alloca i64, align 8
-  %__try_err_14 = alloca ptr, align 8
-  %__try_val_14 = alloca i64, align 8
-  %__try_err_13 = alloca ptr, align 8
-  %__try_val_13263 = alloca i64, align 8
-  %__try_err_12 = alloca ptr, align 8
-  %__try_val_12 = alloca i64, align 8
-  %__try_err_11 = alloca ptr, align 8
-  %__try_val_11 = alloca i64, align 8
-  %__try_err_10 = alloca ptr, align 8
-  %__try_val_10 = alloca i64, align 8
-  %__try_err_9 = alloca ptr, align 8
-  %__try_val_9 = alloca i64, align 8
-  %__try_err_8 = alloca ptr, align 8
-  %__try_val_8 = alloca i64, align 8
-  %__try_err_7 = alloca ptr, align 8
-  %__try_val_7 = alloca i64, align 8
-  %__try_err_6 = alloca ptr, align 8
-  %__try_val_6 = alloca i64, align 8
-  %__try_err_5 = alloca ptr, align 8
-  %__try_val_5 = alloca i64, align 8
-  %__try_err_4 = alloca ptr, align 8
-  %__try_val_4 = alloca i64, align 8
-  %__try_err_3 = alloca ptr, align 8
-  %__try_val_3 = alloca i64, align 8
-  %__try_err_2 = alloca ptr, align 8
-  %__try_val_2 = alloca i64, align 8
-  %__try_err_1 = alloca ptr, align 8
-  %__try_val_1 = alloca i64, align 8
-  %pool = alloca i64, align 8
-  store i64 %0, ptr %pool, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.3, i64 39)
-  %call = call ptr @mesh_list_new()
-  %call2 = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %call)
-  %match_result = alloca i64, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call2, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Ok
-  %match_val = load i64, ptr %match_result, align 8
-  %pool8 = load i64, ptr %pool, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.4, i64 182)
-  %call10 = call ptr @mesh_list_new()
-  %call11 = call ptr @mesh_pool_execute(i64 %pool8, ptr %str9, ptr %call10)
-  %match_result12 = alloca i64, align 8
-  %tag_ptr14 = getelementptr inbounds nuw { i8, ptr }, ptr %call11, i32 0, i32 0
-  %tag15 = load i8, ptr %tag_ptr14, align 1
-  switch i8 %tag15, label %switch_default16 [
-    i8 0, label %case_Ok17
-    i8 1, label %case_Err18
-  ]
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg, i64 30, ptr @.panic_file, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call2, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_1, align 8
-  %__try_val_13 = load i64, ptr %__try_val_1, align 8
-  store i64 %__try_val_13, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call2, i32 0, i32 1
-  %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_1, align 8
-  %variant = alloca { i8, ptr }, align 8
-  %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_17 = load ptr, ptr %__try_err_1, align 8
-  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_17, ptr %vfield_ptr, align 8
-  %variant_val = load { i8, ptr }, ptr %variant, align 8
-  ret { i8, ptr } %variant_val
-
-match_merge13:                                    ; preds = %case_Ok17
-  %match_val29 = load i64, ptr %match_result12, align 8
-  %pool30 = load i64, ptr %pool, align 8
-  %str31 = call ptr @mesh_string_new(ptr @.str.7, i64 212)
-  %call32 = call ptr @mesh_list_new()
-  %call33 = call ptr @mesh_pool_execute(i64 %pool30, ptr %str31, ptr %call32)
-  %match_result34 = alloca i64, align 8
-  %tag_ptr36 = getelementptr inbounds nuw { i8, ptr }, ptr %call33, i32 0, i32 0
-  %tag37 = load i8, ptr %tag_ptr36, align 1
-  switch i8 %tag37, label %switch_default38 [
-    i8 0, label %case_Ok39
-    i8 1, label %case_Err40
-  ]
-
-switch_default16:                                 ; preds = %match_merge
-  call void @mesh_panic(ptr @.panic_msg.5, i64 30, ptr @.panic_file.6, i64 9, i32 0)
-  unreachable
-
-case_Ok17:                                        ; preds = %match_merge
-  %variant_field19 = getelementptr inbounds nuw { i8, ptr }, ptr %call11, i32 0, i32 1
-  %path_val20 = load ptr, ptr %variant_field19, align 8
-  store ptr %path_val20, ptr %__try_val_2, align 8
-  %__try_val_221 = load i64, ptr %__try_val_2, align 8
-  store i64 %__try_val_221, ptr %match_result12, align 8
-  br label %match_merge13
-
-case_Err18:                                       ; preds = %match_merge
-  %variant_field22 = getelementptr inbounds nuw { i8, ptr }, ptr %call11, i32 0, i32 1
-  %path_val23 = load ptr, ptr %variant_field22, align 8
-  store ptr %path_val23, ptr %__try_err_2, align 8
-  %variant24 = alloca { i8, ptr }, align 8
-  %tag_ptr25 = getelementptr inbounds nuw { i8, ptr }, ptr %variant24, i32 0, i32 0
-  store i8 1, ptr %tag_ptr25, align 1
-  %__try_err_226 = load ptr, ptr %__try_err_2, align 8
-  %vfield_ptr27 = getelementptr inbounds nuw { i8, ptr }, ptr %variant24, i32 0, i32 1
-  store ptr %__try_err_226, ptr %vfield_ptr27, align 8
-  %variant_val28 = load { i8, ptr }, ptr %variant24, align 8
-  ret { i8, ptr } %variant_val28
-
-match_merge35:                                    ; preds = %case_Ok39
-  %match_val51 = load i64, ptr %match_result34, align 8
-  %pool52 = load i64, ptr %pool, align 8
-  %str53 = call ptr @mesh_string_new(ptr @.str.10, i64 329)
-  %call54 = call ptr @mesh_list_new()
-  %call55 = call ptr @mesh_pool_execute(i64 %pool52, ptr %str53, ptr %call54)
-  %match_result56 = alloca i64, align 8
-  %tag_ptr58 = getelementptr inbounds nuw { i8, ptr }, ptr %call55, i32 0, i32 0
-  %tag59 = load i8, ptr %tag_ptr58, align 1
-  switch i8 %tag59, label %switch_default60 [
-    i8 0, label %case_Ok61
-    i8 1, label %case_Err62
-  ]
-
-switch_default38:                                 ; preds = %match_merge13
-  call void @mesh_panic(ptr @.panic_msg.8, i64 30, ptr @.panic_file.9, i64 9, i32 0)
-  unreachable
-
-case_Ok39:                                        ; preds = %match_merge13
-  %variant_field41 = getelementptr inbounds nuw { i8, ptr }, ptr %call33, i32 0, i32 1
-  %path_val42 = load ptr, ptr %variant_field41, align 8
-  store ptr %path_val42, ptr %__try_val_3, align 8
-  %__try_val_343 = load i64, ptr %__try_val_3, align 8
-  store i64 %__try_val_343, ptr %match_result34, align 8
-  br label %match_merge35
-
-case_Err40:                                       ; preds = %match_merge13
-  %variant_field44 = getelementptr inbounds nuw { i8, ptr }, ptr %call33, i32 0, i32 1
-  %path_val45 = load ptr, ptr %variant_field44, align 8
-  store ptr %path_val45, ptr %__try_err_3, align 8
-  %variant46 = alloca { i8, ptr }, align 8
-  %tag_ptr47 = getelementptr inbounds nuw { i8, ptr }, ptr %variant46, i32 0, i32 0
-  store i8 1, ptr %tag_ptr47, align 1
-  %__try_err_348 = load ptr, ptr %__try_err_3, align 8
-  %vfield_ptr49 = getelementptr inbounds nuw { i8, ptr }, ptr %variant46, i32 0, i32 1
-  store ptr %__try_err_348, ptr %vfield_ptr49, align 8
-  %variant_val50 = load { i8, ptr }, ptr %variant46, align 8
-  ret { i8, ptr } %variant_val50
-
-match_merge57:                                    ; preds = %case_Ok61
-  %match_val73 = load i64, ptr %match_result56, align 8
-  %pool74 = load i64, ptr %pool, align 8
-  %str75 = call ptr @mesh_string_new(ptr @.str.13, i64 236)
-  %call76 = call ptr @mesh_list_new()
-  %call77 = call ptr @mesh_pool_execute(i64 %pool74, ptr %str75, ptr %call76)
-  %match_result78 = alloca i64, align 8
-  %tag_ptr80 = getelementptr inbounds nuw { i8, ptr }, ptr %call77, i32 0, i32 0
-  %tag81 = load i8, ptr %tag_ptr80, align 1
-  switch i8 %tag81, label %switch_default82 [
-    i8 0, label %case_Ok83
-    i8 1, label %case_Err84
-  ]
-
-switch_default60:                                 ; preds = %match_merge35
-  call void @mesh_panic(ptr @.panic_msg.11, i64 30, ptr @.panic_file.12, i64 9, i32 0)
-  unreachable
-
-case_Ok61:                                        ; preds = %match_merge35
-  %variant_field63 = getelementptr inbounds nuw { i8, ptr }, ptr %call55, i32 0, i32 1
-  %path_val64 = load ptr, ptr %variant_field63, align 8
-  store ptr %path_val64, ptr %__try_val_4, align 8
-  %__try_val_465 = load i64, ptr %__try_val_4, align 8
-  store i64 %__try_val_465, ptr %match_result56, align 8
-  br label %match_merge57
-
-case_Err62:                                       ; preds = %match_merge35
-  %variant_field66 = getelementptr inbounds nuw { i8, ptr }, ptr %call55, i32 0, i32 1
-  %path_val67 = load ptr, ptr %variant_field66, align 8
-  store ptr %path_val67, ptr %__try_err_4, align 8
-  %variant68 = alloca { i8, ptr }, align 8
-  %tag_ptr69 = getelementptr inbounds nuw { i8, ptr }, ptr %variant68, i32 0, i32 0
-  store i8 1, ptr %tag_ptr69, align 1
-  %__try_err_470 = load ptr, ptr %__try_err_4, align 8
-  %vfield_ptr71 = getelementptr inbounds nuw { i8, ptr }, ptr %variant68, i32 0, i32 1
-  store ptr %__try_err_470, ptr %vfield_ptr71, align 8
-  %variant_val72 = load { i8, ptr }, ptr %variant68, align 8
-  ret { i8, ptr } %variant_val72
-
-match_merge79:                                    ; preds = %case_Ok83
-  %match_val95 = load i64, ptr %match_result78, align 8
-  %pool96 = load i64, ptr %pool, align 8
-  %str97 = call ptr @mesh_string_new(ptr @.str.16, i64 234)
-  %call98 = call ptr @mesh_list_new()
-  %call99 = call ptr @mesh_pool_execute(i64 %pool96, ptr %str97, ptr %call98)
-  %match_result100 = alloca i64, align 8
-  %tag_ptr102 = getelementptr inbounds nuw { i8, ptr }, ptr %call99, i32 0, i32 0
-  %tag103 = load i8, ptr %tag_ptr102, align 1
-  switch i8 %tag103, label %switch_default104 [
-    i8 0, label %case_Ok105
-    i8 1, label %case_Err106
-  ]
-
-switch_default82:                                 ; preds = %match_merge57
-  call void @mesh_panic(ptr @.panic_msg.14, i64 30, ptr @.panic_file.15, i64 9, i32 0)
-  unreachable
-
-case_Ok83:                                        ; preds = %match_merge57
-  %variant_field85 = getelementptr inbounds nuw { i8, ptr }, ptr %call77, i32 0, i32 1
-  %path_val86 = load ptr, ptr %variant_field85, align 8
-  store ptr %path_val86, ptr %__try_val_5, align 8
-  %__try_val_587 = load i64, ptr %__try_val_5, align 8
-  store i64 %__try_val_587, ptr %match_result78, align 8
-  br label %match_merge79
-
-case_Err84:                                       ; preds = %match_merge57
-  %variant_field88 = getelementptr inbounds nuw { i8, ptr }, ptr %call77, i32 0, i32 1
-  %path_val89 = load ptr, ptr %variant_field88, align 8
-  store ptr %path_val89, ptr %__try_err_5, align 8
-  %variant90 = alloca { i8, ptr }, align 8
-  %tag_ptr91 = getelementptr inbounds nuw { i8, ptr }, ptr %variant90, i32 0, i32 0
-  store i8 1, ptr %tag_ptr91, align 1
-  %__try_err_592 = load ptr, ptr %__try_err_5, align 8
-  %vfield_ptr93 = getelementptr inbounds nuw { i8, ptr }, ptr %variant90, i32 0, i32 1
-  store ptr %__try_err_592, ptr %vfield_ptr93, align 8
-  %variant_val94 = load { i8, ptr }, ptr %variant90, align 8
-  ret { i8, ptr } %variant_val94
-
-match_merge101:                                   ; preds = %case_Ok105
-  %match_val117 = load i64, ptr %match_result100, align 8
-  %pool118 = load i64, ptr %pool, align 8
-  %str119 = call ptr @mesh_string_new(ptr @.str.19, i64 293)
-  %call120 = call ptr @mesh_list_new()
-  %call121 = call ptr @mesh_pool_execute(i64 %pool118, ptr %str119, ptr %call120)
-  %match_result122 = alloca i64, align 8
-  %tag_ptr124 = getelementptr inbounds nuw { i8, ptr }, ptr %call121, i32 0, i32 0
-  %tag125 = load i8, ptr %tag_ptr124, align 1
-  switch i8 %tag125, label %switch_default126 [
-    i8 0, label %case_Ok127
-    i8 1, label %case_Err128
-  ]
-
-switch_default104:                                ; preds = %match_merge79
-  call void @mesh_panic(ptr @.panic_msg.17, i64 30, ptr @.panic_file.18, i64 9, i32 0)
-  unreachable
-
-case_Ok105:                                       ; preds = %match_merge79
-  %variant_field107 = getelementptr inbounds nuw { i8, ptr }, ptr %call99, i32 0, i32 1
-  %path_val108 = load ptr, ptr %variant_field107, align 8
-  store ptr %path_val108, ptr %__try_val_6, align 8
-  %__try_val_6109 = load i64, ptr %__try_val_6, align 8
-  store i64 %__try_val_6109, ptr %match_result100, align 8
-  br label %match_merge101
-
-case_Err106:                                      ; preds = %match_merge79
-  %variant_field110 = getelementptr inbounds nuw { i8, ptr }, ptr %call99, i32 0, i32 1
-  %path_val111 = load ptr, ptr %variant_field110, align 8
-  store ptr %path_val111, ptr %__try_err_6, align 8
-  %variant112 = alloca { i8, ptr }, align 8
-  %tag_ptr113 = getelementptr inbounds nuw { i8, ptr }, ptr %variant112, i32 0, i32 0
-  store i8 1, ptr %tag_ptr113, align 1
-  %__try_err_6114 = load ptr, ptr %__try_err_6, align 8
-  %vfield_ptr115 = getelementptr inbounds nuw { i8, ptr }, ptr %variant112, i32 0, i32 1
-  store ptr %__try_err_6114, ptr %vfield_ptr115, align 8
-  %variant_val116 = load { i8, ptr }, ptr %variant112, align 8
-  ret { i8, ptr } %variant_val116
-
-match_merge123:                                   ; preds = %case_Ok127
-  %match_val139 = load i64, ptr %match_result122, align 8
-  %pool140 = load i64, ptr %pool, align 8
-  %str141 = call ptr @mesh_string_new(ptr @.str.22, i64 424)
-  %call142 = call ptr @mesh_list_new()
-  %call143 = call ptr @mesh_pool_execute(i64 %pool140, ptr %str141, ptr %call142)
-  %match_result144 = alloca i64, align 8
-  %tag_ptr146 = getelementptr inbounds nuw { i8, ptr }, ptr %call143, i32 0, i32 0
-  %tag147 = load i8, ptr %tag_ptr146, align 1
-  switch i8 %tag147, label %switch_default148 [
-    i8 0, label %case_Ok149
-    i8 1, label %case_Err150
-  ]
-
-switch_default126:                                ; preds = %match_merge101
-  call void @mesh_panic(ptr @.panic_msg.20, i64 30, ptr @.panic_file.21, i64 9, i32 0)
-  unreachable
-
-case_Ok127:                                       ; preds = %match_merge101
-  %variant_field129 = getelementptr inbounds nuw { i8, ptr }, ptr %call121, i32 0, i32 1
-  %path_val130 = load ptr, ptr %variant_field129, align 8
-  store ptr %path_val130, ptr %__try_val_7, align 8
-  %__try_val_7131 = load i64, ptr %__try_val_7, align 8
-  store i64 %__try_val_7131, ptr %match_result122, align 8
-  br label %match_merge123
-
-case_Err128:                                      ; preds = %match_merge101
-  %variant_field132 = getelementptr inbounds nuw { i8, ptr }, ptr %call121, i32 0, i32 1
-  %path_val133 = load ptr, ptr %variant_field132, align 8
-  store ptr %path_val133, ptr %__try_err_7, align 8
-  %variant134 = alloca { i8, ptr }, align 8
-  %tag_ptr135 = getelementptr inbounds nuw { i8, ptr }, ptr %variant134, i32 0, i32 0
-  store i8 1, ptr %tag_ptr135, align 1
-  %__try_err_7136 = load ptr, ptr %__try_err_7, align 8
-  %vfield_ptr137 = getelementptr inbounds nuw { i8, ptr }, ptr %variant134, i32 0, i32 1
-  store ptr %__try_err_7136, ptr %vfield_ptr137, align 8
-  %variant_val138 = load { i8, ptr }, ptr %variant134, align 8
-  ret { i8, ptr } %variant_val138
-
-match_merge145:                                   ; preds = %case_Ok149
-  %match_val161 = load i64, ptr %match_result144, align 8
-  %pool162 = load i64, ptr %pool, align 8
-  %str163 = call ptr @mesh_string_new(ptr @.str.25, i64 487)
-  %call164 = call ptr @mesh_list_new()
-  %call165 = call ptr @mesh_pool_execute(i64 %pool162, ptr %str163, ptr %call164)
-  %match_result166 = alloca i64, align 8
-  %tag_ptr168 = getelementptr inbounds nuw { i8, ptr }, ptr %call165, i32 0, i32 0
-  %tag169 = load i8, ptr %tag_ptr168, align 1
-  switch i8 %tag169, label %switch_default170 [
-    i8 0, label %case_Ok171
-    i8 1, label %case_Err172
-  ]
-
-switch_default148:                                ; preds = %match_merge123
-  call void @mesh_panic(ptr @.panic_msg.23, i64 30, ptr @.panic_file.24, i64 9, i32 0)
-  unreachable
-
-case_Ok149:                                       ; preds = %match_merge123
-  %variant_field151 = getelementptr inbounds nuw { i8, ptr }, ptr %call143, i32 0, i32 1
-  %path_val152 = load ptr, ptr %variant_field151, align 8
-  store ptr %path_val152, ptr %__try_val_8, align 8
-  %__try_val_8153 = load i64, ptr %__try_val_8, align 8
-  store i64 %__try_val_8153, ptr %match_result144, align 8
-  br label %match_merge145
-
-case_Err150:                                      ; preds = %match_merge123
-  %variant_field154 = getelementptr inbounds nuw { i8, ptr }, ptr %call143, i32 0, i32 1
-  %path_val155 = load ptr, ptr %variant_field154, align 8
-  store ptr %path_val155, ptr %__try_err_8, align 8
-  %variant156 = alloca { i8, ptr }, align 8
-  %tag_ptr157 = getelementptr inbounds nuw { i8, ptr }, ptr %variant156, i32 0, i32 0
-  store i8 1, ptr %tag_ptr157, align 1
-  %__try_err_8158 = load ptr, ptr %__try_err_8, align 8
-  %vfield_ptr159 = getelementptr inbounds nuw { i8, ptr }, ptr %variant156, i32 0, i32 1
-  store ptr %__try_err_8158, ptr %vfield_ptr159, align 8
-  %variant_val160 = load { i8, ptr }, ptr %variant156, align 8
-  ret { i8, ptr } %variant_val160
-
-match_merge167:                                   ; preds = %case_Ok171
-  %match_val183 = load i64, ptr %match_result166, align 8
-  %pool184 = load i64, ptr %pool, align 8
-  %str185 = call ptr @mesh_string_new(ptr @.str.28, i64 319)
-  %call186 = call ptr @mesh_list_new()
-  %call187 = call ptr @mesh_pool_execute(i64 %pool184, ptr %str185, ptr %call186)
-  %match_result188 = alloca i64, align 8
-  %tag_ptr190 = getelementptr inbounds nuw { i8, ptr }, ptr %call187, i32 0, i32 0
-  %tag191 = load i8, ptr %tag_ptr190, align 1
-  switch i8 %tag191, label %switch_default192 [
-    i8 0, label %case_Ok193
-    i8 1, label %case_Err194
-  ]
-
-switch_default170:                                ; preds = %match_merge145
-  call void @mesh_panic(ptr @.panic_msg.26, i64 30, ptr @.panic_file.27, i64 9, i32 0)
-  unreachable
-
-case_Ok171:                                       ; preds = %match_merge145
-  %variant_field173 = getelementptr inbounds nuw { i8, ptr }, ptr %call165, i32 0, i32 1
-  %path_val174 = load ptr, ptr %variant_field173, align 8
-  store ptr %path_val174, ptr %__try_val_9, align 8
-  %__try_val_9175 = load i64, ptr %__try_val_9, align 8
-  store i64 %__try_val_9175, ptr %match_result166, align 8
-  br label %match_merge167
-
-case_Err172:                                      ; preds = %match_merge145
-  %variant_field176 = getelementptr inbounds nuw { i8, ptr }, ptr %call165, i32 0, i32 1
-  %path_val177 = load ptr, ptr %variant_field176, align 8
-  store ptr %path_val177, ptr %__try_err_9, align 8
-  %variant178 = alloca { i8, ptr }, align 8
-  %tag_ptr179 = getelementptr inbounds nuw { i8, ptr }, ptr %variant178, i32 0, i32 0
-  store i8 1, ptr %tag_ptr179, align 1
-  %__try_err_9180 = load ptr, ptr %__try_err_9, align 8
-  %vfield_ptr181 = getelementptr inbounds nuw { i8, ptr }, ptr %variant178, i32 0, i32 1
-  store ptr %__try_err_9180, ptr %vfield_ptr181, align 8
-  %variant_val182 = load { i8, ptr }, ptr %variant178, align 8
-  ret { i8, ptr } %variant_val182
-
-match_merge189:                                   ; preds = %case_Ok193
-  %match_val205 = load i64, ptr %match_result188, align 8
-  %pool206 = load i64, ptr %pool, align 8
-  %str207 = call ptr @mesh_string_new(ptr @.str.31, i64 417)
-  %call208 = call ptr @mesh_list_new()
-  %call209 = call ptr @mesh_pool_execute(i64 %pool206, ptr %str207, ptr %call208)
-  %match_result210 = alloca i64, align 8
-  %tag_ptr212 = getelementptr inbounds nuw { i8, ptr }, ptr %call209, i32 0, i32 0
-  %tag213 = load i8, ptr %tag_ptr212, align 1
-  switch i8 %tag213, label %switch_default214 [
-    i8 0, label %case_Ok215
-    i8 1, label %case_Err216
-  ]
-
-switch_default192:                                ; preds = %match_merge167
-  call void @mesh_panic(ptr @.panic_msg.29, i64 30, ptr @.panic_file.30, i64 9, i32 0)
-  unreachable
-
-case_Ok193:                                       ; preds = %match_merge167
-  %variant_field195 = getelementptr inbounds nuw { i8, ptr }, ptr %call187, i32 0, i32 1
-  %path_val196 = load ptr, ptr %variant_field195, align 8
-  store ptr %path_val196, ptr %__try_val_10, align 8
-  %__try_val_10197 = load i64, ptr %__try_val_10, align 8
-  store i64 %__try_val_10197, ptr %match_result188, align 8
-  br label %match_merge189
-
-case_Err194:                                      ; preds = %match_merge167
-  %variant_field198 = getelementptr inbounds nuw { i8, ptr }, ptr %call187, i32 0, i32 1
-  %path_val199 = load ptr, ptr %variant_field198, align 8
-  store ptr %path_val199, ptr %__try_err_10, align 8
-  %variant200 = alloca { i8, ptr }, align 8
-  %tag_ptr201 = getelementptr inbounds nuw { i8, ptr }, ptr %variant200, i32 0, i32 0
-  store i8 1, ptr %tag_ptr201, align 1
-  %__try_err_10202 = load ptr, ptr %__try_err_10, align 8
-  %vfield_ptr203 = getelementptr inbounds nuw { i8, ptr }, ptr %variant200, i32 0, i32 1
-  store ptr %__try_err_10202, ptr %vfield_ptr203, align 8
-  %variant_val204 = load { i8, ptr }, ptr %variant200, align 8
-  ret { i8, ptr } %variant_val204
-
-match_merge211:                                   ; preds = %case_Ok215
-  %match_val227 = load i64, ptr %match_result210, align 8
-  %pool228 = load i64, ptr %pool, align 8
-  %str229 = call ptr @mesh_string_new(ptr @.str.34, i64 93)
-  %call230 = call ptr @mesh_list_new()
-  %call231 = call ptr @mesh_pool_execute(i64 %pool228, ptr %str229, ptr %call230)
-  %match_result232 = alloca i64, align 8
-  %tag_ptr234 = getelementptr inbounds nuw { i8, ptr }, ptr %call231, i32 0, i32 0
-  %tag235 = load i8, ptr %tag_ptr234, align 1
-  switch i8 %tag235, label %switch_default236 [
-    i8 0, label %case_Ok237
-    i8 1, label %case_Err238
-  ]
-
-switch_default214:                                ; preds = %match_merge189
-  call void @mesh_panic(ptr @.panic_msg.32, i64 30, ptr @.panic_file.33, i64 9, i32 0)
-  unreachable
-
-case_Ok215:                                       ; preds = %match_merge189
-  %variant_field217 = getelementptr inbounds nuw { i8, ptr }, ptr %call209, i32 0, i32 1
-  %path_val218 = load ptr, ptr %variant_field217, align 8
-  store ptr %path_val218, ptr %__try_val_11, align 8
-  %__try_val_11219 = load i64, ptr %__try_val_11, align 8
-  store i64 %__try_val_11219, ptr %match_result210, align 8
-  br label %match_merge211
-
-case_Err216:                                      ; preds = %match_merge189
-  %variant_field220 = getelementptr inbounds nuw { i8, ptr }, ptr %call209, i32 0, i32 1
-  %path_val221 = load ptr, ptr %variant_field220, align 8
-  store ptr %path_val221, ptr %__try_err_11, align 8
-  %variant222 = alloca { i8, ptr }, align 8
-  %tag_ptr223 = getelementptr inbounds nuw { i8, ptr }, ptr %variant222, i32 0, i32 0
-  store i8 1, ptr %tag_ptr223, align 1
-  %__try_err_11224 = load ptr, ptr %__try_err_11, align 8
-  %vfield_ptr225 = getelementptr inbounds nuw { i8, ptr }, ptr %variant222, i32 0, i32 1
-  store ptr %__try_err_11224, ptr %vfield_ptr225, align 8
-  %variant_val226 = load { i8, ptr }, ptr %variant222, align 8
-  ret { i8, ptr } %variant_val226
-
-match_merge233:                                   ; preds = %case_Ok237
-  %match_val249 = load i64, ptr %match_result232, align 8
-  %pool250 = load i64, ptr %pool, align 8
-  %str251 = call ptr @mesh_string_new(ptr @.str.37, i64 74)
-  %call252 = call ptr @mesh_list_new()
-  %call253 = call ptr @mesh_pool_execute(i64 %pool250, ptr %str251, ptr %call252)
-  %match_result254 = alloca i64, align 8
-  %tag_ptr256 = getelementptr inbounds nuw { i8, ptr }, ptr %call253, i32 0, i32 0
-  %tag257 = load i8, ptr %tag_ptr256, align 1
-  switch i8 %tag257, label %switch_default258 [
-    i8 0, label %case_Ok259
-    i8 1, label %case_Err260
-  ]
-
-switch_default236:                                ; preds = %match_merge211
-  call void @mesh_panic(ptr @.panic_msg.35, i64 30, ptr @.panic_file.36, i64 9, i32 0)
-  unreachable
-
-case_Ok237:                                       ; preds = %match_merge211
-  %variant_field239 = getelementptr inbounds nuw { i8, ptr }, ptr %call231, i32 0, i32 1
-  %path_val240 = load ptr, ptr %variant_field239, align 8
-  store ptr %path_val240, ptr %__try_val_12, align 8
-  %__try_val_12241 = load i64, ptr %__try_val_12, align 8
-  store i64 %__try_val_12241, ptr %match_result232, align 8
-  br label %match_merge233
-
-case_Err238:                                      ; preds = %match_merge211
-  %variant_field242 = getelementptr inbounds nuw { i8, ptr }, ptr %call231, i32 0, i32 1
-  %path_val243 = load ptr, ptr %variant_field242, align 8
-  store ptr %path_val243, ptr %__try_err_12, align 8
-  %variant244 = alloca { i8, ptr }, align 8
-  %tag_ptr245 = getelementptr inbounds nuw { i8, ptr }, ptr %variant244, i32 0, i32 0
-  store i8 1, ptr %tag_ptr245, align 1
-  %__try_err_12246 = load ptr, ptr %__try_err_12, align 8
-  %vfield_ptr247 = getelementptr inbounds nuw { i8, ptr }, ptr %variant244, i32 0, i32 1
-  store ptr %__try_err_12246, ptr %vfield_ptr247, align 8
-  %variant_val248 = load { i8, ptr }, ptr %variant244, align 8
-  ret { i8, ptr } %variant_val248
-
-match_merge255:                                   ; preds = %case_Ok259
-  %match_val272 = load i64, ptr %match_result254, align 8
-  %pool273 = load i64, ptr %pool, align 8
-  %str274 = call ptr @mesh_string_new(ptr @.str.40, i64 88)
-  %call275 = call ptr @mesh_list_new()
-  %call276 = call ptr @mesh_pool_execute(i64 %pool273, ptr %str274, ptr %call275)
-  %match_result277 = alloca i64, align 8
-  %tag_ptr279 = getelementptr inbounds nuw { i8, ptr }, ptr %call276, i32 0, i32 0
-  %tag280 = load i8, ptr %tag_ptr279, align 1
-  switch i8 %tag280, label %switch_default281 [
-    i8 0, label %case_Ok282
-    i8 1, label %case_Err283
-  ]
-
-switch_default258:                                ; preds = %match_merge233
-  call void @mesh_panic(ptr @.panic_msg.38, i64 30, ptr @.panic_file.39, i64 9, i32 0)
-  unreachable
-
-case_Ok259:                                       ; preds = %match_merge233
-  %variant_field261 = getelementptr inbounds nuw { i8, ptr }, ptr %call253, i32 0, i32 1
-  %path_val262 = load ptr, ptr %variant_field261, align 8
-  store ptr %path_val262, ptr %__try_val_13263, align 8
-  %__try_val_13264 = load i64, ptr %__try_val_13263, align 8
-  store i64 %__try_val_13264, ptr %match_result254, align 8
-  br label %match_merge255
-
-case_Err260:                                      ; preds = %match_merge233
-  %variant_field265 = getelementptr inbounds nuw { i8, ptr }, ptr %call253, i32 0, i32 1
-  %path_val266 = load ptr, ptr %variant_field265, align 8
-  store ptr %path_val266, ptr %__try_err_13, align 8
-  %variant267 = alloca { i8, ptr }, align 8
-  %tag_ptr268 = getelementptr inbounds nuw { i8, ptr }, ptr %variant267, i32 0, i32 0
-  store i8 1, ptr %tag_ptr268, align 1
-  %__try_err_13269 = load ptr, ptr %__try_err_13, align 8
-  %vfield_ptr270 = getelementptr inbounds nuw { i8, ptr }, ptr %variant267, i32 0, i32 1
-  store ptr %__try_err_13269, ptr %vfield_ptr270, align 8
-  %variant_val271 = load { i8, ptr }, ptr %variant267, align 8
-  ret { i8, ptr } %variant_val271
-
-match_merge278:                                   ; preds = %case_Ok282
-  %match_val294 = load i64, ptr %match_result277, align 8
-  %pool295 = load i64, ptr %pool, align 8
-  %str296 = call ptr @mesh_string_new(ptr @.str.43, i64 83)
-  %call297 = call ptr @mesh_list_new()
-  %call298 = call ptr @mesh_pool_execute(i64 %pool295, ptr %str296, ptr %call297)
-  %match_result299 = alloca i64, align 8
-  %tag_ptr301 = getelementptr inbounds nuw { i8, ptr }, ptr %call298, i32 0, i32 0
-  %tag302 = load i8, ptr %tag_ptr301, align 1
-  switch i8 %tag302, label %switch_default303 [
-    i8 0, label %case_Ok304
-    i8 1, label %case_Err305
-  ]
-
-switch_default281:                                ; preds = %match_merge255
-  call void @mesh_panic(ptr @.panic_msg.41, i64 30, ptr @.panic_file.42, i64 9, i32 0)
-  unreachable
-
-case_Ok282:                                       ; preds = %match_merge255
-  %variant_field284 = getelementptr inbounds nuw { i8, ptr }, ptr %call276, i32 0, i32 1
-  %path_val285 = load ptr, ptr %variant_field284, align 8
-  store ptr %path_val285, ptr %__try_val_14, align 8
-  %__try_val_14286 = load i64, ptr %__try_val_14, align 8
-  store i64 %__try_val_14286, ptr %match_result277, align 8
-  br label %match_merge278
-
-case_Err283:                                      ; preds = %match_merge255
-  %variant_field287 = getelementptr inbounds nuw { i8, ptr }, ptr %call276, i32 0, i32 1
-  %path_val288 = load ptr, ptr %variant_field287, align 8
-  store ptr %path_val288, ptr %__try_err_14, align 8
-  %variant289 = alloca { i8, ptr }, align 8
-  %tag_ptr290 = getelementptr inbounds nuw { i8, ptr }, ptr %variant289, i32 0, i32 0
-  store i8 1, ptr %tag_ptr290, align 1
-  %__try_err_14291 = load ptr, ptr %__try_err_14, align 8
-  %vfield_ptr292 = getelementptr inbounds nuw { i8, ptr }, ptr %variant289, i32 0, i32 1
-  store ptr %__try_err_14291, ptr %vfield_ptr292, align 8
-  %variant_val293 = load { i8, ptr }, ptr %variant289, align 8
-  ret { i8, ptr } %variant_val293
-
-match_merge300:                                   ; preds = %case_Ok304
-  %match_val316 = load i64, ptr %match_result299, align 8
-  %pool317 = load i64, ptr %pool, align 8
-  %str318 = call ptr @mesh_string_new(ptr @.str.46, i64 55)
-  %call319 = call ptr @mesh_list_new()
-  %call320 = call ptr @mesh_pool_execute(i64 %pool317, ptr %str318, ptr %call319)
-  %match_result321 = alloca i64, align 8
-  %tag_ptr323 = getelementptr inbounds nuw { i8, ptr }, ptr %call320, i32 0, i32 0
-  %tag324 = load i8, ptr %tag_ptr323, align 1
-  switch i8 %tag324, label %switch_default325 [
-    i8 0, label %case_Ok326
-    i8 1, label %case_Err327
-  ]
-
-switch_default303:                                ; preds = %match_merge278
-  call void @mesh_panic(ptr @.panic_msg.44, i64 30, ptr @.panic_file.45, i64 9, i32 0)
-  unreachable
-
-case_Ok304:                                       ; preds = %match_merge278
-  %variant_field306 = getelementptr inbounds nuw { i8, ptr }, ptr %call298, i32 0, i32 1
-  %path_val307 = load ptr, ptr %variant_field306, align 8
-  store ptr %path_val307, ptr %__try_val_15, align 8
-  %__try_val_15308 = load i64, ptr %__try_val_15, align 8
-  store i64 %__try_val_15308, ptr %match_result299, align 8
-  br label %match_merge300
-
-case_Err305:                                      ; preds = %match_merge278
-  %variant_field309 = getelementptr inbounds nuw { i8, ptr }, ptr %call298, i32 0, i32 1
-  %path_val310 = load ptr, ptr %variant_field309, align 8
-  store ptr %path_val310, ptr %__try_err_15, align 8
-  %variant311 = alloca { i8, ptr }, align 8
-  %tag_ptr312 = getelementptr inbounds nuw { i8, ptr }, ptr %variant311, i32 0, i32 0
-  store i8 1, ptr %tag_ptr312, align 1
-  %__try_err_15313 = load ptr, ptr %__try_err_15, align 8
-  %vfield_ptr314 = getelementptr inbounds nuw { i8, ptr }, ptr %variant311, i32 0, i32 1
-  store ptr %__try_err_15313, ptr %vfield_ptr314, align 8
-  %variant_val315 = load { i8, ptr }, ptr %variant311, align 8
-  ret { i8, ptr } %variant_val315
-
-match_merge322:                                   ; preds = %case_Ok326
-  %match_val338 = load i64, ptr %match_result321, align 8
-  %pool339 = load i64, ptr %pool, align 8
-  %str340 = call ptr @mesh_string_new(ptr @.str.49, i64 118)
-  %call341 = call ptr @mesh_list_new()
-  %call342 = call ptr @mesh_pool_execute(i64 %pool339, ptr %str340, ptr %call341)
-  %match_result343 = alloca i64, align 8
-  %tag_ptr345 = getelementptr inbounds nuw { i8, ptr }, ptr %call342, i32 0, i32 0
-  %tag346 = load i8, ptr %tag_ptr345, align 1
-  switch i8 %tag346, label %switch_default347 [
-    i8 0, label %case_Ok348
-    i8 1, label %case_Err349
-  ]
-
-switch_default325:                                ; preds = %match_merge300
-  call void @mesh_panic(ptr @.panic_msg.47, i64 30, ptr @.panic_file.48, i64 9, i32 0)
-  unreachable
-
-case_Ok326:                                       ; preds = %match_merge300
-  %variant_field328 = getelementptr inbounds nuw { i8, ptr }, ptr %call320, i32 0, i32 1
-  %path_val329 = load ptr, ptr %variant_field328, align 8
-  store ptr %path_val329, ptr %__try_val_16, align 8
-  %__try_val_16330 = load i64, ptr %__try_val_16, align 8
-  store i64 %__try_val_16330, ptr %match_result321, align 8
-  br label %match_merge322
-
-case_Err327:                                      ; preds = %match_merge300
-  %variant_field331 = getelementptr inbounds nuw { i8, ptr }, ptr %call320, i32 0, i32 1
-  %path_val332 = load ptr, ptr %variant_field331, align 8
-  store ptr %path_val332, ptr %__try_err_16, align 8
-  %variant333 = alloca { i8, ptr }, align 8
-  %tag_ptr334 = getelementptr inbounds nuw { i8, ptr }, ptr %variant333, i32 0, i32 0
-  store i8 1, ptr %tag_ptr334, align 1
-  %__try_err_16335 = load ptr, ptr %__try_err_16, align 8
-  %vfield_ptr336 = getelementptr inbounds nuw { i8, ptr }, ptr %variant333, i32 0, i32 1
-  store ptr %__try_err_16335, ptr %vfield_ptr336, align 8
-  %variant_val337 = load { i8, ptr }, ptr %variant333, align 8
-  ret { i8, ptr } %variant_val337
-
-match_merge344:                                   ; preds = %case_Ok348
-  %match_val361 = load i64, ptr %match_result343, align 8
-  %pool362 = load i64, ptr %pool, align 8
-  %str363 = call ptr @mesh_string_new(ptr @.str.52, i64 92)
-  %call364 = call ptr @mesh_list_new()
-  %call365 = call ptr @mesh_pool_execute(i64 %pool362, ptr %str363, ptr %call364)
-  %match_result366 = alloca i64, align 8
-  %tag_ptr368 = getelementptr inbounds nuw { i8, ptr }, ptr %call365, i32 0, i32 0
-  %tag369 = load i8, ptr %tag_ptr368, align 1
-  switch i8 %tag369, label %switch_default370 [
-    i8 0, label %case_Ok371
-    i8 1, label %case_Err372
-  ]
-
-switch_default347:                                ; preds = %match_merge322
-  call void @mesh_panic(ptr @.panic_msg.50, i64 30, ptr @.panic_file.51, i64 9, i32 0)
-  unreachable
-
-case_Ok348:                                       ; preds = %match_merge322
-  %variant_field350 = getelementptr inbounds nuw { i8, ptr }, ptr %call342, i32 0, i32 1
-  %path_val351 = load ptr, ptr %variant_field350, align 8
-  store ptr %path_val351, ptr %__try_val_17, align 8
-  %__try_val_17352 = load i64, ptr %__try_val_17, align 8
-  store i64 %__try_val_17352, ptr %match_result343, align 8
-  br label %match_merge344
-
-case_Err349:                                      ; preds = %match_merge322
-  %variant_field353 = getelementptr inbounds nuw { i8, ptr }, ptr %call342, i32 0, i32 1
-  %path_val354 = load ptr, ptr %variant_field353, align 8
-  store ptr %path_val354, ptr %__try_err_17355, align 8
-  %variant356 = alloca { i8, ptr }, align 8
-  %tag_ptr357 = getelementptr inbounds nuw { i8, ptr }, ptr %variant356, i32 0, i32 0
-  store i8 1, ptr %tag_ptr357, align 1
-  %__try_err_17358 = load ptr, ptr %__try_err_17355, align 8
-  %vfield_ptr359 = getelementptr inbounds nuw { i8, ptr }, ptr %variant356, i32 0, i32 1
-  store ptr %__try_err_17358, ptr %vfield_ptr359, align 8
-  %variant_val360 = load { i8, ptr }, ptr %variant356, align 8
-  ret { i8, ptr } %variant_val360
-
-match_merge367:                                   ; preds = %case_Ok371
-  %match_val383 = load i64, ptr %match_result366, align 8
-  %pool384 = load i64, ptr %pool, align 8
-  %str385 = call ptr @mesh_string_new(ptr @.str.55, i64 79)
-  %call386 = call ptr @mesh_list_new()
-  %call387 = call ptr @mesh_pool_execute(i64 %pool384, ptr %str385, ptr %call386)
-  %match_result388 = alloca i64, align 8
-  %tag_ptr390 = getelementptr inbounds nuw { i8, ptr }, ptr %call387, i32 0, i32 0
-  %tag391 = load i8, ptr %tag_ptr390, align 1
-  switch i8 %tag391, label %switch_default392 [
-    i8 0, label %case_Ok393
-    i8 1, label %case_Err394
-  ]
-
-switch_default370:                                ; preds = %match_merge344
-  call void @mesh_panic(ptr @.panic_msg.53, i64 30, ptr @.panic_file.54, i64 9, i32 0)
-  unreachable
-
-case_Ok371:                                       ; preds = %match_merge344
-  %variant_field373 = getelementptr inbounds nuw { i8, ptr }, ptr %call365, i32 0, i32 1
-  %path_val374 = load ptr, ptr %variant_field373, align 8
-  store ptr %path_val374, ptr %__try_val_18, align 8
-  %__try_val_18375 = load i64, ptr %__try_val_18, align 8
-  store i64 %__try_val_18375, ptr %match_result366, align 8
-  br label %match_merge367
-
-case_Err372:                                      ; preds = %match_merge344
-  %variant_field376 = getelementptr inbounds nuw { i8, ptr }, ptr %call365, i32 0, i32 1
-  %path_val377 = load ptr, ptr %variant_field376, align 8
-  store ptr %path_val377, ptr %__try_err_18, align 8
-  %variant378 = alloca { i8, ptr }, align 8
-  %tag_ptr379 = getelementptr inbounds nuw { i8, ptr }, ptr %variant378, i32 0, i32 0
-  store i8 1, ptr %tag_ptr379, align 1
-  %__try_err_18380 = load ptr, ptr %__try_err_18, align 8
-  %vfield_ptr381 = getelementptr inbounds nuw { i8, ptr }, ptr %variant378, i32 0, i32 1
-  store ptr %__try_err_18380, ptr %vfield_ptr381, align 8
-  %variant_val382 = load { i8, ptr }, ptr %variant378, align 8
-  ret { i8, ptr } %variant_val382
-
-match_merge389:                                   ; preds = %case_Ok393
-  %match_val405 = load i64, ptr %match_result388, align 8
-  %pool406 = load i64, ptr %pool, align 8
-  %str407 = call ptr @mesh_string_new(ptr @.str.58, i64 77)
-  %call408 = call ptr @mesh_list_new()
-  %call409 = call ptr @mesh_pool_execute(i64 %pool406, ptr %str407, ptr %call408)
-  %match_result410 = alloca i64, align 8
-  %tag_ptr412 = getelementptr inbounds nuw { i8, ptr }, ptr %call409, i32 0, i32 0
-  %tag413 = load i8, ptr %tag_ptr412, align 1
-  switch i8 %tag413, label %switch_default414 [
-    i8 0, label %case_Ok415
-    i8 1, label %case_Err416
-  ]
-
-switch_default392:                                ; preds = %match_merge367
-  call void @mesh_panic(ptr @.panic_msg.56, i64 30, ptr @.panic_file.57, i64 9, i32 0)
-  unreachable
-
-case_Ok393:                                       ; preds = %match_merge367
-  %variant_field395 = getelementptr inbounds nuw { i8, ptr }, ptr %call387, i32 0, i32 1
-  %path_val396 = load ptr, ptr %variant_field395, align 8
-  store ptr %path_val396, ptr %__try_val_19, align 8
-  %__try_val_19397 = load i64, ptr %__try_val_19, align 8
-  store i64 %__try_val_19397, ptr %match_result388, align 8
-  br label %match_merge389
-
-case_Err394:                                      ; preds = %match_merge367
-  %variant_field398 = getelementptr inbounds nuw { i8, ptr }, ptr %call387, i32 0, i32 1
-  %path_val399 = load ptr, ptr %variant_field398, align 8
-  store ptr %path_val399, ptr %__try_err_19, align 8
-  %variant400 = alloca { i8, ptr }, align 8
-  %tag_ptr401 = getelementptr inbounds nuw { i8, ptr }, ptr %variant400, i32 0, i32 0
-  store i8 1, ptr %tag_ptr401, align 1
-  %__try_err_19402 = load ptr, ptr %__try_err_19, align 8
-  %vfield_ptr403 = getelementptr inbounds nuw { i8, ptr }, ptr %variant400, i32 0, i32 1
-  store ptr %__try_err_19402, ptr %vfield_ptr403, align 8
-  %variant_val404 = load { i8, ptr }, ptr %variant400, align 8
-  ret { i8, ptr } %variant_val404
-
-match_merge411:                                   ; preds = %case_Ok415
-  %match_val427 = load i64, ptr %match_result410, align 8
-  %pool428 = load i64, ptr %pool, align 8
-  %str429 = call ptr @mesh_string_new(ptr @.str.61, i64 65)
-  %call430 = call ptr @mesh_list_new()
-  %call431 = call ptr @mesh_pool_execute(i64 %pool428, ptr %str429, ptr %call430)
-  %match_result432 = alloca i64, align 8
-  %tag_ptr434 = getelementptr inbounds nuw { i8, ptr }, ptr %call431, i32 0, i32 0
-  %tag435 = load i8, ptr %tag_ptr434, align 1
-  switch i8 %tag435, label %switch_default436 [
-    i8 0, label %case_Ok437
-    i8 1, label %case_Err438
-  ]
-
-switch_default414:                                ; preds = %match_merge389
-  call void @mesh_panic(ptr @.panic_msg.59, i64 30, ptr @.panic_file.60, i64 9, i32 0)
-  unreachable
-
-case_Ok415:                                       ; preds = %match_merge389
-  %variant_field417 = getelementptr inbounds nuw { i8, ptr }, ptr %call409, i32 0, i32 1
-  %path_val418 = load ptr, ptr %variant_field417, align 8
-  store ptr %path_val418, ptr %__try_val_20, align 8
-  %__try_val_20419 = load i64, ptr %__try_val_20, align 8
-  store i64 %__try_val_20419, ptr %match_result410, align 8
-  br label %match_merge411
-
-case_Err416:                                      ; preds = %match_merge389
-  %variant_field420 = getelementptr inbounds nuw { i8, ptr }, ptr %call409, i32 0, i32 1
-  %path_val421 = load ptr, ptr %variant_field420, align 8
-  store ptr %path_val421, ptr %__try_err_20, align 8
-  %variant422 = alloca { i8, ptr }, align 8
-  %tag_ptr423 = getelementptr inbounds nuw { i8, ptr }, ptr %variant422, i32 0, i32 0
-  store i8 1, ptr %tag_ptr423, align 1
-  %__try_err_20424 = load ptr, ptr %__try_err_20, align 8
-  %vfield_ptr425 = getelementptr inbounds nuw { i8, ptr }, ptr %variant422, i32 0, i32 1
-  store ptr %__try_err_20424, ptr %vfield_ptr425, align 8
-  %variant_val426 = load { i8, ptr }, ptr %variant422, align 8
-  ret { i8, ptr } %variant_val426
-
-match_merge433:                                   ; preds = %case_Ok437
-  %match_val449 = load i64, ptr %match_result432, align 8
-  %pool450 = load i64, ptr %pool, align 8
-  %str451 = call ptr @mesh_string_new(ptr @.str.64, i64 71)
-  %call452 = call ptr @mesh_list_new()
-  %call453 = call ptr @mesh_pool_execute(i64 %pool450, ptr %str451, ptr %call452)
-  %match_result454 = alloca i64, align 8
-  %tag_ptr456 = getelementptr inbounds nuw { i8, ptr }, ptr %call453, i32 0, i32 0
-  %tag457 = load i8, ptr %tag_ptr456, align 1
-  switch i8 %tag457, label %switch_default458 [
-    i8 0, label %case_Ok459
-    i8 1, label %case_Err460
-  ]
-
-switch_default436:                                ; preds = %match_merge411
-  call void @mesh_panic(ptr @.panic_msg.62, i64 30, ptr @.panic_file.63, i64 9, i32 0)
-  unreachable
-
-case_Ok437:                                       ; preds = %match_merge411
-  %variant_field439 = getelementptr inbounds nuw { i8, ptr }, ptr %call431, i32 0, i32 1
-  %path_val440 = load ptr, ptr %variant_field439, align 8
-  store ptr %path_val440, ptr %__try_val_21, align 8
-  %__try_val_21441 = load i64, ptr %__try_val_21, align 8
-  store i64 %__try_val_21441, ptr %match_result432, align 8
-  br label %match_merge433
-
-case_Err438:                                      ; preds = %match_merge411
-  %variant_field442 = getelementptr inbounds nuw { i8, ptr }, ptr %call431, i32 0, i32 1
-  %path_val443 = load ptr, ptr %variant_field442, align 8
-  store ptr %path_val443, ptr %__try_err_21, align 8
-  %variant444 = alloca { i8, ptr }, align 8
-  %tag_ptr445 = getelementptr inbounds nuw { i8, ptr }, ptr %variant444, i32 0, i32 0
-  store i8 1, ptr %tag_ptr445, align 1
-  %__try_err_21446 = load ptr, ptr %__try_err_21, align 8
-  %vfield_ptr447 = getelementptr inbounds nuw { i8, ptr }, ptr %variant444, i32 0, i32 1
-  store ptr %__try_err_21446, ptr %vfield_ptr447, align 8
-  %variant_val448 = load { i8, ptr }, ptr %variant444, align 8
-  ret { i8, ptr } %variant_val448
-
-match_merge455:                                   ; preds = %case_Ok459
-  %match_val471 = load i64, ptr %match_result454, align 8
-  %pool472 = load i64, ptr %pool, align 8
-  %str473 = call ptr @mesh_string_new(ptr @.str.67, i64 63)
-  %call474 = call ptr @mesh_list_new()
-  %call475 = call ptr @mesh_pool_execute(i64 %pool472, ptr %str473, ptr %call474)
-  %match_result476 = alloca i64, align 8
-  %tag_ptr478 = getelementptr inbounds nuw { i8, ptr }, ptr %call475, i32 0, i32 0
-  %tag479 = load i8, ptr %tag_ptr478, align 1
-  switch i8 %tag479, label %switch_default480 [
-    i8 0, label %case_Ok481
-    i8 1, label %case_Err482
-  ]
-
-switch_default458:                                ; preds = %match_merge433
-  call void @mesh_panic(ptr @.panic_msg.65, i64 30, ptr @.panic_file.66, i64 9, i32 0)
-  unreachable
-
-case_Ok459:                                       ; preds = %match_merge433
-  %variant_field461 = getelementptr inbounds nuw { i8, ptr }, ptr %call453, i32 0, i32 1
-  %path_val462 = load ptr, ptr %variant_field461, align 8
-  store ptr %path_val462, ptr %__try_val_22, align 8
-  %__try_val_22463 = load i64, ptr %__try_val_22, align 8
-  store i64 %__try_val_22463, ptr %match_result454, align 8
-  br label %match_merge455
-
-case_Err460:                                      ; preds = %match_merge433
-  %variant_field464 = getelementptr inbounds nuw { i8, ptr }, ptr %call453, i32 0, i32 1
-  %path_val465 = load ptr, ptr %variant_field464, align 8
-  store ptr %path_val465, ptr %__try_err_22, align 8
-  %variant466 = alloca { i8, ptr }, align 8
-  %tag_ptr467 = getelementptr inbounds nuw { i8, ptr }, ptr %variant466, i32 0, i32 0
-  store i8 1, ptr %tag_ptr467, align 1
-  %__try_err_22468 = load ptr, ptr %__try_err_22, align 8
-  %vfield_ptr469 = getelementptr inbounds nuw { i8, ptr }, ptr %variant466, i32 0, i32 1
-  store ptr %__try_err_22468, ptr %vfield_ptr469, align 8
-  %variant_val470 = load { i8, ptr }, ptr %variant466, align 8
-  ret { i8, ptr } %variant_val470
-
-match_merge477:                                   ; preds = %case_Ok481
-  %match_val493 = load i64, ptr %match_result476, align 8
-  %pool494 = load i64, ptr %pool, align 8
-  %str495 = call ptr @mesh_string_new(ptr @.str.70, i64 71)
-  %call496 = call ptr @mesh_list_new()
-  %call497 = call ptr @mesh_pool_execute(i64 %pool494, ptr %str495, ptr %call496)
-  %match_result498 = alloca i64, align 8
-  %tag_ptr500 = getelementptr inbounds nuw { i8, ptr }, ptr %call497, i32 0, i32 0
-  %tag501 = load i8, ptr %tag_ptr500, align 1
-  switch i8 %tag501, label %switch_default502 [
-    i8 0, label %case_Ok503
-    i8 1, label %case_Err504
-  ]
-
-switch_default480:                                ; preds = %match_merge455
-  call void @mesh_panic(ptr @.panic_msg.68, i64 30, ptr @.panic_file.69, i64 9, i32 0)
-  unreachable
-
-case_Ok481:                                       ; preds = %match_merge455
-  %variant_field483 = getelementptr inbounds nuw { i8, ptr }, ptr %call475, i32 0, i32 1
-  %path_val484 = load ptr, ptr %variant_field483, align 8
-  store ptr %path_val484, ptr %__try_val_23, align 8
-  %__try_val_23485 = load i64, ptr %__try_val_23, align 8
-  store i64 %__try_val_23485, ptr %match_result476, align 8
-  br label %match_merge477
-
-case_Err482:                                      ; preds = %match_merge455
-  %variant_field486 = getelementptr inbounds nuw { i8, ptr }, ptr %call475, i32 0, i32 1
-  %path_val487 = load ptr, ptr %variant_field486, align 8
-  store ptr %path_val487, ptr %__try_err_23, align 8
-  %variant488 = alloca { i8, ptr }, align 8
-  %tag_ptr489 = getelementptr inbounds nuw { i8, ptr }, ptr %variant488, i32 0, i32 0
-  store i8 1, ptr %tag_ptr489, align 1
-  %__try_err_23490 = load ptr, ptr %__try_err_23, align 8
-  %vfield_ptr491 = getelementptr inbounds nuw { i8, ptr }, ptr %variant488, i32 0, i32 1
-  store ptr %__try_err_23490, ptr %vfield_ptr491, align 8
-  %variant_val492 = load { i8, ptr }, ptr %variant488, align 8
-  ret { i8, ptr } %variant_val492
-
-match_merge499:                                   ; preds = %case_Ok503
-  %match_val515 = load i64, ptr %match_result498, align 8
-  %pool516 = load i64, ptr %pool, align 8
-  %str517 = call ptr @mesh_string_new(ptr @.str.73, i64 93)
-  %call518 = call ptr @mesh_list_new()
-  %call519 = call ptr @mesh_pool_execute(i64 %pool516, ptr %str517, ptr %call518)
-  %match_result520 = alloca i64, align 8
-  %tag_ptr522 = getelementptr inbounds nuw { i8, ptr }, ptr %call519, i32 0, i32 0
-  %tag523 = load i8, ptr %tag_ptr522, align 1
-  switch i8 %tag523, label %switch_default524 [
-    i8 0, label %case_Ok525
-    i8 1, label %case_Err526
-  ]
-
-switch_default502:                                ; preds = %match_merge477
-  call void @mesh_panic(ptr @.panic_msg.71, i64 30, ptr @.panic_file.72, i64 9, i32 0)
-  unreachable
-
-case_Ok503:                                       ; preds = %match_merge477
-  %variant_field505 = getelementptr inbounds nuw { i8, ptr }, ptr %call497, i32 0, i32 1
-  %path_val506 = load ptr, ptr %variant_field505, align 8
-  store ptr %path_val506, ptr %__try_val_24, align 8
-  %__try_val_24507 = load i64, ptr %__try_val_24, align 8
-  store i64 %__try_val_24507, ptr %match_result498, align 8
-  br label %match_merge499
-
-case_Err504:                                      ; preds = %match_merge477
-  %variant_field508 = getelementptr inbounds nuw { i8, ptr }, ptr %call497, i32 0, i32 1
-  %path_val509 = load ptr, ptr %variant_field508, align 8
-  store ptr %path_val509, ptr %__try_err_24, align 8
-  %variant510 = alloca { i8, ptr }, align 8
-  %tag_ptr511 = getelementptr inbounds nuw { i8, ptr }, ptr %variant510, i32 0, i32 0
-  store i8 1, ptr %tag_ptr511, align 1
-  %__try_err_24512 = load ptr, ptr %__try_err_24, align 8
-  %vfield_ptr513 = getelementptr inbounds nuw { i8, ptr }, ptr %variant510, i32 0, i32 1
-  store ptr %__try_err_24512, ptr %vfield_ptr513, align 8
-  %variant_val514 = load { i8, ptr }, ptr %variant510, align 8
-  ret { i8, ptr } %variant_val514
-
-match_merge521:                                   ; preds = %case_Ok525
-  %match_val537 = load i64, ptr %match_result520, align 8
-  %pool538 = load i64, ptr %pool, align 8
-  %str539 = call ptr @mesh_string_new(ptr @.str.76, i64 82)
-  %call540 = call ptr @mesh_list_new()
-  %call541 = call ptr @mesh_pool_execute(i64 %pool538, ptr %str539, ptr %call540)
-  %match_result542 = alloca i64, align 8
-  %tag_ptr544 = getelementptr inbounds nuw { i8, ptr }, ptr %call541, i32 0, i32 0
-  %tag545 = load i8, ptr %tag_ptr544, align 1
-  switch i8 %tag545, label %switch_default546 [
-    i8 0, label %case_Ok547
-    i8 1, label %case_Err548
-  ]
-
-switch_default524:                                ; preds = %match_merge499
-  call void @mesh_panic(ptr @.panic_msg.74, i64 30, ptr @.panic_file.75, i64 9, i32 0)
-  unreachable
-
-case_Ok525:                                       ; preds = %match_merge499
-  %variant_field527 = getelementptr inbounds nuw { i8, ptr }, ptr %call519, i32 0, i32 1
-  %path_val528 = load ptr, ptr %variant_field527, align 8
-  store ptr %path_val528, ptr %__try_val_25, align 8
-  %__try_val_25529 = load i64, ptr %__try_val_25, align 8
-  store i64 %__try_val_25529, ptr %match_result520, align 8
-  br label %match_merge521
-
-case_Err526:                                      ; preds = %match_merge499
-  %variant_field530 = getelementptr inbounds nuw { i8, ptr }, ptr %call519, i32 0, i32 1
-  %path_val531 = load ptr, ptr %variant_field530, align 8
-  store ptr %path_val531, ptr %__try_err_25, align 8
-  %variant532 = alloca { i8, ptr }, align 8
-  %tag_ptr533 = getelementptr inbounds nuw { i8, ptr }, ptr %variant532, i32 0, i32 0
-  store i8 1, ptr %tag_ptr533, align 1
-  %__try_err_25534 = load ptr, ptr %__try_err_25, align 8
-  %vfield_ptr535 = getelementptr inbounds nuw { i8, ptr }, ptr %variant532, i32 0, i32 1
-  store ptr %__try_err_25534, ptr %vfield_ptr535, align 8
-  %variant_val536 = load { i8, ptr }, ptr %variant532, align 8
-  ret { i8, ptr } %variant_val536
-
-match_merge543:                                   ; preds = %case_Ok547
-  %match_val559 = load i64, ptr %match_result542, align 8
-  %pool560 = load i64, ptr %pool, align 8
-  %str561 = call ptr @mesh_string_new(ptr @.str.79, i64 93)
-  %call562 = call ptr @mesh_list_new()
-  %call563 = call ptr @mesh_pool_execute(i64 %pool560, ptr %str561, ptr %call562)
-  %match_result564 = alloca i64, align 8
-  %tag_ptr566 = getelementptr inbounds nuw { i8, ptr }, ptr %call563, i32 0, i32 0
-  %tag567 = load i8, ptr %tag_ptr566, align 1
-  switch i8 %tag567, label %switch_default568 [
-    i8 0, label %case_Ok569
-    i8 1, label %case_Err570
-  ]
-
-switch_default546:                                ; preds = %match_merge521
-  call void @mesh_panic(ptr @.panic_msg.77, i64 30, ptr @.panic_file.78, i64 9, i32 0)
-  unreachable
-
-case_Ok547:                                       ; preds = %match_merge521
-  %variant_field549 = getelementptr inbounds nuw { i8, ptr }, ptr %call541, i32 0, i32 1
-  %path_val550 = load ptr, ptr %variant_field549, align 8
-  store ptr %path_val550, ptr %__try_val_26, align 8
-  %__try_val_26551 = load i64, ptr %__try_val_26, align 8
-  store i64 %__try_val_26551, ptr %match_result542, align 8
-  br label %match_merge543
-
-case_Err548:                                      ; preds = %match_merge521
-  %variant_field552 = getelementptr inbounds nuw { i8, ptr }, ptr %call541, i32 0, i32 1
-  %path_val553 = load ptr, ptr %variant_field552, align 8
-  store ptr %path_val553, ptr %__try_err_26, align 8
-  %variant554 = alloca { i8, ptr }, align 8
-  %tag_ptr555 = getelementptr inbounds nuw { i8, ptr }, ptr %variant554, i32 0, i32 0
-  store i8 1, ptr %tag_ptr555, align 1
-  %__try_err_26556 = load ptr, ptr %__try_err_26, align 8
-  %vfield_ptr557 = getelementptr inbounds nuw { i8, ptr }, ptr %variant554, i32 0, i32 1
-  store ptr %__try_err_26556, ptr %vfield_ptr557, align 8
-  %variant_val558 = load { i8, ptr }, ptr %variant554, align 8
-  ret { i8, ptr } %variant_val558
-
-match_merge565:                                   ; preds = %case_Ok569
-  %match_val581 = load i64, ptr %match_result564, align 8
-  %pool582 = load i64, ptr %pool, align 8
-  %str583 = call ptr @mesh_string_new(ptr @.str.82, i64 94)
-  %call584 = call ptr @mesh_list_new()
-  %call585 = call ptr @mesh_pool_execute(i64 %pool582, ptr %str583, ptr %call584)
-  %match_result586 = alloca i64, align 8
-  %tag_ptr588 = getelementptr inbounds nuw { i8, ptr }, ptr %call585, i32 0, i32 0
-  %tag589 = load i8, ptr %tag_ptr588, align 1
-  switch i8 %tag589, label %switch_default590 [
-    i8 0, label %case_Ok591
-    i8 1, label %case_Err592
-  ]
-
-switch_default568:                                ; preds = %match_merge543
-  call void @mesh_panic(ptr @.panic_msg.80, i64 30, ptr @.panic_file.81, i64 9, i32 0)
-  unreachable
-
-case_Ok569:                                       ; preds = %match_merge543
-  %variant_field571 = getelementptr inbounds nuw { i8, ptr }, ptr %call563, i32 0, i32 1
-  %path_val572 = load ptr, ptr %variant_field571, align 8
-  store ptr %path_val572, ptr %__try_val_27, align 8
-  %__try_val_27573 = load i64, ptr %__try_val_27, align 8
-  store i64 %__try_val_27573, ptr %match_result564, align 8
-  br label %match_merge565
-
-case_Err570:                                      ; preds = %match_merge543
-  %variant_field574 = getelementptr inbounds nuw { i8, ptr }, ptr %call563, i32 0, i32 1
-  %path_val575 = load ptr, ptr %variant_field574, align 8
-  store ptr %path_val575, ptr %__try_err_27, align 8
-  %variant576 = alloca { i8, ptr }, align 8
-  %tag_ptr577 = getelementptr inbounds nuw { i8, ptr }, ptr %variant576, i32 0, i32 0
-  store i8 1, ptr %tag_ptr577, align 1
-  %__try_err_27578 = load ptr, ptr %__try_err_27, align 8
-  %vfield_ptr579 = getelementptr inbounds nuw { i8, ptr }, ptr %variant576, i32 0, i32 1
-  store ptr %__try_err_27578, ptr %vfield_ptr579, align 8
-  %variant_val580 = load { i8, ptr }, ptr %variant576, align 8
-  ret { i8, ptr } %variant_val580
-
-match_merge587:                                   ; preds = %case_Ok591
-  %match_val603 = load i64, ptr %match_result586, align 8
-  %pool604 = load i64, ptr %pool, align 8
-  %str605 = call ptr @mesh_string_new(ptr @.str.85, i64 90)
-  %call606 = call ptr @mesh_list_new()
-  %call607 = call ptr @mesh_pool_execute(i64 %pool604, ptr %str605, ptr %call606)
-  %match_result608 = alloca i64, align 8
-  %tag_ptr610 = getelementptr inbounds nuw { i8, ptr }, ptr %call607, i32 0, i32 0
-  %tag611 = load i8, ptr %tag_ptr610, align 1
-  switch i8 %tag611, label %switch_default612 [
-    i8 0, label %case_Ok613
-    i8 1, label %case_Err614
-  ]
-
-switch_default590:                                ; preds = %match_merge565
-  call void @mesh_panic(ptr @.panic_msg.83, i64 30, ptr @.panic_file.84, i64 9, i32 0)
-  unreachable
-
-case_Ok591:                                       ; preds = %match_merge565
-  %variant_field593 = getelementptr inbounds nuw { i8, ptr }, ptr %call585, i32 0, i32 1
-  %path_val594 = load ptr, ptr %variant_field593, align 8
-  store ptr %path_val594, ptr %__try_val_28, align 8
-  %__try_val_28595 = load i64, ptr %__try_val_28, align 8
-  store i64 %__try_val_28595, ptr %match_result586, align 8
-  br label %match_merge587
-
-case_Err592:                                      ; preds = %match_merge565
-  %variant_field596 = getelementptr inbounds nuw { i8, ptr }, ptr %call585, i32 0, i32 1
-  %path_val597 = load ptr, ptr %variant_field596, align 8
-  store ptr %path_val597, ptr %__try_err_28, align 8
-  %variant598 = alloca { i8, ptr }, align 8
-  %tag_ptr599 = getelementptr inbounds nuw { i8, ptr }, ptr %variant598, i32 0, i32 0
-  store i8 1, ptr %tag_ptr599, align 1
-  %__try_err_28600 = load ptr, ptr %__try_err_28, align 8
-  %vfield_ptr601 = getelementptr inbounds nuw { i8, ptr }, ptr %variant598, i32 0, i32 1
-  store ptr %__try_err_28600, ptr %vfield_ptr601, align 8
-  %variant_val602 = load { i8, ptr }, ptr %variant598, align 8
-  ret { i8, ptr } %variant_val602
-
-match_merge609:                                   ; preds = %case_Ok613
-  %match_val625 = load i64, ptr %match_result608, align 8
-  %pool626 = load i64, ptr %pool, align 8
-  %str627 = call ptr @mesh_string_new(ptr @.str.88, i64 78)
-  %call628 = call ptr @mesh_list_new()
-  %call629 = call ptr @mesh_pool_execute(i64 %pool626, ptr %str627, ptr %call628)
-  %match_result630 = alloca i64, align 8
-  %tag_ptr632 = getelementptr inbounds nuw { i8, ptr }, ptr %call629, i32 0, i32 0
-  %tag633 = load i8, ptr %tag_ptr632, align 1
-  switch i8 %tag633, label %switch_default634 [
-    i8 0, label %case_Ok635
-    i8 1, label %case_Err636
-  ]
-
-switch_default612:                                ; preds = %match_merge587
-  call void @mesh_panic(ptr @.panic_msg.86, i64 30, ptr @.panic_file.87, i64 9, i32 0)
-  unreachable
-
-case_Ok613:                                       ; preds = %match_merge587
-  %variant_field615 = getelementptr inbounds nuw { i8, ptr }, ptr %call607, i32 0, i32 1
-  %path_val616 = load ptr, ptr %variant_field615, align 8
-  store ptr %path_val616, ptr %__try_val_29, align 8
-  %__try_val_29617 = load i64, ptr %__try_val_29, align 8
-  store i64 %__try_val_29617, ptr %match_result608, align 8
-  br label %match_merge609
-
-case_Err614:                                      ; preds = %match_merge587
-  %variant_field618 = getelementptr inbounds nuw { i8, ptr }, ptr %call607, i32 0, i32 1
-  %path_val619 = load ptr, ptr %variant_field618, align 8
-  store ptr %path_val619, ptr %__try_err_29, align 8
-  %variant620 = alloca { i8, ptr }, align 8
-  %tag_ptr621 = getelementptr inbounds nuw { i8, ptr }, ptr %variant620, i32 0, i32 0
-  store i8 1, ptr %tag_ptr621, align 1
-  %__try_err_29622 = load ptr, ptr %__try_err_29, align 8
-  %vfield_ptr623 = getelementptr inbounds nuw { i8, ptr }, ptr %variant620, i32 0, i32 1
-  store ptr %__try_err_29622, ptr %vfield_ptr623, align 8
-  %variant_val624 = load { i8, ptr }, ptr %variant620, align 8
-  ret { i8, ptr } %variant_val624
-
-match_merge631:                                   ; preds = %case_Ok635
-  %match_val647 = load i64, ptr %match_result630, align 8
-  %pool648 = load i64, ptr %pool, align 8
-  %str649 = call ptr @mesh_string_new(ptr @.str.91, i64 72)
-  %call650 = call ptr @mesh_list_new()
-  %call651 = call ptr @mesh_pool_execute(i64 %pool648, ptr %str649, ptr %call650)
-  %match_result652 = alloca i64, align 8
-  %tag_ptr654 = getelementptr inbounds nuw { i8, ptr }, ptr %call651, i32 0, i32 0
-  %tag655 = load i8, ptr %tag_ptr654, align 1
-  switch i8 %tag655, label %switch_default656 [
-    i8 0, label %case_Ok657
-    i8 1, label %case_Err658
-  ]
-
-switch_default634:                                ; preds = %match_merge609
-  call void @mesh_panic(ptr @.panic_msg.89, i64 30, ptr @.panic_file.90, i64 9, i32 0)
-  unreachable
-
-case_Ok635:                                       ; preds = %match_merge609
-  %variant_field637 = getelementptr inbounds nuw { i8, ptr }, ptr %call629, i32 0, i32 1
-  %path_val638 = load ptr, ptr %variant_field637, align 8
-  store ptr %path_val638, ptr %__try_val_30, align 8
-  %__try_val_30639 = load i64, ptr %__try_val_30, align 8
-  store i64 %__try_val_30639, ptr %match_result630, align 8
-  br label %match_merge631
-
-case_Err636:                                      ; preds = %match_merge609
-  %variant_field640 = getelementptr inbounds nuw { i8, ptr }, ptr %call629, i32 0, i32 1
-  %path_val641 = load ptr, ptr %variant_field640, align 8
-  store ptr %path_val641, ptr %__try_err_30, align 8
-  %variant642 = alloca { i8, ptr }, align 8
-  %tag_ptr643 = getelementptr inbounds nuw { i8, ptr }, ptr %variant642, i32 0, i32 0
-  store i8 1, ptr %tag_ptr643, align 1
-  %__try_err_30644 = load ptr, ptr %__try_err_30, align 8
-  %vfield_ptr645 = getelementptr inbounds nuw { i8, ptr }, ptr %variant642, i32 0, i32 1
-  store ptr %__try_err_30644, ptr %vfield_ptr645, align 8
-  %variant_val646 = load { i8, ptr }, ptr %variant642, align 8
-  ret { i8, ptr } %variant_val646
-
-match_merge653:                                   ; preds = %case_Ok657
-  %match_val669 = load i64, ptr %match_result652, align 8
-  %pool670 = load i64, ptr %pool, align 8
-  %str671 = call ptr @mesh_string_new(ptr @.str.94, i64 83)
-  %call672 = call ptr @mesh_list_new()
-  %call673 = call ptr @mesh_pool_execute(i64 %pool670, ptr %str671, ptr %call672)
-  %match_result674 = alloca i64, align 8
-  %tag_ptr676 = getelementptr inbounds nuw { i8, ptr }, ptr %call673, i32 0, i32 0
-  %tag677 = load i8, ptr %tag_ptr676, align 1
-  switch i8 %tag677, label %switch_default678 [
-    i8 0, label %case_Ok679
-    i8 1, label %case_Err680
-  ]
-
-switch_default656:                                ; preds = %match_merge631
-  call void @mesh_panic(ptr @.panic_msg.92, i64 30, ptr @.panic_file.93, i64 9, i32 0)
-  unreachable
-
-case_Ok657:                                       ; preds = %match_merge631
-  %variant_field659 = getelementptr inbounds nuw { i8, ptr }, ptr %call651, i32 0, i32 1
-  %path_val660 = load ptr, ptr %variant_field659, align 8
-  store ptr %path_val660, ptr %__try_val_31, align 8
-  %__try_val_31661 = load i64, ptr %__try_val_31, align 8
-  store i64 %__try_val_31661, ptr %match_result652, align 8
-  br label %match_merge653
-
-case_Err658:                                      ; preds = %match_merge631
-  %variant_field662 = getelementptr inbounds nuw { i8, ptr }, ptr %call651, i32 0, i32 1
-  %path_val663 = load ptr, ptr %variant_field662, align 8
-  store ptr %path_val663, ptr %__try_err_31, align 8
-  %variant664 = alloca { i8, ptr }, align 8
-  %tag_ptr665 = getelementptr inbounds nuw { i8, ptr }, ptr %variant664, i32 0, i32 0
-  store i8 1, ptr %tag_ptr665, align 1
-  %__try_err_31666 = load ptr, ptr %__try_err_31, align 8
-  %vfield_ptr667 = getelementptr inbounds nuw { i8, ptr }, ptr %variant664, i32 0, i32 1
-  store ptr %__try_err_31666, ptr %vfield_ptr667, align 8
-  %variant_val668 = load { i8, ptr }, ptr %variant664, align 8
-  ret { i8, ptr } %variant_val668
-
-match_merge675:                                   ; preds = %case_Ok679
-  %match_val691 = load i64, ptr %match_result674, align 8
-  %pool692 = load i64, ptr %pool, align 8
-  %str693 = call ptr @mesh_string_new(ptr @.str.97, i64 98)
-  %call694 = call ptr @mesh_list_new()
-  %call695 = call ptr @mesh_pool_execute(i64 %pool692, ptr %str693, ptr %call694)
-  %match_result696 = alloca i64, align 8
-  %tag_ptr698 = getelementptr inbounds nuw { i8, ptr }, ptr %call695, i32 0, i32 0
-  %tag699 = load i8, ptr %tag_ptr698, align 1
-  switch i8 %tag699, label %switch_default700 [
-    i8 0, label %case_Ok701
-    i8 1, label %case_Err702
-  ]
-
-switch_default678:                                ; preds = %match_merge653
-  call void @mesh_panic(ptr @.panic_msg.95, i64 30, ptr @.panic_file.96, i64 9, i32 0)
-  unreachable
-
-case_Ok679:                                       ; preds = %match_merge653
-  %variant_field681 = getelementptr inbounds nuw { i8, ptr }, ptr %call673, i32 0, i32 1
-  %path_val682 = load ptr, ptr %variant_field681, align 8
-  store ptr %path_val682, ptr %__try_val_32, align 8
-  %__try_val_32683 = load i64, ptr %__try_val_32, align 8
-  store i64 %__try_val_32683, ptr %match_result674, align 8
-  br label %match_merge675
-
-case_Err680:                                      ; preds = %match_merge653
-  %variant_field684 = getelementptr inbounds nuw { i8, ptr }, ptr %call673, i32 0, i32 1
-  %path_val685 = load ptr, ptr %variant_field684, align 8
-  store ptr %path_val685, ptr %__try_err_32, align 8
-  %variant686 = alloca { i8, ptr }, align 8
-  %tag_ptr687 = getelementptr inbounds nuw { i8, ptr }, ptr %variant686, i32 0, i32 0
-  store i8 1, ptr %tag_ptr687, align 1
-  %__try_err_32688 = load ptr, ptr %__try_err_32, align 8
-  %vfield_ptr689 = getelementptr inbounds nuw { i8, ptr }, ptr %variant686, i32 0, i32 1
-  store ptr %__try_err_32688, ptr %vfield_ptr689, align 8
-  %variant_val690 = load { i8, ptr }, ptr %variant686, align 8
-  ret { i8, ptr } %variant_val690
-
-match_merge697:                                   ; preds = %case_Ok701
-  %match_val713 = load i64, ptr %match_result696, align 8
-  %pool714 = load i64, ptr %pool, align 8
-  %str715 = call ptr @mesh_string_new(ptr @.str.100, i64 82)
-  %call716 = call ptr @mesh_list_new()
-  %call717 = call ptr @mesh_pool_execute(i64 %pool714, ptr %str715, ptr %call716)
-  %match_result718 = alloca i64, align 8
-  %tag_ptr720 = getelementptr inbounds nuw { i8, ptr }, ptr %call717, i32 0, i32 0
-  %tag721 = load i8, ptr %tag_ptr720, align 1
-  switch i8 %tag721, label %switch_default722 [
-    i8 0, label %case_Ok723
-    i8 1, label %case_Err724
-  ]
-
-switch_default700:                                ; preds = %match_merge675
-  call void @mesh_panic(ptr @.panic_msg.98, i64 30, ptr @.panic_file.99, i64 9, i32 0)
-  unreachable
-
-case_Ok701:                                       ; preds = %match_merge675
-  %variant_field703 = getelementptr inbounds nuw { i8, ptr }, ptr %call695, i32 0, i32 1
-  %path_val704 = load ptr, ptr %variant_field703, align 8
-  store ptr %path_val704, ptr %__try_val_33, align 8
-  %__try_val_33705 = load i64, ptr %__try_val_33, align 8
-  store i64 %__try_val_33705, ptr %match_result696, align 8
-  br label %match_merge697
-
-case_Err702:                                      ; preds = %match_merge675
-  %variant_field706 = getelementptr inbounds nuw { i8, ptr }, ptr %call695, i32 0, i32 1
-  %path_val707 = load ptr, ptr %variant_field706, align 8
-  store ptr %path_val707, ptr %__try_err_33, align 8
-  %variant708 = alloca { i8, ptr }, align 8
-  %tag_ptr709 = getelementptr inbounds nuw { i8, ptr }, ptr %variant708, i32 0, i32 0
-  store i8 1, ptr %tag_ptr709, align 1
-  %__try_err_33710 = load ptr, ptr %__try_err_33, align 8
-  %vfield_ptr711 = getelementptr inbounds nuw { i8, ptr }, ptr %variant708, i32 0, i32 1
-  store ptr %__try_err_33710, ptr %vfield_ptr711, align 8
-  %variant_val712 = load { i8, ptr }, ptr %variant708, align 8
-  ret { i8, ptr } %variant_val712
-
-match_merge719:                                   ; preds = %case_Ok723
-  %match_val735 = load i64, ptr %match_result718, align 8
-  %pool736 = load i64, ptr %pool, align 8
-  %str737 = call ptr @mesh_string_new(ptr @.str.103, i64 61)
-  %call738 = call ptr @mesh_list_new()
-  %call739 = call ptr @mesh_pool_execute(i64 %pool736, ptr %str737, ptr %call738)
-  %match_result740 = alloca i64, align 8
-  %tag_ptr742 = getelementptr inbounds nuw { i8, ptr }, ptr %call739, i32 0, i32 0
-  %tag743 = load i8, ptr %tag_ptr742, align 1
-  switch i8 %tag743, label %switch_default744 [
-    i8 0, label %case_Ok745
-    i8 1, label %case_Err746
-  ]
-
-switch_default722:                                ; preds = %match_merge697
-  call void @mesh_panic(ptr @.panic_msg.101, i64 30, ptr @.panic_file.102, i64 9, i32 0)
-  unreachable
-
-case_Ok723:                                       ; preds = %match_merge697
-  %variant_field725 = getelementptr inbounds nuw { i8, ptr }, ptr %call717, i32 0, i32 1
-  %path_val726 = load ptr, ptr %variant_field725, align 8
-  store ptr %path_val726, ptr %__try_val_34, align 8
-  %__try_val_34727 = load i64, ptr %__try_val_34, align 8
-  store i64 %__try_val_34727, ptr %match_result718, align 8
-  br label %match_merge719
-
-case_Err724:                                      ; preds = %match_merge697
-  %variant_field728 = getelementptr inbounds nuw { i8, ptr }, ptr %call717, i32 0, i32 1
-  %path_val729 = load ptr, ptr %variant_field728, align 8
-  store ptr %path_val729, ptr %__try_err_34, align 8
-  %variant730 = alloca { i8, ptr }, align 8
-  %tag_ptr731 = getelementptr inbounds nuw { i8, ptr }, ptr %variant730, i32 0, i32 0
-  store i8 1, ptr %tag_ptr731, align 1
-  %__try_err_34732 = load ptr, ptr %__try_err_34, align 8
-  %vfield_ptr733 = getelementptr inbounds nuw { i8, ptr }, ptr %variant730, i32 0, i32 1
-  store ptr %__try_err_34732, ptr %vfield_ptr733, align 8
-  %variant_val734 = load { i8, ptr }, ptr %variant730, align 8
-  ret { i8, ptr } %variant_val734
-
-match_merge741:                                   ; preds = %case_Ok745
-  %match_val757 = load i64, ptr %match_result740, align 8
-  %pool758 = load i64, ptr %pool, align 8
-  %str759 = call ptr @mesh_string_new(ptr @.str.106, i64 76)
-  %call760 = call ptr @mesh_list_new()
-  %call761 = call ptr @mesh_pool_execute(i64 %pool758, ptr %str759, ptr %call760)
-  %match_result762 = alloca i64, align 8
-  %tag_ptr764 = getelementptr inbounds nuw { i8, ptr }, ptr %call761, i32 0, i32 0
-  %tag765 = load i8, ptr %tag_ptr764, align 1
-  switch i8 %tag765, label %switch_default766 [
-    i8 0, label %case_Ok767
-    i8 1, label %case_Err768
-  ]
-
-switch_default744:                                ; preds = %match_merge719
-  call void @mesh_panic(ptr @.panic_msg.104, i64 30, ptr @.panic_file.105, i64 9, i32 0)
-  unreachable
-
-case_Ok745:                                       ; preds = %match_merge719
-  %variant_field747 = getelementptr inbounds nuw { i8, ptr }, ptr %call739, i32 0, i32 1
-  %path_val748 = load ptr, ptr %variant_field747, align 8
-  store ptr %path_val748, ptr %__try_val_35, align 8
-  %__try_val_35749 = load i64, ptr %__try_val_35, align 8
-  store i64 %__try_val_35749, ptr %match_result740, align 8
-  br label %match_merge741
-
-case_Err746:                                      ; preds = %match_merge719
-  %variant_field750 = getelementptr inbounds nuw { i8, ptr }, ptr %call739, i32 0, i32 1
-  %path_val751 = load ptr, ptr %variant_field750, align 8
-  store ptr %path_val751, ptr %__try_err_35, align 8
-  %variant752 = alloca { i8, ptr }, align 8
-  %tag_ptr753 = getelementptr inbounds nuw { i8, ptr }, ptr %variant752, i32 0, i32 0
-  store i8 1, ptr %tag_ptr753, align 1
-  %__try_err_35754 = load ptr, ptr %__try_err_35, align 8
-  %vfield_ptr755 = getelementptr inbounds nuw { i8, ptr }, ptr %variant752, i32 0, i32 1
-  store ptr %__try_err_35754, ptr %vfield_ptr755, align 8
-  %variant_val756 = load { i8, ptr }, ptr %variant752, align 8
-  ret { i8, ptr } %variant_val756
-
-match_merge763:                                   ; preds = %case_Ok767
-  %match_val779 = load i64, ptr %match_result762, align 8
-  %variant780 = alloca { i8, ptr }, align 8
-  %tag_ptr781 = getelementptr inbounds nuw { i8, ptr }, ptr %variant780, i32 0, i32 0
-  store i8 0, ptr %tag_ptr781, align 1
-  %vfield_ptr782 = getelementptr inbounds nuw { i8, ptr }, ptr %variant780, i32 0, i32 1
-  store i64 0, ptr %vfield_ptr782, align 8
-  %variant_val783 = load { i8, ptr }, ptr %variant780, align 8
-  ret { i8, ptr } %variant_val783
-
-switch_default766:                                ; preds = %match_merge741
-  call void @mesh_panic(ptr @.panic_msg.107, i64 30, ptr @.panic_file.108, i64 9, i32 0)
-  unreachable
-
-case_Ok767:                                       ; preds = %match_merge741
-  %variant_field769 = getelementptr inbounds nuw { i8, ptr }, ptr %call761, i32 0, i32 1
-  %path_val770 = load ptr, ptr %variant_field769, align 8
-  store ptr %path_val770, ptr %__try_val_36, align 8
-  %__try_val_36771 = load i64, ptr %__try_val_36, align 8
-  store i64 %__try_val_36771, ptr %match_result762, align 8
-  br label %match_merge763
-
-case_Err768:                                      ; preds = %match_merge741
-  %variant_field772 = getelementptr inbounds nuw { i8, ptr }, ptr %call761, i32 0, i32 1
-  %path_val773 = load ptr, ptr %variant_field772, align 8
-  store ptr %path_val773, ptr %__try_err_36, align 8
-  %variant774 = alloca { i8, ptr }, align 8
-  %tag_ptr775 = getelementptr inbounds nuw { i8, ptr }, ptr %variant774, i32 0, i32 0
-  store i8 1, ptr %tag_ptr775, align 1
-  %__try_err_36776 = load ptr, ptr %__try_err_36, align 8
-  %vfield_ptr777 = getelementptr inbounds nuw { i8, ptr }, ptr %variant774, i32 0, i32 1
-  store ptr %__try_err_36776, ptr %vfield_ptr777, align 8
-  %variant_val778 = load { i8, ptr }, ptr %variant774, align 8
-  ret { i8, ptr } %variant_val778
-}
-
 define { i8, ptr } @create_partition(i64 %0, ptr %1) {
 entry:
-  %__try_err_37 = alloca ptr, align 8
-  %__try_val_37 = alloca i64, align 8
+  %__try_err_1 = alloca ptr, align 8
+  %__try_val_1 = alloca i64, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %date_str = alloca ptr, align 8
@@ -5001,37 +3506,37 @@ entry:
   store ptr %call5, ptr %day, align 8
   %formatted = alloca ptr, align 8
   %year6 = load ptr, ptr %year, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.109, i64 1)
+  %str = call ptr @mesh_string_new(ptr @.str.3, i64 1)
   %concat = call ptr @mesh_string_concat(ptr %year6, ptr %str)
   %month7 = load ptr, ptr %month, align 8
   %concat8 = call ptr @mesh_string_concat(ptr %concat, ptr %month7)
-  %str9 = call ptr @mesh_string_new(ptr @.str.110, i64 1)
+  %str9 = call ptr @mesh_string_new(ptr @.str.4, i64 1)
   %concat10 = call ptr @mesh_string_concat(ptr %concat8, ptr %str9)
   %day11 = load ptr, ptr %day, align 8
   %concat12 = call ptr @mesh_string_concat(ptr %concat10, ptr %day11)
   store ptr %concat12, ptr %formatted, align 8
   %part1 = alloca ptr, align 8
-  %str13 = call ptr @mesh_string_new(ptr @.str.111, i64 34)
+  %str13 = call ptr @mesh_string_new(ptr @.str.5, i64 34)
   %date_str14 = load ptr, ptr %date_str, align 8
   %concat15 = call ptr @mesh_string_concat(ptr %str13, ptr %date_str14)
-  %str16 = call ptr @mesh_string_new(ptr @.str.112, i64 39)
+  %str16 = call ptr @mesh_string_new(ptr @.str.6, i64 39)
   %concat17 = call ptr @mesh_string_concat(ptr %concat15, ptr %str16)
   store ptr %concat17, ptr %part1, align 8
   %sql = alloca ptr, align 8
   %part118 = load ptr, ptr %part1, align 8
   %formatted19 = load ptr, ptr %formatted, align 8
   %concat20 = call ptr @mesh_string_concat(ptr %part118, ptr %formatted19)
-  %str21 = call ptr @mesh_string_new(ptr @.str.113, i64 9)
+  %str21 = call ptr @mesh_string_new(ptr @.str.7, i64 9)
   %concat22 = call ptr @mesh_string_concat(ptr %concat20, ptr %str21)
   %formatted23 = load ptr, ptr %formatted, align 8
   %concat24 = call ptr @mesh_string_concat(ptr %concat22, ptr %formatted23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.114, i64 13)
+  %str25 = call ptr @mesh_string_new(ptr @.str.8, i64 13)
   %concat26 = call ptr @mesh_string_concat(ptr %concat24, ptr %str25)
   store ptr %concat26, ptr %sql, align 8
   %pool27 = load i64, ptr %pool, align 8
   %sql28 = load ptr, ptr %sql, align 8
   %call29 = call ptr @mesh_list_new()
-  %call30 = call ptr @mesh_pool_execute(i64 %pool27, ptr %sql28, ptr %call29)
+  %call30 = call ptr @mesh_repo_execute_raw(i64 %pool27, ptr %sql28, ptr %call29)
   %match_result = alloca i64, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call30, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -5051,41 +3556,41 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val39
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.115, i64 30, ptr @.panic_file.116, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg, i64 30, ptr @.panic_file, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call30, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_37, align 8
-  %__try_val_3731 = load i64, ptr %__try_val_37, align 8
-  store i64 %__try_val_3731, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_1, align 8
+  %__try_val_131 = load i64, ptr %__try_val_1, align 8
+  store i64 %__try_val_131, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field32 = getelementptr inbounds nuw { i8, ptr }, ptr %call30, i32 0, i32 1
   %path_val33 = load ptr, ptr %variant_field32, align 8
-  store ptr %path_val33, ptr %__try_err_37, align 8
+  store ptr %path_val33, ptr %__try_err_1, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr34 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr34, align 1
-  %__try_err_3735 = load ptr, ptr %__try_err_37, align 8
+  %__try_err_135 = load ptr, ptr %__try_err_1, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_3735, ptr %vfield_ptr, align 8
+  store ptr %__try_err_135, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @Storage_Schema__create_partitions_loop(i64 %0, i64 %1, i64 %2) {
 entry:
-  %__try_err_39 = alloca ptr, align 8
-  %__try_val_39 = alloca i64, align 8
+  %__try_err_3 = alloca ptr, align 8
+  %__try_val_3 = alloca i64, align 8
   %match_result28 = alloca i64, align 8
   %scrutinee = alloca { i8, ptr }, align 8
   %date_str = alloca ptr, align 8
   %if_result14 = alloca i64, align 8
-  %__try_err_38 = alloca ptr, align 8
-  %__try_val_38 = alloca ptr, align 8
+  %__try_err_2 = alloca ptr, align 8
+  %__try_val_2 = alloca ptr, align 8
   %match_result = alloca ptr, align 8
   %rows = alloca ptr, align 8
   %offset_str = alloca ptr, align 8
@@ -5109,14 +3614,14 @@ then:                                             ; preds = %tce_loop
   %call = call ptr @mesh_int_to_string(i64 %i3)
   store ptr %call, ptr %offset_str, align 8
   %pool4 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.117, i64 66)
+  %str = call ptr @mesh_string_new(ptr @.str.9, i64 66)
   %list_arr = alloca [1 x i64], align 8
   %offset_str5 = load ptr, ptr %offset_str, align 8
   %ptr_to_i64 = ptrtoint ptr %offset_str5 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call6 = call ptr @mesh_pool_query(i64 %pool4, ptr %str, ptr %list)
+  %call6 = call ptr @mesh_repo_query_raw(i64 %pool4, ptr %str, ptr %list)
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call6, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
@@ -5147,27 +3652,27 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then15, label %else16
 
 switch_default:                                   ; preds = %then
-  call void @mesh_panic(ptr @.panic_msg.118, i64 30, ptr @.panic_file.119, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.10, i64 30, ptr @.panic_file.11, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %then
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call6, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_38, align 8
-  %__try_val_387 = load ptr, ptr %__try_val_38, align 8
-  store ptr %__try_val_387, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_2, align 8
+  %__try_val_27 = load ptr, ptr %__try_val_2, align 8
+  store ptr %__try_val_27, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %then
   %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %call6, i32 0, i32 1
   %path_val9 = load ptr, ptr %variant_field8, align 8
-  store ptr %path_val9, ptr %__try_err_38, align 8
+  store ptr %path_val9, ptr %__try_err_2, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr10, align 1
-  %__try_err_3811 = load ptr, ptr %__try_err_38, align 8
+  %__try_err_211 = load ptr, ptr %__try_err_2, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_3811, ptr %vfield_ptr, align 8
+  store ptr %__try_err_211, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -5176,7 +3681,7 @@ then15:                                           ; preds = %match_merge
   %call19 = call i64 @mesh_list_head(ptr %rows18)
   %i64_to_ptr = inttoptr i64 %call19 to ptr
   %call20 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str21 = call ptr @mesh_string_new(ptr @.str.120, i64 1)
+  %str21 = call ptr @mesh_string_new(ptr @.str.12, i64 1)
   %ptr_to_i6422 = ptrtoint ptr %str21 to i64
   %call23 = call i64 @mesh_map_get(ptr %call20, i64 %ptr_to_i6422)
   %i64_to_ptr24 = inttoptr i64 %call23 to ptr
@@ -5215,27 +3720,27 @@ match_merge29:                                    ; preds = %case_Ok33
   br label %if_merge17
 
 switch_default32:                                 ; preds = %then15
-  call void @mesh_panic(ptr @.panic_msg.121, i64 30, ptr @.panic_file.122, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.13, i64 30, ptr @.panic_file.14, i64 9, i32 0)
   unreachable
 
 case_Ok33:                                        ; preds = %then15
   %variant_field35 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val36 = load ptr, ptr %variant_field35, align 8
-  store ptr %path_val36, ptr %__try_val_39, align 8
-  %__try_val_3937 = load i64, ptr %__try_val_39, align 8
-  store i64 %__try_val_3937, ptr %match_result28, align 8
+  store ptr %path_val36, ptr %__try_val_3, align 8
+  %__try_val_337 = load i64, ptr %__try_val_3, align 8
+  store i64 %__try_val_337, ptr %match_result28, align 8
   br label %match_merge29
 
 case_Err34:                                       ; preds = %then15
   %variant_field38 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val39 = load ptr, ptr %variant_field38, align 8
-  store ptr %path_val39, ptr %__try_err_39, align 8
+  store ptr %path_val39, ptr %__try_err_3, align 8
   %variant40 = alloca { i8, ptr }, align 8
   %tag_ptr41 = getelementptr inbounds nuw { i8, ptr }, ptr %variant40, i32 0, i32 0
   store i8 1, ptr %tag_ptr41, align 1
-  %__try_err_3942 = load ptr, ptr %__try_err_39, align 8
+  %__try_err_342 = load ptr, ptr %__try_err_3, align 8
   %vfield_ptr43 = getelementptr inbounds nuw { i8, ptr }, ptr %variant40, i32 0, i32 1
-  store ptr %__try_err_3942, ptr %vfield_ptr43, align 8
+  store ptr %__try_err_342, ptr %vfield_ptr43, align 8
   %variant_val44 = load { i8, ptr }, ptr %variant40, align 8
   ret { i8, ptr } %variant_val44
 }
@@ -5267,7 +3772,7 @@ entry:
   store ptr %4, ptr %json_str, align 8
   %result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.123, i64 478)
+  %str = call ptr @mesh_string_new(ptr @.str.15, i64 478)
   %list_arr = alloca [4 x i64], align 8
   %project_id2 = load ptr, ptr %project_id, align 8
   %ptr_to_i64 = ptrtoint ptr %project_id2 to i64
@@ -5286,11 +3791,41 @@ entry:
   %elem_ptr11 = getelementptr [4 x i64], ptr %list_arr, i32 0, i32 3
   store i64 %ptr_to_i6410, ptr %elem_ptr11, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 4)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %deref_sum = load { i8, ptr }, ptr %call, align 8
   store { i8, ptr } %deref_sum, ptr %result, align 8
   %result12 = load { i8, ptr }, ptr %result, align 8
   ret { i8, ptr } %result12
+}
+
+define ptr @AlertRule____table__() {
+entry:
+  %str = call ptr @mesh_string_new(ptr @.str.16, i64 11)
+  ret ptr %str
+}
+
+define ptr @Organization____table__() {
+entry:
+  %str = call ptr @mesh_string_new(ptr @.str.17, i64 13)
+  ret ptr %str
+}
+
+define ptr @Project____table__() {
+entry:
+  %str = call ptr @mesh_string_new(ptr @.str.18, i64 8)
+  ret ptr %str
+}
+
+define ptr @User____table__() {
+entry:
+  %str = call ptr @mesh_string_new(ptr @.str.19, i64 5)
+  ret ptr %str
+}
+
+define ptr @OrgMembership____table__() {
+entry:
+  %str = call ptr @mesh_string_new(ptr @.str.20, i64 15)
+  ret ptr %str
 }
 
 define { i8, ptr } @Services_Writer__flush_loop(i64 %0, ptr %1, ptr %2, i64 %3, i64 %4) {
@@ -5330,7 +3865,7 @@ then:                                             ; preds = %tce_loop
   %i64_to_ptr = inttoptr i64 %call to ptr
   store ptr %i64_to_ptr, ptr %entry3, align 8
   %entry6 = load ptr, ptr %entry3, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.124, i64 3)
+  %str = call ptr @mesh_string_new(ptr @.str.21, i64 3)
   %call7 = call ptr @mesh_string_split(ptr %entry6, ptr %str)
   store ptr %call7, ptr %parts, align 8
   %parts8 = load ptr, ptr %parts, align 8
@@ -5391,7 +3926,7 @@ match_merge:                                      ; preds = %case_Ok
   br label %tce_loop
 
 switch_default:                                   ; preds = %then
-  call void @mesh_panic(ptr @.panic_msg.125, i64 30, ptr @.panic_file.126, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.22, i64 30, ptr @.panic_file.23, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %then
@@ -5443,15 +3978,15 @@ entry:
   store ptr %0, ptr %project_id, align 8
   %count_val = alloca i64, align 8
   store i64 %1, ptr %count_val, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.127, i64 34)
+  %str = call ptr @mesh_string_new(ptr @.str.24, i64 34)
   %count_val1 = load i64, ptr %count_val, align 8
   %call = call ptr @mesh_int_to_string(i64 %count_val1)
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %call)
-  %str2 = call ptr @mesh_string_new(ptr @.str.128, i64 20)
+  %str2 = call ptr @mesh_string_new(ptr @.str.25, i64 20)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   %project_id4 = load ptr, ptr %project_id, align 8
   %concat5 = call ptr @mesh_string_concat(ptr %concat3, ptr %project_id4)
-  %str6 = call ptr @mesh_string_new(ptr @.str.129, i64 16)
+  %str6 = call ptr @mesh_string_new(ptr @.str.26, i64 16)
   %concat7 = call ptr @mesh_string_concat(ptr %concat5, ptr %str6)
   call void @mesh_println(ptr %concat7)
   %variant = alloca { i8, ptr }, align 8
@@ -5498,7 +4033,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret { i8, ptr } %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.130, i64 30, ptr @.panic_file.131, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.27, i64 30, ptr @.panic_file.28, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -5559,7 +4094,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret { i8, ptr } %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.132, i64 30, ptr @.panic_file.133, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.29, i64 30, ptr @.panic_file.30, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -5623,7 +4158,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret { i8, ptr } %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.134, i64 30, ptr @.panic_file.135, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.31, i64 30, ptr @.panic_file.32, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -6080,7 +4615,7 @@ then:                                             ; preds = %entry
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr, align 1
-  %str = call ptr @mesh_string_new(ptr @.str.136, i64 17)
+  %str = call ptr @mesh_string_new(ptr @.str.33, i64 17)
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
   store ptr %str, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
@@ -6091,7 +4626,7 @@ else:                                             ; preds = %entry
   %variant4 = alloca { i8, ptr }, align 8
   %tag_ptr5 = getelementptr inbounds nuw { i8, ptr }, ptr %variant4, i32 0, i32 0
   store i8 0, ptr %tag_ptr5, align 1
-  %str6 = call ptr @mesh_string_new(ptr @.str.137, i64 2)
+  %str6 = call ptr @mesh_string_new(ptr @.str.34, i64 2)
   %vfield_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant4, i32 0, i32 1
   store ptr %str6, ptr %vfield_ptr7, align 8
   %variant_val8 = load { i8, ptr }, ptr %variant4, align 8
@@ -6101,6 +4636,44 @@ else:                                             ; preds = %entry
 if_merge:                                         ; preds = %else, %then
   %if_val = load { i8, ptr }, ptr %if_result, align 8
   ret { i8, ptr } %if_val
+}
+
+define { i8, ptr } @count_unresolved_issues(i64 %0, ptr %1) {
+entry:
+  %pool = alloca i64, align 8
+  store i64 %0, ptr %pool, align 8
+  %project_id = alloca ptr, align 8
+  store ptr %1, ptr %project_id, align 8
+  %pool1 = load i64, ptr %pool, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.35, i64 94)
+  %list_arr = alloca [1 x i64], align 8
+  %project_id2 = load ptr, ptr %project_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %project_id2 to i64
+  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
+  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
+  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
+  %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
+  ret { i8, ptr } %ret_coerce_load
+}
+
+define { i8, ptr } @get_issue_project_id(i64 %0, ptr %1) {
+entry:
+  %pool = alloca i64, align 8
+  store i64 %0, ptr %pool, align 8
+  %issue_id = alloca ptr, align 8
+  store ptr %1, ptr %issue_id, align 8
+  %pool1 = load i64, ptr %pool, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.36, i64 55)
+  %list_arr = alloca [1 x i64], align 8
+  %issue_id2 = load ptr, ptr %issue_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %issue_id2 to i64
+  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
+  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
+  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
+  %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
+  ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @insert_org(i64 %0, ptr %1, ptr %2) {
@@ -6113,22 +4686,27 @@ entry:
   store ptr %1, ptr %name, align 8
   %slug = alloca ptr, align 8
   store ptr %2, ptr %slug, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.138, i64 73)
-  %list_arr = alloca [2 x i64], align 8
-  %name2 = load ptr, ptr %name, align 8
-  %ptr_to_i64 = ptrtoint ptr %name2 to i64
-  %elem_ptr = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %slug3 = load ptr, ptr %slug, align 8
-  %ptr_to_i644 = ptrtoint ptr %slug3 to i64
-  %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
-  store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %fields = alloca ptr, align 8
+  %call = call ptr @mesh_map_new_typed(i64 1)
+  %str = call ptr @mesh_string_new(ptr @.str.37, i64 4)
+  %name1 = load ptr, ptr %name, align 8
+  %ptr_to_i64 = ptrtoint ptr %str to i64
+  %ptr_to_i642 = ptrtoint ptr %name1 to i64
+  %call3 = call ptr @mesh_map_put(ptr %call, i64 %ptr_to_i64, i64 %ptr_to_i642)
+  %str4 = call ptr @mesh_string_new(ptr @.str.38, i64 4)
+  %slug5 = load ptr, ptr %slug, align 8
+  %ptr_to_i646 = ptrtoint ptr %str4 to i64
+  %ptr_to_i647 = ptrtoint ptr %slug5 to i64
+  %call8 = call ptr @mesh_map_put(ptr %call3, i64 %ptr_to_i646, i64 %ptr_to_i647)
+  store ptr %call8, ptr %fields, align 8
+  %row = alloca ptr, align 8
+  %pool9 = load i64, ptr %pool, align 8
+  %call10 = call ptr @Organization____table__()
+  call void @mesh_reduction_check()
+  %fields11 = load ptr, ptr %fields, align 8
+  %call12 = call ptr @mesh_repo_insert(i64 %pool9, ptr %call10, ptr %fields11)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call12, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -6137,70 +4715,45 @@ entry:
 
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows11 = load ptr, ptr %rows, align 8
-  %call12 = call i64 @mesh_list_length(ptr %rows11)
-  %gt = icmp sgt i64 %call12, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
+  store ptr %match_val, ptr %row, align 8
+  %variant18 = alloca { i8, ptr }, align 8
+  %tag_ptr19 = getelementptr inbounds nuw { i8, ptr }, ptr %variant18, i32 0, i32 0
+  store i8 0, ptr %tag_ptr19, align 1
+  %row20 = load ptr, ptr %row, align 8
+  %call21 = call ptr @mesh_map_tag_string(ptr %row20)
+  %str22 = call ptr @mesh_string_new(ptr @.str.41, i64 2)
+  %ptr_to_i6423 = ptrtoint ptr %str22 to i64
+  %call24 = call i64 @mesh_map_get(ptr %call21, i64 %ptr_to_i6423)
+  %i64_to_ptr = inttoptr i64 %call24 to ptr
+  %vfield_ptr25 = getelementptr inbounds nuw { i8, ptr }, ptr %variant18, i32 0, i32 1
+  store ptr %i64_to_ptr, ptr %vfield_ptr25, align 8
+  %variant_val26 = load { i8, ptr }, ptr %variant18, align 8
+  ret { i8, ptr } %variant_val26
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.139, i64 30, ptr @.panic_file.140, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.39, i64 30, ptr @.panic_file.40, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call12, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %__try_val_1, align 8
-  %__try_val_16 = load ptr, ptr %__try_val_1, align 8
-  store ptr %__try_val_16, ptr %match_result, align 8
+  %__try_val_113 = load ptr, ptr %__try_val_1, align 8
+  store ptr %__try_val_113, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
-  %variant_field7 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val8 = load ptr, ptr %variant_field7, align 8
-  store ptr %path_val8, ptr %__try_err_1, align 8
+  %variant_field14 = getelementptr inbounds nuw { i8, ptr }, ptr %call12, i32 0, i32 1
+  %path_val15 = load ptr, ptr %variant_field14, align 8
+  store ptr %path_val15, ptr %__try_err_1, align 8
   %variant = alloca { i8, ptr }, align 8
-  %tag_ptr9 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr9, align 1
-  %__try_err_110 = load ptr, ptr %__try_err_1, align 8
+  %tag_ptr16 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr16, align 1
+  %__try_err_117 = load ptr, ptr %__try_err_1, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_110, ptr %vfield_ptr, align 8
+  store ptr %__try_err_117, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %variant13 = alloca { i8, ptr }, align 8
-  %tag_ptr14 = getelementptr inbounds nuw { i8, ptr }, ptr %variant13, i32 0, i32 0
-  store i8 0, ptr %tag_ptr14, align 1
-  %rows15 = load ptr, ptr %rows, align 8
-  %call16 = call i64 @mesh_list_head(ptr %rows15)
-  %i64_to_ptr = inttoptr i64 %call16 to ptr
-  %call17 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str18 = call ptr @mesh_string_new(ptr @.str.141, i64 2)
-  %ptr_to_i6419 = ptrtoint ptr %str18 to i64
-  %call20 = call i64 @mesh_map_get(ptr %call17, i64 %ptr_to_i6419)
-  %i64_to_ptr21 = inttoptr i64 %call20 to ptr
-  %vfield_ptr22 = getelementptr inbounds nuw { i8, ptr }, ptr %variant13, i32 0, i32 1
-  store ptr %i64_to_ptr21, ptr %vfield_ptr22, align 8
-  %variant_val23 = load { i8, ptr }, ptr %variant13, align 8
-  store { i8, ptr } %variant_val23, ptr %if_result, align 8
-  br label %if_merge
-
-else:                                             ; preds = %match_merge
-  %variant24 = alloca { i8, ptr }, align 8
-  %tag_ptr25 = getelementptr inbounds nuw { i8, ptr }, ptr %variant24, i32 0, i32 0
-  store i8 1, ptr %tag_ptr25, align 1
-  %str26 = call ptr @mesh_string_new(ptr @.str.142, i64 26)
-  %vfield_ptr27 = getelementptr inbounds nuw { i8, ptr }, ptr %variant24, i32 0, i32 1
-  store ptr %str26, ptr %vfield_ptr27, align 8
-  %variant_val28 = load { i8, ptr }, ptr %variant24, align 8
-  store { i8, ptr } %variant_val28, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
 }
 
 define { i8, ptr } @get_org(i64 %0, ptr %1) {
@@ -6211,18 +4764,14 @@ entry:
   store i64 %0, ptr %pool, align 8
   %id = alloca ptr, align 8
   store ptr %1, ptr %id, align 8
-  %rows = alloca ptr, align 8
+  %row = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.143, i64 84)
-  %list_arr = alloca [1 x i64], align 8
+  %call = call ptr @Organization____table__()
+  call void @mesh_reduction_check()
   %id2 = load ptr, ptr %id, align 8
-  %ptr_to_i64 = ptrtoint ptr %id2 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call3 = call ptr @mesh_repo_get(i64 %pool1, ptr %call, ptr %id2)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -6231,101 +4780,75 @@ entry:
 
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows8 = load ptr, ptr %rows, align 8
-  %call9 = call i64 @mesh_list_length(ptr %rows8)
-  %gt = icmp sgt i64 %call9, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.144, i64 30, ptr @.panic_file.145, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_2, align 8
-  %__try_val_23 = load ptr, ptr %__try_val_2, align 8
-  store ptr %__try_val_23, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_2, align 8
-  %variant = alloca { i8, ptr }, align 8
-  %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_27 = load ptr, ptr %__try_err_2, align 8
-  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_27, ptr %vfield_ptr, align 8
-  %variant_val = load { i8, ptr }, ptr %variant, align 8
-  ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %row = alloca ptr, align 8
-  %rows10 = load ptr, ptr %rows, align 8
-  %call11 = call i64 @mesh_list_head(ptr %rows10)
-  %i64_to_ptr = inttoptr i64 %call11 to ptr
-  store ptr %i64_to_ptr, ptr %row, align 8
-  %variant12 = alloca { i8, ptr }, align 8
-  %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 0
-  store i8 0, ptr %tag_ptr13, align 1
+  store ptr %match_val, ptr %row, align 8
+  %variant9 = alloca { i8, ptr }, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
+  store i8 0, ptr %tag_ptr10, align 1
   %struct_lit = alloca %Organization, align 8
+  %row11 = load ptr, ptr %row, align 8
+  %call12 = call ptr @mesh_map_tag_string(ptr %row11)
+  %str = call ptr @mesh_string_new(ptr @.str.44, i64 2)
+  %ptr_to_i64 = ptrtoint ptr %str to i64
+  %call13 = call i64 @mesh_map_get(ptr %call12, i64 %ptr_to_i64)
+  %i64_to_ptr = inttoptr i64 %call13 to ptr
+  %field_ptr = getelementptr inbounds nuw %Organization, ptr %struct_lit, i32 0, i32 0
+  store ptr %i64_to_ptr, ptr %field_ptr, align 8
   %row14 = load ptr, ptr %row, align 8
   %call15 = call ptr @mesh_map_tag_string(ptr %row14)
-  %str16 = call ptr @mesh_string_new(ptr @.str.146, i64 2)
+  %str16 = call ptr @mesh_string_new(ptr @.str.45, i64 4)
   %ptr_to_i6417 = ptrtoint ptr %str16 to i64
   %call18 = call i64 @mesh_map_get(ptr %call15, i64 %ptr_to_i6417)
   %i64_to_ptr19 = inttoptr i64 %call18 to ptr
-  %field_ptr = getelementptr inbounds nuw %Organization, ptr %struct_lit, i32 0, i32 0
-  store ptr %i64_to_ptr19, ptr %field_ptr, align 8
-  %row20 = load ptr, ptr %row, align 8
-  %call21 = call ptr @mesh_map_tag_string(ptr %row20)
-  %str22 = call ptr @mesh_string_new(ptr @.str.147, i64 4)
-  %ptr_to_i6423 = ptrtoint ptr %str22 to i64
-  %call24 = call i64 @mesh_map_get(ptr %call21, i64 %ptr_to_i6423)
-  %i64_to_ptr25 = inttoptr i64 %call24 to ptr
-  %field_ptr26 = getelementptr inbounds nuw %Organization, ptr %struct_lit, i32 0, i32 1
-  store ptr %i64_to_ptr25, ptr %field_ptr26, align 8
-  %row27 = load ptr, ptr %row, align 8
-  %call28 = call ptr @mesh_map_tag_string(ptr %row27)
-  %str29 = call ptr @mesh_string_new(ptr @.str.148, i64 4)
-  %ptr_to_i6430 = ptrtoint ptr %str29 to i64
-  %call31 = call i64 @mesh_map_get(ptr %call28, i64 %ptr_to_i6430)
-  %i64_to_ptr32 = inttoptr i64 %call31 to ptr
-  %field_ptr33 = getelementptr inbounds nuw %Organization, ptr %struct_lit, i32 0, i32 2
-  store ptr %i64_to_ptr32, ptr %field_ptr33, align 8
-  %row34 = load ptr, ptr %row, align 8
-  %call35 = call ptr @mesh_map_tag_string(ptr %row34)
-  %str36 = call ptr @mesh_string_new(ptr @.str.149, i64 10)
-  %ptr_to_i6437 = ptrtoint ptr %str36 to i64
-  %call38 = call i64 @mesh_map_get(ptr %call35, i64 %ptr_to_i6437)
-  %i64_to_ptr39 = inttoptr i64 %call38 to ptr
-  %field_ptr40 = getelementptr inbounds nuw %Organization, ptr %struct_lit, i32 0, i32 3
-  store ptr %i64_to_ptr39, ptr %field_ptr40, align 8
+  %field_ptr20 = getelementptr inbounds nuw %Organization, ptr %struct_lit, i32 0, i32 1
+  store ptr %i64_to_ptr19, ptr %field_ptr20, align 8
+  %row21 = load ptr, ptr %row, align 8
+  %call22 = call ptr @mesh_map_tag_string(ptr %row21)
+  %str23 = call ptr @mesh_string_new(ptr @.str.46, i64 4)
+  %ptr_to_i6424 = ptrtoint ptr %str23 to i64
+  %call25 = call i64 @mesh_map_get(ptr %call22, i64 %ptr_to_i6424)
+  %i64_to_ptr26 = inttoptr i64 %call25 to ptr
+  %field_ptr27 = getelementptr inbounds nuw %Organization, ptr %struct_lit, i32 0, i32 2
+  store ptr %i64_to_ptr26, ptr %field_ptr27, align 8
+  %row28 = load ptr, ptr %row, align 8
+  %call29 = call ptr @mesh_map_tag_string(ptr %row28)
+  %str30 = call ptr @mesh_string_new(ptr @.str.47, i64 10)
+  %ptr_to_i6431 = ptrtoint ptr %str30 to i64
+  %call32 = call i64 @mesh_map_get(ptr %call29, i64 %ptr_to_i6431)
+  %i64_to_ptr33 = inttoptr i64 %call32 to ptr
+  %field_ptr34 = getelementptr inbounds nuw %Organization, ptr %struct_lit, i32 0, i32 3
+  store ptr %i64_to_ptr33, ptr %field_ptr34, align 8
   %struct_val = load %Organization, ptr %struct_lit, align 8
-  %vfield_ptr41 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 1
-  store %Organization %struct_val, ptr %vfield_ptr41, align 8
-  %variant_val42 = load { i8, ptr }, ptr %variant12, align 8
-  store { i8, ptr } %variant_val42, ptr %if_result, align 8
-  br label %if_merge
+  %variant_box = call ptr @mesh_gc_alloc_actor(i64 ptrtoint (ptr getelementptr (%Organization, ptr null, i32 1) to i64), i64 8)
+  store %Organization %struct_val, ptr %variant_box, align 8
+  %vfield_ptr35 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
+  store ptr %variant_box, ptr %vfield_ptr35, align 8
+  %variant_val36 = load { i8, ptr }, ptr %variant9, align 8
+  ret { i8, ptr } %variant_val36
 
-else:                                             ; preds = %match_merge
-  %variant43 = alloca { i8, ptr }, align 8
-  %tag_ptr44 = getelementptr inbounds nuw { i8, ptr }, ptr %variant43, i32 0, i32 0
-  store i8 1, ptr %tag_ptr44, align 1
-  %str45 = call ptr @mesh_string_new(ptr @.str.150, i64 9)
-  %vfield_ptr46 = getelementptr inbounds nuw { i8, ptr }, ptr %variant43, i32 0, i32 1
-  store ptr %str45, ptr %vfield_ptr46, align 8
-  %variant_val47 = load { i8, ptr }, ptr %variant43, align 8
-  store { i8, ptr } %variant_val47, ptr %if_result, align 8
-  br label %if_merge
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.42, i64 30, ptr @.panic_file.43, i64 9, i32 0)
+  unreachable
 
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_2, align 8
+  %__try_val_24 = load ptr, ptr %__try_val_2, align 8
+  store ptr %__try_val_24, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
+  %path_val6 = load ptr, ptr %variant_field5, align 8
+  store ptr %path_val6, ptr %__try_err_2, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr7, align 1
+  %__try_err_28 = load ptr, ptr %__try_err_2, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_28, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
 }
 
 define %Organization @Storage_Queries__closure_1(ptr %0, ptr %1) {
@@ -6337,7 +4860,7 @@ entry:
   %struct_lit = alloca %Organization, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.151, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.48, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   %i64_to_ptr = inttoptr i64 %call2 to ptr
@@ -6345,7 +4868,7 @@ entry:
   store ptr %i64_to_ptr, ptr %field_ptr, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.152, i64 4)
+  %str5 = call ptr @mesh_string_new(ptr @.str.49, i64 4)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   %i64_to_ptr8 = inttoptr i64 %call7 to ptr
@@ -6353,7 +4876,7 @@ entry:
   store ptr %i64_to_ptr8, ptr %field_ptr9, align 8
   %row10 = load ptr, ptr %row, align 8
   %call11 = call ptr @mesh_map_tag_string(ptr %row10)
-  %str12 = call ptr @mesh_string_new(ptr @.str.153, i64 4)
+  %str12 = call ptr @mesh_string_new(ptr @.str.50, i64 4)
   %ptr_to_i6413 = ptrtoint ptr %str12 to i64
   %call14 = call i64 @mesh_map_get(ptr %call11, i64 %ptr_to_i6413)
   %i64_to_ptr15 = inttoptr i64 %call14 to ptr
@@ -6361,7 +4884,7 @@ entry:
   store ptr %i64_to_ptr15, ptr %field_ptr16, align 8
   %row17 = load ptr, ptr %row, align 8
   %call18 = call ptr @mesh_map_tag_string(ptr %row17)
-  %str19 = call ptr @mesh_string_new(ptr @.str.154, i64 10)
+  %str19 = call ptr @mesh_string_new(ptr @.str.51, i64 10)
   %ptr_to_i6420 = ptrtoint ptr %str19 to i64
   %call21 = call i64 @mesh_map_get(ptr %call18, i64 %ptr_to_i6420)
   %i64_to_ptr22 = inttoptr i64 %call21 to ptr
@@ -6377,13 +4900,20 @@ entry:
   %__try_val_3 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
+  %q = alloca ptr, align 8
+  %call = call ptr @Organization____table__()
+  call void @mesh_reduction_check()
+  %call1 = call ptr @mesh_query_from(ptr %call)
+  %str = call ptr @mesh_string_new(ptr @.str.52, i64 4)
+  %str2 = call ptr @mesh_string_new(ptr @.str.53, i64 3)
+  %call3 = call ptr @mesh_query_order_by(ptr %call1, ptr %str, ptr %str2)
+  store ptr %call3, ptr %q, align 8
   %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.155, i64 78)
-  %call = call ptr @mesh_list_new()
-  %call2 = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %call)
+  %pool4 = load i64, ptr %pool, align 8
+  %q5 = load ptr, ptr %q, align 8
+  %call6 = call ptr @mesh_repo_all(i64 %pool4, ptr %q5)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call2, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call6, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -6393,10 +4923,10 @@ entry:
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
   store ptr %match_val, ptr %rows, align 8
-  %variant8 = alloca { i8, ptr }, align 8
-  %tag_ptr9 = getelementptr inbounds nuw { i8, ptr }, ptr %variant8, i32 0, i32 0
-  store i8 0, ptr %tag_ptr9, align 1
-  %rows10 = load ptr, ptr %rows, align 8
+  %variant12 = alloca { i8, ptr }, align 8
+  %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 0
+  store i8 0, ptr %tag_ptr13, align 1
+  %rows14 = load ptr, ptr %rows, align 8
   %env_dummy = call ptr @mesh_gc_alloc_actor(i64 8, i64 8)
   %closure = alloca { ptr, ptr }, align 8
   %fn_slot = getelementptr inbounds nuw { ptr, ptr }, ptr %closure, i32 0, i32 0
@@ -6410,34 +4940,34 @@ match_merge:                                      ; preds = %case_Ok
   %fn_ptr = load ptr, ptr %cls_fn_ptr, align 8
   %cls_env_ptr = getelementptr inbounds nuw { ptr, ptr }, ptr %cls_split, i32 0, i32 1
   %env_ptr = load ptr, ptr %cls_env_ptr, align 8
-  %call11 = call ptr @mesh_list_map(ptr %rows10, ptr %fn_ptr, ptr %env_ptr)
-  %vfield_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant8, i32 0, i32 1
-  store ptr %call11, ptr %vfield_ptr12, align 8
-  %variant_val13 = load { i8, ptr }, ptr %variant8, align 8
-  ret { i8, ptr } %variant_val13
+  %call15 = call ptr @mesh_list_map(ptr %rows14, ptr %fn_ptr, ptr %env_ptr)
+  %vfield_ptr16 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 1
+  store ptr %call15, ptr %vfield_ptr16, align 8
+  %variant_val17 = load { i8, ptr }, ptr %variant12, align 8
+  ret { i8, ptr } %variant_val17
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.156, i64 30, ptr @.panic_file.157, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.54, i64 30, ptr @.panic_file.55, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call2, i32 0, i32 1
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call6, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %__try_val_3, align 8
-  %__try_val_33 = load ptr, ptr %__try_val_3, align 8
-  store ptr %__try_val_33, ptr %match_result, align 8
+  %__try_val_37 = load ptr, ptr %__try_val_3, align 8
+  store ptr %__try_val_37, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
-  %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call2, i32 0, i32 1
-  %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_3, align 8
+  %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %call6, i32 0, i32 1
+  %path_val9 = load ptr, ptr %variant_field8, align 8
+  store ptr %path_val9, ptr %__try_err_3, align 8
   %variant = alloca { i8, ptr }, align 8
-  %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_37 = load ptr, ptr %__try_err_3, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr10, align 1
+  %__try_err_311 = load ptr, ptr %__try_err_3, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_37, ptr %vfield_ptr, align 8
+  store ptr %__try_err_311, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
@@ -6454,26 +4984,32 @@ entry:
   store ptr %2, ptr %name, align 8
   %platform = alloca ptr, align 8
   store ptr %3, ptr %platform, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.158, i64 90)
-  %list_arr = alloca [3 x i64], align 8
-  %org_id2 = load ptr, ptr %org_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %org_id2 to i64
-  %elem_ptr = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %name3 = load ptr, ptr %name, align 8
-  %ptr_to_i644 = ptrtoint ptr %name3 to i64
-  %elem_ptr5 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 1
-  store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
-  %platform6 = load ptr, ptr %platform, align 8
-  %ptr_to_i647 = ptrtoint ptr %platform6 to i64
-  %elem_ptr8 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 2
-  store i64 %ptr_to_i647, ptr %elem_ptr8, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 3)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %fields = alloca ptr, align 8
+  %call = call ptr @mesh_map_new_typed(i64 1)
+  %str = call ptr @mesh_string_new(ptr @.str.56, i64 6)
+  %org_id1 = load ptr, ptr %org_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %str to i64
+  %ptr_to_i642 = ptrtoint ptr %org_id1 to i64
+  %call3 = call ptr @mesh_map_put(ptr %call, i64 %ptr_to_i64, i64 %ptr_to_i642)
+  %str4 = call ptr @mesh_string_new(ptr @.str.57, i64 4)
+  %name5 = load ptr, ptr %name, align 8
+  %ptr_to_i646 = ptrtoint ptr %str4 to i64
+  %ptr_to_i647 = ptrtoint ptr %name5 to i64
+  %call8 = call ptr @mesh_map_put(ptr %call3, i64 %ptr_to_i646, i64 %ptr_to_i647)
+  %str9 = call ptr @mesh_string_new(ptr @.str.58, i64 8)
+  %platform10 = load ptr, ptr %platform, align 8
+  %ptr_to_i6411 = ptrtoint ptr %str9 to i64
+  %ptr_to_i6412 = ptrtoint ptr %platform10 to i64
+  %call13 = call ptr @mesh_map_put(ptr %call8, i64 %ptr_to_i6411, i64 %ptr_to_i6412)
+  store ptr %call13, ptr %fields, align 8
+  %row = alloca ptr, align 8
+  %pool14 = load i64, ptr %pool, align 8
+  %call15 = call ptr @Project____table__()
+  call void @mesh_reduction_check()
+  %fields16 = load ptr, ptr %fields, align 8
+  %call17 = call ptr @mesh_repo_insert(i64 %pool14, ptr %call15, ptr %fields16)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call17, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -6482,70 +5018,45 @@ entry:
 
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows14 = load ptr, ptr %rows, align 8
-  %call15 = call i64 @mesh_list_length(ptr %rows14)
-  %gt = icmp sgt i64 %call15, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
+  store ptr %match_val, ptr %row, align 8
+  %variant23 = alloca { i8, ptr }, align 8
+  %tag_ptr24 = getelementptr inbounds nuw { i8, ptr }, ptr %variant23, i32 0, i32 0
+  store i8 0, ptr %tag_ptr24, align 1
+  %row25 = load ptr, ptr %row, align 8
+  %call26 = call ptr @mesh_map_tag_string(ptr %row25)
+  %str27 = call ptr @mesh_string_new(ptr @.str.61, i64 2)
+  %ptr_to_i6428 = ptrtoint ptr %str27 to i64
+  %call29 = call i64 @mesh_map_get(ptr %call26, i64 %ptr_to_i6428)
+  %i64_to_ptr = inttoptr i64 %call29 to ptr
+  %vfield_ptr30 = getelementptr inbounds nuw { i8, ptr }, ptr %variant23, i32 0, i32 1
+  store ptr %i64_to_ptr, ptr %vfield_ptr30, align 8
+  %variant_val31 = load { i8, ptr }, ptr %variant23, align 8
+  ret { i8, ptr } %variant_val31
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.159, i64 30, ptr @.panic_file.160, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.59, i64 30, ptr @.panic_file.60, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call17, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %__try_val_4, align 8
-  %__try_val_49 = load ptr, ptr %__try_val_4, align 8
-  store ptr %__try_val_49, ptr %match_result, align 8
+  %__try_val_418 = load ptr, ptr %__try_val_4, align 8
+  store ptr %__try_val_418, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
-  %variant_field10 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val11 = load ptr, ptr %variant_field10, align 8
-  store ptr %path_val11, ptr %__try_err_4, align 8
+  %variant_field19 = getelementptr inbounds nuw { i8, ptr }, ptr %call17, i32 0, i32 1
+  %path_val20 = load ptr, ptr %variant_field19, align 8
+  store ptr %path_val20, ptr %__try_err_4, align 8
   %variant = alloca { i8, ptr }, align 8
-  %tag_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr12, align 1
-  %__try_err_413 = load ptr, ptr %__try_err_4, align 8
+  %tag_ptr21 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr21, align 1
+  %__try_err_422 = load ptr, ptr %__try_err_4, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_413, ptr %vfield_ptr, align 8
+  store ptr %__try_err_422, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %variant16 = alloca { i8, ptr }, align 8
-  %tag_ptr17 = getelementptr inbounds nuw { i8, ptr }, ptr %variant16, i32 0, i32 0
-  store i8 0, ptr %tag_ptr17, align 1
-  %rows18 = load ptr, ptr %rows, align 8
-  %call19 = call i64 @mesh_list_head(ptr %rows18)
-  %i64_to_ptr = inttoptr i64 %call19 to ptr
-  %call20 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str21 = call ptr @mesh_string_new(ptr @.str.161, i64 2)
-  %ptr_to_i6422 = ptrtoint ptr %str21 to i64
-  %call23 = call i64 @mesh_map_get(ptr %call20, i64 %ptr_to_i6422)
-  %i64_to_ptr24 = inttoptr i64 %call23 to ptr
-  %vfield_ptr25 = getelementptr inbounds nuw { i8, ptr }, ptr %variant16, i32 0, i32 1
-  store ptr %i64_to_ptr24, ptr %vfield_ptr25, align 8
-  %variant_val26 = load { i8, ptr }, ptr %variant16, align 8
-  store { i8, ptr } %variant_val26, ptr %if_result, align 8
-  br label %if_merge
-
-else:                                             ; preds = %match_merge
-  %variant27 = alloca { i8, ptr }, align 8
-  %tag_ptr28 = getelementptr inbounds nuw { i8, ptr }, ptr %variant27, i32 0, i32 0
-  store i8 1, ptr %tag_ptr28, align 1
-  %str29 = call ptr @mesh_string_new(ptr @.str.162, i64 30)
-  %vfield_ptr30 = getelementptr inbounds nuw { i8, ptr }, ptr %variant27, i32 0, i32 1
-  store ptr %str29, ptr %vfield_ptr30, align 8
-  %variant_val31 = load { i8, ptr }, ptr %variant27, align 8
-  store { i8, ptr } %variant_val31, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
 }
 
 define { i8, ptr } @get_project_id_by_slug(i64 %0, ptr %1) {
@@ -6556,18 +5067,15 @@ entry:
   store i64 %0, ptr %pool, align 8
   %slug = alloca ptr, align 8
   store ptr %1, ptr %slug, align 8
-  %rows = alloca ptr, align 8
+  %row = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.163, i64 45)
-  %list_arr = alloca [1 x i64], align 8
+  %call = call ptr @Project____table__()
+  call void @mesh_reduction_check()
+  %str = call ptr @mesh_string_new(ptr @.str.62, i64 4)
   %slug2 = load ptr, ptr %slug, align 8
-  %ptr_to_i64 = ptrtoint ptr %slug2 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call3 = call ptr @mesh_repo_get_by(i64 %pool1, ptr %call, ptr %str, ptr %slug2)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -6576,72 +5084,45 @@ entry:
 
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows8 = load ptr, ptr %rows, align 8
-  %call9 = call i64 @mesh_list_length(ptr %rows8)
-  %gt = icmp sgt i64 %call9, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
+  store ptr %match_val, ptr %row, align 8
+  %variant9 = alloca { i8, ptr }, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
+  store i8 0, ptr %tag_ptr10, align 1
+  %row11 = load ptr, ptr %row, align 8
+  %call12 = call ptr @mesh_map_tag_string(ptr %row11)
+  %str13 = call ptr @mesh_string_new(ptr @.str.65, i64 2)
+  %ptr_to_i64 = ptrtoint ptr %str13 to i64
+  %call14 = call i64 @mesh_map_get(ptr %call12, i64 %ptr_to_i64)
+  %i64_to_ptr = inttoptr i64 %call14 to ptr
+  %vfield_ptr15 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
+  store ptr %i64_to_ptr, ptr %vfield_ptr15, align 8
+  %variant_val16 = load { i8, ptr }, ptr %variant9, align 8
+  ret { i8, ptr } %variant_val16
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.164, i64 30, ptr @.panic_file.165, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.63, i64 30, ptr @.panic_file.64, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %__try_val_5, align 8
-  %__try_val_53 = load ptr, ptr %__try_val_5, align 8
-  store ptr %__try_val_53, ptr %match_result, align 8
+  %__try_val_54 = load ptr, ptr %__try_val_5, align 8
+  store ptr %__try_val_54, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
-  %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_5, align 8
+  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
+  %path_val6 = load ptr, ptr %variant_field5, align 8
+  store ptr %path_val6, ptr %__try_err_5, align 8
   %variant = alloca { i8, ptr }, align 8
-  %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_57 = load ptr, ptr %__try_err_5, align 8
+  %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr7, align 1
+  %__try_err_58 = load ptr, ptr %__try_err_5, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_57, ptr %vfield_ptr, align 8
+  store ptr %__try_err_58, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %variant10 = alloca { i8, ptr }, align 8
-  %tag_ptr11 = getelementptr inbounds nuw { i8, ptr }, ptr %variant10, i32 0, i32 0
-  store i8 0, ptr %tag_ptr11, align 1
-  %rows12 = load ptr, ptr %rows, align 8
-  %call13 = call i64 @mesh_list_head(ptr %rows12)
-  %i64_to_ptr = inttoptr i64 %call13 to ptr
-  %call14 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str15 = call ptr @mesh_string_new(ptr @.str.166, i64 2)
-  %ptr_to_i6416 = ptrtoint ptr %str15 to i64
-  %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
-  %i64_to_ptr18 = inttoptr i64 %call17 to ptr
-  %vfield_ptr19 = getelementptr inbounds nuw { i8, ptr }, ptr %variant10, i32 0, i32 1
-  store ptr %i64_to_ptr18, ptr %vfield_ptr19, align 8
-  %variant_val20 = load { i8, ptr }, ptr %variant10, align 8
-  store { i8, ptr } %variant_val20, ptr %if_result, align 8
-  br label %if_merge
-
-else:                                             ; preds = %match_merge
-  %variant21 = alloca { i8, ptr }, align 8
-  %tag_ptr22 = getelementptr inbounds nuw { i8, ptr }, ptr %variant21, i32 0, i32 0
-  store i8 1, ptr %tag_ptr22, align 1
-  %str23 = call ptr @mesh_string_new(ptr @.str.167, i64 28)
-  %slug24 = load ptr, ptr %slug, align 8
-  %concat = call ptr @mesh_string_concat(ptr %str23, ptr %slug24)
-  %vfield_ptr25 = getelementptr inbounds nuw { i8, ptr }, ptr %variant21, i32 0, i32 1
-  store ptr %concat, ptr %vfield_ptr25, align 8
-  %variant_val26 = load { i8, ptr }, ptr %variant21, align 8
-  store { i8, ptr } %variant_val26, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
 }
 
 define { i8, ptr } @get_project(i64 %0, ptr %1) {
@@ -6652,18 +5133,14 @@ entry:
   store i64 %0, ptr %pool, align 8
   %id = alloca ptr, align 8
   store ptr %1, ptr %id, align 8
-  %rows = alloca ptr, align 8
+  %row = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.168, i64 97)
-  %list_arr = alloca [1 x i64], align 8
+  %call = call ptr @Project____table__()
+  call void @mesh_reduction_check()
   %id2 = load ptr, ptr %id, align 8
-  %ptr_to_i64 = ptrtoint ptr %id2 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call3 = call ptr @mesh_repo_get(i64 %pool1, ptr %call, ptr %id2)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -6672,109 +5149,83 @@ entry:
 
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows8 = load ptr, ptr %rows, align 8
-  %call9 = call i64 @mesh_list_length(ptr %rows8)
-  %gt = icmp sgt i64 %call9, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.169, i64 30, ptr @.panic_file.170, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_6, align 8
-  %__try_val_63 = load ptr, ptr %__try_val_6, align 8
-  store ptr %__try_val_63, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_6, align 8
-  %variant = alloca { i8, ptr }, align 8
-  %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_67 = load ptr, ptr %__try_err_6, align 8
-  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_67, ptr %vfield_ptr, align 8
-  %variant_val = load { i8, ptr }, ptr %variant, align 8
-  ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %row = alloca ptr, align 8
-  %rows10 = load ptr, ptr %rows, align 8
-  %call11 = call i64 @mesh_list_head(ptr %rows10)
-  %i64_to_ptr = inttoptr i64 %call11 to ptr
-  store ptr %i64_to_ptr, ptr %row, align 8
-  %variant12 = alloca { i8, ptr }, align 8
-  %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 0
-  store i8 0, ptr %tag_ptr13, align 1
+  store ptr %match_val, ptr %row, align 8
+  %variant9 = alloca { i8, ptr }, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
+  store i8 0, ptr %tag_ptr10, align 1
   %struct_lit = alloca %Project, align 8
+  %row11 = load ptr, ptr %row, align 8
+  %call12 = call ptr @mesh_map_tag_string(ptr %row11)
+  %str = call ptr @mesh_string_new(ptr @.str.68, i64 2)
+  %ptr_to_i64 = ptrtoint ptr %str to i64
+  %call13 = call i64 @mesh_map_get(ptr %call12, i64 %ptr_to_i64)
+  %i64_to_ptr = inttoptr i64 %call13 to ptr
+  %field_ptr = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 0
+  store ptr %i64_to_ptr, ptr %field_ptr, align 8
   %row14 = load ptr, ptr %row, align 8
   %call15 = call ptr @mesh_map_tag_string(ptr %row14)
-  %str16 = call ptr @mesh_string_new(ptr @.str.171, i64 2)
+  %str16 = call ptr @mesh_string_new(ptr @.str.69, i64 6)
   %ptr_to_i6417 = ptrtoint ptr %str16 to i64
   %call18 = call i64 @mesh_map_get(ptr %call15, i64 %ptr_to_i6417)
   %i64_to_ptr19 = inttoptr i64 %call18 to ptr
-  %field_ptr = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 0
-  store ptr %i64_to_ptr19, ptr %field_ptr, align 8
-  %row20 = load ptr, ptr %row, align 8
-  %call21 = call ptr @mesh_map_tag_string(ptr %row20)
-  %str22 = call ptr @mesh_string_new(ptr @.str.172, i64 6)
-  %ptr_to_i6423 = ptrtoint ptr %str22 to i64
-  %call24 = call i64 @mesh_map_get(ptr %call21, i64 %ptr_to_i6423)
-  %i64_to_ptr25 = inttoptr i64 %call24 to ptr
-  %field_ptr26 = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 1
-  store ptr %i64_to_ptr25, ptr %field_ptr26, align 8
-  %row27 = load ptr, ptr %row, align 8
-  %call28 = call ptr @mesh_map_tag_string(ptr %row27)
-  %str29 = call ptr @mesh_string_new(ptr @.str.173, i64 4)
-  %ptr_to_i6430 = ptrtoint ptr %str29 to i64
-  %call31 = call i64 @mesh_map_get(ptr %call28, i64 %ptr_to_i6430)
-  %i64_to_ptr32 = inttoptr i64 %call31 to ptr
-  %field_ptr33 = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 2
-  store ptr %i64_to_ptr32, ptr %field_ptr33, align 8
-  %row34 = load ptr, ptr %row, align 8
-  %call35 = call ptr @mesh_map_tag_string(ptr %row34)
-  %str36 = call ptr @mesh_string_new(ptr @.str.174, i64 8)
-  %ptr_to_i6437 = ptrtoint ptr %str36 to i64
-  %call38 = call i64 @mesh_map_get(ptr %call35, i64 %ptr_to_i6437)
-  %i64_to_ptr39 = inttoptr i64 %call38 to ptr
-  %field_ptr40 = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 3
-  store ptr %i64_to_ptr39, ptr %field_ptr40, align 8
-  %row41 = load ptr, ptr %row, align 8
-  %call42 = call ptr @mesh_map_tag_string(ptr %row41)
-  %str43 = call ptr @mesh_string_new(ptr @.str.175, i64 10)
-  %ptr_to_i6444 = ptrtoint ptr %str43 to i64
-  %call45 = call i64 @mesh_map_get(ptr %call42, i64 %ptr_to_i6444)
-  %i64_to_ptr46 = inttoptr i64 %call45 to ptr
-  %field_ptr47 = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 4
-  store ptr %i64_to_ptr46, ptr %field_ptr47, align 8
+  %field_ptr20 = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 1
+  store ptr %i64_to_ptr19, ptr %field_ptr20, align 8
+  %row21 = load ptr, ptr %row, align 8
+  %call22 = call ptr @mesh_map_tag_string(ptr %row21)
+  %str23 = call ptr @mesh_string_new(ptr @.str.70, i64 4)
+  %ptr_to_i6424 = ptrtoint ptr %str23 to i64
+  %call25 = call i64 @mesh_map_get(ptr %call22, i64 %ptr_to_i6424)
+  %i64_to_ptr26 = inttoptr i64 %call25 to ptr
+  %field_ptr27 = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 2
+  store ptr %i64_to_ptr26, ptr %field_ptr27, align 8
+  %row28 = load ptr, ptr %row, align 8
+  %call29 = call ptr @mesh_map_tag_string(ptr %row28)
+  %str30 = call ptr @mesh_string_new(ptr @.str.71, i64 8)
+  %ptr_to_i6431 = ptrtoint ptr %str30 to i64
+  %call32 = call i64 @mesh_map_get(ptr %call29, i64 %ptr_to_i6431)
+  %i64_to_ptr33 = inttoptr i64 %call32 to ptr
+  %field_ptr34 = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 3
+  store ptr %i64_to_ptr33, ptr %field_ptr34, align 8
+  %row35 = load ptr, ptr %row, align 8
+  %call36 = call ptr @mesh_map_tag_string(ptr %row35)
+  %str37 = call ptr @mesh_string_new(ptr @.str.72, i64 10)
+  %ptr_to_i6438 = ptrtoint ptr %str37 to i64
+  %call39 = call i64 @mesh_map_get(ptr %call36, i64 %ptr_to_i6438)
+  %i64_to_ptr40 = inttoptr i64 %call39 to ptr
+  %field_ptr41 = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 4
+  store ptr %i64_to_ptr40, ptr %field_ptr41, align 8
   %struct_val = load %Project, ptr %struct_lit, align 8
-  %vfield_ptr48 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 1
-  store %Project %struct_val, ptr %vfield_ptr48, align 8
-  %variant_val49 = load { i8, ptr }, ptr %variant12, align 8
-  store { i8, ptr } %variant_val49, ptr %if_result, align 8
-  br label %if_merge
+  %variant_box = call ptr @mesh_gc_alloc_actor(i64 ptrtoint (ptr getelementptr (%Project, ptr null, i32 1) to i64), i64 8)
+  store %Project %struct_val, ptr %variant_box, align 8
+  %vfield_ptr42 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
+  store ptr %variant_box, ptr %vfield_ptr42, align 8
+  %variant_val43 = load { i8, ptr }, ptr %variant9, align 8
+  ret { i8, ptr } %variant_val43
 
-else:                                             ; preds = %match_merge
-  %variant50 = alloca { i8, ptr }, align 8
-  %tag_ptr51 = getelementptr inbounds nuw { i8, ptr }, ptr %variant50, i32 0, i32 0
-  store i8 1, ptr %tag_ptr51, align 1
-  %str52 = call ptr @mesh_string_new(ptr @.str.176, i64 9)
-  %vfield_ptr53 = getelementptr inbounds nuw { i8, ptr }, ptr %variant50, i32 0, i32 1
-  store ptr %str52, ptr %vfield_ptr53, align 8
-  %variant_val54 = load { i8, ptr }, ptr %variant50, align 8
-  store { i8, ptr } %variant_val54, ptr %if_result, align 8
-  br label %if_merge
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.66, i64 30, ptr @.panic_file.67, i64 9, i32 0)
+  unreachable
 
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_6, align 8
+  %__try_val_64 = load ptr, ptr %__try_val_6, align 8
+  store ptr %__try_val_64, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
+  %path_val6 = load ptr, ptr %variant_field5, align 8
+  store ptr %path_val6, ptr %__try_err_6, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr7, align 1
+  %__try_err_68 = load ptr, ptr %__try_err_6, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_68, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
 }
 
 define %Project @Storage_Queries__closure_2(ptr %0, ptr %1) {
@@ -6786,7 +5237,7 @@ entry:
   %struct_lit = alloca %Project, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.177, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.73, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   %i64_to_ptr = inttoptr i64 %call2 to ptr
@@ -6794,7 +5245,7 @@ entry:
   store ptr %i64_to_ptr, ptr %field_ptr, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.178, i64 6)
+  %str5 = call ptr @mesh_string_new(ptr @.str.74, i64 6)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   %i64_to_ptr8 = inttoptr i64 %call7 to ptr
@@ -6802,7 +5253,7 @@ entry:
   store ptr %i64_to_ptr8, ptr %field_ptr9, align 8
   %row10 = load ptr, ptr %row, align 8
   %call11 = call ptr @mesh_map_tag_string(ptr %row10)
-  %str12 = call ptr @mesh_string_new(ptr @.str.179, i64 4)
+  %str12 = call ptr @mesh_string_new(ptr @.str.75, i64 4)
   %ptr_to_i6413 = ptrtoint ptr %str12 to i64
   %call14 = call i64 @mesh_map_get(ptr %call11, i64 %ptr_to_i6413)
   %i64_to_ptr15 = inttoptr i64 %call14 to ptr
@@ -6810,7 +5261,7 @@ entry:
   store ptr %i64_to_ptr15, ptr %field_ptr16, align 8
   %row17 = load ptr, ptr %row, align 8
   %call18 = call ptr @mesh_map_tag_string(ptr %row17)
-  %str19 = call ptr @mesh_string_new(ptr @.str.180, i64 8)
+  %str19 = call ptr @mesh_string_new(ptr @.str.76, i64 8)
   %ptr_to_i6420 = ptrtoint ptr %str19 to i64
   %call21 = call i64 @mesh_map_get(ptr %call18, i64 %ptr_to_i6420)
   %i64_to_ptr22 = inttoptr i64 %call21 to ptr
@@ -6818,7 +5269,7 @@ entry:
   store ptr %i64_to_ptr22, ptr %field_ptr23, align 8
   %row24 = load ptr, ptr %row, align 8
   %call25 = call ptr @mesh_map_tag_string(ptr %row24)
-  %str26 = call ptr @mesh_string_new(ptr @.str.181, i64 10)
+  %str26 = call ptr @mesh_string_new(ptr @.str.77, i64 10)
   %ptr_to_i6427 = ptrtoint ptr %str26 to i64
   %call28 = call i64 @mesh_map_get(ptr %call25, i64 %ptr_to_i6427)
   %i64_to_ptr29 = inttoptr i64 %call28 to ptr
@@ -6836,18 +5287,23 @@ entry:
   store i64 %0, ptr %pool, align 8
   %org_id = alloca ptr, align 8
   store ptr %1, ptr %org_id, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.182, i64 115)
-  %list_arr = alloca [1 x i64], align 8
+  %q = alloca ptr, align 8
+  %call = call ptr @Project____table__()
+  call void @mesh_reduction_check()
+  %call1 = call ptr @mesh_query_from(ptr %call)
+  %str = call ptr @mesh_string_new(ptr @.str.78, i64 6)
   %org_id2 = load ptr, ptr %org_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %org_id2 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call3 = call ptr @mesh_query_where(ptr %call1, ptr %str, ptr %org_id2)
+  %str4 = call ptr @mesh_string_new(ptr @.str.79, i64 4)
+  %str5 = call ptr @mesh_string_new(ptr @.str.80, i64 3)
+  %call6 = call ptr @mesh_query_order_by(ptr %call3, ptr %str4, ptr %str5)
+  store ptr %call6, ptr %q, align 8
+  %rows = alloca ptr, align 8
+  %pool7 = load i64, ptr %pool, align 8
+  %q8 = load ptr, ptr %q, align 8
+  %call9 = call ptr @mesh_repo_all(i64 %pool7, ptr %q8)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call9, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -6857,10 +5313,10 @@ entry:
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
   store ptr %match_val, ptr %rows, align 8
-  %variant8 = alloca { i8, ptr }, align 8
-  %tag_ptr9 = getelementptr inbounds nuw { i8, ptr }, ptr %variant8, i32 0, i32 0
-  store i8 0, ptr %tag_ptr9, align 1
-  %rows10 = load ptr, ptr %rows, align 8
+  %variant15 = alloca { i8, ptr }, align 8
+  %tag_ptr16 = getelementptr inbounds nuw { i8, ptr }, ptr %variant15, i32 0, i32 0
+  store i8 0, ptr %tag_ptr16, align 1
+  %rows17 = load ptr, ptr %rows, align 8
   %env_dummy = call ptr @mesh_gc_alloc_actor(i64 8, i64 8)
   %closure = alloca { ptr, ptr }, align 8
   %fn_slot = getelementptr inbounds nuw { ptr, ptr }, ptr %closure, i32 0, i32 0
@@ -6874,34 +5330,34 @@ match_merge:                                      ; preds = %case_Ok
   %fn_ptr = load ptr, ptr %cls_fn_ptr, align 8
   %cls_env_ptr = getelementptr inbounds nuw { ptr, ptr }, ptr %cls_split, i32 0, i32 1
   %env_ptr = load ptr, ptr %cls_env_ptr, align 8
-  %call11 = call ptr @mesh_list_map(ptr %rows10, ptr %fn_ptr, ptr %env_ptr)
-  %vfield_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant8, i32 0, i32 1
-  store ptr %call11, ptr %vfield_ptr12, align 8
-  %variant_val13 = load { i8, ptr }, ptr %variant8, align 8
-  ret { i8, ptr } %variant_val13
+  %call18 = call ptr @mesh_list_map(ptr %rows17, ptr %fn_ptr, ptr %env_ptr)
+  %vfield_ptr19 = getelementptr inbounds nuw { i8, ptr }, ptr %variant15, i32 0, i32 1
+  store ptr %call18, ptr %vfield_ptr19, align 8
+  %variant_val20 = load { i8, ptr }, ptr %variant15, align 8
+  ret { i8, ptr } %variant_val20
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.183, i64 30, ptr @.panic_file.184, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.81, i64 30, ptr @.panic_file.82, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call9, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %__try_val_7, align 8
-  %__try_val_73 = load ptr, ptr %__try_val_7, align 8
-  store ptr %__try_val_73, ptr %match_result, align 8
+  %__try_val_710 = load ptr, ptr %__try_val_7, align 8
+  store ptr %__try_val_710, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
-  %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_7, align 8
+  %variant_field11 = getelementptr inbounds nuw { i8, ptr }, ptr %call9, i32 0, i32 1
+  %path_val12 = load ptr, ptr %variant_field11, align 8
+  store ptr %path_val12, ptr %__try_err_7, align 8
   %variant = alloca { i8, ptr }, align 8
-  %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_77 = load ptr, ptr %__try_err_7, align 8
+  %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr13, align 1
+  %__try_err_714 = load ptr, ptr %__try_err_7, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_77, ptr %vfield_ptr, align 8
+  store ptr %__try_err_714, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
@@ -6918,7 +5374,7 @@ entry:
   store ptr %2, ptr %label, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.185, i64 141)
+  %str = call ptr @mesh_string_new(ptr @.str.83, i64 141)
   %list_arr = alloca [2 x i64], align 8
   %project_id2 = load ptr, ptr %project_id, align 8
   %ptr_to_i64 = ptrtoint ptr %project_id2 to i64
@@ -6929,7 +5385,7 @@ entry:
   %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -6948,7 +5404,7 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.186, i64 30, ptr @.panic_file.187, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.84, i64 30, ptr @.panic_file.85, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -6980,7 +5436,7 @@ then:                                             ; preds = %match_merge
   %call16 = call i64 @mesh_list_head(ptr %rows15)
   %i64_to_ptr = inttoptr i64 %call16 to ptr
   %call17 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str18 = call ptr @mesh_string_new(ptr @.str.188, i64 9)
+  %str18 = call ptr @mesh_string_new(ptr @.str.86, i64 9)
   %ptr_to_i6419 = ptrtoint ptr %str18 to i64
   %call20 = call i64 @mesh_map_get(ptr %call17, i64 %ptr_to_i6419)
   %i64_to_ptr21 = inttoptr i64 %call20 to ptr
@@ -6994,7 +5450,7 @@ else:                                             ; preds = %match_merge
   %variant24 = alloca { i8, ptr }, align 8
   %tag_ptr25 = getelementptr inbounds nuw { i8, ptr }, ptr %variant24, i32 0, i32 0
   store i8 1, ptr %tag_ptr25, align 1
-  %str26 = call ptr @mesh_string_new(ptr @.str.189, i64 31)
+  %str26 = call ptr @mesh_string_new(ptr @.str.87, i64 31)
   %vfield_ptr27 = getelementptr inbounds nuw { i8, ptr }, ptr %variant24, i32 0, i32 1
   store ptr %str26, ptr %vfield_ptr27, align 8
   %variant_val28 = load { i8, ptr }, ptr %variant24, align 8
@@ -7016,14 +5472,14 @@ entry:
   store ptr %1, ptr %key_value, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.190, i64 180)
+  %str = call ptr @mesh_string_new(ptr @.str.88, i64 180)
   %list_arr = alloca [1 x i64], align 8
   %key_value2 = load ptr, ptr %key_value, align 8
   %ptr_to_i64 = ptrtoint ptr %key_value2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -7042,7 +5498,7 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.191, i64 30, ptr @.panic_file.192, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.89, i64 30, ptr @.panic_file.90, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -7078,7 +5534,7 @@ then:                                             ; preds = %match_merge
   %struct_lit = alloca %Project, align 8
   %row14 = load ptr, ptr %row, align 8
   %call15 = call ptr @mesh_map_tag_string(ptr %row14)
-  %str16 = call ptr @mesh_string_new(ptr @.str.193, i64 2)
+  %str16 = call ptr @mesh_string_new(ptr @.str.91, i64 2)
   %ptr_to_i6417 = ptrtoint ptr %str16 to i64
   %call18 = call i64 @mesh_map_get(ptr %call15, i64 %ptr_to_i6417)
   %i64_to_ptr19 = inttoptr i64 %call18 to ptr
@@ -7086,7 +5542,7 @@ then:                                             ; preds = %match_merge
   store ptr %i64_to_ptr19, ptr %field_ptr, align 8
   %row20 = load ptr, ptr %row, align 8
   %call21 = call ptr @mesh_map_tag_string(ptr %row20)
-  %str22 = call ptr @mesh_string_new(ptr @.str.194, i64 6)
+  %str22 = call ptr @mesh_string_new(ptr @.str.92, i64 6)
   %ptr_to_i6423 = ptrtoint ptr %str22 to i64
   %call24 = call i64 @mesh_map_get(ptr %call21, i64 %ptr_to_i6423)
   %i64_to_ptr25 = inttoptr i64 %call24 to ptr
@@ -7094,7 +5550,7 @@ then:                                             ; preds = %match_merge
   store ptr %i64_to_ptr25, ptr %field_ptr26, align 8
   %row27 = load ptr, ptr %row, align 8
   %call28 = call ptr @mesh_map_tag_string(ptr %row27)
-  %str29 = call ptr @mesh_string_new(ptr @.str.195, i64 4)
+  %str29 = call ptr @mesh_string_new(ptr @.str.93, i64 4)
   %ptr_to_i6430 = ptrtoint ptr %str29 to i64
   %call31 = call i64 @mesh_map_get(ptr %call28, i64 %ptr_to_i6430)
   %i64_to_ptr32 = inttoptr i64 %call31 to ptr
@@ -7102,7 +5558,7 @@ then:                                             ; preds = %match_merge
   store ptr %i64_to_ptr32, ptr %field_ptr33, align 8
   %row34 = load ptr, ptr %row, align 8
   %call35 = call ptr @mesh_map_tag_string(ptr %row34)
-  %str36 = call ptr @mesh_string_new(ptr @.str.196, i64 8)
+  %str36 = call ptr @mesh_string_new(ptr @.str.94, i64 8)
   %ptr_to_i6437 = ptrtoint ptr %str36 to i64
   %call38 = call i64 @mesh_map_get(ptr %call35, i64 %ptr_to_i6437)
   %i64_to_ptr39 = inttoptr i64 %call38 to ptr
@@ -7110,15 +5566,17 @@ then:                                             ; preds = %match_merge
   store ptr %i64_to_ptr39, ptr %field_ptr40, align 8
   %row41 = load ptr, ptr %row, align 8
   %call42 = call ptr @mesh_map_tag_string(ptr %row41)
-  %str43 = call ptr @mesh_string_new(ptr @.str.197, i64 10)
+  %str43 = call ptr @mesh_string_new(ptr @.str.95, i64 10)
   %ptr_to_i6444 = ptrtoint ptr %str43 to i64
   %call45 = call i64 @mesh_map_get(ptr %call42, i64 %ptr_to_i6444)
   %i64_to_ptr46 = inttoptr i64 %call45 to ptr
   %field_ptr47 = getelementptr inbounds nuw %Project, ptr %struct_lit, i32 0, i32 4
   store ptr %i64_to_ptr46, ptr %field_ptr47, align 8
   %struct_val = load %Project, ptr %struct_lit, align 8
+  %variant_box = call ptr @mesh_gc_alloc_actor(i64 ptrtoint (ptr getelementptr (%Project, ptr null, i32 1) to i64), i64 8)
+  store %Project %struct_val, ptr %variant_box, align 8
   %vfield_ptr48 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 1
-  store %Project %struct_val, ptr %vfield_ptr48, align 8
+  store ptr %variant_box, ptr %vfield_ptr48, align 8
   %variant_val49 = load { i8, ptr }, ptr %variant12, align 8
   store { i8, ptr } %variant_val49, ptr %if_result, align 8
   br label %if_merge
@@ -7127,7 +5585,7 @@ else:                                             ; preds = %match_merge
   %variant50 = alloca { i8, ptr }, align 8
   %tag_ptr51 = getelementptr inbounds nuw { i8, ptr }, ptr %variant50, i32 0, i32 0
   store i8 1, ptr %tag_ptr51, align 1
-  %str52 = call ptr @mesh_string_new(ptr @.str.198, i64 9)
+  %str52 = call ptr @mesh_string_new(ptr @.str.96, i64 9)
   %vfield_ptr53 = getelementptr inbounds nuw { i8, ptr }, ptr %variant50, i32 0, i32 1
   store ptr %str52, ptr %vfield_ptr53, align 8
   %variant_val54 = load { i8, ptr }, ptr %variant50, align 8
@@ -7145,26 +5603,23 @@ entry:
   store i64 %0, ptr %pool, align 8
   %key_id = alloca ptr, align 8
   store ptr %1, ptr %key_id, align 8
-  %result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.199, i64 58)
+  %str = call ptr @mesh_string_new(ptr @.str.97, i64 58)
   %list_arr = alloca [1 x i64], align 8
   %key_id2 = load ptr, ptr %key_id, align 8
   %ptr_to_i64 = ptrtoint ptr %key_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
-  %deref_sum = load { i8, ptr }, ptr %call, align 8
-  store { i8, ptr } %deref_sum, ptr %result, align 8
-  %result3 = load { i8, ptr }, ptr %result, align 8
-  ret { i8, ptr } %result3
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
+  %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
+  ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @create_user(i64 %0, ptr %1, ptr %2, ptr %3) {
 entry:
-  %__try_err_10 = alloca ptr, align 8
-  %__try_val_10 = alloca ptr, align 8
+  %__try_err_11 = alloca ptr, align 8
+  %__try_val_11 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %email = alloca ptr, align 8
@@ -7175,7 +5630,7 @@ entry:
   store ptr %3, ptr %display_name, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.200, i64 120)
+  %str = call ptr @mesh_string_new(ptr @.str.98, i64 120)
   %list_arr = alloca [3 x i64], align 8
   %email2 = load ptr, ptr %email, align 8
   %ptr_to_i64 = ptrtoint ptr %email2 to i64
@@ -7190,7 +5645,7 @@ entry:
   %elem_ptr8 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 2
   store i64 %ptr_to_i647, ptr %elem_ptr8, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 3)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -7209,27 +5664,27 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.201, i64 30, ptr @.panic_file.202, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.99, i64 30, ptr @.panic_file.100, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_10, align 8
-  %__try_val_109 = load ptr, ptr %__try_val_10, align 8
-  store ptr %__try_val_109, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_11, align 8
+  %__try_val_119 = load ptr, ptr %__try_val_11, align 8
+  store ptr %__try_val_119, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field10 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val11 = load ptr, ptr %variant_field10, align 8
-  store ptr %path_val11, ptr %__try_err_10, align 8
+  store ptr %path_val11, ptr %__try_err_11, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr12, align 1
-  %__try_err_1013 = load ptr, ptr %__try_err_10, align 8
+  %__try_err_1113 = load ptr, ptr %__try_err_11, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_1013, ptr %vfield_ptr, align 8
+  store ptr %__try_err_1113, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -7241,7 +5696,7 @@ then:                                             ; preds = %match_merge
   %call19 = call i64 @mesh_list_head(ptr %rows18)
   %i64_to_ptr = inttoptr i64 %call19 to ptr
   %call20 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str21 = call ptr @mesh_string_new(ptr @.str.203, i64 2)
+  %str21 = call ptr @mesh_string_new(ptr @.str.101, i64 2)
   %ptr_to_i6422 = ptrtoint ptr %str21 to i64
   %call23 = call i64 @mesh_map_get(ptr %call20, i64 %ptr_to_i6422)
   %i64_to_ptr24 = inttoptr i64 %call23 to ptr
@@ -7255,7 +5710,7 @@ else:                                             ; preds = %match_merge
   %variant27 = alloca { i8, ptr }, align 8
   %tag_ptr28 = getelementptr inbounds nuw { i8, ptr }, ptr %variant27, i32 0, i32 0
   store i8 1, ptr %tag_ptr28, align 1
-  %str29 = call ptr @mesh_string_new(ptr @.str.204, i64 27)
+  %str29 = call ptr @mesh_string_new(ptr @.str.102, i64 27)
   %vfield_ptr30 = getelementptr inbounds nuw { i8, ptr }, ptr %variant27, i32 0, i32 1
   store ptr %str29, ptr %vfield_ptr30, align 8
   %variant_val31 = load { i8, ptr }, ptr %variant27, align 8
@@ -7269,8 +5724,8 @@ if_merge:                                         ; preds = %else, %then
 
 define { i8, ptr } @authenticate_user(i64 %0, ptr %1, ptr %2) {
 entry:
-  %__try_err_11 = alloca ptr, align 8
-  %__try_val_11 = alloca ptr, align 8
+  %__try_err_12 = alloca ptr, align 8
+  %__try_val_12 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %email = alloca ptr, align 8
@@ -7279,7 +5734,7 @@ entry:
   store ptr %2, ptr %password, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.205, i64 127)
+  %str = call ptr @mesh_string_new(ptr @.str.103, i64 127)
   %list_arr = alloca [2 x i64], align 8
   %email2 = load ptr, ptr %email, align 8
   %ptr_to_i64 = ptrtoint ptr %email2 to i64
@@ -7290,7 +5745,7 @@ entry:
   %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -7309,27 +5764,27 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.206, i64 30, ptr @.panic_file.207, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.104, i64 30, ptr @.panic_file.105, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_11, align 8
-  %__try_val_116 = load ptr, ptr %__try_val_11, align 8
-  store ptr %__try_val_116, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_12, align 8
+  %__try_val_126 = load ptr, ptr %__try_val_12, align 8
+  store ptr %__try_val_126, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field7 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val8 = load ptr, ptr %variant_field7, align 8
-  store ptr %path_val8, ptr %__try_err_11, align 8
+  store ptr %path_val8, ptr %__try_err_12, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr9 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr9, align 1
-  %__try_err_1110 = load ptr, ptr %__try_err_11, align 8
+  %__try_err_1210 = load ptr, ptr %__try_err_12, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_1110, ptr %vfield_ptr, align 8
+  store ptr %__try_err_1210, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -7345,7 +5800,7 @@ then:                                             ; preds = %match_merge
   %struct_lit = alloca %User, align 8
   %row17 = load ptr, ptr %row, align 8
   %call18 = call ptr @mesh_map_tag_string(ptr %row17)
-  %str19 = call ptr @mesh_string_new(ptr @.str.208, i64 2)
+  %str19 = call ptr @mesh_string_new(ptr @.str.106, i64 2)
   %ptr_to_i6420 = ptrtoint ptr %str19 to i64
   %call21 = call i64 @mesh_map_get(ptr %call18, i64 %ptr_to_i6420)
   %i64_to_ptr22 = inttoptr i64 %call21 to ptr
@@ -7353,7 +5808,7 @@ then:                                             ; preds = %match_merge
   store ptr %i64_to_ptr22, ptr %field_ptr, align 8
   %row23 = load ptr, ptr %row, align 8
   %call24 = call ptr @mesh_map_tag_string(ptr %row23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.209, i64 5)
+  %str25 = call ptr @mesh_string_new(ptr @.str.107, i64 5)
   %ptr_to_i6426 = ptrtoint ptr %str25 to i64
   %call27 = call i64 @mesh_map_get(ptr %call24, i64 %ptr_to_i6426)
   %i64_to_ptr28 = inttoptr i64 %call27 to ptr
@@ -7361,7 +5816,7 @@ then:                                             ; preds = %match_merge
   store ptr %i64_to_ptr28, ptr %field_ptr29, align 8
   %row30 = load ptr, ptr %row, align 8
   %call31 = call ptr @mesh_map_tag_string(ptr %row30)
-  %str32 = call ptr @mesh_string_new(ptr @.str.210, i64 12)
+  %str32 = call ptr @mesh_string_new(ptr @.str.108, i64 12)
   %ptr_to_i6433 = ptrtoint ptr %str32 to i64
   %call34 = call i64 @mesh_map_get(ptr %call31, i64 %ptr_to_i6433)
   %i64_to_ptr35 = inttoptr i64 %call34 to ptr
@@ -7369,15 +5824,17 @@ then:                                             ; preds = %match_merge
   store ptr %i64_to_ptr35, ptr %field_ptr36, align 8
   %row37 = load ptr, ptr %row, align 8
   %call38 = call ptr @mesh_map_tag_string(ptr %row37)
-  %str39 = call ptr @mesh_string_new(ptr @.str.211, i64 10)
+  %str39 = call ptr @mesh_string_new(ptr @.str.109, i64 10)
   %ptr_to_i6440 = ptrtoint ptr %str39 to i64
   %call41 = call i64 @mesh_map_get(ptr %call38, i64 %ptr_to_i6440)
   %i64_to_ptr42 = inttoptr i64 %call41 to ptr
   %field_ptr43 = getelementptr inbounds nuw %User, ptr %struct_lit, i32 0, i32 3
   store ptr %i64_to_ptr42, ptr %field_ptr43, align 8
   %struct_val = load %User, ptr %struct_lit, align 8
+  %variant_box = call ptr @mesh_gc_alloc_actor(i64 ptrtoint (ptr getelementptr (%User, ptr null, i32 1) to i64), i64 8)
+  store %User %struct_val, ptr %variant_box, align 8
   %vfield_ptr44 = getelementptr inbounds nuw { i8, ptr }, ptr %variant15, i32 0, i32 1
-  store %User %struct_val, ptr %vfield_ptr44, align 8
+  store ptr %variant_box, ptr %vfield_ptr44, align 8
   %variant_val45 = load { i8, ptr }, ptr %variant15, align 8
   store { i8, ptr } %variant_val45, ptr %if_result, align 8
   br label %if_merge
@@ -7386,7 +5843,7 @@ else:                                             ; preds = %match_merge
   %variant46 = alloca { i8, ptr }, align 8
   %tag_ptr47 = getelementptr inbounds nuw { i8, ptr }, ptr %variant46, i32 0, i32 0
   store i8 1, ptr %tag_ptr47, align 1
-  %str48 = call ptr @mesh_string_new(ptr @.str.212, i64 9)
+  %str48 = call ptr @mesh_string_new(ptr @.str.110, i64 9)
   %vfield_ptr49 = getelementptr inbounds nuw { i8, ptr }, ptr %variant46, i32 0, i32 1
   store ptr %str48, ptr %vfield_ptr49, align 8
   %variant_val50 = load { i8, ptr }, ptr %variant46, align 8
@@ -7400,24 +5857,20 @@ if_merge:                                         ; preds = %else, %then
 
 define { i8, ptr } @get_user(i64 %0, ptr %1) {
 entry:
-  %__try_err_12 = alloca ptr, align 8
-  %__try_val_12 = alloca ptr, align 8
+  %__try_err_13 = alloca ptr, align 8
+  %__try_val_13 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %id = alloca ptr, align 8
   store ptr %1, ptr %id, align 8
-  %rows = alloca ptr, align 8
+  %row = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.213, i64 85)
-  %list_arr = alloca [1 x i64], align 8
+  %call = call ptr @User____table__()
+  call void @mesh_reduction_check()
   %id2 = load ptr, ptr %id, align 8
-  %ptr_to_i64 = ptrtoint ptr %id2 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call3 = call ptr @mesh_repo_get(i64 %pool1, ptr %call, ptr %id2)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -7426,121 +5879,95 @@ entry:
 
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows8 = load ptr, ptr %rows, align 8
-  %call9 = call i64 @mesh_list_length(ptr %rows8)
-  %gt = icmp sgt i64 %call9, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.214, i64 30, ptr @.panic_file.215, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_12, align 8
-  %__try_val_123 = load ptr, ptr %__try_val_12, align 8
-  store ptr %__try_val_123, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_12, align 8
-  %variant = alloca { i8, ptr }, align 8
-  %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_127 = load ptr, ptr %__try_err_12, align 8
-  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_127, ptr %vfield_ptr, align 8
-  %variant_val = load { i8, ptr }, ptr %variant, align 8
-  ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %row = alloca ptr, align 8
-  %rows10 = load ptr, ptr %rows, align 8
-  %call11 = call i64 @mesh_list_head(ptr %rows10)
-  %i64_to_ptr = inttoptr i64 %call11 to ptr
-  store ptr %i64_to_ptr, ptr %row, align 8
-  %variant12 = alloca { i8, ptr }, align 8
-  %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 0
-  store i8 0, ptr %tag_ptr13, align 1
+  store ptr %match_val, ptr %row, align 8
+  %variant9 = alloca { i8, ptr }, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
+  store i8 0, ptr %tag_ptr10, align 1
   %struct_lit = alloca %User, align 8
+  %row11 = load ptr, ptr %row, align 8
+  %call12 = call ptr @mesh_map_tag_string(ptr %row11)
+  %str = call ptr @mesh_string_new(ptr @.str.113, i64 2)
+  %ptr_to_i64 = ptrtoint ptr %str to i64
+  %call13 = call i64 @mesh_map_get(ptr %call12, i64 %ptr_to_i64)
+  %i64_to_ptr = inttoptr i64 %call13 to ptr
+  %field_ptr = getelementptr inbounds nuw %User, ptr %struct_lit, i32 0, i32 0
+  store ptr %i64_to_ptr, ptr %field_ptr, align 8
   %row14 = load ptr, ptr %row, align 8
   %call15 = call ptr @mesh_map_tag_string(ptr %row14)
-  %str16 = call ptr @mesh_string_new(ptr @.str.216, i64 2)
+  %str16 = call ptr @mesh_string_new(ptr @.str.114, i64 5)
   %ptr_to_i6417 = ptrtoint ptr %str16 to i64
   %call18 = call i64 @mesh_map_get(ptr %call15, i64 %ptr_to_i6417)
   %i64_to_ptr19 = inttoptr i64 %call18 to ptr
-  %field_ptr = getelementptr inbounds nuw %User, ptr %struct_lit, i32 0, i32 0
-  store ptr %i64_to_ptr19, ptr %field_ptr, align 8
-  %row20 = load ptr, ptr %row, align 8
-  %call21 = call ptr @mesh_map_tag_string(ptr %row20)
-  %str22 = call ptr @mesh_string_new(ptr @.str.217, i64 5)
-  %ptr_to_i6423 = ptrtoint ptr %str22 to i64
-  %call24 = call i64 @mesh_map_get(ptr %call21, i64 %ptr_to_i6423)
-  %i64_to_ptr25 = inttoptr i64 %call24 to ptr
-  %field_ptr26 = getelementptr inbounds nuw %User, ptr %struct_lit, i32 0, i32 1
-  store ptr %i64_to_ptr25, ptr %field_ptr26, align 8
-  %row27 = load ptr, ptr %row, align 8
-  %call28 = call ptr @mesh_map_tag_string(ptr %row27)
-  %str29 = call ptr @mesh_string_new(ptr @.str.218, i64 12)
-  %ptr_to_i6430 = ptrtoint ptr %str29 to i64
-  %call31 = call i64 @mesh_map_get(ptr %call28, i64 %ptr_to_i6430)
-  %i64_to_ptr32 = inttoptr i64 %call31 to ptr
-  %field_ptr33 = getelementptr inbounds nuw %User, ptr %struct_lit, i32 0, i32 2
-  store ptr %i64_to_ptr32, ptr %field_ptr33, align 8
-  %row34 = load ptr, ptr %row, align 8
-  %call35 = call ptr @mesh_map_tag_string(ptr %row34)
-  %str36 = call ptr @mesh_string_new(ptr @.str.219, i64 10)
-  %ptr_to_i6437 = ptrtoint ptr %str36 to i64
-  %call38 = call i64 @mesh_map_get(ptr %call35, i64 %ptr_to_i6437)
-  %i64_to_ptr39 = inttoptr i64 %call38 to ptr
-  %field_ptr40 = getelementptr inbounds nuw %User, ptr %struct_lit, i32 0, i32 3
-  store ptr %i64_to_ptr39, ptr %field_ptr40, align 8
+  %field_ptr20 = getelementptr inbounds nuw %User, ptr %struct_lit, i32 0, i32 1
+  store ptr %i64_to_ptr19, ptr %field_ptr20, align 8
+  %row21 = load ptr, ptr %row, align 8
+  %call22 = call ptr @mesh_map_tag_string(ptr %row21)
+  %str23 = call ptr @mesh_string_new(ptr @.str.115, i64 12)
+  %ptr_to_i6424 = ptrtoint ptr %str23 to i64
+  %call25 = call i64 @mesh_map_get(ptr %call22, i64 %ptr_to_i6424)
+  %i64_to_ptr26 = inttoptr i64 %call25 to ptr
+  %field_ptr27 = getelementptr inbounds nuw %User, ptr %struct_lit, i32 0, i32 2
+  store ptr %i64_to_ptr26, ptr %field_ptr27, align 8
+  %row28 = load ptr, ptr %row, align 8
+  %call29 = call ptr @mesh_map_tag_string(ptr %row28)
+  %str30 = call ptr @mesh_string_new(ptr @.str.116, i64 10)
+  %ptr_to_i6431 = ptrtoint ptr %str30 to i64
+  %call32 = call i64 @mesh_map_get(ptr %call29, i64 %ptr_to_i6431)
+  %i64_to_ptr33 = inttoptr i64 %call32 to ptr
+  %field_ptr34 = getelementptr inbounds nuw %User, ptr %struct_lit, i32 0, i32 3
+  store ptr %i64_to_ptr33, ptr %field_ptr34, align 8
   %struct_val = load %User, ptr %struct_lit, align 8
-  %vfield_ptr41 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 1
-  store %User %struct_val, ptr %vfield_ptr41, align 8
-  %variant_val42 = load { i8, ptr }, ptr %variant12, align 8
-  store { i8, ptr } %variant_val42, ptr %if_result, align 8
-  br label %if_merge
+  %variant_box = call ptr @mesh_gc_alloc_actor(i64 ptrtoint (ptr getelementptr (%User, ptr null, i32 1) to i64), i64 8)
+  store %User %struct_val, ptr %variant_box, align 8
+  %vfield_ptr35 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
+  store ptr %variant_box, ptr %vfield_ptr35, align 8
+  %variant_val36 = load { i8, ptr }, ptr %variant9, align 8
+  ret { i8, ptr } %variant_val36
 
-else:                                             ; preds = %match_merge
-  %variant43 = alloca { i8, ptr }, align 8
-  %tag_ptr44 = getelementptr inbounds nuw { i8, ptr }, ptr %variant43, i32 0, i32 0
-  store i8 1, ptr %tag_ptr44, align 1
-  %str45 = call ptr @mesh_string_new(ptr @.str.220, i64 9)
-  %vfield_ptr46 = getelementptr inbounds nuw { i8, ptr }, ptr %variant43, i32 0, i32 1
-  store ptr %str45, ptr %vfield_ptr46, align 8
-  %variant_val47 = load { i8, ptr }, ptr %variant43, align 8
-  store { i8, ptr } %variant_val47, ptr %if_result, align 8
-  br label %if_merge
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.111, i64 30, ptr @.panic_file.112, i64 9, i32 0)
+  unreachable
 
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_13, align 8
+  %__try_val_134 = load ptr, ptr %__try_val_13, align 8
+  store ptr %__try_val_134, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
+  %path_val6 = load ptr, ptr %variant_field5, align 8
+  store ptr %path_val6, ptr %__try_err_13, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr7, align 1
+  %__try_err_138 = load ptr, ptr %__try_err_13, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_138, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @create_session(i64 %0, ptr %1) {
 entry:
-  %__try_err_13 = alloca ptr, align 8
-  %__try_val_13 = alloca ptr, align 8
+  %__try_err_14 = alloca ptr, align 8
+  %__try_val_14 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %user_id = alloca ptr, align 8
   store ptr %1, ptr %user_id, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.221, i64 108)
+  %str = call ptr @mesh_string_new(ptr @.str.117, i64 108)
   %list_arr = alloca [1 x i64], align 8
   %user_id2 = load ptr, ptr %user_id, align 8
   %ptr_to_i64 = ptrtoint ptr %user_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -7559,101 +5986,7 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.222, i64 30, ptr @.panic_file.223, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_13, align 8
-  %__try_val_133 = load ptr, ptr %__try_val_13, align 8
-  store ptr %__try_val_133, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_13, align 8
-  %variant = alloca { i8, ptr }, align 8
-  %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_137 = load ptr, ptr %__try_err_13, align 8
-  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_137, ptr %vfield_ptr, align 8
-  %variant_val = load { i8, ptr }, ptr %variant, align 8
-  ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %variant10 = alloca { i8, ptr }, align 8
-  %tag_ptr11 = getelementptr inbounds nuw { i8, ptr }, ptr %variant10, i32 0, i32 0
-  store i8 0, ptr %tag_ptr11, align 1
-  %rows12 = load ptr, ptr %rows, align 8
-  %call13 = call i64 @mesh_list_head(ptr %rows12)
-  %i64_to_ptr = inttoptr i64 %call13 to ptr
-  %call14 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str15 = call ptr @mesh_string_new(ptr @.str.224, i64 5)
-  %ptr_to_i6416 = ptrtoint ptr %str15 to i64
-  %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
-  %i64_to_ptr18 = inttoptr i64 %call17 to ptr
-  %vfield_ptr19 = getelementptr inbounds nuw { i8, ptr }, ptr %variant10, i32 0, i32 1
-  store ptr %i64_to_ptr18, ptr %vfield_ptr19, align 8
-  %variant_val20 = load { i8, ptr }, ptr %variant10, align 8
-  store { i8, ptr } %variant_val20, ptr %if_result, align 8
-  br label %if_merge
-
-else:                                             ; preds = %match_merge
-  %variant21 = alloca { i8, ptr }, align 8
-  %tag_ptr22 = getelementptr inbounds nuw { i8, ptr }, ptr %variant21, i32 0, i32 0
-  store i8 1, ptr %tag_ptr22, align 1
-  %str23 = call ptr @mesh_string_new(ptr @.str.225, i64 33)
-  %vfield_ptr24 = getelementptr inbounds nuw { i8, ptr }, ptr %variant21, i32 0, i32 1
-  store ptr %str23, ptr %vfield_ptr24, align 8
-  %variant_val25 = load { i8, ptr }, ptr %variant21, align 8
-  store { i8, ptr } %variant_val25, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
-}
-
-define { i8, ptr } @validate_session(i64 %0, ptr %1) {
-entry:
-  %__try_err_14 = alloca ptr, align 8
-  %__try_val_14 = alloca ptr, align 8
-  %pool = alloca i64, align 8
-  store i64 %0, ptr %pool, align 8
-  %token = alloca ptr, align 8
-  store ptr %1, ptr %token, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.226, i64 117)
-  %list_arr = alloca [1 x i64], align 8
-  %token2 = load ptr, ptr %token, align 8
-  %ptr_to_i64 = ptrtoint ptr %token2 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Ok
-  %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows8 = load ptr, ptr %rows, align 8
-  %call9 = call i64 @mesh_list_length(ptr %rows8)
-  %gt = icmp sgt i64 %call9, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.227, i64 30, ptr @.panic_file.228, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.118, i64 30, ptr @.panic_file.119, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -7678,6 +6011,100 @@ case_Err:                                         ; preds = %entry
   ret { i8, ptr } %variant_val
 
 then:                                             ; preds = %match_merge
+  %variant10 = alloca { i8, ptr }, align 8
+  %tag_ptr11 = getelementptr inbounds nuw { i8, ptr }, ptr %variant10, i32 0, i32 0
+  store i8 0, ptr %tag_ptr11, align 1
+  %rows12 = load ptr, ptr %rows, align 8
+  %call13 = call i64 @mesh_list_head(ptr %rows12)
+  %i64_to_ptr = inttoptr i64 %call13 to ptr
+  %call14 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
+  %str15 = call ptr @mesh_string_new(ptr @.str.120, i64 5)
+  %ptr_to_i6416 = ptrtoint ptr %str15 to i64
+  %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
+  %i64_to_ptr18 = inttoptr i64 %call17 to ptr
+  %vfield_ptr19 = getelementptr inbounds nuw { i8, ptr }, ptr %variant10, i32 0, i32 1
+  store ptr %i64_to_ptr18, ptr %vfield_ptr19, align 8
+  %variant_val20 = load { i8, ptr }, ptr %variant10, align 8
+  store { i8, ptr } %variant_val20, ptr %if_result, align 8
+  br label %if_merge
+
+else:                                             ; preds = %match_merge
+  %variant21 = alloca { i8, ptr }, align 8
+  %tag_ptr22 = getelementptr inbounds nuw { i8, ptr }, ptr %variant21, i32 0, i32 0
+  store i8 1, ptr %tag_ptr22, align 1
+  %str23 = call ptr @mesh_string_new(ptr @.str.121, i64 33)
+  %vfield_ptr24 = getelementptr inbounds nuw { i8, ptr }, ptr %variant21, i32 0, i32 1
+  store ptr %str23, ptr %vfield_ptr24, align 8
+  %variant_val25 = load { i8, ptr }, ptr %variant21, align 8
+  store { i8, ptr } %variant_val25, ptr %if_result, align 8
+  br label %if_merge
+
+if_merge:                                         ; preds = %else, %then
+  %if_val = load { i8, ptr }, ptr %if_result, align 8
+  ret { i8, ptr } %if_val
+}
+
+define { i8, ptr } @validate_session(i64 %0, ptr %1) {
+entry:
+  %__try_err_15 = alloca ptr, align 8
+  %__try_val_15 = alloca ptr, align 8
+  %pool = alloca i64, align 8
+  store i64 %0, ptr %pool, align 8
+  %token = alloca ptr, align 8
+  store ptr %1, ptr %token, align 8
+  %rows = alloca ptr, align 8
+  %pool1 = load i64, ptr %pool, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.122, i64 117)
+  %list_arr = alloca [1 x i64], align 8
+  %token2 = load ptr, ptr %token, align 8
+  %ptr_to_i64 = ptrtoint ptr %token2 to i64
+  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
+  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
+  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
+  %match_result = alloca ptr, align 8
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag = load i8, ptr %tag_ptr, align 1
+  switch i8 %tag, label %switch_default [
+    i8 0, label %case_Ok
+    i8 1, label %case_Err
+  ]
+
+match_merge:                                      ; preds = %case_Ok
+  %match_val = load ptr, ptr %match_result, align 8
+  store ptr %match_val, ptr %rows, align 8
+  %rows8 = load ptr, ptr %rows, align 8
+  %call9 = call i64 @mesh_list_length(ptr %rows8)
+  %gt = icmp sgt i64 %call9, 0
+  %if_result = alloca { i8, ptr }, align 8
+  br i1 %gt, label %then, label %else
+
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.123, i64 30, ptr @.panic_file.124, i64 9, i32 0)
+  unreachable
+
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_15, align 8
+  %__try_val_153 = load ptr, ptr %__try_val_15, align 8
+  store ptr %__try_val_153, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val5 = load ptr, ptr %variant_field4, align 8
+  store ptr %path_val5, ptr %__try_err_15, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr6, align 1
+  %__try_err_157 = load ptr, ptr %__try_err_15, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_157, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
+
+then:                                             ; preds = %match_merge
   %row = alloca ptr, align 8
   %rows10 = load ptr, ptr %rows, align 8
   %call11 = call i64 @mesh_list_head(ptr %rows10)
@@ -7689,7 +6116,7 @@ then:                                             ; preds = %match_merge
   %struct_lit = alloca %Session, align 8
   %row14 = load ptr, ptr %row, align 8
   %call15 = call ptr @mesh_map_tag_string(ptr %row14)
-  %str16 = call ptr @mesh_string_new(ptr @.str.229, i64 5)
+  %str16 = call ptr @mesh_string_new(ptr @.str.125, i64 5)
   %ptr_to_i6417 = ptrtoint ptr %str16 to i64
   %call18 = call i64 @mesh_map_get(ptr %call15, i64 %ptr_to_i6417)
   %i64_to_ptr19 = inttoptr i64 %call18 to ptr
@@ -7697,7 +6124,7 @@ then:                                             ; preds = %match_merge
   store ptr %i64_to_ptr19, ptr %field_ptr, align 8
   %row20 = load ptr, ptr %row, align 8
   %call21 = call ptr @mesh_map_tag_string(ptr %row20)
-  %str22 = call ptr @mesh_string_new(ptr @.str.230, i64 7)
+  %str22 = call ptr @mesh_string_new(ptr @.str.126, i64 7)
   %ptr_to_i6423 = ptrtoint ptr %str22 to i64
   %call24 = call i64 @mesh_map_get(ptr %call21, i64 %ptr_to_i6423)
   %i64_to_ptr25 = inttoptr i64 %call24 to ptr
@@ -7705,7 +6132,7 @@ then:                                             ; preds = %match_merge
   store ptr %i64_to_ptr25, ptr %field_ptr26, align 8
   %row27 = load ptr, ptr %row, align 8
   %call28 = call ptr @mesh_map_tag_string(ptr %row27)
-  %str29 = call ptr @mesh_string_new(ptr @.str.231, i64 10)
+  %str29 = call ptr @mesh_string_new(ptr @.str.127, i64 10)
   %ptr_to_i6430 = ptrtoint ptr %str29 to i64
   %call31 = call i64 @mesh_map_get(ptr %call28, i64 %ptr_to_i6430)
   %i64_to_ptr32 = inttoptr i64 %call31 to ptr
@@ -7713,15 +6140,17 @@ then:                                             ; preds = %match_merge
   store ptr %i64_to_ptr32, ptr %field_ptr33, align 8
   %row34 = load ptr, ptr %row, align 8
   %call35 = call ptr @mesh_map_tag_string(ptr %row34)
-  %str36 = call ptr @mesh_string_new(ptr @.str.232, i64 10)
+  %str36 = call ptr @mesh_string_new(ptr @.str.128, i64 10)
   %ptr_to_i6437 = ptrtoint ptr %str36 to i64
   %call38 = call i64 @mesh_map_get(ptr %call35, i64 %ptr_to_i6437)
   %i64_to_ptr39 = inttoptr i64 %call38 to ptr
   %field_ptr40 = getelementptr inbounds nuw %Session, ptr %struct_lit, i32 0, i32 3
   store ptr %i64_to_ptr39, ptr %field_ptr40, align 8
   %struct_val = load %Session, ptr %struct_lit, align 8
+  %variant_box = call ptr @mesh_gc_alloc_actor(i64 ptrtoint (ptr getelementptr (%Session, ptr null, i32 1) to i64), i64 8)
+  store %Session %struct_val, ptr %variant_box, align 8
   %vfield_ptr41 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 1
-  store %Session %struct_val, ptr %vfield_ptr41, align 8
+  store ptr %variant_box, ptr %vfield_ptr41, align 8
   %variant_val42 = load { i8, ptr }, ptr %variant12, align 8
   store { i8, ptr } %variant_val42, ptr %if_result, align 8
   br label %if_merge
@@ -7730,7 +6159,7 @@ else:                                             ; preds = %match_merge
   %variant43 = alloca { i8, ptr }, align 8
   %tag_ptr44 = getelementptr inbounds nuw { i8, ptr }, ptr %variant43, i32 0, i32 0
   store i8 1, ptr %tag_ptr44, align 1
-  %str45 = call ptr @mesh_string_new(ptr @.str.233, i64 9)
+  %str45 = call ptr @mesh_string_new(ptr @.str.129, i64 9)
   %vfield_ptr46 = getelementptr inbounds nuw { i8, ptr }, ptr %variant43, i32 0, i32 1
   store ptr %str45, ptr %vfield_ptr46, align 8
   %variant_val47 = load { i8, ptr }, ptr %variant43, align 8
@@ -7748,26 +6177,23 @@ entry:
   store i64 %0, ptr %pool, align 8
   %token = alloca ptr, align 8
   store ptr %1, ptr %token, align 8
-  %result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.234, i64 37)
+  %str = call ptr @mesh_string_new(ptr @.str.130, i64 37)
   %list_arr = alloca [1 x i64], align 8
   %token2 = load ptr, ptr %token, align 8
   %ptr_to_i64 = ptrtoint ptr %token2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
-  %deref_sum = load { i8, ptr }, ptr %call, align 8
-  store { i8, ptr } %deref_sum, ptr %result, align 8
-  %result3 = load { i8, ptr }, ptr %result, align 8
-  ret { i8, ptr } %result3
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
+  %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
+  ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @add_member(i64 %0, ptr %1, ptr %2, ptr %3) {
 entry:
-  %__try_err_15 = alloca ptr, align 8
-  %__try_val_15 = alloca ptr, align 8
+  %__try_err_16 = alloca ptr, align 8
+  %__try_val_16 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %user_id = alloca ptr, align 8
@@ -7776,26 +6202,32 @@ entry:
   store ptr %2, ptr %org_id, align 8
   %role = alloca ptr, align 8
   store ptr %3, ptr %role, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.235, i64 102)
-  %list_arr = alloca [3 x i64], align 8
-  %user_id2 = load ptr, ptr %user_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %user_id2 to i64
-  %elem_ptr = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %org_id3 = load ptr, ptr %org_id, align 8
-  %ptr_to_i644 = ptrtoint ptr %org_id3 to i64
-  %elem_ptr5 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 1
-  store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
-  %role6 = load ptr, ptr %role, align 8
-  %ptr_to_i647 = ptrtoint ptr %role6 to i64
-  %elem_ptr8 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 2
-  store i64 %ptr_to_i647, ptr %elem_ptr8, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 3)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %fields = alloca ptr, align 8
+  %call = call ptr @mesh_map_new_typed(i64 1)
+  %str = call ptr @mesh_string_new(ptr @.str.131, i64 7)
+  %user_id1 = load ptr, ptr %user_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %str to i64
+  %ptr_to_i642 = ptrtoint ptr %user_id1 to i64
+  %call3 = call ptr @mesh_map_put(ptr %call, i64 %ptr_to_i64, i64 %ptr_to_i642)
+  %str4 = call ptr @mesh_string_new(ptr @.str.132, i64 6)
+  %org_id5 = load ptr, ptr %org_id, align 8
+  %ptr_to_i646 = ptrtoint ptr %str4 to i64
+  %ptr_to_i647 = ptrtoint ptr %org_id5 to i64
+  %call8 = call ptr @mesh_map_put(ptr %call3, i64 %ptr_to_i646, i64 %ptr_to_i647)
+  %str9 = call ptr @mesh_string_new(ptr @.str.133, i64 4)
+  %role10 = load ptr, ptr %role, align 8
+  %ptr_to_i6411 = ptrtoint ptr %str9 to i64
+  %ptr_to_i6412 = ptrtoint ptr %role10 to i64
+  %call13 = call ptr @mesh_map_put(ptr %call8, i64 %ptr_to_i6411, i64 %ptr_to_i6412)
+  store ptr %call13, ptr %fields, align 8
+  %row = alloca ptr, align 8
+  %pool14 = load i64, ptr %pool, align 8
+  %call15 = call ptr @OrgMembership____table__()
+  call void @mesh_reduction_check()
+  %fields16 = load ptr, ptr %fields, align 8
+  %call17 = call ptr @mesh_repo_insert(i64 %pool14, ptr %call15, ptr %fields16)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call17, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -7804,70 +6236,45 @@ entry:
 
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows14 = load ptr, ptr %rows, align 8
-  %call15 = call i64 @mesh_list_length(ptr %rows14)
-  %gt = icmp sgt i64 %call15, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
+  store ptr %match_val, ptr %row, align 8
+  %variant23 = alloca { i8, ptr }, align 8
+  %tag_ptr24 = getelementptr inbounds nuw { i8, ptr }, ptr %variant23, i32 0, i32 0
+  store i8 0, ptr %tag_ptr24, align 1
+  %row25 = load ptr, ptr %row, align 8
+  %call26 = call ptr @mesh_map_tag_string(ptr %row25)
+  %str27 = call ptr @mesh_string_new(ptr @.str.136, i64 2)
+  %ptr_to_i6428 = ptrtoint ptr %str27 to i64
+  %call29 = call i64 @mesh_map_get(ptr %call26, i64 %ptr_to_i6428)
+  %i64_to_ptr = inttoptr i64 %call29 to ptr
+  %vfield_ptr30 = getelementptr inbounds nuw { i8, ptr }, ptr %variant23, i32 0, i32 1
+  store ptr %i64_to_ptr, ptr %vfield_ptr30, align 8
+  %variant_val31 = load { i8, ptr }, ptr %variant23, align 8
+  ret { i8, ptr } %variant_val31
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.236, i64 30, ptr @.panic_file.237, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.134, i64 30, ptr @.panic_file.135, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call17, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_15, align 8
-  %__try_val_159 = load ptr, ptr %__try_val_15, align 8
-  store ptr %__try_val_159, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_16, align 8
+  %__try_val_1618 = load ptr, ptr %__try_val_16, align 8
+  store ptr %__try_val_1618, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
-  %variant_field10 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val11 = load ptr, ptr %variant_field10, align 8
-  store ptr %path_val11, ptr %__try_err_15, align 8
+  %variant_field19 = getelementptr inbounds nuw { i8, ptr }, ptr %call17, i32 0, i32 1
+  %path_val20 = load ptr, ptr %variant_field19, align 8
+  store ptr %path_val20, ptr %__try_err_16, align 8
   %variant = alloca { i8, ptr }, align 8
-  %tag_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr12, align 1
-  %__try_err_1513 = load ptr, ptr %__try_err_15, align 8
+  %tag_ptr21 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr21, align 1
+  %__try_err_1622 = load ptr, ptr %__try_err_16, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_1513, ptr %vfield_ptr, align 8
+  store ptr %__try_err_1622, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %variant16 = alloca { i8, ptr }, align 8
-  %tag_ptr17 = getelementptr inbounds nuw { i8, ptr }, ptr %variant16, i32 0, i32 0
-  store i8 0, ptr %tag_ptr17, align 1
-  %rows18 = load ptr, ptr %rows, align 8
-  %call19 = call i64 @mesh_list_head(ptr %rows18)
-  %i64_to_ptr = inttoptr i64 %call19 to ptr
-  %call20 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str21 = call ptr @mesh_string_new(ptr @.str.238, i64 2)
-  %ptr_to_i6422 = ptrtoint ptr %str21 to i64
-  %call23 = call i64 @mesh_map_get(ptr %call20, i64 %ptr_to_i6422)
-  %i64_to_ptr24 = inttoptr i64 %call23 to ptr
-  %vfield_ptr25 = getelementptr inbounds nuw { i8, ptr }, ptr %variant16, i32 0, i32 1
-  store ptr %i64_to_ptr24, ptr %vfield_ptr25, align 8
-  %variant_val26 = load { i8, ptr }, ptr %variant16, align 8
-  store { i8, ptr } %variant_val26, ptr %if_result, align 8
-  br label %if_merge
-
-else:                                             ; preds = %match_merge
-  %variant27 = alloca { i8, ptr }, align 8
-  %tag_ptr28 = getelementptr inbounds nuw { i8, ptr }, ptr %variant27, i32 0, i32 0
-  store i8 1, ptr %tag_ptr28, align 1
-  %str29 = call ptr @mesh_string_new(ptr @.str.239, i64 26)
-  %vfield_ptr30 = getelementptr inbounds nuw { i8, ptr }, ptr %variant27, i32 0, i32 1
-  store ptr %str29, ptr %vfield_ptr30, align 8
-  %variant_val31 = load { i8, ptr }, ptr %variant27, align 8
-  store { i8, ptr } %variant_val31, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
 }
 
 define %OrgMembership @Storage_Queries__closure_3(ptr %0, ptr %1) {
@@ -7879,7 +6286,7 @@ entry:
   %struct_lit = alloca %OrgMembership, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.240, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.137, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   %i64_to_ptr = inttoptr i64 %call2 to ptr
@@ -7887,7 +6294,7 @@ entry:
   store ptr %i64_to_ptr, ptr %field_ptr, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.241, i64 7)
+  %str5 = call ptr @mesh_string_new(ptr @.str.138, i64 7)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   %i64_to_ptr8 = inttoptr i64 %call7 to ptr
@@ -7895,7 +6302,7 @@ entry:
   store ptr %i64_to_ptr8, ptr %field_ptr9, align 8
   %row10 = load ptr, ptr %row, align 8
   %call11 = call ptr @mesh_map_tag_string(ptr %row10)
-  %str12 = call ptr @mesh_string_new(ptr @.str.242, i64 6)
+  %str12 = call ptr @mesh_string_new(ptr @.str.139, i64 6)
   %ptr_to_i6413 = ptrtoint ptr %str12 to i64
   %call14 = call i64 @mesh_map_get(ptr %call11, i64 %ptr_to_i6413)
   %i64_to_ptr15 = inttoptr i64 %call14 to ptr
@@ -7903,7 +6310,7 @@ entry:
   store ptr %i64_to_ptr15, ptr %field_ptr16, align 8
   %row17 = load ptr, ptr %row, align 8
   %call18 = call ptr @mesh_map_tag_string(ptr %row17)
-  %str19 = call ptr @mesh_string_new(ptr @.str.243, i64 4)
+  %str19 = call ptr @mesh_string_new(ptr @.str.140, i64 4)
   %ptr_to_i6420 = ptrtoint ptr %str19 to i64
   %call21 = call i64 @mesh_map_get(ptr %call18, i64 %ptr_to_i6420)
   %i64_to_ptr22 = inttoptr i64 %call21 to ptr
@@ -7911,7 +6318,7 @@ entry:
   store ptr %i64_to_ptr22, ptr %field_ptr23, align 8
   %row24 = load ptr, ptr %row, align 8
   %call25 = call ptr @mesh_map_tag_string(ptr %row24)
-  %str26 = call ptr @mesh_string_new(ptr @.str.244, i64 9)
+  %str26 = call ptr @mesh_string_new(ptr @.str.141, i64 9)
   %ptr_to_i6427 = ptrtoint ptr %str26 to i64
   %call28 = call i64 @mesh_map_get(ptr %call25, i64 %ptr_to_i6427)
   %i64_to_ptr29 = inttoptr i64 %call28 to ptr
@@ -7923,24 +6330,26 @@ entry:
 
 define { i8, ptr } @get_members(i64 %0, ptr %1) {
 entry:
-  %__try_err_16 = alloca ptr, align 8
-  %__try_val_16 = alloca ptr, align 8
+  %__try_err_17 = alloca ptr, align 8
+  %__try_val_17 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %org_id = alloca ptr, align 8
   store ptr %1, ptr %org_id, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.245, i64 112)
-  %list_arr = alloca [1 x i64], align 8
+  %q = alloca ptr, align 8
+  %call = call ptr @OrgMembership____table__()
+  call void @mesh_reduction_check()
+  %call1 = call ptr @mesh_query_from(ptr %call)
+  %str = call ptr @mesh_string_new(ptr @.str.142, i64 6)
   %org_id2 = load ptr, ptr %org_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %org_id2 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call3 = call ptr @mesh_query_where(ptr %call1, ptr %str, ptr %org_id2)
+  store ptr %call3, ptr %q, align 8
+  %rows = alloca ptr, align 8
+  %pool4 = load i64, ptr %pool, align 8
+  %q5 = load ptr, ptr %q, align 8
+  %call6 = call ptr @mesh_repo_all(i64 %pool4, ptr %q5)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call6, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -7950,10 +6359,10 @@ entry:
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
   store ptr %match_val, ptr %rows, align 8
-  %variant8 = alloca { i8, ptr }, align 8
-  %tag_ptr9 = getelementptr inbounds nuw { i8, ptr }, ptr %variant8, i32 0, i32 0
-  store i8 0, ptr %tag_ptr9, align 1
-  %rows10 = load ptr, ptr %rows, align 8
+  %variant12 = alloca { i8, ptr }, align 8
+  %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 0
+  store i8 0, ptr %tag_ptr13, align 1
+  %rows14 = load ptr, ptr %rows, align 8
   %env_dummy = call ptr @mesh_gc_alloc_actor(i64 8, i64 8)
   %closure = alloca { ptr, ptr }, align 8
   %fn_slot = getelementptr inbounds nuw { ptr, ptr }, ptr %closure, i32 0, i32 0
@@ -7967,42 +6376,42 @@ match_merge:                                      ; preds = %case_Ok
   %fn_ptr = load ptr, ptr %cls_fn_ptr, align 8
   %cls_env_ptr = getelementptr inbounds nuw { ptr, ptr }, ptr %cls_split, i32 0, i32 1
   %env_ptr = load ptr, ptr %cls_env_ptr, align 8
-  %call11 = call ptr @mesh_list_map(ptr %rows10, ptr %fn_ptr, ptr %env_ptr)
-  %vfield_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant8, i32 0, i32 1
-  store ptr %call11, ptr %vfield_ptr12, align 8
-  %variant_val13 = load { i8, ptr }, ptr %variant8, align 8
-  ret { i8, ptr } %variant_val13
+  %call15 = call ptr @mesh_list_map(ptr %rows14, ptr %fn_ptr, ptr %env_ptr)
+  %vfield_ptr16 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 1
+  store ptr %call15, ptr %vfield_ptr16, align 8
+  %variant_val17 = load { i8, ptr }, ptr %variant12, align 8
+  ret { i8, ptr } %variant_val17
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.246, i64 30, ptr @.panic_file.247, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.143, i64 30, ptr @.panic_file.144, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call6, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_16, align 8
-  %__try_val_163 = load ptr, ptr %__try_val_16, align 8
-  store ptr %__try_val_163, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_17, align 8
+  %__try_val_177 = load ptr, ptr %__try_val_17, align 8
+  store ptr %__try_val_177, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
-  %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_16, align 8
+  %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %call6, i32 0, i32 1
+  %path_val9 = load ptr, ptr %variant_field8, align 8
+  store ptr %path_val9, ptr %__try_err_17, align 8
   %variant = alloca { i8, ptr }, align 8
-  %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_167 = load ptr, ptr %__try_err_16, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr10, align 1
+  %__try_err_1711 = load ptr, ptr %__try_err_17, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_167, ptr %vfield_ptr, align 8
+  store ptr %__try_err_1711, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @upsert_issue(i64 %0, ptr %1, ptr %2, ptr %3, ptr %4) {
 entry:
-  %__try_err_18 = alloca ptr, align 8
-  %__try_val_18 = alloca ptr, align 8
+  %__try_err_19 = alloca ptr, align 8
+  %__try_val_19 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
@@ -8014,7 +6423,7 @@ entry:
   %level = alloca ptr, align 8
   store ptr %4, ptr %level, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.248, i64 319)
+  %str = call ptr @mesh_string_new(ptr @.str.145, i64 319)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -8037,7 +6446,7 @@ entry:
   %elem_ptr12 = getelementptr [4 x i64], ptr %list_arr, i32 0, i32 3
   store i64 %ptr_to_i6411, ptr %elem_ptr12, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 4)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -8056,27 +6465,27 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.249, i64 30, ptr @.panic_file.250, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.146, i64 30, ptr @.panic_file.147, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_18, align 8
-  %__try_val_1813 = load ptr, ptr %__try_val_18, align 8
-  store ptr %__try_val_1813, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_19, align 8
+  %__try_val_1913 = load ptr, ptr %__try_val_19, align 8
+  store ptr %__try_val_1913, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field14 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val15 = load ptr, ptr %variant_field14, align 8
-  store ptr %path_val15, ptr %__try_err_18, align 8
+  store ptr %path_val15, ptr %__try_err_19, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr16 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr16, align 1
-  %__try_err_1817 = load ptr, ptr %__try_err_18, align 8
+  %__try_err_1917 = load ptr, ptr %__try_err_19, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_1817, ptr %vfield_ptr, align 8
+  store ptr %__try_err_1917, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -8088,7 +6497,7 @@ then:                                             ; preds = %match_merge
   %call23 = call i64 @mesh_list_head(ptr %rows22)
   %i64_to_ptr = inttoptr i64 %call23 to ptr
   %call24 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str25 = call ptr @mesh_string_new(ptr @.str.251, i64 2)
+  %str25 = call ptr @mesh_string_new(ptr @.str.148, i64 2)
   %ptr_to_i6426 = ptrtoint ptr %str25 to i64
   %call27 = call i64 @mesh_map_get(ptr %call24, i64 %ptr_to_i6426)
   %i64_to_ptr28 = inttoptr i64 %call27 to ptr
@@ -8102,7 +6511,7 @@ else:                                             ; preds = %match_merge
   %variant31 = alloca { i8, ptr }, align 8
   %tag_ptr32 = getelementptr inbounds nuw { i8, ptr }, ptr %variant31, i32 0, i32 0
   store i8 1, ptr %tag_ptr32, align 1
-  %str33 = call ptr @mesh_string_new(ptr @.str.252, i64 28)
+  %str33 = call ptr @mesh_string_new(ptr @.str.149, i64 28)
   %vfield_ptr34 = getelementptr inbounds nuw { i8, ptr }, ptr %variant31, i32 0, i32 1
   store ptr %str33, ptr %vfield_ptr34, align 8
   %variant_val35 = load { i8, ptr }, ptr %variant31, align 8
@@ -8116,8 +6525,8 @@ if_merge:                                         ; preds = %else, %then
 
 define { i8, ptr } @is_issue_discarded(i64 %0, ptr %1, ptr %2) {
 entry:
-  %__try_err_19 = alloca ptr, align 8
-  %__try_val_19 = alloca ptr, align 8
+  %__try_err_20 = alloca ptr, align 8
+  %__try_val_20 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
@@ -8126,7 +6535,7 @@ entry:
   store ptr %2, ptr %fingerprint, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.253, i64 103)
+  %str = call ptr @mesh_string_new(ptr @.str.150, i64 103)
   %list_arr = alloca [2 x i64], align 8
   %project_id2 = load ptr, ptr %project_id, align 8
   %ptr_to_i64 = ptrtoint ptr %project_id2 to i64
@@ -8137,7 +6546,7 @@ entry:
   %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -8156,27 +6565,27 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.254, i64 30, ptr @.panic_file.255, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.151, i64 30, ptr @.panic_file.152, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_19, align 8
-  %__try_val_196 = load ptr, ptr %__try_val_19, align 8
-  store ptr %__try_val_196, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_20, align 8
+  %__try_val_206 = load ptr, ptr %__try_val_20, align 8
+  store ptr %__try_val_206, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field7 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val8 = load ptr, ptr %variant_field7, align 8
-  store ptr %path_val8, ptr %__try_err_19, align 8
+  store ptr %path_val8, ptr %__try_err_20, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr9 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr9, align 1
-  %__try_err_1910 = load ptr, ptr %__try_err_19, align 8
+  %__try_err_2010 = load ptr, ptr %__try_err_20, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_1910, ptr %vfield_ptr, align 8
+  store ptr %__try_err_2010, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -8212,14 +6621,14 @@ entry:
   %issue_id = alloca ptr, align 8
   store ptr %1, ptr %issue_id, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.256, i64 82)
+  %str = call ptr @mesh_string_new(ptr @.str.153, i64 82)
   %list_arr = alloca [1 x i64], align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
   %ptr_to_i64 = ptrtoint ptr %issue_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
   ret { i8, ptr } %ret_coerce_load
 }
@@ -8231,14 +6640,14 @@ entry:
   %issue_id = alloca ptr, align 8
   store ptr %1, ptr %issue_id, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.257, i64 57)
+  %str = call ptr @mesh_string_new(ptr @.str.154, i64 57)
   %list_arr = alloca [1 x i64], align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
   %ptr_to_i64 = ptrtoint ptr %issue_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
   ret { i8, ptr } %ret_coerce_load
 }
@@ -8250,14 +6659,14 @@ entry:
   %issue_id = alloca ptr, align 8
   store ptr %1, ptr %issue_id, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.258, i64 59)
+  %str = call ptr @mesh_string_new(ptr @.str.155, i64 59)
   %list_arr = alloca [1 x i64], align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
   %ptr_to_i64 = ptrtoint ptr %issue_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
   ret { i8, ptr } %ret_coerce_load
 }
@@ -8278,7 +6687,7 @@ entry:
 
 then:                                             ; preds = %entry
   %pool2 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.259, i64 60)
+  %str = call ptr @mesh_string_new(ptr @.str.156, i64 60)
   %list_arr = alloca [2 x i64], align 8
   %issue_id3 = load ptr, ptr %issue_id, align 8
   %ptr_to_i64 = ptrtoint ptr %issue_id3 to i64
@@ -8289,20 +6698,20 @@ then:                                             ; preds = %entry
   %elem_ptr6 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call7 = call ptr @mesh_pool_execute(i64 %pool2, ptr %str, ptr %list)
+  %call7 = call ptr @mesh_repo_execute_raw(i64 %pool2, ptr %str, ptr %list)
   store ptr %call7, ptr %if_result, align 8
   br label %if_merge
 
 else:                                             ; preds = %entry
   %pool8 = load i64, ptr %pool, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.260, i64 56)
+  %str9 = call ptr @mesh_string_new(ptr @.str.157, i64 56)
   %list_arr10 = alloca [1 x i64], align 8
   %issue_id11 = load ptr, ptr %issue_id, align 8
   %ptr_to_i6412 = ptrtoint ptr %issue_id11 to i64
   %elem_ptr13 = getelementptr [1 x i64], ptr %list_arr10, i32 0, i32 0
   store i64 %ptr_to_i6412, ptr %elem_ptr13, align 8
   %list14 = call ptr @mesh_list_from_array(ptr %list_arr10, i64 1)
-  %call15 = call ptr @mesh_pool_execute(i64 %pool8, ptr %str9, ptr %list14)
+  %call15 = call ptr @mesh_repo_execute_raw(i64 %pool8, ptr %str9, ptr %list14)
   store ptr %call15, ptr %if_result, align 8
   br label %if_merge
 
@@ -8318,36 +6727,36 @@ entry:
   %issue_id = alloca ptr, align 8
   store ptr %1, ptr %issue_id, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.261, i64 58)
+  %str = call ptr @mesh_string_new(ptr @.str.158, i64 58)
   %list_arr = alloca [1 x i64], align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
   %ptr_to_i64 = ptrtoint ptr %issue_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
   ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @delete_issue(i64 %0, ptr %1) {
 entry:
-  %__try_err_20 = alloca ptr, align 8
-  %__try_val_20 = alloca i64, align 8
+  %__try_err_21 = alloca ptr, align 8
+  %__try_val_21 = alloca i64, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   store ptr %1, ptr %issue_id, align 8
   %_ = alloca i64, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.262, i64 44)
+  %str = call ptr @mesh_string_new(ptr @.str.159, i64 44)
   %list_arr = alloca [1 x i64], align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
   %ptr_to_i64 = ptrtoint ptr %issue_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca i64, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -8360,39 +6769,39 @@ match_merge:                                      ; preds = %case_Ok
   %match_val = load i64, ptr %match_result, align 8
   store i64 %match_val, ptr %_, align 8
   %pool8 = load i64, ptr %pool, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.265, i64 38)
+  %str9 = call ptr @mesh_string_new(ptr @.str.162, i64 38)
   %list_arr10 = alloca [1 x i64], align 8
   %issue_id11 = load ptr, ptr %issue_id, align 8
   %ptr_to_i6412 = ptrtoint ptr %issue_id11 to i64
   %elem_ptr13 = getelementptr [1 x i64], ptr %list_arr10, i32 0, i32 0
   store i64 %ptr_to_i6412, ptr %elem_ptr13, align 8
   %list14 = call ptr @mesh_list_from_array(ptr %list_arr10, i64 1)
-  %call15 = call ptr @mesh_pool_execute(i64 %pool8, ptr %str9, ptr %list14)
+  %call15 = call ptr @mesh_repo_execute_raw(i64 %pool8, ptr %str9, ptr %list14)
   %ret_coerce_load = load { i8, ptr }, ptr %call15, align 8
   ret { i8, ptr } %ret_coerce_load
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.263, i64 30, ptr @.panic_file.264, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.160, i64 30, ptr @.panic_file.161, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_20, align 8
-  %__try_val_203 = load i64, ptr %__try_val_20, align 8
-  store i64 %__try_val_203, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_21, align 8
+  %__try_val_213 = load i64, ptr %__try_val_21, align 8
+  store i64 %__try_val_213, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_20, align 8
+  store ptr %path_val5, ptr %__try_err_21, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_207 = load ptr, ptr %__try_err_20, align 8
+  %__try_err_217 = load ptr, ptr %__try_err_21, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_207, ptr %vfield_ptr, align 8
+  store ptr %__try_err_217, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
@@ -8402,23 +6811,23 @@ entry:
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.266, i64 374)
+  %str = call ptr @mesh_string_new(ptr @.str.163, i64 374)
   %call = call ptr @mesh_list_new()
-  %call2 = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %call)
+  %call2 = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %call)
   %ret_coerce_load = load { i8, ptr }, ptr %call2, align 8
   ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @extract_event_fields(i64 %0, ptr %1) {
 entry:
-  %__try_err_22 = alloca ptr, align 8
-  %__try_val_22 = alloca ptr, align 8
+  %__try_err_23 = alloca ptr, align 8
+  %__try_val_23 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %event_json = alloca ptr, align 8
   store ptr %1, ptr %event_json, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.267, i64 866)
+  %str = call ptr @mesh_string_new(ptr @.str.164, i64 870)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -8429,7 +6838,7 @@ entry:
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -8448,27 +6857,27 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.268, i64 30, ptr @.panic_file.269, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.165, i64 30, ptr @.panic_file.166, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_22, align 8
-  %__try_val_224 = load ptr, ptr %__try_val_22, align 8
-  store ptr %__try_val_224, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_23, align 8
+  %__try_val_234 = load ptr, ptr %__try_val_23, align 8
+  store ptr %__try_val_234, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val6 = load ptr, ptr %variant_field5, align 8
-  store ptr %path_val6, ptr %__try_err_22, align 8
+  store ptr %path_val6, ptr %__try_err_23, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr7, align 1
-  %__try_err_228 = load ptr, ptr %__try_err_22, align 8
+  %__try_err_238 = load ptr, ptr %__try_err_23, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_228, ptr %vfield_ptr, align 8
+  store ptr %__try_err_238, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -8489,7 +6898,7 @@ else:                                             ; preds = %match_merge
   %variant17 = alloca { i8, ptr }, align 8
   %tag_ptr18 = getelementptr inbounds nuw { i8, ptr }, ptr %variant17, i32 0, i32 0
   store i8 1, ptr %tag_ptr18, align 1
-  %str19 = call ptr @mesh_string_new(ptr @.str.270, i64 31)
+  %str19 = call ptr @mesh_string_new(ptr @.str.167, i64 31)
   %vfield_ptr20 = getelementptr inbounds nuw { i8, ptr }, ptr %variant17, i32 0, i32 1
   store ptr %str19, ptr %vfield_ptr20, align 8
   %variant_val21 = load { i8, ptr }, ptr %variant17, align 8
@@ -8503,10 +6912,10 @@ if_merge:                                         ; preds = %else, %then
 
 define { i8, ptr } @list_issues_filtered(i64 %0, ptr %1, ptr %2, ptr %3, ptr %4, ptr %5, ptr %6, ptr %7) {
 entry:
+  %__try_err_25 = alloca ptr, align 8
+  %__try_val_25 = alloca ptr, align 8
   %__try_err_24 = alloca ptr, align 8
   %__try_val_24 = alloca ptr, align 8
-  %__try_err_23 = alloca ptr, align 8
-  %__try_val_23 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
@@ -8531,7 +6940,7 @@ entry:
 
 then:                                             ; preds = %entry
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.271, i64 404)
+  %str = call ptr @mesh_string_new(ptr @.str.168, i64 404)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool2 = load i64, ptr %pool, align 8
@@ -8566,7 +6975,7 @@ then:                                             ; preds = %entry
   %elem_ptr22 = getelementptr [7 x i64], ptr %list_arr, i32 0, i32 6
   store i64 %ptr_to_i6421, ptr %elem_ptr22, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 7)
-  %call23 = call ptr @mesh_pool_query(i64 %pool2, ptr %sql3, ptr %list)
+  %call23 = call ptr @mesh_repo_query_raw(i64 %pool2, ptr %sql3, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call23, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -8577,7 +6986,7 @@ then:                                             ; preds = %entry
 
 else:                                             ; preds = %entry
   %sql34 = alloca ptr, align 8
-  %str35 = call ptr @mesh_string_new(ptr @.str.274, i64 354)
+  %str35 = call ptr @mesh_string_new(ptr @.str.171, i64 354)
   store ptr %str35, ptr %sql34, align 8
   %rows36 = alloca ptr, align 8
   %pool37 = load i64, ptr %pool, align 8
@@ -8604,7 +7013,7 @@ else:                                             ; preds = %entry
   %elem_ptr54 = getelementptr [5 x i64], ptr %list_arr39, i32 0, i32 4
   store i64 %ptr_to_i6453, ptr %elem_ptr54, align 8
   %list55 = call ptr @mesh_list_from_array(ptr %list_arr39, i64 5)
-  %call56 = call ptr @mesh_pool_query(i64 %pool37, ptr %sql38, ptr %list55)
+  %call56 = call ptr @mesh_repo_query_raw(i64 %pool37, ptr %sql38, ptr %list55)
   %match_result57 = alloca ptr, align 8
   %tag_ptr59 = getelementptr inbounds nuw { i8, ptr }, ptr %call56, i32 0, i32 0
   %tag60 = load i8, ptr %tag_ptr59, align 1
@@ -8631,27 +7040,27 @@ match_merge:                                      ; preds = %case_Ok
   br label %if_merge
 
 switch_default:                                   ; preds = %then
-  call void @mesh_panic(ptr @.panic_msg.272, i64 30, ptr @.panic_file.273, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.169, i64 30, ptr @.panic_file.170, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %then
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call23, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_23, align 8
-  %__try_val_2324 = load ptr, ptr %__try_val_23, align 8
-  store ptr %__try_val_2324, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_24, align 8
+  %__try_val_2424 = load ptr, ptr %__try_val_24, align 8
+  store ptr %__try_val_2424, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %then
   %variant_field25 = getelementptr inbounds nuw { i8, ptr }, ptr %call23, i32 0, i32 1
   %path_val26 = load ptr, ptr %variant_field25, align 8
-  store ptr %path_val26, ptr %__try_err_23, align 8
+  store ptr %path_val26, ptr %__try_err_24, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr27 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr27, align 1
-  %__try_err_2328 = load ptr, ptr %__try_err_23, align 8
+  %__try_err_2428 = load ptr, ptr %__try_err_24, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_2328, ptr %vfield_ptr, align 8
+  store ptr %__try_err_2428, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -8669,35 +7078,35 @@ match_merge58:                                    ; preds = %case_Ok62
   br label %if_merge
 
 switch_default61:                                 ; preds = %else
-  call void @mesh_panic(ptr @.panic_msg.275, i64 30, ptr @.panic_file.276, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.172, i64 30, ptr @.panic_file.173, i64 9, i32 0)
   unreachable
 
 case_Ok62:                                        ; preds = %else
   %variant_field64 = getelementptr inbounds nuw { i8, ptr }, ptr %call56, i32 0, i32 1
   %path_val65 = load ptr, ptr %variant_field64, align 8
-  store ptr %path_val65, ptr %__try_val_24, align 8
-  %__try_val_2466 = load ptr, ptr %__try_val_24, align 8
-  store ptr %__try_val_2466, ptr %match_result57, align 8
+  store ptr %path_val65, ptr %__try_val_25, align 8
+  %__try_val_2566 = load ptr, ptr %__try_val_25, align 8
+  store ptr %__try_val_2566, ptr %match_result57, align 8
   br label %match_merge58
 
 case_Err63:                                       ; preds = %else
   %variant_field67 = getelementptr inbounds nuw { i8, ptr }, ptr %call56, i32 0, i32 1
   %path_val68 = load ptr, ptr %variant_field67, align 8
-  store ptr %path_val68, ptr %__try_err_24, align 8
+  store ptr %path_val68, ptr %__try_err_25, align 8
   %variant69 = alloca { i8, ptr }, align 8
   %tag_ptr70 = getelementptr inbounds nuw { i8, ptr }, ptr %variant69, i32 0, i32 0
   store i8 1, ptr %tag_ptr70, align 1
-  %__try_err_2471 = load ptr, ptr %__try_err_24, align 8
+  %__try_err_2571 = load ptr, ptr %__try_err_25, align 8
   %vfield_ptr72 = getelementptr inbounds nuw { i8, ptr }, ptr %variant69, i32 0, i32 1
-  store ptr %__try_err_2471, ptr %vfield_ptr72, align 8
+  store ptr %__try_err_2571, ptr %vfield_ptr72, align 8
   %variant_val73 = load { i8, ptr }, ptr %variant69, align 8
   ret { i8, ptr } %variant_val73
 }
 
 define { i8, ptr } @search_events_fulltext(i64 %0, ptr %1, ptr %2, ptr %3) {
 entry:
-  %__try_err_25 = alloca ptr, align 8
-  %__try_val_25 = alloca ptr, align 8
+  %__try_err_26 = alloca ptr, align 8
+  %__try_val_26 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
@@ -8707,7 +7116,7 @@ entry:
   %limit_str = alloca ptr, align 8
   store ptr %3, ptr %limit_str, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.277, i64 361)
+  %str = call ptr @mesh_string_new(ptr @.str.174, i64 361)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -8726,7 +7135,7 @@ entry:
   %elem_ptr9 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 2
   store i64 %ptr_to_i648, ptr %elem_ptr9, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 3)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -8748,86 +7157,7 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val19
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.278, i64 30, ptr @.panic_file.279, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_25, align 8
-  %__try_val_2510 = load ptr, ptr %__try_val_25, align 8
-  store ptr %__try_val_2510, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field11 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val12 = load ptr, ptr %variant_field11, align 8
-  store ptr %path_val12, ptr %__try_err_25, align 8
-  %variant = alloca { i8, ptr }, align 8
-  %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr13, align 1
-  %__try_err_2514 = load ptr, ptr %__try_err_25, align 8
-  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_2514, ptr %vfield_ptr, align 8
-  %variant_val = load { i8, ptr }, ptr %variant, align 8
-  ret { i8, ptr } %variant_val
-}
-
-define { i8, ptr } @filter_events_by_tag(i64 %0, ptr %1, ptr %2, ptr %3) {
-entry:
-  %__try_err_26 = alloca ptr, align 8
-  %__try_val_26 = alloca ptr, align 8
-  %pool = alloca i64, align 8
-  store i64 %0, ptr %pool, align 8
-  %project_id = alloca ptr, align 8
-  store ptr %1, ptr %project_id, align 8
-  %tag_json = alloca ptr, align 8
-  store ptr %2, ptr %tag_json, align 8
-  %limit_str = alloca ptr, align 8
-  store ptr %3, ptr %limit_str, align 8
-  %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.280, i64 226)
-  store ptr %str, ptr %sql, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %sql2 = load ptr, ptr %sql, align 8
-  %list_arr = alloca [3 x i64], align 8
-  %project_id3 = load ptr, ptr %project_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %project_id3 to i64
-  %elem_ptr = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %tag_json4 = load ptr, ptr %tag_json, align 8
-  %ptr_to_i645 = ptrtoint ptr %tag_json4 to i64
-  %elem_ptr6 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 1
-  store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
-  %limit_str7 = load ptr, ptr %limit_str, align 8
-  %ptr_to_i648 = ptrtoint ptr %limit_str7 to i64
-  %elem_ptr9 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 2
-  store i64 %ptr_to_i648, ptr %elem_ptr9, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 3)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Ok
-  %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %variant15 = alloca { i8, ptr }, align 8
-  %tag_ptr16 = getelementptr inbounds nuw { i8, ptr }, ptr %variant15, i32 0, i32 0
-  store i8 0, ptr %tag_ptr16, align 1
-  %rows17 = load ptr, ptr %rows, align 8
-  %vfield_ptr18 = getelementptr inbounds nuw { i8, ptr }, ptr %variant15, i32 0, i32 1
-  store ptr %rows17, ptr %vfield_ptr18, align 8
-  %variant_val19 = load { i8, ptr }, ptr %variant15, align 8
-  ret { i8, ptr } %variant_val19
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.281, i64 30, ptr @.panic_file.282, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.175, i64 30, ptr @.panic_file.176, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -8852,12 +7182,91 @@ case_Err:                                         ; preds = %entry
   ret { i8, ptr } %variant_val
 }
 
-define { i8, ptr } @list_events_for_issue(i64 %0, ptr %1, ptr %2, ptr %3, ptr %4) {
+define { i8, ptr } @filter_events_by_tag(i64 %0, ptr %1, ptr %2, ptr %3) {
 entry:
-  %__try_err_28 = alloca ptr, align 8
-  %__try_val_28 = alloca ptr, align 8
   %__try_err_27 = alloca ptr, align 8
   %__try_val_27 = alloca ptr, align 8
+  %pool = alloca i64, align 8
+  store i64 %0, ptr %pool, align 8
+  %project_id = alloca ptr, align 8
+  store ptr %1, ptr %project_id, align 8
+  %tag_json = alloca ptr, align 8
+  store ptr %2, ptr %tag_json, align 8
+  %limit_str = alloca ptr, align 8
+  store ptr %3, ptr %limit_str, align 8
+  %sql = alloca ptr, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.177, i64 226)
+  store ptr %str, ptr %sql, align 8
+  %rows = alloca ptr, align 8
+  %pool1 = load i64, ptr %pool, align 8
+  %sql2 = load ptr, ptr %sql, align 8
+  %list_arr = alloca [3 x i64], align 8
+  %project_id3 = load ptr, ptr %project_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %project_id3 to i64
+  %elem_ptr = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 0
+  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
+  %tag_json4 = load ptr, ptr %tag_json, align 8
+  %ptr_to_i645 = ptrtoint ptr %tag_json4 to i64
+  %elem_ptr6 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 1
+  store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
+  %limit_str7 = load ptr, ptr %limit_str, align 8
+  %ptr_to_i648 = ptrtoint ptr %limit_str7 to i64
+  %elem_ptr9 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 2
+  store i64 %ptr_to_i648, ptr %elem_ptr9, align 8
+  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 3)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
+  %match_result = alloca ptr, align 8
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag = load i8, ptr %tag_ptr, align 1
+  switch i8 %tag, label %switch_default [
+    i8 0, label %case_Ok
+    i8 1, label %case_Err
+  ]
+
+match_merge:                                      ; preds = %case_Ok
+  %match_val = load ptr, ptr %match_result, align 8
+  store ptr %match_val, ptr %rows, align 8
+  %variant15 = alloca { i8, ptr }, align 8
+  %tag_ptr16 = getelementptr inbounds nuw { i8, ptr }, ptr %variant15, i32 0, i32 0
+  store i8 0, ptr %tag_ptr16, align 1
+  %rows17 = load ptr, ptr %rows, align 8
+  %vfield_ptr18 = getelementptr inbounds nuw { i8, ptr }, ptr %variant15, i32 0, i32 1
+  store ptr %rows17, ptr %vfield_ptr18, align 8
+  %variant_val19 = load { i8, ptr }, ptr %variant15, align 8
+  ret { i8, ptr } %variant_val19
+
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.178, i64 30, ptr @.panic_file.179, i64 9, i32 0)
+  unreachable
+
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_27, align 8
+  %__try_val_2710 = load ptr, ptr %__try_val_27, align 8
+  store ptr %__try_val_2710, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field11 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val12 = load ptr, ptr %variant_field11, align 8
+  store ptr %path_val12, ptr %__try_err_27, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr13, align 1
+  %__try_err_2714 = load ptr, ptr %__try_err_27, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_2714, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
+}
+
+define { i8, ptr } @list_events_for_issue(i64 %0, ptr %1, ptr %2, ptr %3, ptr %4) {
+entry:
+  %__try_err_29 = alloca ptr, align 8
+  %__try_val_29 = alloca ptr, align 8
+  %__try_err_28 = alloca ptr, align 8
+  %__try_val_28 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
@@ -8876,7 +7285,7 @@ entry:
 
 then:                                             ; preds = %entry
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.283, i64 189)
+  %str = call ptr @mesh_string_new(ptr @.str.180, i64 189)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool2 = load i64, ptr %pool, align 8
@@ -8899,7 +7308,7 @@ then:                                             ; preds = %entry
   %elem_ptr13 = getelementptr [4 x i64], ptr %list_arr, i32 0, i32 3
   store i64 %ptr_to_i6412, ptr %elem_ptr13, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 4)
-  %call14 = call ptr @mesh_pool_query(i64 %pool2, ptr %sql3, ptr %list)
+  %call14 = call ptr @mesh_repo_query_raw(i64 %pool2, ptr %sql3, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call14, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -8910,7 +7319,7 @@ then:                                             ; preds = %entry
 
 else:                                             ; preds = %entry
   %sql25 = alloca ptr, align 8
-  %str26 = call ptr @mesh_string_new(ptr @.str.286, i64 137)
+  %str26 = call ptr @mesh_string_new(ptr @.str.183, i64 137)
   store ptr %str26, ptr %sql25, align 8
   %rows27 = alloca ptr, align 8
   %pool28 = load i64, ptr %pool, align 8
@@ -8925,7 +7334,7 @@ else:                                             ; preds = %entry
   %elem_ptr36 = getelementptr [2 x i64], ptr %list_arr30, i32 0, i32 1
   store i64 %ptr_to_i6435, ptr %elem_ptr36, align 8
   %list37 = call ptr @mesh_list_from_array(ptr %list_arr30, i64 2)
-  %call38 = call ptr @mesh_pool_query(i64 %pool28, ptr %sql29, ptr %list37)
+  %call38 = call ptr @mesh_repo_query_raw(i64 %pool28, ptr %sql29, ptr %list37)
   %match_result39 = alloca ptr, align 8
   %tag_ptr41 = getelementptr inbounds nuw { i8, ptr }, ptr %call38, i32 0, i32 0
   %tag42 = load i8, ptr %tag_ptr41, align 1
@@ -8952,27 +7361,27 @@ match_merge:                                      ; preds = %case_Ok
   br label %if_merge
 
 switch_default:                                   ; preds = %then
-  call void @mesh_panic(ptr @.panic_msg.284, i64 30, ptr @.panic_file.285, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.181, i64 30, ptr @.panic_file.182, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %then
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call14, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_27, align 8
-  %__try_val_2715 = load ptr, ptr %__try_val_27, align 8
-  store ptr %__try_val_2715, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_28, align 8
+  %__try_val_2815 = load ptr, ptr %__try_val_28, align 8
+  store ptr %__try_val_2815, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %then
   %variant_field16 = getelementptr inbounds nuw { i8, ptr }, ptr %call14, i32 0, i32 1
   %path_val17 = load ptr, ptr %variant_field16, align 8
-  store ptr %path_val17, ptr %__try_err_27, align 8
+  store ptr %path_val17, ptr %__try_err_28, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr18 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr18, align 1
-  %__try_err_2719 = load ptr, ptr %__try_err_27, align 8
+  %__try_err_2819 = load ptr, ptr %__try_err_28, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_2719, ptr %vfield_ptr, align 8
+  store ptr %__try_err_2819, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -8990,35 +7399,35 @@ match_merge40:                                    ; preds = %case_Ok44
   br label %if_merge
 
 switch_default43:                                 ; preds = %else
-  call void @mesh_panic(ptr @.panic_msg.287, i64 30, ptr @.panic_file.288, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.184, i64 30, ptr @.panic_file.185, i64 9, i32 0)
   unreachable
 
 case_Ok44:                                        ; preds = %else
   %variant_field46 = getelementptr inbounds nuw { i8, ptr }, ptr %call38, i32 0, i32 1
   %path_val47 = load ptr, ptr %variant_field46, align 8
-  store ptr %path_val47, ptr %__try_val_28, align 8
-  %__try_val_2848 = load ptr, ptr %__try_val_28, align 8
-  store ptr %__try_val_2848, ptr %match_result39, align 8
+  store ptr %path_val47, ptr %__try_val_29, align 8
+  %__try_val_2948 = load ptr, ptr %__try_val_29, align 8
+  store ptr %__try_val_2948, ptr %match_result39, align 8
   br label %match_merge40
 
 case_Err45:                                       ; preds = %else
   %variant_field49 = getelementptr inbounds nuw { i8, ptr }, ptr %call38, i32 0, i32 1
   %path_val50 = load ptr, ptr %variant_field49, align 8
-  store ptr %path_val50, ptr %__try_err_28, align 8
+  store ptr %path_val50, ptr %__try_err_29, align 8
   %variant51 = alloca { i8, ptr }, align 8
   %tag_ptr52 = getelementptr inbounds nuw { i8, ptr }, ptr %variant51, i32 0, i32 0
   store i8 1, ptr %tag_ptr52, align 1
-  %__try_err_2853 = load ptr, ptr %__try_err_28, align 8
+  %__try_err_2953 = load ptr, ptr %__try_err_29, align 8
   %vfield_ptr54 = getelementptr inbounds nuw { i8, ptr }, ptr %variant51, i32 0, i32 1
-  store ptr %__try_err_2853, ptr %vfield_ptr54, align 8
+  store ptr %__try_err_2953, ptr %vfield_ptr54, align 8
   %variant_val55 = load { i8, ptr }, ptr %variant51, align 8
   ret { i8, ptr } %variant_val55
 }
 
 define { i8, ptr } @event_volume_hourly(i64 %0, ptr %1, ptr %2) {
 entry:
-  %__try_err_29 = alloca ptr, align 8
-  %__try_val_29 = alloca ptr, align 8
+  %__try_err_30 = alloca ptr, align 8
+  %__try_val_30 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
@@ -9026,7 +7435,7 @@ entry:
   %bucket = alloca ptr, align 8
   store ptr %2, ptr %bucket, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.289, i64 193)
+  %str = call ptr @mesh_string_new(ptr @.str.186, i64 193)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -9041,7 +7450,7 @@ entry:
   %elem_ptr6 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -9063,41 +7472,41 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val16
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.290, i64 30, ptr @.panic_file.291, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.187, i64 30, ptr @.panic_file.188, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_29, align 8
-  %__try_val_297 = load ptr, ptr %__try_val_29, align 8
-  store ptr %__try_val_297, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_30, align 8
+  %__try_val_307 = load ptr, ptr %__try_val_30, align 8
+  store ptr %__try_val_307, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val9 = load ptr, ptr %variant_field8, align 8
-  store ptr %path_val9, ptr %__try_err_29, align 8
+  store ptr %path_val9, ptr %__try_err_30, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr10, align 1
-  %__try_err_2911 = load ptr, ptr %__try_err_29, align 8
+  %__try_err_3011 = load ptr, ptr %__try_err_30, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_2911, ptr %vfield_ptr, align 8
+  store ptr %__try_err_3011, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @error_breakdown_by_level(i64 %0, ptr %1) {
 entry:
-  %__try_err_30 = alloca ptr, align 8
-  %__try_val_30 = alloca ptr, align 8
+  %__try_err_31 = alloca ptr, align 8
+  %__try_val_31 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
   store ptr %1, ptr %project_id, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.292, i64 158)
+  %str = call ptr @mesh_string_new(ptr @.str.189, i64 158)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -9108,7 +7517,7 @@ entry:
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -9130,35 +7539,35 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val13
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.293, i64 30, ptr @.panic_file.294, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.190, i64 30, ptr @.panic_file.191, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_30, align 8
-  %__try_val_304 = load ptr, ptr %__try_val_30, align 8
-  store ptr %__try_val_304, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_31, align 8
+  %__try_val_314 = load ptr, ptr %__try_val_31, align 8
+  store ptr %__try_val_314, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val6 = load ptr, ptr %variant_field5, align 8
-  store ptr %path_val6, ptr %__try_err_30, align 8
+  store ptr %path_val6, ptr %__try_err_31, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr7, align 1
-  %__try_err_308 = load ptr, ptr %__try_err_30, align 8
+  %__try_err_318 = load ptr, ptr %__try_err_31, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_308, ptr %vfield_ptr, align 8
+  store ptr %__try_err_318, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @top_issues_by_frequency(i64 %0, ptr %1, ptr %2) {
 entry:
-  %__try_err_31 = alloca ptr, align 8
-  %__try_val_31 = alloca ptr, align 8
+  %__try_err_32 = alloca ptr, align 8
+  %__try_val_32 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
@@ -9166,7 +7575,7 @@ entry:
   %limit_str = alloca ptr, align 8
   store ptr %2, ptr %limit_str, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.295, i64 179)
+  %str = call ptr @mesh_string_new(ptr @.str.192, i64 179)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -9181,7 +7590,7 @@ entry:
   %elem_ptr6 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -9203,80 +7612,7 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val16
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.296, i64 30, ptr @.panic_file.297, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_31, align 8
-  %__try_val_317 = load ptr, ptr %__try_val_31, align 8
-  store ptr %__try_val_317, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val9 = load ptr, ptr %variant_field8, align 8
-  store ptr %path_val9, ptr %__try_err_31, align 8
-  %variant = alloca { i8, ptr }, align 8
-  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr10, align 1
-  %__try_err_3111 = load ptr, ptr %__try_err_31, align 8
-  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_3111, ptr %vfield_ptr, align 8
-  %variant_val = load { i8, ptr }, ptr %variant, align 8
-  ret { i8, ptr } %variant_val
-}
-
-define { i8, ptr } @event_breakdown_by_tag(i64 %0, ptr %1, ptr %2) {
-entry:
-  %__try_err_32 = alloca ptr, align 8
-  %__try_val_32 = alloca ptr, align 8
-  %pool = alloca i64, align 8
-  store i64 %0, ptr %pool, align 8
-  %project_id = alloca ptr, align 8
-  store ptr %1, ptr %project_id, align 8
-  %tag_key = alloca ptr, align 8
-  store ptr %2, ptr %tag_key, align 8
-  %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.298, i64 202)
-  store ptr %str, ptr %sql, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %sql2 = load ptr, ptr %sql, align 8
-  %list_arr = alloca [2 x i64], align 8
-  %project_id3 = load ptr, ptr %project_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %project_id3 to i64
-  %elem_ptr = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %tag_key4 = load ptr, ptr %tag_key, align 8
-  %ptr_to_i645 = ptrtoint ptr %tag_key4 to i64
-  %elem_ptr6 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
-  store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Ok
-  %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %variant12 = alloca { i8, ptr }, align 8
-  %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 0
-  store i8 0, ptr %tag_ptr13, align 1
-  %rows14 = load ptr, ptr %rows, align 8
-  %vfield_ptr15 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 1
-  store ptr %rows14, ptr %vfield_ptr15, align 8
-  %variant_val16 = load { i8, ptr }, ptr %variant12, align 8
-  ret { i8, ptr } %variant_val16
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.299, i64 30, ptr @.panic_file.300, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.193, i64 30, ptr @.panic_file.194, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -9301,33 +7637,33 @@ case_Err:                                         ; preds = %entry
   ret { i8, ptr } %variant_val
 }
 
-define { i8, ptr } @issue_event_timeline(i64 %0, ptr %1, ptr %2) {
+define { i8, ptr } @event_breakdown_by_tag(i64 %0, ptr %1, ptr %2) {
 entry:
   %__try_err_33 = alloca ptr, align 8
   %__try_val_33 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
-  %issue_id = alloca ptr, align 8
-  store ptr %1, ptr %issue_id, align 8
-  %limit_str = alloca ptr, align 8
-  store ptr %2, ptr %limit_str, align 8
+  %project_id = alloca ptr, align 8
+  store ptr %1, ptr %project_id, align 8
+  %tag_key = alloca ptr, align 8
+  store ptr %2, ptr %tag_key, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.301, i64 128)
+  %str = call ptr @mesh_string_new(ptr @.str.195, i64 202)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
   %sql2 = load ptr, ptr %sql, align 8
   %list_arr = alloca [2 x i64], align 8
-  %issue_id3 = load ptr, ptr %issue_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %issue_id3 to i64
+  %project_id3 = load ptr, ptr %project_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %project_id3 to i64
   %elem_ptr = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %limit_str4 = load ptr, ptr %limit_str, align 8
-  %ptr_to_i645 = ptrtoint ptr %limit_str4 to i64
+  %tag_key4 = load ptr, ptr %tag_key, align 8
+  %ptr_to_i645 = ptrtoint ptr %tag_key4 to i64
   %elem_ptr6 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -9349,7 +7685,7 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val16
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.302, i64 30, ptr @.panic_file.303, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.196, i64 30, ptr @.panic_file.197, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -9374,16 +7710,89 @@ case_Err:                                         ; preds = %entry
   ret { i8, ptr } %variant_val
 }
 
-define { i8, ptr } @project_health_summary(i64 %0, ptr %1) {
+define { i8, ptr } @issue_event_timeline(i64 %0, ptr %1, ptr %2) {
 entry:
   %__try_err_34 = alloca ptr, align 8
   %__try_val_34 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
+  %issue_id = alloca ptr, align 8
+  store ptr %1, ptr %issue_id, align 8
+  %limit_str = alloca ptr, align 8
+  store ptr %2, ptr %limit_str, align 8
+  %sql = alloca ptr, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.198, i64 128)
+  store ptr %str, ptr %sql, align 8
+  %rows = alloca ptr, align 8
+  %pool1 = load i64, ptr %pool, align 8
+  %sql2 = load ptr, ptr %sql, align 8
+  %list_arr = alloca [2 x i64], align 8
+  %issue_id3 = load ptr, ptr %issue_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %issue_id3 to i64
+  %elem_ptr = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 0
+  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
+  %limit_str4 = load ptr, ptr %limit_str, align 8
+  %ptr_to_i645 = ptrtoint ptr %limit_str4 to i64
+  %elem_ptr6 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
+  store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
+  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
+  %match_result = alloca ptr, align 8
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag = load i8, ptr %tag_ptr, align 1
+  switch i8 %tag, label %switch_default [
+    i8 0, label %case_Ok
+    i8 1, label %case_Err
+  ]
+
+match_merge:                                      ; preds = %case_Ok
+  %match_val = load ptr, ptr %match_result, align 8
+  store ptr %match_val, ptr %rows, align 8
+  %variant12 = alloca { i8, ptr }, align 8
+  %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 0
+  store i8 0, ptr %tag_ptr13, align 1
+  %rows14 = load ptr, ptr %rows, align 8
+  %vfield_ptr15 = getelementptr inbounds nuw { i8, ptr }, ptr %variant12, i32 0, i32 1
+  store ptr %rows14, ptr %vfield_ptr15, align 8
+  %variant_val16 = load { i8, ptr }, ptr %variant12, align 8
+  ret { i8, ptr } %variant_val16
+
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.199, i64 30, ptr @.panic_file.200, i64 9, i32 0)
+  unreachable
+
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_34, align 8
+  %__try_val_347 = load ptr, ptr %__try_val_34, align 8
+  store ptr %__try_val_347, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val9 = load ptr, ptr %variant_field8, align 8
+  store ptr %path_val9, ptr %__try_err_34, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr10, align 1
+  %__try_err_3411 = load ptr, ptr %__try_err_34, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_3411, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
+}
+
+define { i8, ptr } @project_health_summary(i64 %0, ptr %1) {
+entry:
+  %__try_err_35 = alloca ptr, align 8
+  %__try_val_35 = alloca ptr, align 8
+  %pool = alloca i64, align 8
+  store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
   store ptr %1, ptr %project_id, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.304, i64 364)
+  %str = call ptr @mesh_string_new(ptr @.str.201, i64 364)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -9394,7 +7803,7 @@ entry:
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -9416,74 +7825,7 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val13
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.305, i64 30, ptr @.panic_file.306, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_34, align 8
-  %__try_val_344 = load ptr, ptr %__try_val_34, align 8
-  store ptr %__try_val_344, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val6 = load ptr, ptr %variant_field5, align 8
-  store ptr %path_val6, ptr %__try_err_34, align 8
-  %variant = alloca { i8, ptr }, align 8
-  %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr7, align 1
-  %__try_err_348 = load ptr, ptr %__try_err_34, align 8
-  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_348, ptr %vfield_ptr, align 8
-  %variant_val = load { i8, ptr }, ptr %variant, align 8
-  ret { i8, ptr } %variant_val
-}
-
-define { i8, ptr } @get_event_detail(i64 %0, ptr %1) {
-entry:
-  %__try_err_35 = alloca ptr, align 8
-  %__try_val_35 = alloca ptr, align 8
-  %pool = alloca i64, align 8
-  store i64 %0, ptr %pool, align 8
-  %event_id = alloca ptr, align 8
-  store ptr %1, ptr %event_id, align 8
-  %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.307, i64 481)
-  store ptr %str, ptr %sql, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %sql2 = load ptr, ptr %sql, align 8
-  %list_arr = alloca [1 x i64], align 8
-  %event_id3 = load ptr, ptr %event_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %event_id3 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Ok
-  %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %variant9 = alloca { i8, ptr }, align 8
-  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
-  store i8 0, ptr %tag_ptr10, align 1
-  %rows11 = load ptr, ptr %rows, align 8
-  %vfield_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
-  store ptr %rows11, ptr %vfield_ptr12, align 8
-  %variant_val13 = load { i8, ptr }, ptr %variant9, align 8
-  ret { i8, ptr } %variant_val13
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.308, i64 30, ptr @.panic_file.309, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.202, i64 30, ptr @.panic_file.203, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -9508,10 +7850,77 @@ case_Err:                                         ; preds = %entry
   ret { i8, ptr } %variant_val
 }
 
-define { i8, ptr } @get_event_neighbors(i64 %0, ptr %1, ptr %2, ptr %3) {
+define { i8, ptr } @get_event_detail(i64 %0, ptr %1) {
 entry:
   %__try_err_36 = alloca ptr, align 8
   %__try_val_36 = alloca ptr, align 8
+  %pool = alloca i64, align 8
+  store i64 %0, ptr %pool, align 8
+  %event_id = alloca ptr, align 8
+  store ptr %1, ptr %event_id, align 8
+  %sql = alloca ptr, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.204, i64 481)
+  store ptr %str, ptr %sql, align 8
+  %rows = alloca ptr, align 8
+  %pool1 = load i64, ptr %pool, align 8
+  %sql2 = load ptr, ptr %sql, align 8
+  %list_arr = alloca [1 x i64], align 8
+  %event_id3 = load ptr, ptr %event_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %event_id3 to i64
+  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
+  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
+  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
+  %match_result = alloca ptr, align 8
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag = load i8, ptr %tag_ptr, align 1
+  switch i8 %tag, label %switch_default [
+    i8 0, label %case_Ok
+    i8 1, label %case_Err
+  ]
+
+match_merge:                                      ; preds = %case_Ok
+  %match_val = load ptr, ptr %match_result, align 8
+  store ptr %match_val, ptr %rows, align 8
+  %variant9 = alloca { i8, ptr }, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
+  store i8 0, ptr %tag_ptr10, align 1
+  %rows11 = load ptr, ptr %rows, align 8
+  %vfield_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
+  store ptr %rows11, ptr %vfield_ptr12, align 8
+  %variant_val13 = load { i8, ptr }, ptr %variant9, align 8
+  ret { i8, ptr } %variant_val13
+
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.205, i64 30, ptr @.panic_file.206, i64 9, i32 0)
+  unreachable
+
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_36, align 8
+  %__try_val_364 = load ptr, ptr %__try_val_36, align 8
+  store ptr %__try_val_364, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val6 = load ptr, ptr %variant_field5, align 8
+  store ptr %path_val6, ptr %__try_err_36, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr7, align 1
+  %__try_err_368 = load ptr, ptr %__try_err_36, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_368, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
+}
+
+define { i8, ptr } @get_event_neighbors(i64 %0, ptr %1, ptr %2, ptr %3) {
+entry:
+  %__try_err_37 = alloca ptr, align 8
+  %__try_val_37 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
@@ -9521,7 +7930,7 @@ entry:
   %event_id = alloca ptr, align 8
   store ptr %3, ptr %event_id, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.310, i64 321)
+  %str = call ptr @mesh_string_new(ptr @.str.207, i64 321)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -9540,7 +7949,7 @@ entry:
   %elem_ptr9 = getelementptr [3 x i64], ptr %list_arr, i32 0, i32 2
   store i64 %ptr_to_i648, ptr %elem_ptr9, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 3)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -9562,27 +7971,27 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val19
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.311, i64 30, ptr @.panic_file.312, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.208, i64 30, ptr @.panic_file.209, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_36, align 8
-  %__try_val_3610 = load ptr, ptr %__try_val_36, align 8
-  store ptr %__try_val_3610, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_37, align 8
+  %__try_val_3710 = load ptr, ptr %__try_val_37, align 8
+  store ptr %__try_val_3710, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field11 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val12 = load ptr, ptr %variant_field11, align 8
-  store ptr %path_val12, ptr %__try_err_36, align 8
+  store ptr %path_val12, ptr %__try_err_37, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr13 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr13, align 1
-  %__try_err_3614 = load ptr, ptr %__try_err_36, align 8
+  %__try_err_3714 = load ptr, ptr %__try_err_37, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_3614, ptr %vfield_ptr, align 8
+  store ptr %__try_err_3714, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
@@ -9596,7 +8005,7 @@ entry:
   %new_role = alloca ptr, align 8
   store ptr %2, ptr %new_role, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.313, i64 95)
+  %str = call ptr @mesh_string_new(ptr @.str.210, i64 95)
   %list_arr = alloca [2 x i64], align 8
   %membership_id2 = load ptr, ptr %membership_id, align 8
   %ptr_to_i64 = ptrtoint ptr %membership_id2 to i64
@@ -9607,120 +8016,27 @@ entry:
   %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
   ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @remove_member(i64 %0, ptr %1) {
 entry:
-  %pool = alloca i64, align 8
-  store i64 %0, ptr %pool, align 8
-  %membership_id = alloca ptr, align 8
-  store ptr %1, ptr %membership_id, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.314, i64 47)
-  %list_arr = alloca [1 x i64], align 8
-  %membership_id2 = load ptr, ptr %membership_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %membership_id2 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
-  %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
-  ret { i8, ptr } %ret_coerce_load
-}
-
-define { i8, ptr } @get_members_with_users(i64 %0, ptr %1) {
-entry:
-  %__try_err_37 = alloca ptr, align 8
-  %__try_val_37 = alloca ptr, align 8
-  %pool = alloca i64, align 8
-  store i64 %0, ptr %pool, align 8
-  %org_id = alloca ptr, align 8
-  store ptr %1, ptr %org_id, align 8
-  %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.315, i64 205)
-  store ptr %str, ptr %sql, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %sql2 = load ptr, ptr %sql, align 8
-  %list_arr = alloca [1 x i64], align 8
-  %org_id3 = load ptr, ptr %org_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %org_id3 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Ok
-  %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %variant9 = alloca { i8, ptr }, align 8
-  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
-  store i8 0, ptr %tag_ptr10, align 1
-  %rows11 = load ptr, ptr %rows, align 8
-  %vfield_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
-  store ptr %rows11, ptr %vfield_ptr12, align 8
-  %variant_val13 = load { i8, ptr }, ptr %variant9, align 8
-  ret { i8, ptr } %variant_val13
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.316, i64 30, ptr @.panic_file.317, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_37, align 8
-  %__try_val_374 = load ptr, ptr %__try_val_37, align 8
-  store ptr %__try_val_374, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val6 = load ptr, ptr %variant_field5, align 8
-  store ptr %path_val6, ptr %__try_err_37, align 8
-  %variant = alloca { i8, ptr }, align 8
-  %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr7, align 1
-  %__try_err_378 = load ptr, ptr %__try_err_37, align 8
-  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_378, ptr %vfield_ptr, align 8
-  %variant_val = load { i8, ptr }, ptr %variant, align 8
-  ret { i8, ptr } %variant_val
-}
-
-define { i8, ptr } @list_api_keys(i64 %0, ptr %1) {
-entry:
   %__try_err_38 = alloca ptr, align 8
   %__try_val_38 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
-  %project_id = alloca ptr, align 8
-  store ptr %1, ptr %project_id, align 8
-  %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.318, i64 182)
-  store ptr %str, ptr %sql, align 8
-  %rows = alloca ptr, align 8
+  %membership_id = alloca ptr, align 8
+  store ptr %1, ptr %membership_id, align 8
+  %_ = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %sql2 = load ptr, ptr %sql, align 8
-  %list_arr = alloca [1 x i64], align 8
-  %project_id3 = load ptr, ptr %project_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %project_id3 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @OrgMembership____table__()
+  call void @mesh_reduction_check()
+  %membership_id2 = load ptr, ptr %membership_id, align 8
+  %call3 = call ptr @mesh_repo_delete(i64 %pool1, ptr %call, ptr %membership_id2)
   %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
     i8 0, label %case_Ok
@@ -9729,22 +8045,21 @@ entry:
 
 match_merge:                                      ; preds = %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
+  store ptr %match_val, ptr %_, align 8
   %variant9 = alloca { i8, ptr }, align 8
   %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
   store i8 0, ptr %tag_ptr10, align 1
-  %rows11 = load ptr, ptr %rows, align 8
-  %vfield_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
-  store ptr %rows11, ptr %vfield_ptr12, align 8
-  %variant_val13 = load { i8, ptr }, ptr %variant9, align 8
-  ret { i8, ptr } %variant_val13
+  %vfield_ptr11 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
+  store i64 1, ptr %vfield_ptr11, align 8
+  %variant_val12 = load { i8, ptr }, ptr %variant9, align 8
+  ret { i8, ptr } %variant_val12
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.319, i64 30, ptr @.panic_file.320, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.211, i64 30, ptr @.panic_file.212, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %__try_val_38, align 8
   %__try_val_384 = load ptr, ptr %__try_val_38, align 8
@@ -9752,7 +8067,7 @@ case_Ok:                                          ; preds = %entry
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
-  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
   %path_val6 = load ptr, ptr %variant_field5, align 8
   store ptr %path_val6, ptr %__try_err_38, align 8
   %variant = alloca { i8, ptr }, align 8
@@ -9765,130 +8080,27 @@ case_Err:                                         ; preds = %entry
   ret { i8, ptr } %variant_val
 }
 
-define { i8, ptr } @create_alert_rule(i64 %0, ptr %1, ptr %2) {
+define { i8, ptr } @get_members_with_users(i64 %0, ptr %1) {
 entry:
   %__try_err_39 = alloca ptr, align 8
   %__try_val_39 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
-  %project_id = alloca ptr, align 8
-  store ptr %1, ptr %project_id, align 8
-  %body = alloca ptr, align 8
-  store ptr %2, ptr %body, align 8
+  %org_id = alloca ptr, align 8
+  store ptr %1, ptr %org_id, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.321, i64 358)
-  store ptr %str, ptr %sql, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %sql2 = load ptr, ptr %sql, align 8
-  %list_arr = alloca [2 x i64], align 8
-  %project_id3 = load ptr, ptr %project_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %project_id3 to i64
-  %elem_ptr = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %body4 = load ptr, ptr %body, align 8
-  %ptr_to_i645 = ptrtoint ptr %body4 to i64
-  %elem_ptr6 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
-  store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Ok
-  %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows12 = load ptr, ptr %rows, align 8
-  %call13 = call i64 @mesh_list_length(ptr %rows12)
-  %gt = icmp sgt i64 %call13, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.322, i64 30, ptr @.panic_file.323, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_39, align 8
-  %__try_val_397 = load ptr, ptr %__try_val_39, align 8
-  store ptr %__try_val_397, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val9 = load ptr, ptr %variant_field8, align 8
-  store ptr %path_val9, ptr %__try_err_39, align 8
-  %variant = alloca { i8, ptr }, align 8
-  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr10, align 1
-  %__try_err_3911 = load ptr, ptr %__try_err_39, align 8
-  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_3911, ptr %vfield_ptr, align 8
-  %variant_val = load { i8, ptr }, ptr %variant, align 8
-  ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %variant14 = alloca { i8, ptr }, align 8
-  %tag_ptr15 = getelementptr inbounds nuw { i8, ptr }, ptr %variant14, i32 0, i32 0
-  store i8 0, ptr %tag_ptr15, align 1
-  %rows16 = load ptr, ptr %rows, align 8
-  %call17 = call i64 @mesh_list_head(ptr %rows16)
-  %i64_to_ptr = inttoptr i64 %call17 to ptr
-  %call18 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str19 = call ptr @mesh_string_new(ptr @.str.324, i64 2)
-  %ptr_to_i6420 = ptrtoint ptr %str19 to i64
-  %call21 = call i64 @mesh_map_get(ptr %call18, i64 %ptr_to_i6420)
-  %i64_to_ptr22 = inttoptr i64 %call21 to ptr
-  %vfield_ptr23 = getelementptr inbounds nuw { i8, ptr }, ptr %variant14, i32 0, i32 1
-  store ptr %i64_to_ptr22, ptr %vfield_ptr23, align 8
-  %variant_val24 = load { i8, ptr }, ptr %variant14, align 8
-  store { i8, ptr } %variant_val24, ptr %if_result, align 8
-  br label %if_merge
-
-else:                                             ; preds = %match_merge
-  %variant25 = alloca { i8, ptr }, align 8
-  %tag_ptr26 = getelementptr inbounds nuw { i8, ptr }, ptr %variant25, i32 0, i32 0
-  store i8 1, ptr %tag_ptr26, align 1
-  %str27 = call ptr @mesh_string_new(ptr @.str.325, i64 33)
-  %vfield_ptr28 = getelementptr inbounds nuw { i8, ptr }, ptr %variant25, i32 0, i32 1
-  store ptr %str27, ptr %vfield_ptr28, align 8
-  %variant_val29 = load { i8, ptr }, ptr %variant25, align 8
-  store { i8, ptr } %variant_val29, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
-}
-
-define { i8, ptr } @list_alert_rules(i64 %0, ptr %1) {
-entry:
-  %__try_err_40 = alloca ptr, align 8
-  %__try_val_40 = alloca ptr, align 8
-  %pool = alloca i64, align 8
-  store i64 %0, ptr %pool, align 8
-  %project_id = alloca ptr, align 8
-  store ptr %1, ptr %project_id, align 8
-  %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.326, i64 259)
+  %str = call ptr @mesh_string_new(ptr @.str.213, i64 205)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
   %sql2 = load ptr, ptr %sql, align 8
   %list_arr = alloca [1 x i64], align 8
-  %project_id3 = load ptr, ptr %project_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %project_id3 to i64
+  %org_id3 = load ptr, ptr %org_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %org_id3 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -9910,7 +8122,74 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val13
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.327, i64 30, ptr @.panic_file.328, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.214, i64 30, ptr @.panic_file.215, i64 9, i32 0)
+  unreachable
+
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_39, align 8
+  %__try_val_394 = load ptr, ptr %__try_val_39, align 8
+  store ptr %__try_val_394, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val6 = load ptr, ptr %variant_field5, align 8
+  store ptr %path_val6, ptr %__try_err_39, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr7, align 1
+  %__try_err_398 = load ptr, ptr %__try_err_39, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_398, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
+}
+
+define { i8, ptr } @list_api_keys(i64 %0, ptr %1) {
+entry:
+  %__try_err_40 = alloca ptr, align 8
+  %__try_val_40 = alloca ptr, align 8
+  %pool = alloca i64, align 8
+  store i64 %0, ptr %pool, align 8
+  %project_id = alloca ptr, align 8
+  store ptr %1, ptr %project_id, align 8
+  %sql = alloca ptr, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.216, i64 182)
+  store ptr %str, ptr %sql, align 8
+  %rows = alloca ptr, align 8
+  %pool1 = load i64, ptr %pool, align 8
+  %sql2 = load ptr, ptr %sql, align 8
+  %list_arr = alloca [1 x i64], align 8
+  %project_id3 = load ptr, ptr %project_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %project_id3 to i64
+  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
+  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
+  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
+  %match_result = alloca ptr, align 8
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag = load i8, ptr %tag_ptr, align 1
+  switch i8 %tag, label %switch_default [
+    i8 0, label %case_Ok
+    i8 1, label %case_Err
+  ]
+
+match_merge:                                      ; preds = %case_Ok
+  %match_val = load ptr, ptr %match_result, align 8
+  store ptr %match_val, ptr %rows, align 8
+  %variant9 = alloca { i8, ptr }, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
+  store i8 0, ptr %tag_ptr10, align 1
+  %rows11 = load ptr, ptr %rows, align 8
+  %vfield_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
+  store ptr %rows11, ptr %vfield_ptr12, align 8
+  %variant_val13 = load { i8, ptr }, ptr %variant9, align 8
+  ret { i8, ptr } %variant_val13
+
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.217, i64 30, ptr @.panic_file.218, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -9935,6 +8214,176 @@ case_Err:                                         ; preds = %entry
   ret { i8, ptr } %variant_val
 }
 
+define { i8, ptr } @create_alert_rule(i64 %0, ptr %1, ptr %2) {
+entry:
+  %__try_err_41 = alloca ptr, align 8
+  %__try_val_41 = alloca ptr, align 8
+  %pool = alloca i64, align 8
+  store i64 %0, ptr %pool, align 8
+  %project_id = alloca ptr, align 8
+  store ptr %1, ptr %project_id, align 8
+  %body = alloca ptr, align 8
+  store ptr %2, ptr %body, align 8
+  %sql = alloca ptr, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.219, i64 354)
+  store ptr %str, ptr %sql, align 8
+  %rows = alloca ptr, align 8
+  %pool1 = load i64, ptr %pool, align 8
+  %sql2 = load ptr, ptr %sql, align 8
+  %list_arr = alloca [2 x i64], align 8
+  %project_id3 = load ptr, ptr %project_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %project_id3 to i64
+  %elem_ptr = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 0
+  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
+  %body4 = load ptr, ptr %body, align 8
+  %ptr_to_i645 = ptrtoint ptr %body4 to i64
+  %elem_ptr6 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
+  store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
+  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
+  %match_result = alloca ptr, align 8
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag = load i8, ptr %tag_ptr, align 1
+  switch i8 %tag, label %switch_default [
+    i8 0, label %case_Ok
+    i8 1, label %case_Err
+  ]
+
+match_merge:                                      ; preds = %case_Ok
+  %match_val = load ptr, ptr %match_result, align 8
+  store ptr %match_val, ptr %rows, align 8
+  %rows12 = load ptr, ptr %rows, align 8
+  %call13 = call i64 @mesh_list_length(ptr %rows12)
+  %gt = icmp sgt i64 %call13, 0
+  %if_result = alloca { i8, ptr }, align 8
+  br i1 %gt, label %then, label %else
+
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.220, i64 30, ptr @.panic_file.221, i64 9, i32 0)
+  unreachable
+
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_41, align 8
+  %__try_val_417 = load ptr, ptr %__try_val_41, align 8
+  store ptr %__try_val_417, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val9 = load ptr, ptr %variant_field8, align 8
+  store ptr %path_val9, ptr %__try_err_41, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr10, align 1
+  %__try_err_4111 = load ptr, ptr %__try_err_41, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_4111, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
+
+then:                                             ; preds = %match_merge
+  %variant14 = alloca { i8, ptr }, align 8
+  %tag_ptr15 = getelementptr inbounds nuw { i8, ptr }, ptr %variant14, i32 0, i32 0
+  store i8 0, ptr %tag_ptr15, align 1
+  %rows16 = load ptr, ptr %rows, align 8
+  %call17 = call i64 @mesh_list_head(ptr %rows16)
+  %i64_to_ptr = inttoptr i64 %call17 to ptr
+  %call18 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
+  %str19 = call ptr @mesh_string_new(ptr @.str.222, i64 2)
+  %ptr_to_i6420 = ptrtoint ptr %str19 to i64
+  %call21 = call i64 @mesh_map_get(ptr %call18, i64 %ptr_to_i6420)
+  %i64_to_ptr22 = inttoptr i64 %call21 to ptr
+  %vfield_ptr23 = getelementptr inbounds nuw { i8, ptr }, ptr %variant14, i32 0, i32 1
+  store ptr %i64_to_ptr22, ptr %vfield_ptr23, align 8
+  %variant_val24 = load { i8, ptr }, ptr %variant14, align 8
+  store { i8, ptr } %variant_val24, ptr %if_result, align 8
+  br label %if_merge
+
+else:                                             ; preds = %match_merge
+  %variant25 = alloca { i8, ptr }, align 8
+  %tag_ptr26 = getelementptr inbounds nuw { i8, ptr }, ptr %variant25, i32 0, i32 0
+  store i8 1, ptr %tag_ptr26, align 1
+  %str27 = call ptr @mesh_string_new(ptr @.str.223, i64 33)
+  %vfield_ptr28 = getelementptr inbounds nuw { i8, ptr }, ptr %variant25, i32 0, i32 1
+  store ptr %str27, ptr %vfield_ptr28, align 8
+  %variant_val29 = load { i8, ptr }, ptr %variant25, align 8
+  store { i8, ptr } %variant_val29, ptr %if_result, align 8
+  br label %if_merge
+
+if_merge:                                         ; preds = %else, %then
+  %if_val = load { i8, ptr }, ptr %if_result, align 8
+  ret { i8, ptr } %if_val
+}
+
+define { i8, ptr } @list_alert_rules(i64 %0, ptr %1) {
+entry:
+  %__try_err_42 = alloca ptr, align 8
+  %__try_val_42 = alloca ptr, align 8
+  %pool = alloca i64, align 8
+  store i64 %0, ptr %pool, align 8
+  %project_id = alloca ptr, align 8
+  store ptr %1, ptr %project_id, align 8
+  %sql = alloca ptr, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.224, i64 259)
+  store ptr %str, ptr %sql, align 8
+  %rows = alloca ptr, align 8
+  %pool1 = load i64, ptr %pool, align 8
+  %sql2 = load ptr, ptr %sql, align 8
+  %list_arr = alloca [1 x i64], align 8
+  %project_id3 = load ptr, ptr %project_id, align 8
+  %ptr_to_i64 = ptrtoint ptr %project_id3 to i64
+  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
+  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
+  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
+  %match_result = alloca ptr, align 8
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
+  %tag = load i8, ptr %tag_ptr, align 1
+  switch i8 %tag, label %switch_default [
+    i8 0, label %case_Ok
+    i8 1, label %case_Err
+  ]
+
+match_merge:                                      ; preds = %case_Ok
+  %match_val = load ptr, ptr %match_result, align 8
+  store ptr %match_val, ptr %rows, align 8
+  %variant9 = alloca { i8, ptr }, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
+  store i8 0, ptr %tag_ptr10, align 1
+  %rows11 = load ptr, ptr %rows, align 8
+  %vfield_ptr12 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
+  store ptr %rows11, ptr %vfield_ptr12, align 8
+  %variant_val13 = load { i8, ptr }, ptr %variant9, align 8
+  ret { i8, ptr } %variant_val13
+
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.225, i64 30, ptr @.panic_file.226, i64 9, i32 0)
+  unreachable
+
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_42, align 8
+  %__try_val_424 = load ptr, ptr %__try_val_42, align 8
+  store ptr %__try_val_424, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
+  %path_val6 = load ptr, ptr %variant_field5, align 8
+  store ptr %path_val6, ptr %__try_err_42, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr7, align 1
+  %__try_err_428 = load ptr, ptr %__try_err_42, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_428, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
+}
+
 define { i8, ptr } @toggle_alert_rule(i64 %0, ptr %1, ptr %2) {
 entry:
   %pool = alloca i64, align 8
@@ -9944,7 +8393,7 @@ entry:
   %enabled_str = alloca ptr, align 8
   store ptr %2, ptr %enabled_str, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.329, i64 64)
+  %str = call ptr @mesh_string_new(ptr @.str.227, i64 64)
   %list_arr = alloca [2 x i64], align 8
   %rule_id2 = load ptr, ptr %rule_id, align 8
   %ptr_to_i64 = ptrtoint ptr %rule_id2 to i64
@@ -9955,34 +8404,74 @@ entry:
   %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
   ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @delete_alert_rule(i64 %0, ptr %1) {
 entry:
+  %__try_err_43 = alloca ptr, align 8
+  %__try_val_43 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %rule_id = alloca ptr, align 8
   store ptr %1, ptr %rule_id, align 8
+  %_ = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.330, i64 43)
-  %list_arr = alloca [1 x i64], align 8
+  %call = call ptr @AlertRule____table__()
+  call void @mesh_reduction_check()
   %rule_id2 = load ptr, ptr %rule_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %rule_id2 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
-  %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
-  ret { i8, ptr } %ret_coerce_load
+  %call3 = call ptr @mesh_repo_delete(i64 %pool1, ptr %call, ptr %rule_id2)
+  %match_result = alloca ptr, align 8
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 0
+  %tag = load i8, ptr %tag_ptr, align 1
+  switch i8 %tag, label %switch_default [
+    i8 0, label %case_Ok
+    i8 1, label %case_Err
+  ]
+
+match_merge:                                      ; preds = %case_Ok
+  %match_val = load ptr, ptr %match_result, align 8
+  store ptr %match_val, ptr %_, align 8
+  %variant9 = alloca { i8, ptr }, align 8
+  %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 0
+  store i8 0, ptr %tag_ptr10, align 1
+  %vfield_ptr11 = getelementptr inbounds nuw { i8, ptr }, ptr %variant9, i32 0, i32 1
+  store i64 1, ptr %vfield_ptr11, align 8
+  %variant_val12 = load { i8, ptr }, ptr %variant9, align 8
+  ret { i8, ptr } %variant_val12
+
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.228, i64 30, ptr @.panic_file.229, i64 9, i32 0)
+  unreachable
+
+case_Ok:                                          ; preds = %entry
+  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
+  %path_val = load ptr, ptr %variant_field, align 8
+  store ptr %path_val, ptr %__try_val_43, align 8
+  %__try_val_434 = load ptr, ptr %__try_val_43, align 8
+  store ptr %__try_val_434, ptr %match_result, align 8
+  br label %match_merge
+
+case_Err:                                         ; preds = %entry
+  %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
+  %path_val6 = load ptr, ptr %variant_field5, align 8
+  store ptr %path_val6, ptr %__try_err_43, align 8
+  %variant = alloca { i8, ptr }, align 8
+  %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 1, ptr %tag_ptr7, align 1
+  %__try_err_438 = load ptr, ptr %__try_err_43, align 8
+  %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
+  store ptr %__try_err_438, ptr %vfield_ptr, align 8
+  %variant_val = load { i8, ptr }, ptr %variant, align 8
+  ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @evaluate_threshold_rule(i64 %0, ptr %1, ptr %2, ptr %3, ptr %4, ptr %5) {
 entry:
-  %__try_err_41 = alloca ptr, align 8
-  %__try_val_41 = alloca ptr, align 8
+  %__try_err_44 = alloca ptr, align 8
+  %__try_val_44 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %rule_id = alloca ptr, align 8
@@ -9996,7 +8485,7 @@ entry:
   %cooldown_str = alloca ptr, align 8
   store ptr %5, ptr %cooldown_str, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.331, i64 375)
+  %str = call ptr @mesh_string_new(ptr @.str.230, i64 375)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -10018,7 +8507,7 @@ entry:
   %ptr_to_i6411 = ptrtoint ptr %window_str10 to i64
   %elem_ptr12 = getelementptr [6 x i64], ptr %list_arr, i32 0, i32 3
   store i64 %ptr_to_i6411, ptr %elem_ptr12, align 8
-  %str13 = call ptr @mesh_string_new(ptr @.str.332, i64 0)
+  %str13 = call ptr @mesh_string_new(ptr @.str.231, i64 0)
   %ptr_to_i6414 = ptrtoint ptr %str13 to i64
   %elem_ptr15 = getelementptr [6 x i64], ptr %list_arr, i32 0, i32 4
   store i64 %ptr_to_i6414, ptr %elem_ptr15, align 8
@@ -10027,7 +8516,7 @@ entry:
   %elem_ptr18 = getelementptr [6 x i64], ptr %list_arr, i32 0, i32 5
   store i64 %ptr_to_i6417, ptr %elem_ptr18, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 6)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10046,27 +8535,27 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.333, i64 30, ptr @.panic_file.334, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.232, i64 30, ptr @.panic_file.233, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_41, align 8
-  %__try_val_4119 = load ptr, ptr %__try_val_41, align 8
-  store ptr %__try_val_4119, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_44, align 8
+  %__try_val_4419 = load ptr, ptr %__try_val_44, align 8
+  store ptr %__try_val_4419, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field20 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val21 = load ptr, ptr %variant_field20, align 8
-  store ptr %path_val21, ptr %__try_err_41, align 8
+  store ptr %path_val21, ptr %__try_err_44, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr22 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr22, align 1
-  %__try_err_4123 = load ptr, ptr %__try_err_41, align 8
+  %__try_err_4423 = load ptr, ptr %__try_err_44, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_4123, ptr %vfield_ptr, align 8
+  store ptr %__try_err_4423, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -10076,7 +8565,7 @@ then:                                             ; preds = %match_merge
   %call27 = call i64 @mesh_list_head(ptr %rows26)
   %i64_to_ptr = inttoptr i64 %call27 to ptr
   %call28 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str29 = call ptr @mesh_string_new(ptr @.str.335, i64 11)
+  %str29 = call ptr @mesh_string_new(ptr @.str.234, i64 11)
   %ptr_to_i6430 = ptrtoint ptr %str29 to i64
   %call31 = call i64 @mesh_map_get(ptr %call28, i64 %ptr_to_i6430)
   %i64_to_ptr32 = inttoptr i64 %call31 to ptr
@@ -10085,7 +8574,7 @@ then:                                             ; preds = %match_merge
   %tag_ptr34 = getelementptr inbounds nuw { i8, ptr }, ptr %variant33, i32 0, i32 0
   store i8 0, ptr %tag_ptr34, align 1
   %should_fire35 = load ptr, ptr %should_fire, align 8
-  %str36 = call ptr @mesh_string_new(ptr @.str.336, i64 1)
+  %str36 = call ptr @mesh_string_new(ptr @.str.235, i64 1)
   %str_eq = call i8 @mesh_string_eq(ptr %should_fire35, ptr %str36)
   %str_eq_bool = icmp ne i8 %str_eq, 0
   %vfield_ptr37 = getelementptr inbounds nuw { i8, ptr }, ptr %variant33, i32 0, i32 1
@@ -10111,8 +8600,8 @@ if_merge:                                         ; preds = %else, %then
 
 define { i8, ptr } @fire_alert(i64 %0, ptr %1, ptr %2, ptr %3, ptr %4, ptr %5) {
 entry:
-  %__try_err_42 = alloca ptr, align 8
-  %__try_val_42 = alloca ptr, align 8
+  %__try_err_45 = alloca ptr, align 8
+  %__try_val_45 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %rule_id = alloca ptr, align 8
@@ -10126,7 +8615,7 @@ entry:
   %rule_name = alloca ptr, align 8
   store ptr %5, ptr %rule_name, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.337, i64 197)
+  %str = call ptr @mesh_string_new(ptr @.str.236, i64 197)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -10153,7 +8642,7 @@ entry:
   %elem_ptr15 = getelementptr [5 x i64], ptr %list_arr, i32 0, i32 4
   store i64 %ptr_to_i6414, ptr %elem_ptr15, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 5)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10172,27 +8661,27 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.338, i64 30, ptr @.panic_file.339, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.237, i64 30, ptr @.panic_file.238, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_42, align 8
-  %__try_val_4216 = load ptr, ptr %__try_val_42, align 8
-  store ptr %__try_val_4216, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_45, align 8
+  %__try_val_4516 = load ptr, ptr %__try_val_45, align 8
+  store ptr %__try_val_4516, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field17 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val18 = load ptr, ptr %variant_field17, align 8
-  store ptr %path_val18, ptr %__try_err_42, align 8
+  store ptr %path_val18, ptr %__try_err_45, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr19 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr19, align 1
-  %__try_err_4220 = load ptr, ptr %__try_err_42, align 8
+  %__try_err_4520 = load ptr, ptr %__try_err_45, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_4220, ptr %vfield_ptr, align 8
+  store ptr %__try_err_4520, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -10202,21 +8691,21 @@ then:                                             ; preds = %match_merge
   %call24 = call i64 @mesh_list_head(ptr %rows23)
   %i64_to_ptr = inttoptr i64 %call24 to ptr
   %call25 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str26 = call ptr @mesh_string_new(ptr @.str.340, i64 2)
+  %str26 = call ptr @mesh_string_new(ptr @.str.239, i64 2)
   %ptr_to_i6427 = ptrtoint ptr %str26 to i64
   %call28 = call i64 @mesh_map_get(ptr %call25, i64 %ptr_to_i6427)
   %i64_to_ptr29 = inttoptr i64 %call28 to ptr
   store ptr %i64_to_ptr29, ptr %alert_id, align 8
   %_ = alloca { i8, ptr }, align 8
   %pool30 = load i64, ptr %pool, align 8
-  %str31 = call ptr @mesh_string_new(ptr @.str.341, i64 64)
+  %str31 = call ptr @mesh_string_new(ptr @.str.240, i64 64)
   %list_arr32 = alloca [1 x i64], align 8
   %rule_id33 = load ptr, ptr %rule_id, align 8
   %ptr_to_i6434 = ptrtoint ptr %rule_id33 to i64
   %elem_ptr35 = getelementptr [1 x i64], ptr %list_arr32, i32 0, i32 0
   store i64 %ptr_to_i6434, ptr %elem_ptr35, align 8
   %list36 = call ptr @mesh_list_from_array(ptr %list_arr32, i64 1)
-  %call37 = call ptr @mesh_pool_execute(i64 %pool30, ptr %str31, ptr %list36)
+  %call37 = call ptr @mesh_repo_execute_raw(i64 %pool30, ptr %str31, ptr %list36)
   %deref_sum = load { i8, ptr }, ptr %call37, align 8
   store { i8, ptr } %deref_sum, ptr %_, align 8
   %variant38 = alloca { i8, ptr }, align 8
@@ -10233,7 +8722,7 @@ else:                                             ; preds = %match_merge
   %variant43 = alloca { i8, ptr }, align 8
   %tag_ptr44 = getelementptr inbounds nuw { i8, ptr }, ptr %variant43, i32 0, i32 0
   store i8 1, ptr %tag_ptr44, align 1
-  %str45 = call ptr @mesh_string_new(ptr @.str.342, i64 26)
+  %str45 = call ptr @mesh_string_new(ptr @.str.241, i64 26)
   %vfield_ptr46 = getelementptr inbounds nuw { i8, ptr }, ptr %variant43, i32 0, i32 1
   store ptr %str45, ptr %vfield_ptr46, align 8
   %variant_val47 = load { i8, ptr }, ptr %variant43, align 8
@@ -10247,22 +8736,22 @@ if_merge:                                         ; preds = %else, %then
 
 define { i8, ptr } @check_new_issue(i64 %0, ptr %1) {
 entry:
-  %__try_err_43 = alloca ptr, align 8
-  %__try_val_43 = alloca ptr, align 8
+  %__try_err_46 = alloca ptr, align 8
+  %__try_val_46 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   store ptr %1, ptr %issue_id, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.343, i64 77)
+  %str = call ptr @mesh_string_new(ptr @.str.242, i64 77)
   %list_arr = alloca [1 x i64], align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
   %ptr_to_i64 = ptrtoint ptr %issue_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10286,35 +8775,35 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val13
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.344, i64 30, ptr @.panic_file.345, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.243, i64 30, ptr @.panic_file.244, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_43, align 8
-  %__try_val_433 = load ptr, ptr %__try_val_43, align 8
-  store ptr %__try_val_433, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_46, align 8
+  %__try_val_463 = load ptr, ptr %__try_val_46, align 8
+  store ptr %__try_val_463, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_43, align 8
+  store ptr %path_val5, ptr %__try_err_46, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_437 = load ptr, ptr %__try_err_43, align 8
+  %__try_err_467 = load ptr, ptr %__try_err_46, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_437, ptr %vfield_ptr, align 8
+  store ptr %__try_err_467, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @get_event_alert_rules(i64 %0, ptr %1, ptr %2) {
 entry:
-  %__try_err_44 = alloca ptr, align 8
-  %__try_val_44 = alloca ptr, align 8
+  %__try_err_47 = alloca ptr, align 8
+  %__try_val_47 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
@@ -10322,7 +8811,7 @@ entry:
   %condition_type = alloca ptr, align 8
   store ptr %2, ptr %condition_type, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.346, i64 152)
+  %str = call ptr @mesh_string_new(ptr @.str.245, i64 152)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -10337,7 +8826,7 @@ entry:
   %elem_ptr6 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10359,35 +8848,35 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val16
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.347, i64 30, ptr @.panic_file.348, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.246, i64 30, ptr @.panic_file.247, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_44, align 8
-  %__try_val_447 = load ptr, ptr %__try_val_44, align 8
-  store ptr %__try_val_447, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_47, align 8
+  %__try_val_477 = load ptr, ptr %__try_val_47, align 8
+  store ptr %__try_val_477, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val9 = load ptr, ptr %variant_field8, align 8
-  store ptr %path_val9, ptr %__try_err_44, align 8
+  store ptr %path_val9, ptr %__try_err_47, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr10, align 1
-  %__try_err_4411 = load ptr, ptr %__try_err_44, align 8
+  %__try_err_4711 = load ptr, ptr %__try_err_47, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_4411, ptr %vfield_ptr, align 8
+  store ptr %__try_err_4711, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @should_fire_by_cooldown(i64 %0, ptr %1, ptr %2) {
 entry:
-  %__try_err_45 = alloca ptr, align 8
-  %__try_val_45 = alloca ptr, align 8
+  %__try_err_48 = alloca ptr, align 8
+  %__try_val_48 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %rule_id = alloca ptr, align 8
@@ -10396,7 +8885,7 @@ entry:
   store ptr %2, ptr %cooldown_str, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.349, i64 136)
+  %str = call ptr @mesh_string_new(ptr @.str.248, i64 136)
   %list_arr = alloca [2 x i64], align 8
   %rule_id2 = load ptr, ptr %rule_id, align 8
   %ptr_to_i64 = ptrtoint ptr %rule_id2 to i64
@@ -10407,7 +8896,7 @@ entry:
   %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10431,27 +8920,27 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val16
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.350, i64 30, ptr @.panic_file.351, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.249, i64 30, ptr @.panic_file.250, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_45, align 8
-  %__try_val_456 = load ptr, ptr %__try_val_45, align 8
-  store ptr %__try_val_456, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_48, align 8
+  %__try_val_486 = load ptr, ptr %__try_val_48, align 8
+  store ptr %__try_val_486, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field7 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val8 = load ptr, ptr %variant_field7, align 8
-  store ptr %path_val8, ptr %__try_err_45, align 8
+  store ptr %path_val8, ptr %__try_err_48, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr9 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr9, align 1
-  %__try_err_4510 = load ptr, ptr %__try_err_45, align 8
+  %__try_err_4810 = load ptr, ptr %__try_err_48, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_4510, ptr %vfield_ptr, align 8
+  store ptr %__try_err_4810, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
@@ -10463,14 +8952,14 @@ entry:
   %alert_id = alloca ptr, align 8
   store ptr %1, ptr %alert_id, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.352, i64 108)
+  %str = call ptr @mesh_string_new(ptr @.str.251, i64 108)
   %list_arr = alloca [1 x i64], align 8
   %alert_id2 = load ptr, ptr %alert_id, align 8
   %ptr_to_i64 = ptrtoint ptr %alert_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
   ret { i8, ptr } %ret_coerce_load
 }
@@ -10482,22 +8971,22 @@ entry:
   %alert_id = alloca ptr, align 8
   store ptr %1, ptr %alert_id, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.353, i64 119)
+  %str = call ptr @mesh_string_new(ptr @.str.252, i64 119)
   %list_arr = alloca [1 x i64], align 8
   %alert_id2 = load ptr, ptr %alert_id, align 8
   %ptr_to_i64 = ptrtoint ptr %alert_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
   ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @list_alerts(i64 %0, ptr %1, ptr %2) {
 entry:
-  %__try_err_46 = alloca ptr, align 8
-  %__try_val_46 = alloca ptr, align 8
+  %__try_err_49 = alloca ptr, align 8
+  %__try_val_49 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
@@ -10505,7 +8994,7 @@ entry:
   %status = alloca ptr, align 8
   store ptr %2, ptr %status, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.354, i64 406)
+  %str = call ptr @mesh_string_new(ptr @.str.253, i64 406)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -10520,7 +9009,7 @@ entry:
   %elem_ptr6 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i645, ptr %elem_ptr6, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10542,45 +9031,45 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val16
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.355, i64 30, ptr @.panic_file.356, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.254, i64 30, ptr @.panic_file.255, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_46, align 8
-  %__try_val_467 = load ptr, ptr %__try_val_46, align 8
-  store ptr %__try_val_467, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_49, align 8
+  %__try_val_497 = load ptr, ptr %__try_val_49, align 8
+  store ptr %__try_val_497, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val9 = load ptr, ptr %variant_field8, align 8
-  store ptr %path_val9, ptr %__try_err_46, align 8
+  store ptr %path_val9, ptr %__try_err_49, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr10 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr10, align 1
-  %__try_err_4611 = load ptr, ptr %__try_err_46, align 8
+  %__try_err_4911 = load ptr, ptr %__try_err_49, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_4611, ptr %vfield_ptr, align 8
+  store ptr %__try_err_4911, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @get_threshold_rules(i64 %0) {
 entry:
-  %__try_err_47 = alloca ptr, align 8
-  %__try_val_47 = alloca ptr, align 8
+  %__try_err_50 = alloca ptr, align 8
+  %__try_val_50 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.357, i64 175)
+  %str = call ptr @mesh_string_new(ptr @.str.256, i64 175)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
   %sql2 = load ptr, ptr %sql, align 8
   %call = call ptr @mesh_list_new()
-  %call3 = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %call)
+  %call3 = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %call)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10602,27 +9091,27 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val13
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.358, i64 30, ptr @.panic_file.359, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.257, i64 30, ptr @.panic_file.258, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_47, align 8
-  %__try_val_474 = load ptr, ptr %__try_val_47, align 8
-  store ptr %__try_val_474, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_50, align 8
+  %__try_val_504 = load ptr, ptr %__try_val_50, align 8
+  store ptr %__try_val_504, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call3, i32 0, i32 1
   %path_val6 = load ptr, ptr %variant_field5, align 8
-  store ptr %path_val6, ptr %__try_err_47, align 8
+  store ptr %path_val6, ptr %__try_err_50, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr7, align 1
-  %__try_err_478 = load ptr, ptr %__try_err_47, align 8
+  %__try_err_508 = load ptr, ptr %__try_err_50, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_478, ptr %vfield_ptr, align 8
+  store ptr %__try_err_508, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
@@ -10636,7 +9125,7 @@ entry:
   %retention_days_str = alloca ptr, align 8
   store ptr %2, ptr %retention_days_str, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.360, i64 98)
+  %str = call ptr @mesh_string_new(ptr @.str.259, i64 98)
   %list_arr = alloca [2 x i64], align 8
   %project_id2 = load ptr, ptr %project_id, align 8
   %ptr_to_i64 = ptrtoint ptr %project_id2 to i64
@@ -10647,21 +9136,21 @@ entry:
   %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
   ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @get_expired_partitions(i64 %0, ptr %1) {
 entry:
-  %__try_err_48 = alloca ptr, align 8
-  %__try_val_48 = alloca ptr, align 8
+  %__try_err_51 = alloca ptr, align 8
+  %__try_val_51 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %max_days_str = alloca ptr, align 8
   store ptr %1, ptr %max_days_str, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.361, i64 307)
+  %str = call ptr @mesh_string_new(ptr @.str.260, i64 307)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -10672,7 +9161,7 @@ entry:
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10694,27 +9183,27 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val13
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.362, i64 30, ptr @.panic_file.363, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.261, i64 30, ptr @.panic_file.262, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_48, align 8
-  %__try_val_484 = load ptr, ptr %__try_val_48, align 8
-  store ptr %__try_val_484, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_51, align 8
+  %__try_val_514 = load ptr, ptr %__try_val_51, align 8
+  store ptr %__try_val_514, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val6 = load ptr, ptr %variant_field5, align 8
-  store ptr %path_val6, ptr %__try_err_48, align 8
+  store ptr %path_val6, ptr %__try_err_51, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr7, align 1
-  %__try_err_488 = load ptr, ptr %__try_err_48, align 8
+  %__try_err_518 = load ptr, ptr %__try_err_51, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_488, ptr %vfield_ptr, align 8
+  store ptr %__try_err_518, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
@@ -10726,26 +9215,26 @@ entry:
   %partition_name = alloca ptr, align 8
   store ptr %1, ptr %partition_name, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.364, i64 21)
+  %str = call ptr @mesh_string_new(ptr @.str.263, i64 21)
   %partition_name2 = load ptr, ptr %partition_name, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %partition_name2)
   %call = call ptr @mesh_list_new()
-  %call3 = call ptr @mesh_pool_execute(i64 %pool1, ptr %concat, ptr %call)
+  %call3 = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %concat, ptr %call)
   %ret_coerce_load = load { i8, ptr }, ptr %call3, align 8
   ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @get_all_project_retention(i64 %0) {
 entry:
-  %__try_err_49 = alloca ptr, align 8
-  %__try_val_49 = alloca ptr, align 8
+  %__try_err_52 = alloca ptr, align 8
+  %__try_val_52 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.365, i64 51)
+  %str = call ptr @mesh_string_new(ptr @.str.264, i64 51)
   %call = call ptr @mesh_list_new()
-  %call2 = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %call)
+  %call2 = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %call)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call2, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10767,41 +9256,41 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val12
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.366, i64 30, ptr @.panic_file.367, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.265, i64 30, ptr @.panic_file.266, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call2, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_49, align 8
-  %__try_val_493 = load ptr, ptr %__try_val_49, align 8
-  store ptr %__try_val_493, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_52, align 8
+  %__try_val_523 = load ptr, ptr %__try_val_52, align 8
+  store ptr %__try_val_523, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call2, i32 0, i32 1
   %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_49, align 8
+  store ptr %path_val5, ptr %__try_err_52, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_497 = load ptr, ptr %__try_err_49, align 8
+  %__try_err_527 = load ptr, ptr %__try_err_52, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_497, ptr %vfield_ptr, align 8
+  store ptr %__try_err_527, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @get_project_storage(i64 %0, ptr %1) {
 entry:
-  %__try_err_50 = alloca ptr, align 8
-  %__try_val_50 = alloca ptr, align 8
+  %__try_err_53 = alloca ptr, align 8
+  %__try_val_53 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
   store ptr %1, ptr %project_id, align 8
   %sql = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.368, i64 120)
+  %str = call ptr @mesh_string_new(ptr @.str.267, i64 120)
   store ptr %str, ptr %sql, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
@@ -10812,7 +9301,7 @@ entry:
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %sql2, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %sql2, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10834,27 +9323,27 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val13
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.369, i64 30, ptr @.panic_file.370, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.268, i64 30, ptr @.panic_file.269, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_50, align 8
-  %__try_val_504 = load ptr, ptr %__try_val_50, align 8
-  store ptr %__try_val_504, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_53, align 8
+  %__try_val_534 = load ptr, ptr %__try_val_53, align 8
+  store ptr %__try_val_534, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field5 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val6 = load ptr, ptr %variant_field5, align 8
-  store ptr %path_val6, ptr %__try_err_50, align 8
+  store ptr %path_val6, ptr %__try_err_53, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr7 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr7, align 1
-  %__try_err_508 = load ptr, ptr %__try_err_50, align 8
+  %__try_err_538 = load ptr, ptr %__try_err_53, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_508, ptr %vfield_ptr, align 8
+  store ptr %__try_err_538, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
@@ -10868,7 +9357,7 @@ entry:
   %body = alloca ptr, align 8
   store ptr %2, ptr %body, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.371, i64 190)
+  %str = call ptr @mesh_string_new(ptr @.str.270, i64 190)
   %list_arr = alloca [2 x i64], align 8
   %project_id2 = load ptr, ptr %project_id, align 8
   %ptr_to_i64 = ptrtoint ptr %project_id2 to i64
@@ -10879,29 +9368,29 @@ entry:
   %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
   store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_execute(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_execute_raw(i64 %pool1, ptr %str, ptr %list)
   %ret_coerce_load = load { i8, ptr }, ptr %call, align 8
   ret { i8, ptr } %ret_coerce_load
 }
 
 define { i8, ptr } @get_project_settings(i64 %0, ptr %1) {
 entry:
-  %__try_err_51 = alloca ptr, align 8
-  %__try_val_51 = alloca ptr, align 8
+  %__try_err_54 = alloca ptr, align 8
+  %__try_val_54 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
   store ptr %1, ptr %project_id, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.372, i64 80)
+  %str = call ptr @mesh_string_new(ptr @.str.271, i64 80)
   %list_arr = alloca [1 x i64], align 8
   %project_id2 = load ptr, ptr %project_id, align 8
   %ptr_to_i64 = ptrtoint ptr %project_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10923,49 +9412,49 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %variant_val12
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.373, i64 30, ptr @.panic_file.374, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.272, i64 30, ptr @.panic_file.273, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_51, align 8
-  %__try_val_513 = load ptr, ptr %__try_val_51, align 8
-  store ptr %__try_val_513, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_54, align 8
+  %__try_val_543 = load ptr, ptr %__try_val_54, align 8
+  store ptr %__try_val_543, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_51, align 8
+  store ptr %path_val5, ptr %__try_err_54, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_517 = load ptr, ptr %__try_err_51, align 8
+  %__try_err_547 = load ptr, ptr %__try_err_54, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_517, ptr %vfield_ptr, align 8
+  store ptr %__try_err_547, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
 
 define { i8, ptr } @check_sample_rate(i64 %0, ptr %1) {
 entry:
-  %__try_err_52 = alloca ptr, align 8
-  %__try_val_52 = alloca ptr, align 8
+  %__try_err_55 = alloca ptr, align 8
+  %__try_val_55 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
   store ptr %1, ptr %project_id, align 8
   %rows = alloca ptr, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.375, i64 95)
+  %str = call ptr @mesh_string_new(ptr @.str.274, i64 95)
   %list_arr = alloca [1 x i64], align 8
   %project_id2 = load ptr, ptr %project_id, align 8
   %ptr_to_i64 = ptrtoint ptr %project_id2 to i64
   %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
   store i64 %ptr_to_i64, ptr %elem_ptr, align 8
   %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
+  %call = call ptr @mesh_repo_query_raw(i64 %pool1, ptr %str, ptr %list)
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -10984,27 +9473,27 @@ match_merge:                                      ; preds = %case_Ok
   br i1 %gt, label %then, label %else
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.376, i64 30, ptr @.panic_file.377, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.275, i64 30, ptr @.panic_file.276, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_52, align 8
-  %__try_val_523 = load ptr, ptr %__try_val_52, align 8
-  store ptr %__try_val_523, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_55, align 8
+  %__try_val_553 = load ptr, ptr %__try_val_55, align 8
+  store ptr %__try_val_553, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field4 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
   %path_val5 = load ptr, ptr %variant_field4, align 8
-  store ptr %path_val5, ptr %__try_err_52, align 8
+  store ptr %path_val5, ptr %__try_err_55, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr6, align 1
-  %__try_err_527 = load ptr, ptr %__try_err_52, align 8
+  %__try_err_557 = load ptr, ptr %__try_err_55, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_527, ptr %vfield_ptr, align 8
+  store ptr %__try_err_557, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 
@@ -11016,11 +9505,11 @@ then:                                             ; preds = %match_merge
   %call13 = call i64 @mesh_list_head(ptr %rows12)
   %i64_to_ptr = inttoptr i64 %call13 to ptr
   %call14 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str15 = call ptr @mesh_string_new(ptr @.str.378, i64 4)
+  %str15 = call ptr @mesh_string_new(ptr @.str.277, i64 4)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   %i64_to_ptr18 = inttoptr i64 %call17 to ptr
-  %str19 = call ptr @mesh_string_new(ptr @.str.379, i64 1)
+  %str19 = call ptr @mesh_string_new(ptr @.str.278, i64 1)
   %str_eq = call i8 @mesh_string_eq(ptr %i64_to_ptr18, ptr %str19)
   %str_eq_bool = icmp ne i8 %str_eq, 0
   %vfield_ptr20 = getelementptr inbounds nuw { i8, ptr }, ptr %variant10, i32 0, i32 1
@@ -11050,7 +9539,7 @@ entry:
   %call = call ptr @mesh_node_self()
   store ptr %call, ptr %node_name, align 8
   %node_name1 = load ptr, ptr %node_name, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.380, i64 0)
+  %str = call ptr @mesh_string_new(ptr @.str.279, i64 0)
   %str_eq = call i8 @mesh_string_eq(ptr %node_name1, ptr %str)
   %str_eq_bool = icmp ne i8 %str_eq, 0
   %str_neq = xor i1 %str_eq_bool, true
@@ -11058,8 +9547,8 @@ entry:
   br i1 %str_neq, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str2 = call ptr @mesh_string_new(ptr @.str.381, i64 15)
-  %str3 = call ptr @mesh_string_new(ptr @.str.382, i64 15)
+  %str2 = call ptr @mesh_string_new(ptr @.str.280, i64 15)
+  %str3 = call ptr @mesh_string_new(ptr @.str.281, i64 15)
   %str_len = load i64, ptr %str3, align 8
   %str_data = getelementptr i8, ptr %str3, i64 8
   %node_call = call i64 @mesh_global_whereis(ptr %str_data, i64 %str_len)
@@ -11067,7 +9556,7 @@ then:                                             ; preds = %entry
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str4 = call ptr @mesh_string_new(ptr @.str.383, i64 15)
+  %str4 = call ptr @mesh_string_new(ptr @.str.282, i64 15)
   %call5 = call i64 @mesh_process_whereis(ptr %str4)
   %i64_to_ptr = inttoptr i64 %call5 to ptr
   store ptr %i64_to_ptr, ptr %if_result, align 8
@@ -11124,7 +9613,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   br label %if_merge
 
 switch_default:                                   ; preds = %else
-  call void @mesh_panic(ptr @.panic_msg.385, i64 30, ptr @.panic_file.386, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.284, i64 30, ptr @.panic_file.285, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %else
@@ -11136,7 +9625,7 @@ case_Ok:                                          ; preds = %else
   br label %match_merge
 
 case_Err:                                         ; preds = %else
-  %str = call ptr @mesh_string_new(ptr @.str.384, i64 0)
+  %str = call ptr @mesh_string_new(ptr @.str.283, i64 0)
   store ptr %str, ptr %match_result, align 8
   br label %match_merge
 }
@@ -11172,7 +9661,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.387, i64 30, ptr @.panic_file.388, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.286, i64 30, ptr @.panic_file.287, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -11218,7 +9707,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.390, i64 30, ptr @.panic_file.391, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.289, i64 30, ptr @.panic_file.290, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -11230,7 +9719,7 @@ case_Some:                                        ; preds = %entry
   br label %match_merge
 
 case_None:                                        ; preds = %entry
-  %str = call ptr @mesh_string_new(ptr @.str.389, i64 0)
+  %str = call ptr @mesh_string_new(ptr @.str.288, i64 0)
   store ptr %str, ptr %match_result, align 8
   br label %match_merge
 }
@@ -11239,12 +9728,12 @@ define ptr @to_json_array(ptr %0) {
 entry:
   %items = alloca ptr, align 8
   store ptr %0, ptr %items, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.392, i64 1)
+  %str = call ptr @mesh_string_new(ptr @.str.291, i64 1)
   %items1 = load ptr, ptr %items, align 8
-  %str2 = call ptr @mesh_string_new(ptr @.str.393, i64 1)
+  %str2 = call ptr @mesh_string_new(ptr @.str.292, i64 1)
   %call = call ptr @mesh_string_join(ptr %items1, ptr %str2)
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %call)
-  %str3 = call ptr @mesh_string_new(ptr @.str.394, i64 1)
+  %str3 = call ptr @mesh_string_new(ptr @.str.293, i64 1)
   %concat4 = call ptr @mesh_string_concat(ptr %concat, ptr %str3)
   ret ptr %concat4
 }
@@ -11256,7 +9745,7 @@ entry:
   store ptr %0, ptr %request, align 8
   %bearer = alloca { i8, ptr }, align 8
   %request1 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.395, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.294, i64 13)
   %call = call ptr @mesh_http_request_header(ptr %request1, ptr %str)
   %deref_sum = load { i8, ptr }, ptr %call, align 8
   store { i8, ptr } %deref_sum, ptr %bearer, align 8
@@ -11276,7 +9765,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret { i8, ptr } %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.396, i64 30, ptr @.panic_file.397, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.295, i64 30, ptr @.panic_file.296, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -11309,7 +9798,7 @@ entry:
   store ptr %0, ptr %request, align 8
   %auth = alloca { i8, ptr }, align 8
   %request1 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.398, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.297, i64 13)
   %call = call ptr @mesh_http_request_header(ptr %request1, ptr %str)
   %deref_sum = load { i8, ptr }, ptr %call, align 8
   store { i8, ptr } %deref_sum, ptr %auth, align 8
@@ -11329,7 +9818,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret { i8, ptr } %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.399, i64 30, ptr @.panic_file.400, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.298, i64 30, ptr @.panic_file.299, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -11382,7 +9871,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret { i8, ptr } %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.402, i64 30, ptr @.panic_file.403, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.301, i64 30, ptr @.panic_file.302, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -11400,7 +9889,7 @@ case_None:                                        ; preds = %entry
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr6 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr6, align 1
-  %str = call ptr @mesh_string_new(ptr @.str.401, i64 15)
+  %str = call ptr @mesh_string_new(ptr @.str.300, i64 15)
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
   store ptr %str, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
@@ -11417,18 +9906,18 @@ entry:
   %event_json = alloca ptr, align 8
   store ptr %2, ptr %event_json, align 8
   %issue_id1 = load ptr, ptr %issue_id, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.404, i64 3)
+  %str = call ptr @mesh_string_new(ptr @.str.303, i64 3)
   %concat = call ptr @mesh_string_concat(ptr %issue_id1, ptr %str)
   %fingerprint2 = load ptr, ptr %fingerprint, align 8
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %fingerprint2)
-  %str4 = call ptr @mesh_string_new(ptr @.str.405, i64 3)
+  %str4 = call ptr @mesh_string_new(ptr @.str.304, i64 3)
   %concat5 = call ptr @mesh_string_concat(ptr %concat3, ptr %str4)
   %event_json6 = load ptr, ptr %event_json, align 8
   %concat7 = call ptr @mesh_string_concat(ptr %concat5, ptr %event_json6)
   ret ptr %concat7
 }
 
-define { %ProcessorState, { i8, ptr } } @Services_EventProcessor__store_enriched_event(%ProcessorState %0, i64 %1, ptr %2, ptr %3, ptr %4) {
+define ptr @Services_EventProcessor__store_enriched_event(%ProcessorState %0, i64 %1, ptr %2, ptr %3, ptr %4) {
 entry:
   %state = alloca %ProcessorState, align 8
   store %ProcessorState %0, ptr %state, align 8
@@ -11494,11 +9983,10 @@ entry:
   store { i8, ptr } %variant_val, ptr %struct_heap19, align 8
   %struct_ptr_to_i6420 = ptrtoint ptr %struct_heap19 to i64
   store i64 %struct_ptr_to_i6420, ptr %elem_ptr18, align 8
-  %ret_coerce_load = load { %ProcessorState, { i8, ptr } }, ptr %tuple_ptr, align 8
-  ret { %ProcessorState, { i8, ptr } } %ret_coerce_load
+  ret ptr %tuple_ptr
 }
 
-define { %ProcessorState, { i8, ptr } } @Services_EventProcessor__do_upsert_and_store(%ProcessorState %0, ptr %1, i64 %2, ptr %3, ptr %4, ptr %5, ptr %6) {
+define ptr @Services_EventProcessor__do_upsert_and_store(%ProcessorState %0, ptr %1, i64 %2, ptr %3, ptr %4, ptr %5, ptr %6) {
 entry:
   %issue_id = alloca ptr, align 8
   %e = alloca ptr, align 8
@@ -11532,7 +10020,7 @@ entry:
   %upsert_result6 = load { i8, ptr }, ptr %upsert_result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
   store { i8, ptr } %upsert_result6, ptr %scrutinee, align 8
-  %match_result = alloca { %ProcessorState, { i8, ptr } }, align 8
+  %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
@@ -11541,11 +10029,11 @@ entry:
   ]
 
 match_merge:                                      ; preds = %case_Ok, %case_Err
-  %match_val = load { %ProcessorState, { i8, ptr } }, ptr %match_result, align 8
-  ret { %ProcessorState, { i8, ptr } } %match_val
+  %match_val = load ptr, ptr %match_result, align 8
+  ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.406, i64 30, ptr @.panic_file.407, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.305, i64 30, ptr @.panic_file.306, i64 9, i32 0)
   unreachable
 
 case_Err:                                         ; preds = %entry
@@ -11588,13 +10076,13 @@ case_Ok:                                          ; preds = %entry
   %event_json19 = load ptr, ptr %event_json, align 8
   %issue_id20 = load ptr, ptr %issue_id, align 8
   %fingerprint21 = load ptr, ptr %fingerprint, align 8
-  %call22 = call { %ProcessorState, { i8, ptr } } @Services_EventProcessor__store_enriched_event(%ProcessorState %state17, i64 %writer_pid18, ptr %event_json19, ptr %issue_id20, ptr %fingerprint21)
+  %call22 = call ptr @Services_EventProcessor__store_enriched_event(%ProcessorState %state17, i64 %writer_pid18, ptr %event_json19, ptr %issue_id20, ptr %fingerprint21)
   call void @mesh_reduction_check()
-  store { %ProcessorState, { i8, ptr } } %call22, ptr %match_result, align 8
+  store ptr %call22, ptr %match_result, align 8
   br label %match_merge
 }
 
-define { %ProcessorState, { i8, ptr } } @Services_EventProcessor__process_if_not_discarded(%ProcessorState %0, ptr %1, i64 %2, ptr %3, ptr %4, ptr %5, ptr %6, i1 %7) {
+define ptr @Services_EventProcessor__process_if_not_discarded(%ProcessorState %0, ptr %1, i64 %2, ptr %3, ptr %4, ptr %5, ptr %6, i1 %7) {
 entry:
   %state = alloca %ProcessorState, align 8
   store %ProcessorState %0, ptr %state, align 8
@@ -11613,7 +10101,7 @@ entry:
   %discarded = alloca i1, align 1
   store i1 %7, ptr %discarded, align 1
   %discarded1 = load i1, ptr %discarded, align 1
-  %if_result = alloca { %ProcessorState, { i8, ptr } }, align 8
+  %if_result = alloca ptr, align 8
   br i1 %discarded1, label %then, label %else
 
 then:                                             ; preds = %entry
@@ -11621,7 +10109,7 @@ then:                                             ; preds = %entry
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 0, ptr %tag_ptr, align 1
-  %str = call ptr @mesh_string_new(ptr @.str.408, i64 9)
+  %str = call ptr @mesh_string_new(ptr @.str.307, i64 9)
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
   store ptr %str, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
@@ -11652,17 +10140,17 @@ else:                                             ; preds = %entry
   %fingerprint12 = load ptr, ptr %fingerprint, align 8
   %title13 = load ptr, ptr %title, align 8
   %level14 = load ptr, ptr %level, align 8
-  %call = call { %ProcessorState, { i8, ptr } } @Services_EventProcessor__do_upsert_and_store(%ProcessorState %state8, ptr %project_id9, i64 %writer_pid10, ptr %event_json11, ptr %fingerprint12, ptr %title13, ptr %level14)
+  %call = call ptr @Services_EventProcessor__do_upsert_and_store(%ProcessorState %state8, ptr %project_id9, i64 %writer_pid10, ptr %event_json11, ptr %fingerprint12, ptr %title13, ptr %level14)
   call void @mesh_reduction_check()
-  store { %ProcessorState, { i8, ptr } } %call, ptr %if_result, align 8
+  store ptr %call, ptr %if_result, align 8
   br label %if_merge
 
 if_merge:                                         ; preds = %else, %then
-  %if_val = load { %ProcessorState, { i8, ptr } }, ptr %if_result, align 8
-  ret { %ProcessorState, { i8, ptr } } %if_val
+  %if_val = load ptr, ptr %if_result, align 8
+  ret ptr %if_val
 }
 
-define { %ProcessorState, { i8, ptr } } @Services_EventProcessor__process_with_fingerprint(%ProcessorState %0, ptr %1, i64 %2, ptr %3, ptr %4, ptr %5, ptr %6) {
+define ptr @Services_EventProcessor__process_with_fingerprint(%ProcessorState %0, ptr %1, i64 %2, ptr %3, ptr %4, ptr %5, ptr %6) {
 entry:
   %discarded = alloca i1, align 1
   %e = alloca ptr, align 8
@@ -11694,7 +10182,7 @@ entry:
   %discarded_result4 = load { i8, ptr }, ptr %discarded_result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
   store { i8, ptr } %discarded_result4, ptr %scrutinee, align 8
-  %match_result = alloca { %ProcessorState, { i8, ptr } }, align 8
+  %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
@@ -11703,11 +10191,11 @@ entry:
   ]
 
 match_merge:                                      ; preds = %case_Ok, %case_Err
-  %match_val = load { %ProcessorState, { i8, ptr } }, ptr %match_result, align 8
-  ret { %ProcessorState, { i8, ptr } } %match_val
+  %match_val = load ptr, ptr %match_result, align 8
+  ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.409, i64 30, ptr @.panic_file.410, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.308, i64 30, ptr @.panic_file.309, i64 9, i32 0)
   unreachable
 
 case_Err:                                         ; preds = %entry
@@ -11753,13 +10241,13 @@ case_Ok:                                          ; preds = %entry
   %title20 = load ptr, ptr %title, align 8
   %level21 = load ptr, ptr %level, align 8
   %discarded22 = load i1, ptr %discarded, align 1
-  %call23 = call { %ProcessorState, { i8, ptr } } @Services_EventProcessor__process_if_not_discarded(%ProcessorState %state15, ptr %project_id16, i64 %writer_pid17, ptr %event_json18, ptr %fingerprint19, ptr %title20, ptr %level21, i1 %discarded22)
+  %call23 = call ptr @Services_EventProcessor__process_if_not_discarded(%ProcessorState %state15, ptr %project_id16, i64 %writer_pid17, ptr %event_json18, ptr %fingerprint19, ptr %title20, ptr %level21, i1 %discarded22)
   call void @mesh_reduction_check()
-  store { %ProcessorState, { i8, ptr } } %call23, ptr %match_result, align 8
+  store ptr %call23, ptr %match_result, align 8
   br label %match_merge
 }
 
-define { %ProcessorState, { i8, ptr } } @Services_EventProcessor__process_extracted_fields(%ProcessorState %0, ptr %1, i64 %2, ptr %3, ptr %4) {
+define ptr @Services_EventProcessor__process_extracted_fields(%ProcessorState %0, ptr %1, i64 %2, ptr %3, ptr %4) {
 entry:
   %state = alloca %ProcessorState, align 8
   store %ProcessorState %0, ptr %state, align 8
@@ -11774,7 +10262,7 @@ entry:
   %fingerprint = alloca ptr, align 8
   %fields1 = load ptr, ptr %fields, align 8
   %call = call ptr @mesh_map_tag_string(ptr %fields1)
-  %str = call ptr @mesh_string_new(ptr @.str.411, i64 11)
+  %str = call ptr @mesh_string_new(ptr @.str.310, i64 11)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   %i64_to_ptr = inttoptr i64 %call2 to ptr
@@ -11782,7 +10270,7 @@ entry:
   %title = alloca ptr, align 8
   %fields3 = load ptr, ptr %fields, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %fields3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.412, i64 5)
+  %str5 = call ptr @mesh_string_new(ptr @.str.311, i64 5)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   %i64_to_ptr8 = inttoptr i64 %call7 to ptr
@@ -11790,7 +10278,7 @@ entry:
   %level = alloca ptr, align 8
   %fields9 = load ptr, ptr %fields, align 8
   %call10 = call ptr @mesh_map_tag_string(ptr %fields9)
-  %str11 = call ptr @mesh_string_new(ptr @.str.413, i64 5)
+  %str11 = call ptr @mesh_string_new(ptr @.str.312, i64 5)
   %ptr_to_i6412 = ptrtoint ptr %str11 to i64
   %call13 = call i64 @mesh_map_get(ptr %call10, i64 %ptr_to_i6412)
   %i64_to_ptr14 = inttoptr i64 %call13 to ptr
@@ -11802,12 +10290,12 @@ entry:
   %fingerprint19 = load ptr, ptr %fingerprint, align 8
   %title20 = load ptr, ptr %title, align 8
   %level21 = load ptr, ptr %level, align 8
-  %call22 = call { %ProcessorState, { i8, ptr } } @Services_EventProcessor__process_with_fingerprint(%ProcessorState %state15, ptr %project_id16, i64 %writer_pid17, ptr %event_json18, ptr %fingerprint19, ptr %title20, ptr %level21)
+  %call22 = call ptr @Services_EventProcessor__process_with_fingerprint(%ProcessorState %state15, ptr %project_id16, i64 %writer_pid17, ptr %event_json18, ptr %fingerprint19, ptr %title20, ptr %level21)
   call void @mesh_reduction_check()
-  ret { %ProcessorState, { i8, ptr } } %call22
+  ret ptr %call22
 }
 
-define { %ProcessorState, { i8, ptr } } @Services_EventProcessor__route_event(%ProcessorState %0, ptr %1, i64 %2, ptr %3) {
+define ptr @Services_EventProcessor__route_event(%ProcessorState %0, ptr %1, i64 %2, ptr %3) {
 entry:
   %fields = alloca ptr, align 8
   %e = alloca ptr, align 8
@@ -11832,7 +10320,7 @@ entry:
   %fields_result3 = load { i8, ptr }, ptr %fields_result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
   store { i8, ptr } %fields_result3, ptr %scrutinee, align 8
-  %match_result = alloca { %ProcessorState, { i8, ptr } }, align 8
+  %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
   switch i8 %tag, label %switch_default [
@@ -11841,11 +10329,11 @@ entry:
   ]
 
 match_merge:                                      ; preds = %case_Ok, %case_Err
-  %match_val = load { %ProcessorState, { i8, ptr } }, ptr %match_result, align 8
-  ret { %ProcessorState, { i8, ptr } } %match_val
+  %match_val = load ptr, ptr %match_result, align 8
+  ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.414, i64 30, ptr @.panic_file.415, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.313, i64 30, ptr @.panic_file.314, i64 9, i32 0)
   unreachable
 
 case_Err:                                         ; preds = %entry
@@ -11888,9 +10376,9 @@ case_Ok:                                          ; preds = %entry
   %writer_pid16 = load i64, ptr %writer_pid, align 8
   %event_json17 = load ptr, ptr %event_json, align 8
   %fields18 = load ptr, ptr %fields, align 8
-  %call19 = call { %ProcessorState, { i8, ptr } } @Services_EventProcessor__process_extracted_fields(%ProcessorState %state14, ptr %project_id15, i64 %writer_pid16, ptr %event_json17, ptr %fields18)
+  %call19 = call ptr @Services_EventProcessor__process_extracted_fields(%ProcessorState %state14, ptr %project_id15, i64 %writer_pid16, ptr %event_json17, ptr %fields18)
   call void @mesh_reduction_check()
-  store { %ProcessorState, { i8, ptr } } %call19, ptr %match_result, align 8
+  store ptr %call19, ptr %match_result, align 8
   br label %match_merge
 }
 
@@ -11922,14 +10410,12 @@ entry:
   %project_id2 = load ptr, ptr %project_id, align 8
   %writer_pid3 = load i64, ptr %writer_pid, align 8
   %event_json4 = load ptr, ptr %event_json, align 8
-  %call = call { %ProcessorState, { i8, ptr } } @Services_EventProcessor__route_event(%ProcessorState %state1, ptr %project_id2, i64 %writer_pid3, ptr %event_json4)
+  %call = call ptr @Services_EventProcessor__route_event(%ProcessorState %state1, ptr %project_id2, i64 %writer_pid3, ptr %event_json4)
   call void @mesh_reduction_check()
-  %ret_coerce_heap = call ptr @mesh_gc_alloc_actor(i64 ptrtoint (ptr getelementptr ({ %ProcessorState, { i8, ptr } }, ptr null, i32 1) to i64), i64 8)
-  store { %ProcessorState, { i8, ptr } } %call, ptr %ret_coerce_heap, align 8
-  ret ptr %ret_coerce_heap
+  ret ptr %call
 }
 
-define i64 @__service_eventprocessor_call_process_event(i64 %0, ptr %1, i64 %2, ptr %3) {
+define { i8, ptr } @__service_eventprocessor_call_process_event(i64 %0, ptr %1, i64 %2, ptr %3) {
 entry:
   %__pid = alloca i64, align 8
   store i64 %0, ptr %__pid, align 8
@@ -11958,8 +10444,10 @@ entry:
   store i64 %ptr_to_i649, ptr %payload_elem11, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid5, i64 0, ptr %call_payload, i64 24)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  %reply_ptr = inttoptr i64 %reply_i64 to ptr
+  %reply_sum = load { i8, ptr }, ptr %reply_ptr, align 8
+  ret { i8, ptr } %reply_sum
 }
 
 define i64 @__service_eventprocessor_start(i64 %0) {
@@ -12545,11 +11033,11 @@ entry:
   %deleted = alloca i64, align 8
   store i64 %0, ptr %deleted, align 8
   %_ = alloca {}, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.416, i64 36)
+  %str = call ptr @mesh_string_new(ptr @.str.315, i64 36)
   %deleted1 = load i64, ptr %deleted, align 8
   %call = call ptr @mesh_int_to_string(i64 %deleted1)
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %call)
-  %str2 = call ptr @mesh_string_new(ptr @.str.417, i64 15)
+  %str2 = call ptr @mesh_string_new(ptr @.str.316, i64 15)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   call void @mesh_println(ptr %concat3)
   store {} zeroinitializer, ptr %_, align 1
@@ -12561,7 +11049,7 @@ entry:
   %e = alloca ptr, align 8
   store ptr %0, ptr %e, align 8
   %_ = alloca {}, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.418, i64 34)
+  %str = call ptr @mesh_string_new(ptr @.str.317, i64 34)
   %e1 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %e1)
   call void @mesh_println(ptr %concat)
@@ -12574,7 +11062,7 @@ entry:
   %name = alloca ptr, align 8
   store ptr %0, ptr %name, align 8
   %_ = alloca {}, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.419, i64 36)
+  %str = call ptr @mesh_string_new(ptr @.str.318, i64 36)
   %name1 = load ptr, ptr %name, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %name1)
   call void @mesh_println(ptr %concat)
@@ -12619,13 +11107,13 @@ then:                                             ; preds = %tce_loop
   store ptr %i64_to_ptr, ptr %row, align 8
   %row5 = load ptr, ptr %row, align 8
   %call6 = call ptr @mesh_map_tag_string(ptr %row5)
-  %str = call ptr @mesh_string_new(ptr @.str.420, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.319, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call7 = call i64 @mesh_map_get(ptr %call6, i64 %ptr_to_i64)
   store i64 %call7, ptr %id, align 8
   %row8 = load ptr, ptr %row, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %row8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.421, i64 14)
+  %str10 = call ptr @mesh_string_new(ptr @.str.320, i64 14)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %retention_days_str, align 8
@@ -12679,7 +11167,7 @@ match_merge:                                      ; preds = %case_Ok
   br label %tce_loop
 
 switch_default:                                   ; preds = %then
-  call void @mesh_panic(ptr @.panic_msg.422, i64 30, ptr @.panic_file.423, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.321, i64 30, ptr @.panic_file.322, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %then
@@ -12739,7 +11227,7 @@ then:                                             ; preds = %tce_loop
   store ptr %i64_to_ptr, ptr %row, align 8
   %row5 = load ptr, ptr %row, align 8
   %call6 = call ptr @mesh_map_tag_string(ptr %row5)
-  %str = call ptr @mesh_string_new(ptr @.str.424, i64 14)
+  %str = call ptr @mesh_string_new(ptr @.str.323, i64 14)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call7 = call i64 @mesh_map_get(ptr %call6, i64 %ptr_to_i64)
   store i64 %call7, ptr %partition_name, align 8
@@ -12792,7 +11280,7 @@ match_merge:                                      ; preds = %case_Ok
   br label %tce_loop
 
 switch_default:                                   ; preds = %then
-  call void @mesh_panic(ptr @.panic_msg.425, i64 30, ptr @.panic_file.426, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.324, i64 30, ptr @.panic_file.325, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %then
@@ -12864,7 +11352,7 @@ match_merge:                                      ; preds = %case_Ok
   ]
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.427, i64 30, ptr @.panic_file.428, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.326, i64 30, ptr @.panic_file.327, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -12893,7 +11381,7 @@ match_merge14:                                    ; preds = %case_Ok18
   store i64 %match_val30, ptr %deleted, align 8
   %partitions = alloca ptr, align 8
   %pool31 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.431, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.330, i64 2)
   %call32 = call { i8, ptr } @get_expired_partitions(i64 %pool31, ptr %str)
   call void @mesh_reduction_check()
   %scrutinee33 = alloca { i8, ptr }, align 8
@@ -12907,7 +11395,7 @@ match_merge14:                                    ; preds = %case_Ok18
   ]
 
 switch_default17:                                 ; preds = %match_merge
-  call void @mesh_panic(ptr @.panic_msg.429, i64 30, ptr @.panic_file.430, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.328, i64 30, ptr @.panic_file.329, i64 9, i32 0)
   unreachable
 
 case_Ok18:                                        ; preds = %match_merge
@@ -12952,7 +11440,7 @@ match_merge35:                                    ; preds = %case_Ok39
   ]
 
 switch_default38:                                 ; preds = %match_merge14
-  call void @mesh_panic(ptr @.panic_msg.432, i64 30, ptr @.panic_file.433, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.331, i64 30, ptr @.panic_file.332, i64 9, i32 0)
   unreachable
 
 case_Ok39:                                        ; preds = %match_merge14
@@ -12989,7 +11477,7 @@ match_merge59:                                    ; preds = %case_Ok63
   ret { i8, ptr } %variant_val80
 
 switch_default62:                                 ; preds = %match_merge35
-  call void @mesh_panic(ptr @.panic_msg.434, i64 30, ptr @.panic_file.435, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.333, i64 30, ptr @.panic_file.334, i64 9, i32 0)
   unreachable
 
 case_Ok63:                                        ; preds = %match_merge35
@@ -13048,7 +11536,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   br label %tce_loop
 
 switch_default:                                   ; preds = %tce_loop
-  call void @mesh_panic(ptr @.panic_msg.436, i64 30, ptr @.panic_file.437, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.335, i64 30, ptr @.panic_file.336, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %tce_loop
@@ -13115,7 +11603,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret { i8, ptr } %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.439, i64 30, ptr @.panic_file.440, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.338, i64 30, ptr @.panic_file.339, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -13138,7 +11626,7 @@ case_Err:                                         ; preds = %entry
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr8 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr8, align 1
-  %str = call ptr @mesh_string_new(ptr @.str.438, i64 21)
+  %str = call ptr @mesh_string_new(ptr @.str.337, i64 21)
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
   store ptr %str, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
@@ -13814,8 +12302,8 @@ entry:
   %__pid2 = load i64, ptr %__pid, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid2, i64 0, ptr null, i64 0)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  ret i64 %reply_i64
 }
 
 define i64 @__service_pipelineregistry_call_get_rate_limiter(i64 %0) {
@@ -13826,8 +12314,8 @@ entry:
   %__pid2 = load i64, ptr %__pid, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid2, i64 1, ptr null, i64 0)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  ret i64 %reply_i64
 }
 
 define i64 @__service_pipelineregistry_call_get_processor(i64 %0) {
@@ -13838,8 +12326,8 @@ entry:
   %__pid2 = load i64, ptr %__pid, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid2, i64 2, ptr null, i64 0)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  ret i64 %reply_i64
 }
 
 define i64 @__service_pipelineregistry_call_get_writer(i64 %0) {
@@ -13850,8 +12338,8 @@ entry:
   %__pid2 = load i64, ptr %__pid, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid2, i64 3, ptr null, i64 0)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  ret i64 %reply_i64
 }
 
 define i64 @__service_pipelineregistry_call_get_event_count(i64 %0) {
@@ -13862,8 +12350,8 @@ entry:
   %__pid2 = load i64, ptr %__pid, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid2, i64 4, ptr null, i64 0)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  ret i64 %reply_i64
 }
 
 define i64 @__service_pipelineregistry_call_increment_event_count(i64 %0) {
@@ -13874,8 +12362,8 @@ entry:
   %__pid2 = load i64, ptr %__pid, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid2, i64 5, ptr null, i64 0)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  ret i64 %reply_i64
 }
 
 define i64 @__service_pipelineregistry_call_reset_event_count(i64 %0) {
@@ -13886,8 +12374,8 @@ entry:
   %__pid2 = load i64, ptr %__pid, align 8
   %call_result = call ptr @mesh_service_call(i64 %__pid2, i64 6, ptr null, i64 0)
   %reply_data = getelementptr i8, ptr %call_result, i64 16
-  %reply_val = load i64, ptr %reply_data, align 8
-  ret i64 %reply_val
+  %reply_i64 = load i64, ptr %reply_data, align 8
+  ret i64 %reply_i64
 }
 
 define i64 @__service_pipelineregistry_start(i64 %0, i64 %1, i64 %2, i64 %3) {
@@ -14082,7 +12570,7 @@ entry:
 
 tce_loop:                                         ; preds = %tce_loop, %entry
   call void @mesh_timer_sleep(i64 10000)
-  %str = call ptr @mesh_string_new(ptr @.str.441, i64 15)
+  %str = call ptr @mesh_string_new(ptr @.str.340, i64 15)
   %call = call i64 @mesh_process_whereis(ptr %str)
   %i64_to_ptr = inttoptr i64 %call to ptr
   store ptr %i64_to_ptr, ptr %reg_pid, align 8
@@ -14090,7 +12578,7 @@ tce_loop:                                         ; preds = %tce_loop, %entry
   %call2 = call i64 @__service_pipelineregistry_call_get_pool(i64 %reg_pid1)
   call void @mesh_reduction_check()
   store i64 %call2, ptr %_, align 8
-  %str3 = call ptr @mesh_string_new(ptr @.str.442, i64 46)
+  %str3 = call ptr @mesh_string_new(ptr @.str.341, i64 46)
   call void @mesh_println(ptr %str3)
   %pool4 = load i64, ptr %pool, align 8
   store i64 %pool4, ptr %pool, align 8
@@ -14120,11 +12608,11 @@ entry:
 
 then:                                             ; preds = %entry
   %_ = alloca {}, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.443, i64 34)
+  %str = call ptr @mesh_string_new(ptr @.str.342, i64 34)
   %n2 = load i64, ptr %n, align 8
   %call = call ptr @mesh_int_to_string(i64 %n2)
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %call)
-  %str3 = call ptr @mesh_string_new(ptr @.str.444, i64 16)
+  %str3 = call ptr @mesh_string_new(ptr @.str.343, i64 16)
   %concat4 = call ptr @mesh_string_concat(ptr %concat, ptr %str3)
   call void @mesh_println(ptr %concat4)
   store {} zeroinitializer, ptr %_, align 1
@@ -14145,7 +12633,7 @@ entry:
   %e = alloca ptr, align 8
   store ptr %0, ptr %e, align 8
   %_ = alloca {}, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.445, i64 30)
+  %str = call ptr @mesh_string_new(ptr @.str.344, i64 30)
   %e1 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %e1)
   call void @mesh_println(ptr %concat)
@@ -14187,7 +12675,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   br label %tce_loop
 
 switch_default:                                   ; preds = %tce_loop
-  call void @mesh_panic(ptr @.panic_msg.446, i64 30, ptr @.panic_file.447, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.345, i64 30, ptr @.panic_file.346, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %tce_loop
@@ -14235,27 +12723,27 @@ entry:
   %message = alloca ptr, align 8
   store ptr %4, ptr %message, align 8
   %room = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.448, i64 8)
+  %str = call ptr @mesh_string_new(ptr @.str.347, i64 8)
   %project_id1 = load ptr, ptr %project_id, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %project_id1)
   store ptr %concat, ptr %room, align 8
   %msg = alloca ptr, align 8
-  %str2 = call ptr @mesh_string_new(ptr @.str.449, i64 35)
+  %str2 = call ptr @mesh_string_new(ptr @.str.348, i64 28)
   %alert_id3 = load ptr, ptr %alert_id, align 8
   %concat4 = call ptr @mesh_string_concat(ptr %str2, ptr %alert_id3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.450, i64 19)
+  %str5 = call ptr @mesh_string_new(ptr @.str.349, i64 15)
   %concat6 = call ptr @mesh_string_concat(ptr %concat4, ptr %str5)
   %rule_name7 = load ptr, ptr %rule_name, align 8
   %concat8 = call ptr @mesh_string_concat(ptr %concat6, ptr %rule_name7)
-  %str9 = call ptr @mesh_string_new(ptr @.str.451, i64 19)
+  %str9 = call ptr @mesh_string_new(ptr @.str.350, i64 15)
   %concat10 = call ptr @mesh_string_concat(ptr %concat8, ptr %str9)
   %condition_type11 = load ptr, ptr %condition_type, align 8
   %concat12 = call ptr @mesh_string_concat(ptr %concat10, ptr %condition_type11)
-  %str13 = call ptr @mesh_string_new(ptr @.str.452, i64 17)
+  %str13 = call ptr @mesh_string_new(ptr @.str.351, i64 13)
   %concat14 = call ptr @mesh_string_concat(ptr %concat12, ptr %str13)
   %message15 = load ptr, ptr %message, align 8
   %concat16 = call ptr @mesh_string_concat(ptr %concat14, ptr %message15)
-  %str17 = call ptr @mesh_string_new(ptr @.str.453, i64 3)
+  %str17 = call ptr @mesh_string_new(ptr @.str.352, i64 2)
   %concat18 = call ptr @mesh_string_concat(ptr %concat16, ptr %str17)
   store ptr %concat18, ptr %msg, align 8
   %_ = alloca i64, align 8
@@ -14307,7 +12795,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.454, i64 30, ptr @.panic_file.455, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.353, i64 30, ptr @.panic_file.354, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -14331,102 +12819,22 @@ case_Err:                                         ; preds = %entry
 
 define { i8, ptr } @Ingestion_Pipeline__extract_condition_field(i64 %0, ptr %1, ptr %2) {
 entry:
-  %__try_err_1 = alloca ptr, align 8
-  %__try_val_1 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %condition_json = alloca ptr, align 8
   store ptr %1, ptr %condition_json, align 8
   %field = alloca ptr, align 8
   store ptr %2, ptr %field, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.456, i64 42)
-  %list_arr = alloca [2 x i64], align 8
-  %condition_json2 = load ptr, ptr %condition_json, align 8
-  %ptr_to_i64 = ptrtoint ptr %condition_json2 to i64
-  %elem_ptr = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %field3 = load ptr, ptr %field, align 8
-  %ptr_to_i644 = ptrtoint ptr %field3 to i64
-  %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
-  store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Ok
-  %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows11 = load ptr, ptr %rows, align 8
-  %call12 = call i64 @mesh_list_length(ptr %rows11)
-  %gt = icmp sgt i64 %call12, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.457, i64 30, ptr @.panic_file.458, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_1, align 8
-  %__try_val_16 = load ptr, ptr %__try_val_1, align 8
-  store ptr %__try_val_16, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field7 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val8 = load ptr, ptr %variant_field7, align 8
-  store ptr %path_val8, ptr %__try_err_1, align 8
   %variant = alloca { i8, ptr }, align 8
-  %tag_ptr9 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr9, align 1
-  %__try_err_110 = load ptr, ptr %__try_err_1, align 8
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 0, ptr %tag_ptr, align 1
+  %condition_json1 = load ptr, ptr %condition_json, align 8
+  %field2 = load ptr, ptr %field, align 8
+  %call = call ptr @mesh_json_get(ptr %condition_json1, ptr %field2)
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_110, ptr %vfield_ptr, align 8
+  store ptr %call, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %variant13 = alloca { i8, ptr }, align 8
-  %tag_ptr14 = getelementptr inbounds nuw { i8, ptr }, ptr %variant13, i32 0, i32 0
-  store i8 0, ptr %tag_ptr14, align 1
-  %rows15 = load ptr, ptr %rows, align 8
-  %call16 = call i64 @mesh_list_head(ptr %rows15)
-  %i64_to_ptr = inttoptr i64 %call16 to ptr
-  %call17 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str18 = call ptr @mesh_string_new(ptr @.str.459, i64 3)
-  %ptr_to_i6419 = ptrtoint ptr %str18 to i64
-  %call20 = call i64 @mesh_map_get(ptr %call17, i64 %ptr_to_i6419)
-  %i64_to_ptr21 = inttoptr i64 %call20 to ptr
-  %vfield_ptr22 = getelementptr inbounds nuw { i8, ptr }, ptr %variant13, i32 0, i32 1
-  store ptr %i64_to_ptr21, ptr %vfield_ptr22, align 8
-  %variant_val23 = load { i8, ptr }, ptr %variant13, align 8
-  store { i8, ptr } %variant_val23, ptr %if_result, align 8
-  br label %if_merge
-
-else:                                             ; preds = %match_merge
-  %variant24 = alloca { i8, ptr }, align 8
-  %tag_ptr25 = getelementptr inbounds nuw { i8, ptr }, ptr %variant24, i32 0, i32 0
-  store i8 0, ptr %tag_ptr25, align 1
-  %str26 = call ptr @mesh_string_new(ptr @.str.460, i64 0)
-  %vfield_ptr27 = getelementptr inbounds nuw { i8, ptr }, ptr %variant24, i32 0, i32 1
-  store ptr %str26, ptr %vfield_ptr27, align 8
-  %variant_val28 = load { i8, ptr }, ptr %variant24, align 8
-  store { i8, ptr } %variant_val28, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
 }
 
 define i64 @Ingestion_Pipeline__fire_threshold_if_needed(i64 %0, ptr %1, ptr %2, ptr %3, i1 %4, ptr %5, ptr %6) {
@@ -14451,21 +12859,21 @@ entry:
 
 then:                                             ; preds = %entry
   %message = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.461, i64 21)
+  %str = call ptr @mesh_string_new(ptr @.str.355, i64 21)
   %threshold_str2 = load ptr, ptr %threshold_str, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %threshold_str2)
-  %str3 = call ptr @mesh_string_new(ptr @.str.462, i64 4)
+  %str3 = call ptr @mesh_string_new(ptr @.str.356, i64 4)
   %concat4 = call ptr @mesh_string_concat(ptr %concat, ptr %str3)
   %window_str5 = load ptr, ptr %window_str, align 8
   %concat6 = call ptr @mesh_string_concat(ptr %concat4, ptr %window_str5)
-  %str7 = call ptr @mesh_string_new(ptr @.str.463, i64 8)
+  %str7 = call ptr @mesh_string_new(ptr @.str.357, i64 8)
   %concat8 = call ptr @mesh_string_concat(ptr %concat6, ptr %str7)
   store ptr %concat8, ptr %message, align 8
   %pool9 = load i64, ptr %pool, align 8
   %rule_id10 = load ptr, ptr %rule_id, align 8
   %project_id11 = load ptr, ptr %project_id, align 8
   %rule_name12 = load ptr, ptr %rule_name, align 8
-  %str13 = call ptr @mesh_string_new(ptr @.str.464, i64 9)
+  %str13 = call ptr @mesh_string_new(ptr @.str.358, i64 9)
   %message14 = load ptr, ptr %message, align 8
   %call = call i64 @Ingestion_Pipeline__fire_and_broadcast(i64 %pool9, ptr %rule_id10, ptr %project_id11, ptr %rule_name12, ptr %str13, ptr %message14)
   call void @mesh_reduction_check()
@@ -14524,7 +12932,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.465, i64 30, ptr @.panic_file.466, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.359, i64 30, ptr @.panic_file.360, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -14568,7 +12976,7 @@ entry:
   %window_result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
   %condition_json2 = load ptr, ptr %condition_json, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.467, i64 14)
+  %str = call ptr @mesh_string_new(ptr @.str.361, i64 14)
   %call = call { i8, ptr } @Ingestion_Pipeline__extract_condition_field(i64 %pool1, ptr %condition_json2, ptr %str)
   call void @mesh_reduction_check()
   store { i8, ptr } %call, ptr %window_result, align 8
@@ -14588,7 +12996,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.468, i64 30, ptr @.panic_file.469, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.362, i64 30, ptr @.panic_file.363, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -14630,7 +13038,7 @@ entry:
   %threshold_result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
   %condition_json2 = load ptr, ptr %condition_json, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.470, i64 9)
+  %str = call ptr @mesh_string_new(ptr @.str.364, i64 9)
   %call = call { i8, ptr } @Ingestion_Pipeline__extract_condition_field(i64 %pool1, ptr %condition_json2, ptr %str)
   call void @mesh_reduction_check()
   store { i8, ptr } %call, ptr %threshold_result, align 8
@@ -14650,7 +13058,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.471, i64 30, ptr @.panic_file.472, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.365, i64 30, ptr @.panic_file.366, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -14710,31 +13118,31 @@ then:                                             ; preds = %tce_loop
   store ptr %i64_to_ptr, ptr %rule, align 8
   %rule5 = load ptr, ptr %rule, align 8
   %call6 = call ptr @mesh_map_tag_string(ptr %rule5)
-  %str = call ptr @mesh_string_new(ptr @.str.473, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.367, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call7 = call i64 @mesh_map_get(ptr %call6, i64 %ptr_to_i64)
   store i64 %call7, ptr %rule_id, align 8
   %rule8 = load ptr, ptr %rule, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %rule8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.474, i64 10)
+  %str10 = call ptr @mesh_string_new(ptr @.str.368, i64 10)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %project_id, align 8
   %rule13 = load ptr, ptr %rule, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %rule13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.475, i64 4)
+  %str15 = call ptr @mesh_string_new(ptr @.str.369, i64 4)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %rule_name, align 8
   %rule18 = load ptr, ptr %rule, align 8
   %call19 = call ptr @mesh_map_tag_string(ptr %rule18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.476, i64 14)
+  %str20 = call ptr @mesh_string_new(ptr @.str.370, i64 14)
   %ptr_to_i6421 = ptrtoint ptr %str20 to i64
   %call22 = call i64 @mesh_map_get(ptr %call19, i64 %ptr_to_i6421)
   store i64 %call22, ptr %condition_json, align 8
   %rule23 = load ptr, ptr %rule, align 8
   %call24 = call ptr @mesh_map_tag_string(ptr %rule23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.477, i64 16)
+  %str25 = call ptr @mesh_string_new(ptr @.str.371, i64 16)
   %ptr_to_i6426 = ptrtoint ptr %str25 to i64
   %call27 = call i64 @mesh_map_get(ptr %call24, i64 %ptr_to_i6426)
   store i64 %call27, ptr %cooldown_str, align 8
@@ -14784,8 +13192,8 @@ if_merge:                                         ; preds = %else
 
 define { i8, ptr } @Ingestion_Pipeline__evaluate_all_threshold_rules(i64 %0) {
 entry:
-  %__try_err_2 = alloca ptr, align 8
-  %__try_val_2 = alloca ptr, align 8
+  %__try_err_1 = alloca ptr, align 8
+  %__try_val_1 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %rules = alloca ptr, align 8
@@ -14814,27 +13222,27 @@ match_merge:                                      ; preds = %case_Ok
   ret { i8, ptr } %call11
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.478, i64 30, ptr @.panic_file.479, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.372, i64 30, ptr @.panic_file.373, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_2, align 8
-  %__try_val_22 = load ptr, ptr %__try_val_2, align 8
-  store ptr %__try_val_22, ptr %match_result, align 8
+  store ptr %path_val, ptr %__try_val_1, align 8
+  %__try_val_12 = load ptr, ptr %__try_val_1, align 8
+  store ptr %__try_val_12, ptr %match_result, align 8
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
   %variant_field3 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val4 = load ptr, ptr %variant_field3, align 8
-  store ptr %path_val4, ptr %__try_err_2, align 8
+  store ptr %path_val4, ptr %__try_err_1, align 8
   %variant = alloca { i8, ptr }, align 8
   %tag_ptr5 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
   store i8 1, ptr %tag_ptr5, align 1
-  %__try_err_26 = load ptr, ptr %__try_err_2, align 8
+  %__try_err_16 = load ptr, ptr %__try_err_1, align 8
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_26, ptr %vfield_ptr, align 8
+  store ptr %__try_err_16, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
 }
@@ -14844,11 +13252,11 @@ entry:
   %n = alloca i64, align 8
   store i64 %0, ptr %n, align 8
   %_ = alloca {}, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.480, i64 41)
+  %str = call ptr @mesh_string_new(ptr @.str.374, i64 41)
   %n1 = load i64, ptr %n, align 8
   %call = call ptr @mesh_int_to_string(i64 %n1)
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %call)
-  %str2 = call ptr @mesh_string_new(ptr @.str.481, i64 6)
+  %str2 = call ptr @mesh_string_new(ptr @.str.375, i64 6)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   call void @mesh_println(ptr %concat3)
   store {} zeroinitializer, ptr %_, align 1
@@ -14860,7 +13268,7 @@ entry:
   %e = alloca ptr, align 8
   store ptr %0, ptr %e, align 8
   %_ = alloca {}, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.482, i64 32)
+  %str = call ptr @mesh_string_new(ptr @.str.376, i64 32)
   %e1 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %e1)
   call void @mesh_println(ptr %concat)
@@ -14902,7 +13310,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   br label %tce_loop
 
 switch_default:                                   ; preds = %tce_loop
-  call void @mesh_panic(ptr @.panic_msg.483, i64 30, ptr @.panic_file.484, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.377, i64 30, ptr @.panic_file.378, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %tce_loop
@@ -14943,16 +13351,16 @@ entry:
   store i64 %0, ptr %event_count, align 8
   %node_count = alloca i64, align 8
   store i64 %1, ptr %node_count, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.485, i64 23)
+  %str = call ptr @mesh_string_new(ptr @.str.379, i64 23)
   %event_count1 = load i64, ptr %event_count, align 8
   %call = call ptr @mesh_int_to_string(i64 %event_count1)
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %call)
-  %str2 = call ptr @mesh_string_new(ptr @.str.486, i64 12)
+  %str2 = call ptr @mesh_string_new(ptr @.str.380, i64 12)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   %node_count4 = load i64, ptr %node_count, align 8
   %call5 = call ptr @mesh_int_to_string(i64 %node_count4)
   %concat6 = call ptr @mesh_string_concat(ptr %concat3, ptr %call5)
-  %str7 = call ptr @mesh_string_new(ptr @.str.487, i64 6)
+  %str7 = call ptr @mesh_string_new(ptr @.str.381, i64 6)
   %concat8 = call ptr @mesh_string_concat(ptr %concat6, ptr %str7)
   call void @mesh_println(ptr %concat8)
   ret {} zeroinitializer
@@ -14961,7 +13369,7 @@ entry:
 define i64 @Ingestion_Pipeline__event_processor_worker() {
 entry:
   %reg_pid = alloca i64, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.488, i64 15)
+  %str = call ptr @mesh_string_new(ptr @.str.382, i64 15)
   %call = call i64 @mesh_process_whereis(ptr %str)
   %i64_to_ptr = inttoptr i64 %call to ptr
   store ptr %i64_to_ptr, ptr %reg_pid, align 8
@@ -14975,7 +13383,7 @@ entry:
   %call4 = call i64 @__service_eventprocessor_start(i64 %pool3)
   call void @mesh_reduction_check()
   store i64 %call4, ptr %_, align 8
-  %str5 = call ptr @mesh_string_new(ptr @.str.489, i64 46)
+  %str5 = call ptr @mesh_string_new(ptr @.str.383, i64 46)
   call void @mesh_println(ptr %str5)
   ret i64 0
 }
@@ -14990,7 +13398,7 @@ entry:
   %i64_to_ptr = inttoptr i64 %call to ptr
   store ptr %i64_to_ptr, ptr %target, align 8
   %_ = alloca {}, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.490, i64 51)
+  %str = call ptr @mesh_string_new(ptr @.str.384, i64 51)
   %target2 = load ptr, ptr %target, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %target2)
   call void @mesh_println(ptr %concat)
@@ -15003,7 +13411,7 @@ entry:
   %remote_pid = call i64 @mesh_node_spawn(ptr %str_data, i64 %str_len, ptr @spawn_fn_name, i64 42, ptr null, i64 0, i8 0)
   store i64 %remote_pid, ptr %_3, align 8
   %_6 = alloca {}, align 8
-  %str7 = call ptr @mesh_string_new(ptr @.str.491, i64 50)
+  %str7 = call ptr @mesh_string_new(ptr @.str.385, i64 50)
   %target8 = load ptr, ptr %target, align 8
   %concat9 = call ptr @mesh_string_concat(ptr %str7, ptr %target8)
   call void @mesh_println(ptr %concat9)
@@ -15029,7 +13437,7 @@ entry:
 
 then:                                             ; preds = %entry
   %_ = alloca {}, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.492, i64 26)
+  %str = call ptr @mesh_string_new(ptr @.str.386, i64 26)
   %node_name4 = load ptr, ptr %node_name, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %node_name4)
   call void @mesh_println(ptr %concat)
@@ -15039,7 +13447,7 @@ then:                                             ; preds = %entry
 
 else:                                             ; preds = %entry
   %_5 = alloca {}, align 8
-  %str6 = call ptr @mesh_string_new(ptr @.str.493, i64 33)
+  %str6 = call ptr @mesh_string_new(ptr @.str.387, i64 33)
   %node_name7 = load ptr, ptr %node_name, align 8
   %concat8 = call ptr @mesh_string_concat(ptr %str6, ptr %node_name7)
   call void @mesh_println(ptr %concat8)
@@ -15125,7 +13533,7 @@ entry:
 
 tce_loop:                                         ; preds = %if_merge53, %entry
   call void @mesh_timer_sleep(i64 5000)
-  %str = call ptr @mesh_string_new(ptr @.str.494, i64 15)
+  %str = call ptr @mesh_string_new(ptr @.str.388, i64 15)
   %call = call i64 @mesh_process_whereis(ptr %str)
   %i64_to_ptr = inttoptr i64 %call to ptr
   store ptr %i64_to_ptr, ptr %reg_pid, align 8
@@ -15153,16 +13561,16 @@ tce_loop:                                         ; preds = %if_merge53, %entry
   br i1 %gt, label %then, label %else
 
 then:                                             ; preds = %tce_loop
-  %str15 = call ptr @mesh_string_new(ptr @.str.495, i64 29)
+  %str15 = call ptr @mesh_string_new(ptr @.str.389, i64 29)
   %prev_peers16 = load i64, ptr %prev_peers, align 8
   %call17 = call ptr @mesh_int_to_string(i64 %prev_peers16)
   %concat = call ptr @mesh_string_concat(ptr %str15, ptr %call17)
-  %str18 = call ptr @mesh_string_new(ptr @.str.496, i64 4)
+  %str18 = call ptr @mesh_string_new(ptr @.str.390, i64 4)
   %concat19 = call ptr @mesh_string_concat(ptr %concat, ptr %str18)
   %node_count20 = load i64, ptr %node_count, align 8
   %call21 = call ptr @mesh_int_to_string(i64 %node_count20)
   %concat22 = call ptr @mesh_string_concat(ptr %concat19, ptr %call21)
-  %str23 = call ptr @mesh_string_new(ptr @.str.497, i64 22)
+  %str23 = call ptr @mesh_string_new(ptr @.str.391, i64 22)
   %concat24 = call ptr @mesh_string_concat(ptr %concat22, ptr %str23)
   call void @mesh_println(ptr %concat24)
   store {} zeroinitializer, ptr %_14, align 1
@@ -15187,16 +13595,16 @@ if_merge:                                         ; preds = %if_merge34, %then
   br i1 %gt49, label %then51, label %else52
 
 then32:                                           ; preds = %else
-  %str36 = call ptr @mesh_string_new(ptr @.str.498, i64 20)
+  %str36 = call ptr @mesh_string_new(ptr @.str.392, i64 20)
   %prev_peers37 = load i64, ptr %prev_peers, align 8
   %call38 = call ptr @mesh_int_to_string(i64 %prev_peers37)
   %concat39 = call ptr @mesh_string_concat(ptr %str36, ptr %call38)
-  %str40 = call ptr @mesh_string_new(ptr @.str.499, i64 4)
+  %str40 = call ptr @mesh_string_new(ptr @.str.393, i64 4)
   %concat41 = call ptr @mesh_string_concat(ptr %concat39, ptr %str40)
   %node_count42 = load i64, ptr %node_count, align 8
   %call43 = call ptr @mesh_int_to_string(i64 %node_count42)
   %concat44 = call ptr @mesh_string_concat(ptr %concat41, ptr %call43)
-  %str45 = call ptr @mesh_string_new(ptr @.str.500, i64 22)
+  %str45 = call ptr @mesh_string_new(ptr @.str.394, i64 22)
   %concat46 = call ptr @mesh_string_concat(ptr %concat44, ptr %str45)
   call void @mesh_println(ptr %concat46)
   store {} zeroinitializer, ptr %_35, align 1
@@ -15273,7 +13681,7 @@ entry:
   %call = call ptr @mesh_node_self()
   store ptr %call, ptr %node_name, align 8
   %node_name1 = load ptr, ptr %node_name, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.501, i64 0)
+  %str = call ptr @mesh_string_new(ptr @.str.395, i64 0)
   %str_eq = call i8 @mesh_string_eq(ptr %node_name1, ptr %str)
   %str_eq_bool = icmp ne i8 %str_eq, 0
   %str_neq = xor i1 %str_eq_bool, true
@@ -15282,11 +13690,11 @@ entry:
 
 then:                                             ; preds = %entry
   %_ = alloca i64, align 8
-  %str2 = call ptr @mesh_string_new(ptr @.str.502, i64 16)
+  %str2 = call ptr @mesh_string_new(ptr @.str.396, i64 16)
   %node_name3 = load ptr, ptr %node_name, align 8
   %concat = call ptr @mesh_string_concat(ptr %str2, ptr %node_name3)
   %registry_pid4 = load i64, ptr %registry_pid, align 8
-  %str5 = call ptr @mesh_string_new(ptr @.str.503, i64 16)
+  %str5 = call ptr @mesh_string_new(ptr @.str.397, i64 16)
   %node_name6 = load ptr, ptr %node_name, align 8
   %concat7 = call ptr @mesh_string_concat(ptr %str5, ptr %node_name6)
   %str_len = load i64, ptr %concat7, align 8
@@ -15295,15 +13703,15 @@ then:                                             ; preds = %entry
   %global_register = call i64 @mesh_global_register(ptr %str_data, i64 %str_len, i64 %registry_pid8)
   store i64 %global_register, ptr %_, align 8
   %_9 = alloca i64, align 8
-  %str10 = call ptr @mesh_string_new(ptr @.str.504, i64 15)
+  %str10 = call ptr @mesh_string_new(ptr @.str.398, i64 15)
   %registry_pid11 = load i64, ptr %registry_pid, align 8
-  %str12 = call ptr @mesh_string_new(ptr @.str.505, i64 15)
+  %str12 = call ptr @mesh_string_new(ptr @.str.399, i64 15)
   %str_len13 = load i64, ptr %str12, align 8
   %str_data14 = getelementptr i8, ptr %str12, i64 8
   %registry_pid15 = load i64, ptr %registry_pid, align 8
   %global_register16 = call i64 @mesh_global_register(ptr %str_data14, i64 %str_len13, i64 %registry_pid15)
   store i64 %global_register16, ptr %_9, align 8
-  %str17 = call ptr @mesh_string_new(ptr @.str.506, i64 57)
+  %str17 = call ptr @mesh_string_new(ptr @.str.400, i64 57)
   %node_name18 = load ptr, ptr %node_name, align 8
   %concat19 = call ptr @mesh_string_concat(ptr %str17, ptr %node_name18)
   call void @mesh_println(ptr %concat19)
@@ -15311,7 +13719,7 @@ then:                                             ; preds = %entry
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str20 = call ptr @mesh_string_new(ptr @.str.507, i64 66)
+  %str20 = call ptr @mesh_string_new(ptr @.str.401, i64 66)
   call void @mesh_println(ptr %str20)
   store {} zeroinitializer, ptr %if_result, align 1
   br label %if_merge
@@ -15330,11 +13738,11 @@ entry:
   call void @mesh_reduction_check()
   store i64 %call, ptr %stream_mgr_pid, align 8
   %_ = alloca i64, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.508, i64 14)
+  %str = call ptr @mesh_string_new(ptr @.str.402, i64 14)
   %stream_mgr_pid1 = load i64, ptr %stream_mgr_pid, align 8
   %call2 = call i64 @mesh_process_register(ptr %str, i64 %stream_mgr_pid1)
   store i64 %call2, ptr %_, align 8
-  %str3 = call ptr @mesh_string_new(ptr @.str.509, i64 30)
+  %str3 = call ptr @mesh_string_new(ptr @.str.403, i64 30)
   call void @mesh_println(ptr %str3)
   %_4 = alloca i64, align 8
   %stream_mgr_pid5 = load i64, ptr %stream_mgr_pid, align 8
@@ -15344,28 +13752,28 @@ entry:
   store i64 250, ptr %arg_ptr_1, align 8
   %pid = call i64 @mesh_actor_spawn(ptr @stream_drain_ticker, ptr %spawn_args, i64 16, i8 1)
   store i64 %pid, ptr %_4, align 8
-  %str6 = call ptr @mesh_string_new(ptr @.str.510, i64 60)
+  %str6 = call ptr @mesh_string_new(ptr @.str.404, i64 60)
   call void @mesh_println(ptr %str6)
   %rate_limiter_pid = alloca i64, align 8
   %call7 = call i64 @__service_ratelimiter_start(i64 60, i64 1000)
   call void @mesh_reduction_check()
   store i64 %call7, ptr %rate_limiter_pid, align 8
-  %str8 = call ptr @mesh_string_new(ptr @.str.511, i64 51)
+  %str8 = call ptr @mesh_string_new(ptr @.str.405, i64 51)
   call void @mesh_println(ptr %str8)
   %processor_pid = alloca i64, align 8
   %pool9 = load i64, ptr %pool, align 8
   %call10 = call i64 @__service_eventprocessor_start(i64 %pool9)
   call void @mesh_reduction_check()
   store i64 %call10, ptr %processor_pid, align 8
-  %str11 = call ptr @mesh_string_new(ptr @.str.512, i64 31)
+  %str11 = call ptr @mesh_string_new(ptr @.str.406, i64 31)
   call void @mesh_println(ptr %str11)
   %writer_pid = alloca i64, align 8
   %pool12 = load i64, ptr %pool, align 8
-  %str13 = call ptr @mesh_string_new(ptr @.str.513, i64 7)
+  %str13 = call ptr @mesh_string_new(ptr @.str.407, i64 7)
   %call14 = call i64 @__service_storagewriter_start(i64 %pool12, ptr %str13)
   call void @mesh_reduction_check()
   store i64 %call14, ptr %writer_pid, align 8
-  %str15 = call ptr @mesh_string_new(ptr @.str.514, i64 48)
+  %str15 = call ptr @mesh_string_new(ptr @.str.408, i64 48)
   call void @mesh_println(ptr %str15)
   %registry_pid = alloca i64, align 8
   %pool16 = load i64, ptr %pool, align 8
@@ -15376,14 +13784,14 @@ entry:
   call void @mesh_reduction_check()
   store i64 %call20, ptr %registry_pid, align 8
   %_21 = alloca i64, align 8
-  %str22 = call ptr @mesh_string_new(ptr @.str.515, i64 15)
+  %str22 = call ptr @mesh_string_new(ptr @.str.409, i64 15)
   %registry_pid23 = load i64, ptr %registry_pid, align 8
   %call24 = call i64 @mesh_process_register(ptr %str22, i64 %registry_pid23)
   store i64 %call24, ptr %_21, align 8
   %registry_pid25 = load i64, ptr %registry_pid, align 8
   %call26 = call {} @Ingestion_Pipeline__register_global_services(i64 %registry_pid25)
   call void @mesh_reduction_check()
-  %str27 = call ptr @mesh_string_new(ptr @.str.516, i64 48)
+  %str27 = call ptr @mesh_string_new(ptr @.str.410, i64 48)
   call void @mesh_println(ptr %str27)
   %_28 = alloca i64, align 8
   %pool29 = load i64, ptr %pool, align 8
@@ -15391,7 +13799,7 @@ entry:
   store i64 %pool29, ptr %spawn_args30, align 8
   %pid31 = call i64 @mesh_actor_spawn(ptr @health_checker, ptr %spawn_args30, i64 8, i8 1)
   store i64 %pid31, ptr %_28, align 8
-  %str32 = call ptr @mesh_string_new(ptr @.str.517, i64 46)
+  %str32 = call ptr @mesh_string_new(ptr @.str.411, i64 46)
   call void @mesh_println(ptr %str32)
   %_33 = alloca i64, align 8
   %pool34 = load i64, ptr %pool, align 8
@@ -15399,7 +13807,7 @@ entry:
   store i64 %pool34, ptr %spawn_args35, align 8
   %pid36 = call i64 @mesh_actor_spawn(ptr @spike_checker, ptr %spawn_args35, i64 8, i8 1)
   store i64 %pid36, ptr %_33, align 8
-  %str37 = call ptr @mesh_string_new(ptr @.str.518, i64 47)
+  %str37 = call ptr @mesh_string_new(ptr @.str.412, i64 47)
   call void @mesh_println(ptr %str37)
   %_38 = alloca i64, align 8
   %pool39 = load i64, ptr %pool, align 8
@@ -15407,7 +13815,7 @@ entry:
   store i64 %pool39, ptr %spawn_args40, align 8
   %pid41 = call i64 @mesh_actor_spawn(ptr @alert_evaluator, ptr %spawn_args40, i64 8, i8 1)
   store i64 %pid41, ptr %_38, align 8
-  %str42 = call ptr @mesh_string_new(ptr @.str.519, i64 47)
+  %str42 = call ptr @mesh_string_new(ptr @.str.413, i64 47)
   call void @mesh_println(ptr %str42)
   %_43 = alloca i64, align 8
   %pool44 = load i64, ptr %pool, align 8
@@ -15415,7 +13823,7 @@ entry:
   store i64 %pool44, ptr %spawn_args45, align 8
   %pid46 = call i64 @mesh_actor_spawn(ptr @retention_cleaner, ptr %spawn_args45, i64 8, i8 1)
   store i64 %pid46, ptr %_43, align 8
-  %str47 = call ptr @mesh_string_new(ptr @.str.520, i64 49)
+  %str47 = call ptr @mesh_string_new(ptr @.str.414, i64 49)
   call void @mesh_println(ptr %str47)
   %_48 = alloca i64, align 8
   %pool49 = load i64, ptr %pool, align 8
@@ -15427,7 +13835,7 @@ entry:
   store i64 0, ptr %arg_ptr_2, align 8
   %pid52 = call i64 @mesh_actor_spawn(ptr @load_monitor, ptr %spawn_args50, i64 24, i8 1)
   store i64 %pid52, ptr %_48, align 8
-  %str53 = call ptr @mesh_string_new(ptr @.str.521, i64 66)
+  %str53 = call ptr @mesh_string_new(ptr @.str.415, i64 66)
   call void @mesh_println(ptr %str53)
   %registry_pid54 = load i64, ptr %registry_pid, align 8
   ret i64 %registry_pid54
@@ -15444,16 +13852,16 @@ entry:
   br i1 %gt, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str = call ptr @mesh_string_new(ptr @.str.522, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.416, i64 1)
   %ts2 = load ptr, ptr %ts, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %ts2)
-  %str3 = call ptr @mesh_string_new(ptr @.str.523, i64 2)
+  %str3 = call ptr @mesh_string_new(ptr @.str.417, i64 1)
   %concat4 = call ptr @mesh_string_concat(ptr %concat, ptr %str3)
   store ptr %concat4, ptr %if_result, align 8
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str5 = call ptr @mesh_string_new(ptr @.str.524, i64 4)
+  %str5 = call ptr @mesh_string_new(ptr @.str.418, i64 4)
   store ptr %str5, ptr %if_result, align 8
   br label %if_merge
 
@@ -15466,89 +13874,89 @@ define ptr @Api_Alerts__rule_row_to_json(ptr %0) {
 entry:
   %row = alloca ptr, align 8
   store ptr %0, ptr %row, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.525, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.419, i64 7)
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str2 = call ptr @mesh_string_new(ptr @.str.526, i64 2)
+  %str2 = call ptr @mesh_string_new(ptr @.str.420, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str2 to i64
   %call3 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   %i64_to_ptr = inttoptr i64 %call3 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %i64_to_ptr)
-  %str4 = call ptr @mesh_string_new(ptr @.str.527, i64 20)
+  %str4 = call ptr @mesh_string_new(ptr @.str.421, i64 16)
   %concat5 = call ptr @mesh_string_concat(ptr %concat, ptr %str4)
   %row6 = load ptr, ptr %row, align 8
   %call7 = call ptr @mesh_map_tag_string(ptr %row6)
-  %str8 = call ptr @mesh_string_new(ptr @.str.528, i64 10)
+  %str8 = call ptr @mesh_string_new(ptr @.str.422, i64 10)
   %ptr_to_i649 = ptrtoint ptr %str8 to i64
   %call10 = call i64 @mesh_map_get(ptr %call7, i64 %ptr_to_i649)
   %i64_to_ptr11 = inttoptr i64 %call10 to ptr
   %concat12 = call ptr @mesh_string_concat(ptr %concat5, ptr %i64_to_ptr11)
-  %str13 = call ptr @mesh_string_new(ptr @.str.529, i64 14)
+  %str13 = call ptr @mesh_string_new(ptr @.str.423, i64 10)
   %concat14 = call ptr @mesh_string_concat(ptr %concat12, ptr %str13)
   %row15 = load ptr, ptr %row, align 8
   %call16 = call ptr @mesh_map_tag_string(ptr %row15)
-  %str17 = call ptr @mesh_string_new(ptr @.str.530, i64 4)
+  %str17 = call ptr @mesh_string_new(ptr @.str.424, i64 4)
   %ptr_to_i6418 = ptrtoint ptr %str17 to i64
   %call19 = call i64 @mesh_map_get(ptr %call16, i64 %ptr_to_i6418)
   %i64_to_ptr20 = inttoptr i64 %call19 to ptr
   %concat21 = call ptr @mesh_string_concat(ptr %concat14, ptr %i64_to_ptr20)
-  %str22 = call ptr @mesh_string_new(ptr @.str.531, i64 17)
+  %str22 = call ptr @mesh_string_new(ptr @.str.425, i64 14)
   %concat23 = call ptr @mesh_string_concat(ptr %concat21, ptr %str22)
   %row24 = load ptr, ptr %row, align 8
   %call25 = call ptr @mesh_map_tag_string(ptr %row24)
-  %str26 = call ptr @mesh_string_new(ptr @.str.532, i64 14)
+  %str26 = call ptr @mesh_string_new(ptr @.str.426, i64 14)
   %ptr_to_i6427 = ptrtoint ptr %str26 to i64
   %call28 = call i64 @mesh_map_get(ptr %call25, i64 %ptr_to_i6427)
   %i64_to_ptr29 = inttoptr i64 %call28 to ptr
   %concat30 = call ptr @mesh_string_concat(ptr %concat23, ptr %i64_to_ptr29)
-  %str31 = call ptr @mesh_string_new(ptr @.str.533, i64 12)
+  %str31 = call ptr @mesh_string_new(ptr @.str.427, i64 10)
   %concat32 = call ptr @mesh_string_concat(ptr %concat30, ptr %str31)
   %row33 = load ptr, ptr %row, align 8
   %call34 = call ptr @mesh_map_tag_string(ptr %row33)
-  %str35 = call ptr @mesh_string_new(ptr @.str.534, i64 11)
+  %str35 = call ptr @mesh_string_new(ptr @.str.428, i64 11)
   %ptr_to_i6436 = ptrtoint ptr %str35 to i64
   %call37 = call i64 @mesh_map_get(ptr %call34, i64 %ptr_to_i6436)
   %i64_to_ptr38 = inttoptr i64 %call37 to ptr
   %concat39 = call ptr @mesh_string_concat(ptr %concat32, ptr %i64_to_ptr38)
-  %str40 = call ptr @mesh_string_new(ptr @.str.535, i64 13)
+  %str40 = call ptr @mesh_string_new(ptr @.str.429, i64 11)
   %concat41 = call ptr @mesh_string_concat(ptr %concat39, ptr %str40)
   %row42 = load ptr, ptr %row, align 8
   %call43 = call ptr @mesh_map_tag_string(ptr %row42)
-  %str44 = call ptr @mesh_string_new(ptr @.str.536, i64 7)
+  %str44 = call ptr @mesh_string_new(ptr @.str.430, i64 7)
   %ptr_to_i6445 = ptrtoint ptr %str44 to i64
   %call46 = call i64 @mesh_map_get(ptr %call43, i64 %ptr_to_i6445)
   %i64_to_ptr47 = inttoptr i64 %call46 to ptr
   %concat48 = call ptr @mesh_string_concat(ptr %concat41, ptr %i64_to_ptr47)
-  %str49 = call ptr @mesh_string_new(ptr @.str.537, i64 22)
+  %str49 = call ptr @mesh_string_new(ptr @.str.431, i64 20)
   %concat50 = call ptr @mesh_string_concat(ptr %concat48, ptr %str49)
   %row51 = load ptr, ptr %row, align 8
   %call52 = call ptr @mesh_map_tag_string(ptr %row51)
-  %str53 = call ptr @mesh_string_new(ptr @.str.538, i64 16)
+  %str53 = call ptr @mesh_string_new(ptr @.str.432, i64 16)
   %ptr_to_i6454 = ptrtoint ptr %str53 to i64
   %call55 = call i64 @mesh_map_get(ptr %call52, i64 %ptr_to_i6454)
   %i64_to_ptr56 = inttoptr i64 %call55 to ptr
   %concat57 = call ptr @mesh_string_concat(ptr %concat50, ptr %i64_to_ptr56)
-  %str58 = call ptr @mesh_string_new(ptr @.str.539, i64 19)
+  %str58 = call ptr @mesh_string_new(ptr @.str.433, i64 17)
   %concat59 = call ptr @mesh_string_concat(ptr %concat57, ptr %str58)
   %row60 = load ptr, ptr %row, align 8
   %call61 = call ptr @mesh_map_tag_string(ptr %row60)
-  %str62 = call ptr @mesh_string_new(ptr @.str.540, i64 13)
+  %str62 = call ptr @mesh_string_new(ptr @.str.434, i64 13)
   %ptr_to_i6463 = ptrtoint ptr %str62 to i64
   %call64 = call i64 @mesh_map_get(ptr %call61, i64 %ptr_to_i6463)
   %i64_to_ptr65 = inttoptr i64 %call64 to ptr
   %call66 = call ptr @Api_Alerts__format_nullable_ts(ptr %i64_to_ptr65)
   call void @mesh_reduction_check()
   %concat67 = call ptr @mesh_string_concat(ptr %concat59, ptr %call66)
-  %str68 = call ptr @mesh_string_new(ptr @.str.541, i64 18)
+  %str68 = call ptr @mesh_string_new(ptr @.str.435, i64 15)
   %concat69 = call ptr @mesh_string_concat(ptr %concat67, ptr %str68)
   %row70 = load ptr, ptr %row, align 8
   %call71 = call ptr @mesh_map_tag_string(ptr %row70)
-  %str72 = call ptr @mesh_string_new(ptr @.str.542, i64 10)
+  %str72 = call ptr @mesh_string_new(ptr @.str.436, i64 10)
   %ptr_to_i6473 = ptrtoint ptr %str72 to i64
   %call74 = call i64 @mesh_map_get(ptr %call71, i64 %ptr_to_i6473)
   %i64_to_ptr75 = inttoptr i64 %call74 to ptr
   %concat76 = call ptr @mesh_string_concat(ptr %concat69, ptr %i64_to_ptr75)
-  %str77 = call ptr @mesh_string_new(ptr @.str.543, i64 3)
+  %str77 = call ptr @mesh_string_new(ptr @.str.437, i64 2)
   %concat78 = call ptr @mesh_string_concat(ptr %concat76, ptr %str77)
   ret ptr %concat78
 }
@@ -15557,105 +13965,105 @@ define ptr @Api_Alerts__alert_row_to_json(ptr %0) {
 entry:
   %row = alloca ptr, align 8
   store ptr %0, ptr %row, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.544, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.438, i64 7)
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str2 = call ptr @mesh_string_new(ptr @.str.545, i64 2)
+  %str2 = call ptr @mesh_string_new(ptr @.str.439, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str2 to i64
   %call3 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   %i64_to_ptr = inttoptr i64 %call3 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %i64_to_ptr)
-  %str4 = call ptr @mesh_string_new(ptr @.str.546, i64 17)
+  %str4 = call ptr @mesh_string_new(ptr @.str.440, i64 13)
   %concat5 = call ptr @mesh_string_concat(ptr %concat, ptr %str4)
   %row6 = load ptr, ptr %row, align 8
   %call7 = call ptr @mesh_map_tag_string(ptr %row6)
-  %str8 = call ptr @mesh_string_new(ptr @.str.547, i64 7)
+  %str8 = call ptr @mesh_string_new(ptr @.str.441, i64 7)
   %ptr_to_i649 = ptrtoint ptr %str8 to i64
   %call10 = call i64 @mesh_map_get(ptr %call7, i64 %ptr_to_i649)
   %i64_to_ptr11 = inttoptr i64 %call10 to ptr
   %concat12 = call ptr @mesh_string_concat(ptr %concat5, ptr %i64_to_ptr11)
-  %str13 = call ptr @mesh_string_new(ptr @.str.548, i64 20)
+  %str13 = call ptr @mesh_string_new(ptr @.str.442, i64 16)
   %concat14 = call ptr @mesh_string_concat(ptr %concat12, ptr %str13)
   %row15 = load ptr, ptr %row, align 8
   %call16 = call ptr @mesh_map_tag_string(ptr %row15)
-  %str17 = call ptr @mesh_string_new(ptr @.str.549, i64 10)
+  %str17 = call ptr @mesh_string_new(ptr @.str.443, i64 10)
   %ptr_to_i6418 = ptrtoint ptr %str17 to i64
   %call19 = call i64 @mesh_map_get(ptr %call16, i64 %ptr_to_i6418)
   %i64_to_ptr20 = inttoptr i64 %call19 to ptr
   %concat21 = call ptr @mesh_string_concat(ptr %concat14, ptr %i64_to_ptr20)
-  %str22 = call ptr @mesh_string_new(ptr @.str.550, i64 16)
+  %str22 = call ptr @mesh_string_new(ptr @.str.444, i64 12)
   %concat23 = call ptr @mesh_string_concat(ptr %concat21, ptr %str22)
   %row24 = load ptr, ptr %row, align 8
   %call25 = call ptr @mesh_map_tag_string(ptr %row24)
-  %str26 = call ptr @mesh_string_new(ptr @.str.551, i64 6)
+  %str26 = call ptr @mesh_string_new(ptr @.str.445, i64 6)
   %ptr_to_i6427 = ptrtoint ptr %str26 to i64
   %call28 = call i64 @mesh_map_get(ptr %call25, i64 %ptr_to_i6427)
   %i64_to_ptr29 = inttoptr i64 %call28 to ptr
   %concat30 = call ptr @mesh_string_concat(ptr %concat23, ptr %i64_to_ptr29)
-  %str31 = call ptr @mesh_string_new(ptr @.str.552, i64 17)
+  %str31 = call ptr @mesh_string_new(ptr @.str.446, i64 13)
   %concat32 = call ptr @mesh_string_concat(ptr %concat30, ptr %str31)
   %row33 = load ptr, ptr %row, align 8
   %call34 = call ptr @mesh_map_tag_string(ptr %row33)
-  %str35 = call ptr @mesh_string_new(ptr @.str.553, i64 7)
+  %str35 = call ptr @mesh_string_new(ptr @.str.447, i64 7)
   %ptr_to_i6436 = ptrtoint ptr %str35 to i64
   %call37 = call i64 @mesh_map_get(ptr %call34, i64 %ptr_to_i6436)
   %i64_to_ptr38 = inttoptr i64 %call37 to ptr
   %concat39 = call ptr @mesh_string_concat(ptr %concat32, ptr %i64_to_ptr38)
-  %str40 = call ptr @mesh_string_new(ptr @.str.554, i64 26)
+  %str40 = call ptr @mesh_string_new(ptr @.str.448, i64 23)
   %concat41 = call ptr @mesh_string_concat(ptr %concat39, ptr %str40)
   %row42 = load ptr, ptr %row, align 8
   %call43 = call ptr @mesh_map_tag_string(ptr %row42)
-  %str44 = call ptr @mesh_string_new(ptr @.str.555, i64 18)
+  %str44 = call ptr @mesh_string_new(ptr @.str.449, i64 18)
   %ptr_to_i6445 = ptrtoint ptr %str44 to i64
   %call46 = call i64 @mesh_map_get(ptr %call43, i64 %ptr_to_i6445)
   %i64_to_ptr47 = inttoptr i64 %call46 to ptr
   %concat48 = call ptr @mesh_string_concat(ptr %concat41, ptr %i64_to_ptr47)
-  %str49 = call ptr @mesh_string_new(ptr @.str.556, i64 20)
+  %str49 = call ptr @mesh_string_new(ptr @.str.450, i64 17)
   %concat50 = call ptr @mesh_string_concat(ptr %concat48, ptr %str49)
   %row51 = load ptr, ptr %row, align 8
   %call52 = call ptr @mesh_map_tag_string(ptr %row51)
-  %str53 = call ptr @mesh_string_new(ptr @.str.557, i64 12)
+  %str53 = call ptr @mesh_string_new(ptr @.str.451, i64 12)
   %ptr_to_i6454 = ptrtoint ptr %str53 to i64
   %call55 = call i64 @mesh_map_get(ptr %call52, i64 %ptr_to_i6454)
   %i64_to_ptr56 = inttoptr i64 %call55 to ptr
   %concat57 = call ptr @mesh_string_concat(ptr %concat50, ptr %i64_to_ptr56)
-  %str58 = call ptr @mesh_string_new(ptr @.str.558, i64 23)
+  %str58 = call ptr @mesh_string_new(ptr @.str.452, i64 20)
   %concat59 = call ptr @mesh_string_concat(ptr %concat57, ptr %str58)
   %row60 = load ptr, ptr %row, align 8
   %call61 = call ptr @mesh_map_tag_string(ptr %row60)
-  %str62 = call ptr @mesh_string_new(ptr @.str.559, i64 15)
+  %str62 = call ptr @mesh_string_new(ptr @.str.453, i64 15)
   %ptr_to_i6463 = ptrtoint ptr %str62 to i64
   %call64 = call i64 @mesh_map_get(ptr %call61, i64 %ptr_to_i6463)
   %i64_to_ptr65 = inttoptr i64 %call64 to ptr
   %call66 = call ptr @Api_Alerts__format_nullable_ts(ptr %i64_to_ptr65)
   call void @mesh_reduction_check()
   %concat67 = call ptr @mesh_string_concat(ptr %concat59, ptr %call66)
-  %str68 = call ptr @mesh_string_new(ptr @.str.560, i64 17)
+  %str68 = call ptr @mesh_string_new(ptr @.str.454, i64 15)
   %concat69 = call ptr @mesh_string_concat(ptr %concat67, ptr %str68)
   %row70 = load ptr, ptr %row, align 8
   %call71 = call ptr @mesh_map_tag_string(ptr %row70)
-  %str72 = call ptr @mesh_string_new(ptr @.str.561, i64 11)
+  %str72 = call ptr @mesh_string_new(ptr @.str.455, i64 11)
   %ptr_to_i6473 = ptrtoint ptr %str72 to i64
   %call74 = call i64 @mesh_map_get(ptr %call71, i64 %ptr_to_i6473)
   %i64_to_ptr75 = inttoptr i64 %call74 to ptr
   %call76 = call ptr @Api_Alerts__format_nullable_ts(ptr %i64_to_ptr75)
   call void @mesh_reduction_check()
   %concat77 = call ptr @mesh_string_concat(ptr %concat69, ptr %call76)
-  %str78 = call ptr @mesh_string_new(ptr @.str.562, i64 17)
+  %str78 = call ptr @mesh_string_new(ptr @.str.456, i64 14)
   %concat79 = call ptr @mesh_string_concat(ptr %concat77, ptr %str78)
   %row80 = load ptr, ptr %row, align 8
   %call81 = call ptr @mesh_map_tag_string(ptr %row80)
-  %str82 = call ptr @mesh_string_new(ptr @.str.563, i64 9)
+  %str82 = call ptr @mesh_string_new(ptr @.str.457, i64 9)
   %ptr_to_i6483 = ptrtoint ptr %str82 to i64
   %call84 = call i64 @mesh_map_get(ptr %call81, i64 %ptr_to_i6483)
   %i64_to_ptr85 = inttoptr i64 %call84 to ptr
   %concat86 = call ptr @mesh_string_concat(ptr %concat79, ptr %i64_to_ptr85)
-  %str87 = call ptr @mesh_string_new(ptr @.str.564, i64 3)
+  %str87 = call ptr @mesh_string_new(ptr @.str.458, i64 2)
   %concat88 = call ptr @mesh_string_concat(ptr %concat86, ptr %str87)
   ret ptr %concat88
 }
 
-define ptr @Api_Alerts__toggle_from_rows(i64 %0, ptr %1, ptr %2) {
+define ptr @Api_Alerts__do_toggle(i64 %0, ptr %1, ptr %2) {
 entry:
   %e = alloca ptr, align 8
   %n = alloca i64, align 8
@@ -15663,35 +14071,18 @@ entry:
   store i64 %0, ptr %pool, align 8
   %rule_id = alloca ptr, align 8
   store ptr %1, ptr %rule_id, align 8
-  %rows = alloca ptr, align 8
-  store ptr %2, ptr %rows, align 8
-  %rows1 = load ptr, ptr %rows, align 8
-  %call = call i64 @mesh_list_length(ptr %rows1)
-  %gt = icmp sgt i64 %call, 0
-  %if_result = alloca ptr, align 8
-  br i1 %gt, label %then, label %else
-
-then:                                             ; preds = %entry
-  %enabled_str = alloca i64, align 8
-  %rows2 = load ptr, ptr %rows, align 8
-  %call3 = call i64 @mesh_list_head(ptr %rows2)
-  %i64_to_ptr = inttoptr i64 %call3 to ptr
-  %call4 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str = call ptr @mesh_string_new(ptr @.str.565, i64 7)
-  %ptr_to_i64 = ptrtoint ptr %str to i64
-  %call5 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i64)
-  store i64 %call5, ptr %enabled_str, align 8
+  %enabled_str = alloca ptr, align 8
+  store ptr %2, ptr %enabled_str, align 8
   %result = alloca { i8, ptr }, align 8
-  %pool6 = load i64, ptr %pool, align 8
-  %rule_id7 = load ptr, ptr %rule_id, align 8
-  %enabled_str8 = load i64, ptr %enabled_str, align 8
-  %i64_to_ptr9 = inttoptr i64 %enabled_str8 to ptr
-  %call10 = call { i8, ptr } @toggle_alert_rule(i64 %pool6, ptr %rule_id7, ptr %i64_to_ptr9)
+  %pool1 = load i64, ptr %pool, align 8
+  %rule_id2 = load ptr, ptr %rule_id, align 8
+  %enabled_str3 = load ptr, ptr %enabled_str, align 8
+  %call = call { i8, ptr } @toggle_alert_rule(i64 %pool1, ptr %rule_id2, ptr %enabled_str3)
   call void @mesh_reduction_check()
-  store { i8, ptr } %call10, ptr %result, align 8
-  %result11 = load { i8, ptr }, ptr %result, align 8
+  store { i8, ptr } %call, ptr %result, align 8
+  %result4 = load { i8, ptr }, ptr %result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
-  store { i8, ptr } %result11, ptr %scrutinee, align 8
+  store { i8, ptr } %result4, ptr %scrutinee, align 8
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -15700,50 +14091,39 @@ then:                                             ; preds = %entry
     i8 1, label %case_Err
   ]
 
-else:                                             ; preds = %entry
-  %str26 = call ptr @mesh_string_new(ptr @.str.572, i64 28)
-  %call27 = call ptr @mesh_http_response_new(i64 400, ptr %str26)
-  store ptr %call27, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %match_merge
-  %if_val = load ptr, ptr %if_result, align 8
-  ret ptr %if_val
-
 match_merge:                                      ; preds = %case_Err, %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %if_result, align 8
-  br label %if_merge
+  ret ptr %match_val
 
-switch_default:                                   ; preds = %then
-  call void @mesh_panic(ptr @.panic_msg.570, i64 30, ptr @.panic_file.571, i64 9, i32 0)
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.463, i64 30, ptr @.panic_file.464, i64 9, i32 0)
   unreachable
 
-case_Ok:                                          ; preds = %then
+case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %n, align 8
-  %str12 = call ptr @mesh_string_new(ptr @.str.566, i64 32)
-  %n13 = load i64, ptr %n, align 8
-  %call14 = call ptr @mesh_int_to_string(i64 %n13)
-  %concat = call ptr @mesh_string_concat(ptr %str12, ptr %call14)
-  %str15 = call ptr @mesh_string_new(ptr @.str.567, i64 1)
-  %concat16 = call ptr @mesh_string_concat(ptr %concat, ptr %str15)
-  %call17 = call ptr @mesh_http_response_new(i64 200, ptr %concat16)
-  store ptr %call17, ptr %match_result, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.459, i64 26)
+  %n5 = load i64, ptr %n, align 8
+  %call6 = call ptr @mesh_int_to_string(i64 %n5)
+  %concat = call ptr @mesh_string_concat(ptr %str, ptr %call6)
+  %str7 = call ptr @mesh_string_new(ptr @.str.460, i64 1)
+  %concat8 = call ptr @mesh_string_concat(ptr %concat, ptr %str7)
+  %call9 = call ptr @mesh_http_response_new(i64 200, ptr %concat8)
+  store ptr %call9, ptr %match_result, align 8
   br label %match_merge
 
-case_Err:                                         ; preds = %then
-  %variant_field18 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
-  %path_val19 = load ptr, ptr %variant_field18, align 8
-  store ptr %path_val19, ptr %e, align 8
-  %str20 = call ptr @mesh_string_new(ptr @.str.568, i64 13)
-  %e21 = load ptr, ptr %e, align 8
-  %concat22 = call ptr @mesh_string_concat(ptr %str20, ptr %e21)
-  %str23 = call ptr @mesh_string_new(ptr @.str.569, i64 3)
-  %concat24 = call ptr @mesh_string_concat(ptr %concat22, ptr %str23)
-  %call25 = call ptr @mesh_http_response_new(i64 500, ptr %concat24)
-  store ptr %call25, ptr %match_result, align 8
+case_Err:                                         ; preds = %entry
+  %variant_field10 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
+  %path_val11 = load ptr, ptr %variant_field10, align 8
+  store ptr %path_val11, ptr %e, align 8
+  %str12 = call ptr @mesh_string_new(ptr @.str.461, i64 10)
+  %e13 = load ptr, ptr %e, align 8
+  %concat14 = call ptr @mesh_string_concat(ptr %str12, ptr %e13)
+  %str15 = call ptr @mesh_string_new(ptr @.str.462, i64 2)
+  %concat16 = call ptr @mesh_string_concat(ptr %concat14, ptr %str15)
+  %call17 = call ptr @mesh_http_response_new(i64 500, ptr %concat16)
+  store ptr %call17, ptr %match_result, align 8
   br label %match_merge
 }
 
@@ -15764,7 +14144,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.573, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.465, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -15801,17 +14181,17 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.578, i64 30, ptr @.panic_file.579, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.470, i64 30, ptr @.panic_file.471, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %id, align 8
-  %str15 = call ptr @mesh_string_new(ptr @.str.574, i64 10)
+  %str15 = call ptr @mesh_string_new(ptr @.str.466, i64 7)
   %id16 = load ptr, ptr %id, align 8
   %concat = call ptr @mesh_string_concat(ptr %str15, ptr %id16)
-  %str17 = call ptr @mesh_string_new(ptr @.str.575, i64 3)
+  %str17 = call ptr @mesh_string_new(ptr @.str.467, i64 2)
   %concat18 = call ptr @mesh_string_concat(ptr %concat, ptr %str17)
   %call19 = call ptr @mesh_http_response_new(i64 201, ptr %concat18)
   store ptr %call19, ptr %match_result, align 8
@@ -15821,10 +14201,10 @@ case_Err:                                         ; preds = %entry
   %variant_field20 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val21 = load ptr, ptr %variant_field20, align 8
   store ptr %path_val21, ptr %e, align 8
-  %str22 = call ptr @mesh_string_new(ptr @.str.576, i64 13)
+  %str22 = call ptr @mesh_string_new(ptr @.str.468, i64 10)
   %e23 = load ptr, ptr %e, align 8
   %concat24 = call ptr @mesh_string_concat(ptr %str22, ptr %e23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.577, i64 3)
+  %str25 = call ptr @mesh_string_new(ptr @.str.469, i64 2)
   %concat26 = call ptr @mesh_string_concat(ptr %concat24, ptr %str25)
   %call27 = call ptr @mesh_http_response_new(i64 400, ptr %concat26)
   store ptr %call27, ptr %match_result, align 8
@@ -15860,7 +14240,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.580, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.472, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -15892,7 +14272,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.583, i64 30, ptr @.panic_file.584, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.475, i64 30, ptr @.panic_file.476, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -15924,10 +14304,10 @@ case_Err:                                         ; preds = %entry
   %variant_field16 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val17 = load ptr, ptr %variant_field16, align 8
   store ptr %path_val17, ptr %e, align 8
-  %str18 = call ptr @mesh_string_new(ptr @.str.581, i64 13)
+  %str18 = call ptr @mesh_string_new(ptr @.str.473, i64 10)
   %e19 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str18, ptr %e19)
-  %str20 = call ptr @mesh_string_new(ptr @.str.582, i64 3)
+  %str20 = call ptr @mesh_string_new(ptr @.str.474, i64 2)
   %concat21 = call ptr @mesh_string_concat(ptr %concat, ptr %str20)
   %call22 = call ptr @mesh_http_response_new(i64 500, ptr %concat21)
   store ptr %call22, ptr %match_result, align 8
@@ -15936,8 +14316,6 @@ case_Err:                                         ; preds = %entry
 
 define ptr @handle_toggle_alert_rule(ptr %0) {
 entry:
-  %e = alloca ptr, align 8
-  %rows = alloca ptr, align 8
   %request = alloca ptr, align 8
   store ptr %0, ptr %request, align 8
   %reg_pid = alloca i64, align 8
@@ -15951,7 +14329,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %rule_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.585, i64 7)
+  %str = call ptr @mesh_string_new(ptr @.str.477, i64 7)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %rule_id, align 8
@@ -15959,57 +14337,37 @@ entry:
   %request5 = load ptr, ptr %request, align 8
   %call6 = call ptr @mesh_http_request_body(ptr %request5)
   store ptr %call6, ptr %body, align 8
-  %rows_result = alloca { i8, ptr }, align 8
-  %pool7 = load i64, ptr %pool, align 8
-  %str8 = call ptr @mesh_string_new(ptr @.str.586, i64 57)
-  %list_arr = alloca [1 x i64], align 8
-  %body9 = load ptr, ptr %body, align 8
-  %ptr_to_i64 = ptrtoint ptr %body9 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call10 = call ptr @mesh_pool_query(i64 %pool7, ptr %str8, ptr %list)
-  %deref_sum = load { i8, ptr }, ptr %call10, align 8
-  store { i8, ptr } %deref_sum, ptr %rows_result, align 8
-  %rows_result11 = load { i8, ptr }, ptr %rows_result, align 8
-  %scrutinee = alloca { i8, ptr }, align 8
-  store { i8, ptr } %rows_result11, ptr %scrutinee, align 8
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
+  %enabled_raw = alloca ptr, align 8
+  %body7 = load ptr, ptr %body, align 8
+  %str8 = call ptr @mesh_string_new(ptr @.str.478, i64 7)
+  %call9 = call ptr @mesh_json_get(ptr %body7, ptr %str8)
+  store ptr %call9, ptr %enabled_raw, align 8
+  %enabled = alloca ptr, align 8
+  %enabled_raw10 = load ptr, ptr %enabled_raw, align 8
+  %call11 = call i64 @mesh_string_length(ptr %enabled_raw10)
+  %gt = icmp sgt i64 %call11, 0
+  %if_result = alloca ptr, align 8
+  br i1 %gt, label %then, label %else
 
-match_merge:                                      ; preds = %case_Err, %case_Ok
-  %match_val = load ptr, ptr %match_result, align 8
-  ret ptr %match_val
+then:                                             ; preds = %entry
+  %enabled_raw12 = load ptr, ptr %enabled_raw, align 8
+  store ptr %enabled_raw12, ptr %if_result, align 8
+  br label %if_merge
 
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.588, i64 30, ptr @.panic_file.589, i64 9, i32 0)
-  unreachable
+else:                                             ; preds = %entry
+  %str13 = call ptr @mesh_string_new(ptr @.str.479, i64 4)
+  store ptr %str13, ptr %if_result, align 8
+  br label %if_merge
 
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %rows, align 8
-  %pool12 = load i64, ptr %pool, align 8
-  %rule_id13 = load ptr, ptr %rule_id, align 8
-  %rows14 = load ptr, ptr %rows, align 8
-  %call15 = call ptr @Api_Alerts__toggle_from_rows(i64 %pool12, ptr %rule_id13, ptr %rows14)
+if_merge:                                         ; preds = %else, %then
+  %if_val = load ptr, ptr %if_result, align 8
+  store ptr %if_val, ptr %enabled, align 8
+  %pool14 = load i64, ptr %pool, align 8
+  %rule_id15 = load ptr, ptr %rule_id, align 8
+  %enabled16 = load ptr, ptr %enabled, align 8
+  %call17 = call ptr @Api_Alerts__do_toggle(i64 %pool14, ptr %rule_id15, ptr %enabled16)
   call void @mesh_reduction_check()
-  store ptr %call15, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field16 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
-  %path_val17 = load ptr, ptr %variant_field16, align 8
-  store ptr %path_val17, ptr %e, align 8
-  %str18 = call ptr @mesh_string_new(ptr @.str.587, i64 28)
-  %call19 = call ptr @mesh_http_response_new(i64 400, ptr %str18)
-  store ptr %call19, ptr %match_result, align 8
-  br label %match_merge
+  ret ptr %call17
 }
 
 define ptr @handle_delete_alert_rule(ptr %0) {
@@ -16029,7 +14387,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %rule_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.590, i64 7)
+  %str = call ptr @mesh_string_new(ptr @.str.480, i64 7)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %rule_id, align 8
@@ -16055,18 +14413,18 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.595, i64 30, ptr @.panic_file.596, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.485, i64 30, ptr @.panic_file.486, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %n, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.591, i64 32)
+  %str9 = call ptr @mesh_string_new(ptr @.str.481, i64 26)
   %n10 = load i64, ptr %n, align 8
   %call11 = call ptr @mesh_int_to_string(i64 %n10)
   %concat = call ptr @mesh_string_concat(ptr %str9, ptr %call11)
-  %str12 = call ptr @mesh_string_new(ptr @.str.592, i64 1)
+  %str12 = call ptr @mesh_string_new(ptr @.str.482, i64 1)
   %concat13 = call ptr @mesh_string_concat(ptr %concat, ptr %str12)
   %call14 = call ptr @mesh_http_response_new(i64 200, ptr %concat13)
   store ptr %call14, ptr %match_result, align 8
@@ -16076,10 +14434,10 @@ case_Err:                                         ; preds = %entry
   %variant_field15 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val16 = load ptr, ptr %variant_field15, align 8
   store ptr %path_val16, ptr %e, align 8
-  %str17 = call ptr @mesh_string_new(ptr @.str.593, i64 13)
+  %str17 = call ptr @mesh_string_new(ptr @.str.483, i64 10)
   %e18 = load ptr, ptr %e, align 8
   %concat19 = call ptr @mesh_string_concat(ptr %str17, ptr %e18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.594, i64 3)
+  %str20 = call ptr @mesh_string_new(ptr @.str.484, i64 2)
   %concat21 = call ptr @mesh_string_concat(ptr %concat19, ptr %str20)
   %call22 = call ptr @mesh_http_response_new(i64 500, ptr %concat21)
   store ptr %call22, ptr %match_result, align 8
@@ -16115,7 +14473,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.597, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.487, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -16127,8 +14485,8 @@ entry:
   store ptr %call7, ptr %project_id, align 8
   %status = alloca ptr, align 8
   %request8 = load ptr, ptr %request, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.598, i64 6)
-  %str10 = call ptr @mesh_string_new(ptr @.str.599, i64 0)
+  %str9 = call ptr @mesh_string_new(ptr @.str.488, i64 6)
+  %str10 = call ptr @mesh_string_new(ptr @.str.489, i64 0)
   %call11 = call ptr @query_or_default(ptr %request8, ptr %str9, ptr %str10)
   call void @mesh_reduction_check()
   store ptr %call11, ptr %status, align 8
@@ -16155,7 +14513,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.602, i64 30, ptr @.panic_file.603, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.492, i64 30, ptr @.panic_file.493, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -16187,10 +14545,10 @@ case_Err:                                         ; preds = %entry
   %variant_field21 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val22 = load ptr, ptr %variant_field21, align 8
   store ptr %path_val22, ptr %e, align 8
-  %str23 = call ptr @mesh_string_new(ptr @.str.600, i64 13)
+  %str23 = call ptr @mesh_string_new(ptr @.str.490, i64 10)
   %e24 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str23, ptr %e24)
-  %str25 = call ptr @mesh_string_new(ptr @.str.601, i64 3)
+  %str25 = call ptr @mesh_string_new(ptr @.str.491, i64 2)
   %concat26 = call ptr @mesh_string_concat(ptr %concat, ptr %str25)
   %call27 = call ptr @mesh_http_response_new(i64 500, ptr %concat26)
   store ptr %call27, ptr %match_result, align 8
@@ -16214,7 +14572,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %alert_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.604, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.494, i64 2)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %alert_id, align 8
@@ -16240,18 +14598,18 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.609, i64 30, ptr @.panic_file.610, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.499, i64 30, ptr @.panic_file.500, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %n, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.605, i64 32)
+  %str9 = call ptr @mesh_string_new(ptr @.str.495, i64 26)
   %n10 = load i64, ptr %n, align 8
   %call11 = call ptr @mesh_int_to_string(i64 %n10)
   %concat = call ptr @mesh_string_concat(ptr %str9, ptr %call11)
-  %str12 = call ptr @mesh_string_new(ptr @.str.606, i64 1)
+  %str12 = call ptr @mesh_string_new(ptr @.str.496, i64 1)
   %concat13 = call ptr @mesh_string_concat(ptr %concat, ptr %str12)
   %call14 = call ptr @mesh_http_response_new(i64 200, ptr %concat13)
   store ptr %call14, ptr %match_result, align 8
@@ -16261,10 +14619,10 @@ case_Err:                                         ; preds = %entry
   %variant_field15 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val16 = load ptr, ptr %variant_field15, align 8
   store ptr %path_val16, ptr %e, align 8
-  %str17 = call ptr @mesh_string_new(ptr @.str.607, i64 13)
+  %str17 = call ptr @mesh_string_new(ptr @.str.497, i64 10)
   %e18 = load ptr, ptr %e, align 8
   %concat19 = call ptr @mesh_string_concat(ptr %str17, ptr %e18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.608, i64 3)
+  %str20 = call ptr @mesh_string_new(ptr @.str.498, i64 2)
   %concat21 = call ptr @mesh_string_concat(ptr %concat19, ptr %str20)
   %call22 = call ptr @mesh_http_response_new(i64 500, ptr %concat21)
   store ptr %call22, ptr %match_result, align 8
@@ -16288,7 +14646,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %alert_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.611, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.501, i64 2)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %alert_id, align 8
@@ -16314,18 +14672,18 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.616, i64 30, ptr @.panic_file.617, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.506, i64 30, ptr @.panic_file.507, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %n, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.612, i64 32)
+  %str9 = call ptr @mesh_string_new(ptr @.str.502, i64 26)
   %n10 = load i64, ptr %n, align 8
   %call11 = call ptr @mesh_int_to_string(i64 %n10)
   %concat = call ptr @mesh_string_concat(ptr %str9, ptr %call11)
-  %str12 = call ptr @mesh_string_new(ptr @.str.613, i64 1)
+  %str12 = call ptr @mesh_string_new(ptr @.str.503, i64 1)
   %concat13 = call ptr @mesh_string_concat(ptr %concat, ptr %str12)
   %call14 = call ptr @mesh_http_response_new(i64 200, ptr %concat13)
   store ptr %call14, ptr %match_result, align 8
@@ -16335,10 +14693,10 @@ case_Err:                                         ; preds = %entry
   %variant_field15 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val16 = load ptr, ptr %variant_field15, align 8
   store ptr %path_val16, ptr %e, align 8
-  %str17 = call ptr @mesh_string_new(ptr @.str.614, i64 13)
+  %str17 = call ptr @mesh_string_new(ptr @.str.504, i64 10)
   %e18 = load ptr, ptr %e, align 8
   %concat19 = call ptr @mesh_string_concat(ptr %str17, ptr %e18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.615, i64 3)
+  %str20 = call ptr @mesh_string_new(ptr @.str.505, i64 2)
   %concat21 = call ptr @mesh_string_concat(ptr %concat19, ptr %str20)
   %call22 = call ptr @mesh_http_response_new(i64 500, ptr %concat21)
   store ptr %call22, ptr %match_result, align 8
@@ -16352,27 +14710,27 @@ entry:
   %bucket = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.618, i64 6)
+  %str = call ptr @mesh_string_new(ptr @.str.508, i64 6)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %bucket, align 8
   %count = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.619, i64 5)
+  %str5 = call ptr @mesh_string_new(ptr @.str.509, i64 5)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %count, align 8
-  %str8 = call ptr @mesh_string_new(ptr @.str.620, i64 14)
+  %str8 = call ptr @mesh_string_new(ptr @.str.510, i64 11)
   %bucket9 = load i64, ptr %bucket, align 8
   %concat_arg_ptr = inttoptr i64 %bucket9 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str8, ptr %concat_arg_ptr)
-  %str10 = call ptr @mesh_string_new(ptr @.str.621, i64 13)
+  %str10 = call ptr @mesh_string_new(ptr @.str.511, i64 10)
   %concat11 = call ptr @mesh_string_concat(ptr %concat, ptr %str10)
   %count12 = load i64, ptr %count, align 8
   %concat_arg_ptr13 = inttoptr i64 %count12 to ptr
   %concat14 = call ptr @mesh_string_concat(ptr %concat11, ptr %concat_arg_ptr13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.622, i64 1)
+  %str15 = call ptr @mesh_string_new(ptr @.str.512, i64 1)
   %concat16 = call ptr @mesh_string_concat(ptr %concat14, ptr %str15)
   ret ptr %concat16
 }
@@ -16384,27 +14742,27 @@ entry:
   %level = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.623, i64 5)
+  %str = call ptr @mesh_string_new(ptr @.str.513, i64 5)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %level, align 8
   %count = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.624, i64 5)
+  %str5 = call ptr @mesh_string_new(ptr @.str.514, i64 5)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %count, align 8
-  %str8 = call ptr @mesh_string_new(ptr @.str.625, i64 13)
+  %str8 = call ptr @mesh_string_new(ptr @.str.515, i64 10)
   %level9 = load i64, ptr %level, align 8
   %concat_arg_ptr = inttoptr i64 %level9 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str8, ptr %concat_arg_ptr)
-  %str10 = call ptr @mesh_string_new(ptr @.str.626, i64 13)
+  %str10 = call ptr @mesh_string_new(ptr @.str.516, i64 10)
   %concat11 = call ptr @mesh_string_concat(ptr %concat, ptr %str10)
   %count12 = load i64, ptr %count, align 8
   %concat_arg_ptr13 = inttoptr i64 %count12 to ptr
   %concat14 = call ptr @mesh_string_concat(ptr %concat11, ptr %concat_arg_ptr13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.627, i64 1)
+  %str15 = call ptr @mesh_string_new(ptr @.str.517, i64 1)
   %concat16 = call ptr @mesh_string_concat(ptr %concat14, ptr %str15)
   ret ptr %concat16
 }
@@ -16416,75 +14774,75 @@ entry:
   %id = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.628, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.518, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %id, align 8
   %title = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.629, i64 5)
+  %str5 = call ptr @mesh_string_new(ptr @.str.519, i64 5)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %title, align 8
   %level = alloca i64, align 8
   %row8 = load ptr, ptr %row, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %row8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.630, i64 5)
+  %str10 = call ptr @mesh_string_new(ptr @.str.520, i64 5)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %level, align 8
   %status = alloca i64, align 8
   %row13 = load ptr, ptr %row, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %row13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.631, i64 6)
+  %str15 = call ptr @mesh_string_new(ptr @.str.521, i64 6)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %status, align 8
   %event_count = alloca i64, align 8
   %row18 = load ptr, ptr %row, align 8
   %call19 = call ptr @mesh_map_tag_string(ptr %row18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.632, i64 11)
+  %str20 = call ptr @mesh_string_new(ptr @.str.522, i64 11)
   %ptr_to_i6421 = ptrtoint ptr %str20 to i64
   %call22 = call i64 @mesh_map_get(ptr %call19, i64 %ptr_to_i6421)
   store i64 %call22, ptr %event_count, align 8
   %last_seen = alloca i64, align 8
   %row23 = load ptr, ptr %row, align 8
   %call24 = call ptr @mesh_map_tag_string(ptr %row23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.633, i64 9)
+  %str25 = call ptr @mesh_string_new(ptr @.str.523, i64 9)
   %ptr_to_i6426 = ptrtoint ptr %str25 to i64
   %call27 = call i64 @mesh_map_get(ptr %call24, i64 %ptr_to_i6426)
   store i64 %call27, ptr %last_seen, align 8
-  %str28 = call ptr @mesh_string_new(ptr @.str.634, i64 10)
+  %str28 = call ptr @mesh_string_new(ptr @.str.524, i64 7)
   %id29 = load i64, ptr %id, align 8
   %concat_arg_ptr = inttoptr i64 %id29 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str28, ptr %concat_arg_ptr)
-  %str30 = call ptr @mesh_string_new(ptr @.str.635, i64 15)
+  %str30 = call ptr @mesh_string_new(ptr @.str.525, i64 11)
   %concat31 = call ptr @mesh_string_concat(ptr %concat, ptr %str30)
   %title32 = load i64, ptr %title, align 8
   %concat_arg_ptr33 = inttoptr i64 %title32 to ptr
   %concat34 = call ptr @mesh_string_concat(ptr %concat31, ptr %concat_arg_ptr33)
-  %str35 = call ptr @mesh_string_new(ptr @.str.636, i64 15)
+  %str35 = call ptr @mesh_string_new(ptr @.str.526, i64 11)
   %concat36 = call ptr @mesh_string_concat(ptr %concat34, ptr %str35)
   %level37 = load i64, ptr %level, align 8
   %concat_arg_ptr38 = inttoptr i64 %level37 to ptr
   %concat39 = call ptr @mesh_string_concat(ptr %concat36, ptr %concat_arg_ptr38)
-  %str40 = call ptr @mesh_string_new(ptr @.str.637, i64 16)
+  %str40 = call ptr @mesh_string_new(ptr @.str.527, i64 12)
   %concat41 = call ptr @mesh_string_concat(ptr %concat39, ptr %str40)
   %status42 = load i64, ptr %status, align 8
   %concat_arg_ptr43 = inttoptr i64 %status42 to ptr
   %concat44 = call ptr @mesh_string_concat(ptr %concat41, ptr %concat_arg_ptr43)
-  %str45 = call ptr @mesh_string_new(ptr @.str.638, i64 19)
+  %str45 = call ptr @mesh_string_new(ptr @.str.528, i64 16)
   %concat46 = call ptr @mesh_string_concat(ptr %concat44, ptr %str45)
   %event_count47 = load i64, ptr %event_count, align 8
   %concat_arg_ptr48 = inttoptr i64 %event_count47 to ptr
   %concat49 = call ptr @mesh_string_concat(ptr %concat46, ptr %concat_arg_ptr48)
-  %str50 = call ptr @mesh_string_new(ptr @.str.639, i64 17)
+  %str50 = call ptr @mesh_string_new(ptr @.str.529, i64 14)
   %concat51 = call ptr @mesh_string_concat(ptr %concat49, ptr %str50)
   %last_seen52 = load i64, ptr %last_seen, align 8
   %concat_arg_ptr53 = inttoptr i64 %last_seen52 to ptr
   %concat54 = call ptr @mesh_string_concat(ptr %concat51, ptr %concat_arg_ptr53)
-  %str55 = call ptr @mesh_string_new(ptr @.str.640, i64 3)
+  %str55 = call ptr @mesh_string_new(ptr @.str.530, i64 2)
   %concat56 = call ptr @mesh_string_concat(ptr %concat54, ptr %str55)
   ret ptr %concat56
 }
@@ -16496,14 +14854,14 @@ entry:
   %tag_value = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.641, i64 9)
+  %str = call ptr @mesh_string_new(ptr @.str.531, i64 9)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %tag_value, align 8
   %count = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.642, i64 5)
+  %str5 = call ptr @mesh_string_new(ptr @.str.532, i64 5)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %count, align 8
@@ -16516,16 +14874,16 @@ entry:
   br i1 %eq, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str10 = call ptr @mesh_string_new(ptr @.str.643, i64 4)
+  %str10 = call ptr @mesh_string_new(ptr @.str.533, i64 4)
   store ptr %str10, ptr %if_result, align 8
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str11 = call ptr @mesh_string_new(ptr @.str.644, i64 2)
+  %str11 = call ptr @mesh_string_new(ptr @.str.534, i64 1)
   %tag_value12 = load i64, ptr %tag_value, align 8
   %concat_arg_ptr = inttoptr i64 %tag_value12 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str11, ptr %concat_arg_ptr)
-  %str13 = call ptr @mesh_string_new(ptr @.str.645, i64 2)
+  %str13 = call ptr @mesh_string_new(ptr @.str.535, i64 1)
   %concat14 = call ptr @mesh_string_concat(ptr %concat, ptr %str13)
   store ptr %concat14, ptr %if_result, align 8
   br label %if_merge
@@ -16533,15 +14891,15 @@ else:                                             ; preds = %entry
 if_merge:                                         ; preds = %else, %then
   %if_val = load ptr, ptr %if_result, align 8
   store ptr %if_val, ptr %value_str, align 8
-  %str15 = call ptr @mesh_string_new(ptr @.str.646, i64 11)
+  %str15 = call ptr @mesh_string_new(ptr @.str.536, i64 9)
   %value_str16 = load ptr, ptr %value_str, align 8
   %concat17 = call ptr @mesh_string_concat(ptr %str15, ptr %value_str16)
-  %str18 = call ptr @mesh_string_new(ptr @.str.647, i64 11)
+  %str18 = call ptr @mesh_string_new(ptr @.str.537, i64 9)
   %concat19 = call ptr @mesh_string_concat(ptr %concat17, ptr %str18)
   %count20 = load i64, ptr %count, align 8
   %concat_arg_ptr21 = inttoptr i64 %count20 to ptr
   %concat22 = call ptr @mesh_string_concat(ptr %concat19, ptr %concat_arg_ptr21)
-  %str23 = call ptr @mesh_string_new(ptr @.str.648, i64 1)
+  %str23 = call ptr @mesh_string_new(ptr @.str.538, i64 1)
   %concat24 = call ptr @mesh_string_concat(ptr %concat22, ptr %str23)
   ret ptr %concat24
 }
@@ -16553,51 +14911,51 @@ entry:
   %id = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.649, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.539, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %id, align 8
   %level = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.650, i64 5)
+  %str5 = call ptr @mesh_string_new(ptr @.str.540, i64 5)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %level, align 8
   %message = alloca i64, align 8
   %row8 = load ptr, ptr %row, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %row8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.651, i64 7)
+  %str10 = call ptr @mesh_string_new(ptr @.str.541, i64 7)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %message, align 8
   %received_at = alloca i64, align 8
   %row13 = load ptr, ptr %row, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %row13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.652, i64 11)
+  %str15 = call ptr @mesh_string_new(ptr @.str.542, i64 11)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %received_at, align 8
-  %str18 = call ptr @mesh_string_new(ptr @.str.653, i64 10)
+  %str18 = call ptr @mesh_string_new(ptr @.str.543, i64 7)
   %id19 = load i64, ptr %id, align 8
   %concat_arg_ptr = inttoptr i64 %id19 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str18, ptr %concat_arg_ptr)
-  %str20 = call ptr @mesh_string_new(ptr @.str.654, i64 15)
+  %str20 = call ptr @mesh_string_new(ptr @.str.544, i64 11)
   %concat21 = call ptr @mesh_string_concat(ptr %concat, ptr %str20)
   %level22 = load i64, ptr %level, align 8
   %concat_arg_ptr23 = inttoptr i64 %level22 to ptr
   %concat24 = call ptr @mesh_string_concat(ptr %concat21, ptr %concat_arg_ptr23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.655, i64 17)
+  %str25 = call ptr @mesh_string_new(ptr @.str.545, i64 13)
   %concat26 = call ptr @mesh_string_concat(ptr %concat24, ptr %str25)
   %message27 = load i64, ptr %message, align 8
   %concat_arg_ptr28 = inttoptr i64 %message27 to ptr
   %concat29 = call ptr @mesh_string_concat(ptr %concat26, ptr %concat_arg_ptr28)
-  %str30 = call ptr @mesh_string_new(ptr @.str.656, i64 21)
+  %str30 = call ptr @mesh_string_new(ptr @.str.546, i64 17)
   %concat31 = call ptr @mesh_string_concat(ptr %concat29, ptr %str30)
   %received_at32 = load i64, ptr %received_at, align 8
   %concat_arg_ptr33 = inttoptr i64 %received_at32 to ptr
   %concat34 = call ptr @mesh_string_concat(ptr %concat31, ptr %concat_arg_ptr33)
-  %str35 = call ptr @mesh_string_new(ptr @.str.657, i64 3)
+  %str35 = call ptr @mesh_string_new(ptr @.str.547, i64 2)
   %concat36 = call ptr @mesh_string_concat(ptr %concat34, ptr %str35)
   ret ptr %concat36
 }
@@ -16659,7 +15017,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.658, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.548, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -16671,8 +15029,8 @@ entry:
   store ptr %call7, ptr %project_id, align 8
   %bucket = alloca ptr, align 8
   %request8 = load ptr, ptr %request, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.659, i64 6)
-  %str10 = call ptr @mesh_string_new(ptr @.str.660, i64 4)
+  %str9 = call ptr @mesh_string_new(ptr @.str.549, i64 6)
+  %str10 = call ptr @mesh_string_new(ptr @.str.550, i64 4)
   %call11 = call ptr @query_or_default(ptr %request8, ptr %str9, ptr %str10)
   call void @mesh_reduction_check()
   store ptr %call11, ptr %bucket, align 8
@@ -16699,7 +15057,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.663, i64 30, ptr @.panic_file.664, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.553, i64 30, ptr @.panic_file.554, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -16716,10 +15074,10 @@ case_Err:                                         ; preds = %entry
   %variant_field19 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val20 = load ptr, ptr %variant_field19, align 8
   store ptr %path_val20, ptr %e, align 8
-  %str21 = call ptr @mesh_string_new(ptr @.str.661, i64 13)
+  %str21 = call ptr @mesh_string_new(ptr @.str.551, i64 10)
   %e22 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str21, ptr %e22)
-  %str23 = call ptr @mesh_string_new(ptr @.str.662, i64 3)
+  %str23 = call ptr @mesh_string_new(ptr @.str.552, i64 2)
   %concat24 = call ptr @mesh_string_concat(ptr %concat, ptr %str23)
   %call25 = call ptr @mesh_http_response_new(i64 500, ptr %concat24)
   store ptr %call25, ptr %match_result, align 8
@@ -16783,7 +15141,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.665, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.555, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -16815,7 +15173,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.668, i64 30, ptr @.panic_file.669, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.558, i64 30, ptr @.panic_file.559, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -16832,10 +15190,10 @@ case_Err:                                         ; preds = %entry
   %variant_field14 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val15 = load ptr, ptr %variant_field14, align 8
   store ptr %path_val15, ptr %e, align 8
-  %str16 = call ptr @mesh_string_new(ptr @.str.666, i64 13)
+  %str16 = call ptr @mesh_string_new(ptr @.str.556, i64 10)
   %e17 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str16, ptr %e17)
-  %str18 = call ptr @mesh_string_new(ptr @.str.667, i64 3)
+  %str18 = call ptr @mesh_string_new(ptr @.str.557, i64 2)
   %concat19 = call ptr @mesh_string_concat(ptr %concat, ptr %str18)
   %call20 = call ptr @mesh_http_response_new(i64 500, ptr %concat19)
   store ptr %call20, ptr %match_result, align 8
@@ -16899,7 +15257,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.670, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.560, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -16911,8 +15269,8 @@ entry:
   store ptr %call7, ptr %project_id, align 8
   %limit = alloca ptr, align 8
   %request8 = load ptr, ptr %request, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.671, i64 5)
-  %str10 = call ptr @mesh_string_new(ptr @.str.672, i64 2)
+  %str9 = call ptr @mesh_string_new(ptr @.str.561, i64 5)
+  %str10 = call ptr @mesh_string_new(ptr @.str.562, i64 2)
   %call11 = call ptr @query_or_default(ptr %request8, ptr %str9, ptr %str10)
   call void @mesh_reduction_check()
   store ptr %call11, ptr %limit, align 8
@@ -16939,7 +15297,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.675, i64 30, ptr @.panic_file.676, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.565, i64 30, ptr @.panic_file.566, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -16956,10 +15314,10 @@ case_Err:                                         ; preds = %entry
   %variant_field19 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val20 = load ptr, ptr %variant_field19, align 8
   store ptr %path_val20, ptr %e, align 8
-  %str21 = call ptr @mesh_string_new(ptr @.str.673, i64 13)
+  %str21 = call ptr @mesh_string_new(ptr @.str.563, i64 10)
   %e22 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str21, ptr %e22)
-  %str23 = call ptr @mesh_string_new(ptr @.str.674, i64 3)
+  %str23 = call ptr @mesh_string_new(ptr @.str.564, i64 2)
   %concat24 = call ptr @mesh_string_concat(ptr %concat, ptr %str23)
   %call25 = call ptr @mesh_http_response_new(i64 500, ptr %concat24)
   store ptr %call25, ptr %match_result, align 8
@@ -17039,7 +15397,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.679, i64 30, ptr @.panic_file.680, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.569, i64 30, ptr @.panic_file.570, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -17056,10 +15414,10 @@ case_Err:                                         ; preds = %entry
   %variant_field7 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val8 = load ptr, ptr %variant_field7, align 8
   store ptr %path_val8, ptr %e, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.677, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.567, i64 10)
   %e9 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %e9)
-  %str10 = call ptr @mesh_string_new(ptr @.str.678, i64 3)
+  %str10 = call ptr @mesh_string_new(ptr @.str.568, i64 2)
   %concat11 = call ptr @mesh_string_concat(ptr %concat, ptr %str10)
   %call12 = call ptr @mesh_http_response_new(i64 500, ptr %concat11)
   store ptr %call12, ptr %match_result, align 8
@@ -17081,7 +15439,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.681, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.571, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -17093,8 +15451,8 @@ entry:
   store ptr %call7, ptr %project_id, align 8
   %key = alloca ptr, align 8
   %request8 = load ptr, ptr %request, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.682, i64 3)
-  %str10 = call ptr @mesh_string_new(ptr @.str.683, i64 0)
+  %str9 = call ptr @mesh_string_new(ptr @.str.572, i64 3)
+  %str10 = call ptr @mesh_string_new(ptr @.str.573, i64 0)
   %call11 = call ptr @query_or_default(ptr %request8, ptr %str9, ptr %str10)
   call void @mesh_reduction_check()
   store ptr %call11, ptr %key, align 8
@@ -17105,7 +15463,7 @@ entry:
   br i1 %eq, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str14 = call ptr @mesh_string_new(ptr @.str.684, i64 37)
+  %str14 = call ptr @mesh_string_new(ptr @.str.574, i64 33)
   %call15 = call ptr @mesh_http_response_new(i64 400, ptr %str14)
   store ptr %call15, ptr %if_result, align 8
   br label %if_merge
@@ -17181,14 +15539,14 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.685, i64 8)
+  %str = call ptr @mesh_string_new(ptr @.str.575, i64 8)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %issue_id, align 8
   %limit = alloca ptr, align 8
   %request5 = load ptr, ptr %request, align 8
-  %str6 = call ptr @mesh_string_new(ptr @.str.686, i64 5)
-  %str7 = call ptr @mesh_string_new(ptr @.str.687, i64 2)
+  %str6 = call ptr @mesh_string_new(ptr @.str.576, i64 5)
+  %str7 = call ptr @mesh_string_new(ptr @.str.577, i64 2)
   %call8 = call ptr @query_or_default(ptr %request5, ptr %str6, ptr %str7)
   call void @mesh_reduction_check()
   store ptr %call8, ptr %limit, align 8
@@ -17215,7 +15573,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.690, i64 30, ptr @.panic_file.691, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.580, i64 30, ptr @.panic_file.581, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -17232,10 +15590,10 @@ case_Err:                                         ; preds = %entry
   %variant_field16 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val17 = load ptr, ptr %variant_field16, align 8
   store ptr %path_val17, ptr %e, align 8
-  %str18 = call ptr @mesh_string_new(ptr @.str.688, i64 13)
+  %str18 = call ptr @mesh_string_new(ptr @.str.578, i64 10)
   %e19 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str18, ptr %e19)
-  %str20 = call ptr @mesh_string_new(ptr @.str.689, i64 3)
+  %str20 = call ptr @mesh_string_new(ptr @.str.579, i64 2)
   %concat21 = call ptr @mesh_string_concat(ptr %concat, ptr %str20)
   %call22 = call ptr @mesh_http_response_new(i64 500, ptr %concat21)
   store ptr %call22, ptr %match_result, align 8
@@ -17261,46 +15619,46 @@ then:                                             ; preds = %entry
   %unresolved = alloca i64, align 8
   %row4 = load ptr, ptr %row, align 8
   %call5 = call ptr @mesh_map_tag_string(ptr %row4)
-  %str = call ptr @mesh_string_new(ptr @.str.692, i64 16)
+  %str = call ptr @mesh_string_new(ptr @.str.582, i64 16)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call6 = call i64 @mesh_map_get(ptr %call5, i64 %ptr_to_i64)
   store i64 %call6, ptr %unresolved, align 8
   %events_24h = alloca i64, align 8
   %row7 = load ptr, ptr %row, align 8
   %call8 = call ptr @mesh_map_tag_string(ptr %row7)
-  %str9 = call ptr @mesh_string_new(ptr @.str.693, i64 10)
+  %str9 = call ptr @mesh_string_new(ptr @.str.583, i64 10)
   %ptr_to_i6410 = ptrtoint ptr %str9 to i64
   %call11 = call i64 @mesh_map_get(ptr %call8, i64 %ptr_to_i6410)
   store i64 %call11, ptr %events_24h, align 8
   %new_today = alloca i64, align 8
   %row12 = load ptr, ptr %row, align 8
   %call13 = call ptr @mesh_map_tag_string(ptr %row12)
-  %str14 = call ptr @mesh_string_new(ptr @.str.694, i64 9)
+  %str14 = call ptr @mesh_string_new(ptr @.str.584, i64 9)
   %ptr_to_i6415 = ptrtoint ptr %str14 to i64
   %call16 = call i64 @mesh_map_get(ptr %call13, i64 %ptr_to_i6415)
   store i64 %call16, ptr %new_today, align 8
-  %str17 = call ptr @mesh_string_new(ptr @.str.695, i64 22)
+  %str17 = call ptr @mesh_string_new(ptr @.str.585, i64 20)
   %unresolved18 = load i64, ptr %unresolved, align 8
   %concat_arg_ptr = inttoptr i64 %unresolved18 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str17, ptr %concat_arg_ptr)
-  %str19 = call ptr @mesh_string_new(ptr @.str.696, i64 16)
+  %str19 = call ptr @mesh_string_new(ptr @.str.586, i64 14)
   %concat20 = call ptr @mesh_string_concat(ptr %concat, ptr %str19)
   %events_24h21 = load i64, ptr %events_24h, align 8
   %concat_arg_ptr22 = inttoptr i64 %events_24h21 to ptr
   %concat23 = call ptr @mesh_string_concat(ptr %concat20, ptr %concat_arg_ptr22)
-  %str24 = call ptr @mesh_string_new(ptr @.str.697, i64 15)
+  %str24 = call ptr @mesh_string_new(ptr @.str.587, i64 13)
   %concat25 = call ptr @mesh_string_concat(ptr %concat23, ptr %str24)
   %new_today26 = load i64, ptr %new_today, align 8
   %concat_arg_ptr27 = inttoptr i64 %new_today26 to ptr
   %concat28 = call ptr @mesh_string_concat(ptr %concat25, ptr %concat_arg_ptr27)
-  %str29 = call ptr @mesh_string_new(ptr @.str.698, i64 1)
+  %str29 = call ptr @mesh_string_new(ptr @.str.588, i64 1)
   %concat30 = call ptr @mesh_string_concat(ptr %concat28, ptr %str29)
   %call31 = call ptr @mesh_http_response_new(i64 200, ptr %concat30)
   store ptr %call31, ptr %if_result, align 8
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str32 = call ptr @mesh_string_new(ptr @.str.699, i64 33)
+  %str32 = call ptr @mesh_string_new(ptr @.str.589, i64 29)
   %call33 = call ptr @mesh_http_response_new(i64 404, ptr %str32)
   store ptr %call33, ptr %if_result, align 8
   br label %if_merge
@@ -17327,7 +15685,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.700, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.590, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -17359,7 +15717,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.703, i64 30, ptr @.panic_file.704, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.593, i64 30, ptr @.panic_file.594, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -17376,10 +15734,10 @@ case_Err:                                         ; preds = %entry
   %variant_field14 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val15 = load ptr, ptr %variant_field14, align 8
   store ptr %path_val15, ptr %e, align 8
-  %str16 = call ptr @mesh_string_new(ptr @.str.701, i64 13)
+  %str16 = call ptr @mesh_string_new(ptr @.str.591, i64 10)
   %e17 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str16, ptr %e17)
-  %str18 = call ptr @mesh_string_new(ptr @.str.702, i64 3)
+  %str18 = call ptr @mesh_string_new(ptr @.str.592, i64 2)
   %concat19 = call ptr @mesh_string_concat(ptr %concat, ptr %str18)
   %call20 = call ptr @mesh_http_response_new(i64 500, ptr %concat19)
   store ptr %call20, ptr %match_result, align 8
@@ -17393,183 +15751,183 @@ entry:
   %id = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.705, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.595, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %id, align 8
   %project_id = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.706, i64 10)
+  %str5 = call ptr @mesh_string_new(ptr @.str.596, i64 10)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %project_id, align 8
   %issue_id = alloca i64, align 8
   %row8 = load ptr, ptr %row, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %row8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.707, i64 8)
+  %str10 = call ptr @mesh_string_new(ptr @.str.597, i64 8)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %issue_id, align 8
   %level = alloca i64, align 8
   %row13 = load ptr, ptr %row, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %row13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.708, i64 5)
+  %str15 = call ptr @mesh_string_new(ptr @.str.598, i64 5)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %level, align 8
   %message = alloca i64, align 8
   %row18 = load ptr, ptr %row, align 8
   %call19 = call ptr @mesh_map_tag_string(ptr %row18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.709, i64 7)
+  %str20 = call ptr @mesh_string_new(ptr @.str.599, i64 7)
   %ptr_to_i6421 = ptrtoint ptr %str20 to i64
   %call22 = call i64 @mesh_map_get(ptr %call19, i64 %ptr_to_i6421)
   store i64 %call22, ptr %message, align 8
   %fingerprint = alloca i64, align 8
   %row23 = load ptr, ptr %row, align 8
   %call24 = call ptr @mesh_map_tag_string(ptr %row23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.710, i64 11)
+  %str25 = call ptr @mesh_string_new(ptr @.str.600, i64 11)
   %ptr_to_i6426 = ptrtoint ptr %str25 to i64
   %call27 = call i64 @mesh_map_get(ptr %call24, i64 %ptr_to_i6426)
   store i64 %call27, ptr %fingerprint, align 8
   %exception = alloca i64, align 8
   %row28 = load ptr, ptr %row, align 8
   %call29 = call ptr @mesh_map_tag_string(ptr %row28)
-  %str30 = call ptr @mesh_string_new(ptr @.str.711, i64 9)
+  %str30 = call ptr @mesh_string_new(ptr @.str.601, i64 9)
   %ptr_to_i6431 = ptrtoint ptr %str30 to i64
   %call32 = call i64 @mesh_map_get(ptr %call29, i64 %ptr_to_i6431)
   store i64 %call32, ptr %exception, align 8
   %stacktrace = alloca i64, align 8
   %row33 = load ptr, ptr %row, align 8
   %call34 = call ptr @mesh_map_tag_string(ptr %row33)
-  %str35 = call ptr @mesh_string_new(ptr @.str.712, i64 10)
+  %str35 = call ptr @mesh_string_new(ptr @.str.602, i64 10)
   %ptr_to_i6436 = ptrtoint ptr %str35 to i64
   %call37 = call i64 @mesh_map_get(ptr %call34, i64 %ptr_to_i6436)
   store i64 %call37, ptr %stacktrace, align 8
   %breadcrumbs = alloca i64, align 8
   %row38 = load ptr, ptr %row, align 8
   %call39 = call ptr @mesh_map_tag_string(ptr %row38)
-  %str40 = call ptr @mesh_string_new(ptr @.str.713, i64 11)
+  %str40 = call ptr @mesh_string_new(ptr @.str.603, i64 11)
   %ptr_to_i6441 = ptrtoint ptr %str40 to i64
   %call42 = call i64 @mesh_map_get(ptr %call39, i64 %ptr_to_i6441)
   store i64 %call42, ptr %breadcrumbs, align 8
   %tags = alloca i64, align 8
   %row43 = load ptr, ptr %row, align 8
   %call44 = call ptr @mesh_map_tag_string(ptr %row43)
-  %str45 = call ptr @mesh_string_new(ptr @.str.714, i64 4)
+  %str45 = call ptr @mesh_string_new(ptr @.str.604, i64 4)
   %ptr_to_i6446 = ptrtoint ptr %str45 to i64
   %call47 = call i64 @mesh_map_get(ptr %call44, i64 %ptr_to_i6446)
   store i64 %call47, ptr %tags, align 8
   %extra = alloca i64, align 8
   %row48 = load ptr, ptr %row, align 8
   %call49 = call ptr @mesh_map_tag_string(ptr %row48)
-  %str50 = call ptr @mesh_string_new(ptr @.str.715, i64 5)
+  %str50 = call ptr @mesh_string_new(ptr @.str.605, i64 5)
   %ptr_to_i6451 = ptrtoint ptr %str50 to i64
   %call52 = call i64 @mesh_map_get(ptr %call49, i64 %ptr_to_i6451)
   store i64 %call52, ptr %extra, align 8
   %user_context = alloca i64, align 8
   %row53 = load ptr, ptr %row, align 8
   %call54 = call ptr @mesh_map_tag_string(ptr %row53)
-  %str55 = call ptr @mesh_string_new(ptr @.str.716, i64 12)
+  %str55 = call ptr @mesh_string_new(ptr @.str.606, i64 12)
   %ptr_to_i6456 = ptrtoint ptr %str55 to i64
   %call57 = call i64 @mesh_map_get(ptr %call54, i64 %ptr_to_i6456)
   store i64 %call57, ptr %user_context, align 8
   %sdk_name = alloca i64, align 8
   %row58 = load ptr, ptr %row, align 8
   %call59 = call ptr @mesh_map_tag_string(ptr %row58)
-  %str60 = call ptr @mesh_string_new(ptr @.str.717, i64 8)
+  %str60 = call ptr @mesh_string_new(ptr @.str.607, i64 8)
   %ptr_to_i6461 = ptrtoint ptr %str60 to i64
   %call62 = call i64 @mesh_map_get(ptr %call59, i64 %ptr_to_i6461)
   store i64 %call62, ptr %sdk_name, align 8
   %sdk_version = alloca i64, align 8
   %row63 = load ptr, ptr %row, align 8
   %call64 = call ptr @mesh_map_tag_string(ptr %row63)
-  %str65 = call ptr @mesh_string_new(ptr @.str.718, i64 11)
+  %str65 = call ptr @mesh_string_new(ptr @.str.608, i64 11)
   %ptr_to_i6466 = ptrtoint ptr %str65 to i64
   %call67 = call i64 @mesh_map_get(ptr %call64, i64 %ptr_to_i6466)
   store i64 %call67, ptr %sdk_version, align 8
   %received_at = alloca i64, align 8
   %row68 = load ptr, ptr %row, align 8
   %call69 = call ptr @mesh_map_tag_string(ptr %row68)
-  %str70 = call ptr @mesh_string_new(ptr @.str.719, i64 11)
+  %str70 = call ptr @mesh_string_new(ptr @.str.609, i64 11)
   %ptr_to_i6471 = ptrtoint ptr %str70 to i64
   %call72 = call i64 @mesh_map_get(ptr %call69, i64 %ptr_to_i6471)
   store i64 %call72, ptr %received_at, align 8
-  %str73 = call ptr @mesh_string_new(ptr @.str.720, i64 10)
+  %str73 = call ptr @mesh_string_new(ptr @.str.610, i64 7)
   %id74 = load i64, ptr %id, align 8
   %concat_arg_ptr = inttoptr i64 %id74 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str73, ptr %concat_arg_ptr)
-  %str75 = call ptr @mesh_string_new(ptr @.str.721, i64 20)
+  %str75 = call ptr @mesh_string_new(ptr @.str.611, i64 16)
   %concat76 = call ptr @mesh_string_concat(ptr %concat, ptr %str75)
   %project_id77 = load i64, ptr %project_id, align 8
   %concat_arg_ptr78 = inttoptr i64 %project_id77 to ptr
   %concat79 = call ptr @mesh_string_concat(ptr %concat76, ptr %concat_arg_ptr78)
-  %str80 = call ptr @mesh_string_new(ptr @.str.722, i64 18)
+  %str80 = call ptr @mesh_string_new(ptr @.str.612, i64 14)
   %concat81 = call ptr @mesh_string_concat(ptr %concat79, ptr %str80)
   %issue_id82 = load i64, ptr %issue_id, align 8
   %concat_arg_ptr83 = inttoptr i64 %issue_id82 to ptr
   %concat84 = call ptr @mesh_string_concat(ptr %concat81, ptr %concat_arg_ptr83)
-  %str85 = call ptr @mesh_string_new(ptr @.str.723, i64 15)
+  %str85 = call ptr @mesh_string_new(ptr @.str.613, i64 11)
   %concat86 = call ptr @mesh_string_concat(ptr %concat84, ptr %str85)
   %level87 = load i64, ptr %level, align 8
   %concat_arg_ptr88 = inttoptr i64 %level87 to ptr
   %concat89 = call ptr @mesh_string_concat(ptr %concat86, ptr %concat_arg_ptr88)
-  %str90 = call ptr @mesh_string_new(ptr @.str.724, i64 17)
+  %str90 = call ptr @mesh_string_new(ptr @.str.614, i64 13)
   %concat91 = call ptr @mesh_string_concat(ptr %concat89, ptr %str90)
   %message92 = load i64, ptr %message, align 8
   %concat_arg_ptr93 = inttoptr i64 %message92 to ptr
   %concat94 = call ptr @mesh_string_concat(ptr %concat91, ptr %concat_arg_ptr93)
-  %str95 = call ptr @mesh_string_new(ptr @.str.725, i64 21)
+  %str95 = call ptr @mesh_string_new(ptr @.str.615, i64 17)
   %concat96 = call ptr @mesh_string_concat(ptr %concat94, ptr %str95)
   %fingerprint97 = load i64, ptr %fingerprint, align 8
   %concat_arg_ptr98 = inttoptr i64 %fingerprint97 to ptr
   %concat99 = call ptr @mesh_string_concat(ptr %concat96, ptr %concat_arg_ptr98)
-  %str100 = call ptr @mesh_string_new(ptr @.str.726, i64 17)
+  %str100 = call ptr @mesh_string_new(ptr @.str.616, i64 14)
   %concat101 = call ptr @mesh_string_concat(ptr %concat99, ptr %str100)
   %exception102 = load i64, ptr %exception, align 8
   %concat_arg_ptr103 = inttoptr i64 %exception102 to ptr
   %concat104 = call ptr @mesh_string_concat(ptr %concat101, ptr %concat_arg_ptr103)
-  %str105 = call ptr @mesh_string_new(ptr @.str.727, i64 16)
+  %str105 = call ptr @mesh_string_new(ptr @.str.617, i64 14)
   %concat106 = call ptr @mesh_string_concat(ptr %concat104, ptr %str105)
   %stacktrace107 = load i64, ptr %stacktrace, align 8
   %concat_arg_ptr108 = inttoptr i64 %stacktrace107 to ptr
   %concat109 = call ptr @mesh_string_concat(ptr %concat106, ptr %concat_arg_ptr108)
-  %str110 = call ptr @mesh_string_new(ptr @.str.728, i64 17)
+  %str110 = call ptr @mesh_string_new(ptr @.str.618, i64 15)
   %concat111 = call ptr @mesh_string_concat(ptr %concat109, ptr %str110)
   %breadcrumbs112 = load i64, ptr %breadcrumbs, align 8
   %concat_arg_ptr113 = inttoptr i64 %breadcrumbs112 to ptr
   %concat114 = call ptr @mesh_string_concat(ptr %concat111, ptr %concat_arg_ptr113)
-  %str115 = call ptr @mesh_string_new(ptr @.str.729, i64 10)
+  %str115 = call ptr @mesh_string_new(ptr @.str.619, i64 8)
   %concat116 = call ptr @mesh_string_concat(ptr %concat114, ptr %str115)
   %tags117 = load i64, ptr %tags, align 8
   %concat_arg_ptr118 = inttoptr i64 %tags117 to ptr
   %concat119 = call ptr @mesh_string_concat(ptr %concat116, ptr %concat_arg_ptr118)
-  %str120 = call ptr @mesh_string_new(ptr @.str.730, i64 11)
+  %str120 = call ptr @mesh_string_new(ptr @.str.620, i64 9)
   %concat121 = call ptr @mesh_string_concat(ptr %concat119, ptr %str120)
   %extra122 = load i64, ptr %extra, align 8
   %concat_arg_ptr123 = inttoptr i64 %extra122 to ptr
   %concat124 = call ptr @mesh_string_concat(ptr %concat121, ptr %concat_arg_ptr123)
-  %str125 = call ptr @mesh_string_new(ptr @.str.731, i64 18)
+  %str125 = call ptr @mesh_string_new(ptr @.str.621, i64 16)
   %concat126 = call ptr @mesh_string_concat(ptr %concat124, ptr %str125)
   %user_context127 = load i64, ptr %user_context, align 8
   %concat_arg_ptr128 = inttoptr i64 %user_context127 to ptr
   %concat129 = call ptr @mesh_string_concat(ptr %concat126, ptr %concat_arg_ptr128)
-  %str130 = call ptr @mesh_string_new(ptr @.str.732, i64 16)
+  %str130 = call ptr @mesh_string_new(ptr @.str.622, i64 13)
   %concat131 = call ptr @mesh_string_concat(ptr %concat129, ptr %str130)
   %sdk_name132 = load i64, ptr %sdk_name, align 8
   %concat_arg_ptr133 = inttoptr i64 %sdk_name132 to ptr
   %concat134 = call ptr @mesh_string_concat(ptr %concat131, ptr %concat_arg_ptr133)
-  %str135 = call ptr @mesh_string_new(ptr @.str.733, i64 21)
+  %str135 = call ptr @mesh_string_new(ptr @.str.623, i64 17)
   %concat136 = call ptr @mesh_string_concat(ptr %concat134, ptr %str135)
   %sdk_version137 = load i64, ptr %sdk_version, align 8
   %concat_arg_ptr138 = inttoptr i64 %sdk_version137 to ptr
   %concat139 = call ptr @mesh_string_concat(ptr %concat136, ptr %concat_arg_ptr138)
-  %str140 = call ptr @mesh_string_new(ptr @.str.734, i64 21)
+  %str140 = call ptr @mesh_string_new(ptr @.str.624, i64 17)
   %concat141 = call ptr @mesh_string_concat(ptr %concat139, ptr %str140)
   %received_at142 = load i64, ptr %received_at, align 8
   %concat_arg_ptr143 = inttoptr i64 %received_at142 to ptr
   %concat144 = call ptr @mesh_string_concat(ptr %concat141, ptr %concat_arg_ptr143)
-  %str145 = call ptr @mesh_string_new(ptr @.str.735, i64 3)
+  %str145 = call ptr @mesh_string_new(ptr @.str.625, i64 2)
   %concat146 = call ptr @mesh_string_concat(ptr %concat144, ptr %str145)
   ret ptr %concat146
 }
@@ -17585,15 +15943,15 @@ entry:
   br i1 %eq, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str = call ptr @mesh_string_new(ptr @.str.736, i64 4)
+  %str = call ptr @mesh_string_new(ptr @.str.626, i64 4)
   store ptr %str, ptr %if_result, align 8
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str2 = call ptr @mesh_string_new(ptr @.str.737, i64 2)
+  %str2 = call ptr @mesh_string_new(ptr @.str.627, i64 1)
   %val3 = load ptr, ptr %val, align 8
   %concat = call ptr @mesh_string_concat(ptr %str2, ptr %val3)
-  %str4 = call ptr @mesh_string_new(ptr @.str.738, i64 2)
+  %str4 = call ptr @mesh_string_new(ptr @.str.628, i64 1)
   %concat5 = call ptr @mesh_string_concat(ptr %concat, ptr %str4)
   store ptr %concat5, ptr %if_result, align 8
   br label %if_merge
@@ -17610,14 +15968,14 @@ entry:
   %next_id = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.739, i64 7)
+  %str = call ptr @mesh_string_new(ptr @.str.629, i64 7)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %next_id, align 8
   %prev_id = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.740, i64 7)
+  %str5 = call ptr @mesh_string_new(ptr @.str.630, i64 7)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %prev_id, align 8
@@ -17633,14 +15991,14 @@ entry:
   %call12 = call ptr @Api_Detail__format_neighbor_id(ptr %i64_to_ptr11)
   call void @mesh_reduction_check()
   store ptr %call12, ptr %prev_str, align 8
-  %str13 = call ptr @mesh_string_new(ptr @.str.741, i64 13)
+  %str13 = call ptr @mesh_string_new(ptr @.str.631, i64 11)
   %next_str14 = load ptr, ptr %next_str, align 8
   %concat = call ptr @mesh_string_concat(ptr %str13, ptr %next_str14)
-  %str15 = call ptr @mesh_string_new(ptr @.str.742, i64 13)
+  %str15 = call ptr @mesh_string_new(ptr @.str.632, i64 11)
   %concat16 = call ptr @mesh_string_concat(ptr %concat, ptr %str15)
   %prev_str17 = load ptr, ptr %prev_str, align 8
   %concat18 = call ptr @mesh_string_concat(ptr %concat16, ptr %prev_str17)
-  %str19 = call ptr @mesh_string_new(ptr @.str.743, i64 1)
+  %str19 = call ptr @mesh_string_new(ptr @.str.633, i64 1)
   %concat20 = call ptr @mesh_string_concat(ptr %concat18, ptr %str19)
   ret ptr %concat20
 }
@@ -17651,14 +16009,14 @@ entry:
   store ptr %0, ptr %detail_json, align 8
   %nav_json = alloca ptr, align 8
   store ptr %1, ptr %nav_json, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.744, i64 11)
+  %str = call ptr @mesh_string_new(ptr @.str.634, i64 9)
   %detail_json1 = load ptr, ptr %detail_json, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %detail_json1)
-  %str2 = call ptr @mesh_string_new(ptr @.str.745, i64 16)
+  %str2 = call ptr @mesh_string_new(ptr @.str.635, i64 14)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   %nav_json4 = load ptr, ptr %nav_json, align 8
   %concat5 = call ptr @mesh_string_concat(ptr %concat3, ptr %nav_json4)
-  %str6 = call ptr @mesh_string_new(ptr @.str.746, i64 1)
+  %str6 = call ptr @mesh_string_new(ptr @.str.636, i64 1)
   %concat7 = call ptr @mesh_string_concat(ptr %concat5, ptr %str6)
   ret ptr %concat7
 }
@@ -17696,7 +16054,7 @@ then:                                             ; preds = %entry
 
 else:                                             ; preds = %entry
   %detail_json10 = load ptr, ptr %detail_json, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.747, i64 35)
+  %str = call ptr @mesh_string_new(ptr @.str.637, i64 31)
   %call11 = call ptr @Api_Detail__build_detail_response(ptr %detail_json10, ptr %str)
   call void @mesh_reduction_check()
   %call12 = call ptr @mesh_http_response_new(i64 200, ptr %call11)
@@ -17745,7 +16103,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.749, i64 30, ptr @.panic_file.750, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.639, i64 30, ptr @.panic_file.640, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -17761,7 +16119,7 @@ case_Ok:                                          ; preds = %entry
 
 case_Err:                                         ; preds = %entry
   %detail_json9 = load ptr, ptr %detail_json, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.748, i64 35)
+  %str = call ptr @mesh_string_new(ptr @.str.638, i64 31)
   %call10 = call ptr @Api_Detail__build_detail_response(ptr %detail_json9, ptr %str)
   call void @mesh_reduction_check()
   %call11 = call ptr @mesh_http_response_new(i64 200, ptr %call10)
@@ -17797,14 +16155,14 @@ then:                                             ; preds = %entry
   %issue_id = alloca i64, align 8
   %row6 = load ptr, ptr %row, align 8
   %call7 = call ptr @mesh_map_tag_string(ptr %row6)
-  %str = call ptr @mesh_string_new(ptr @.str.751, i64 8)
+  %str = call ptr @mesh_string_new(ptr @.str.641, i64 8)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call8 = call i64 @mesh_map_get(ptr %call7, i64 %ptr_to_i64)
   store i64 %call8, ptr %issue_id, align 8
   %received_at = alloca i64, align 8
   %row9 = load ptr, ptr %row, align 8
   %call10 = call ptr @mesh_map_tag_string(ptr %row9)
-  %str11 = call ptr @mesh_string_new(ptr @.str.752, i64 11)
+  %str11 = call ptr @mesh_string_new(ptr @.str.642, i64 11)
   %ptr_to_i6412 = ptrtoint ptr %str11 to i64
   %call13 = call i64 @mesh_map_get(ptr %call10, i64 %ptr_to_i6412)
   store i64 %call13, ptr %received_at, align 8
@@ -17821,7 +16179,7 @@ then:                                             ; preds = %entry
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str22 = call ptr @mesh_string_new(ptr @.str.753, i64 31)
+  %str22 = call ptr @mesh_string_new(ptr @.str.643, i64 27)
   %call23 = call ptr @mesh_http_response_new(i64 404, ptr %str22)
   store ptr %call23, ptr %if_result, align 8
   br label %if_merge
@@ -17848,7 +16206,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %event_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.754, i64 8)
+  %str = call ptr @mesh_string_new(ptr @.str.644, i64 8)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %event_id, align 8
@@ -17874,7 +16232,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.757, i64 30, ptr @.panic_file.758, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.647, i64 30, ptr @.panic_file.648, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -17893,10 +16251,10 @@ case_Err:                                         ; preds = %entry
   %variant_field13 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val14 = load ptr, ptr %variant_field13, align 8
   store ptr %path_val14, ptr %e, align 8
-  %str15 = call ptr @mesh_string_new(ptr @.str.755, i64 13)
+  %str15 = call ptr @mesh_string_new(ptr @.str.645, i64 10)
   %e16 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str15, ptr %e16)
-  %str17 = call ptr @mesh_string_new(ptr @.str.756, i64 3)
+  %str17 = call ptr @mesh_string_new(ptr @.str.646, i64 2)
   %concat18 = call ptr @mesh_string_concat(ptr %concat, ptr %str17)
   %call19 = call ptr @mesh_http_response_new(i64 500, ptr %concat18)
   store ptr %call19, ptr %match_result, align 8
@@ -17913,7 +16271,7 @@ entry:
   br i1 %gt, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str = call ptr @mesh_string_new(ptr @.str.759, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.649, i64 2)
   store ptr %str, ptr %if_result, align 8
   br label %if_merge
 
@@ -17928,7 +16286,7 @@ if_merge:                                         ; preds = %if_merge6, %then
   ret ptr %if_val9
 
 then4:                                            ; preds = %else
-  %str7 = call ptr @mesh_string_new(ptr @.str.760, i64 2)
+  %str7 = call ptr @mesh_string_new(ptr @.str.650, i64 2)
   store ptr %str7, ptr %if_result3, align 8
   br label %if_merge6
 
@@ -17970,7 +16328,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.762, i64 30, ptr @.panic_file.763, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.652, i64 30, ptr @.panic_file.653, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -17984,7 +16342,7 @@ case_Some:                                        ; preds = %entry
   br label %match_merge
 
 case_None:                                        ; preds = %entry
-  %str = call ptr @mesh_string_new(ptr @.str.761, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.651, i64 2)
   store ptr %str, ptr %match_result, align 8
   br label %match_merge
 }
@@ -17996,7 +16354,7 @@ entry:
   store ptr %0, ptr %request, align 8
   %opt = alloca { i8, ptr }, align 8
   %request1 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.764, i64 5)
+  %str = call ptr @mesh_string_new(ptr @.str.654, i64 5)
   %call = call ptr @mesh_http_request_query(ptr %request1, ptr %str)
   %deref_sum = load { i8, ptr }, ptr %call, align 8
   store { i8, ptr } %deref_sum, ptr %opt, align 8
@@ -18016,7 +16374,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.766, i64 30, ptr @.panic_file.767, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.656, i64 30, ptr @.panic_file.657, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -18030,7 +16388,7 @@ case_Some:                                        ; preds = %entry
   br label %match_merge
 
 case_None:                                        ; preds = %entry
-  %str5 = call ptr @mesh_string_new(ptr @.str.765, i64 2)
+  %str5 = call ptr @mesh_string_new(ptr @.str.655, i64 2)
   store ptr %str5, ptr %match_result, align 8
   br label %match_merge
 }
@@ -18042,99 +16400,99 @@ entry:
   %id = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.768, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.658, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %id, align 8
   %title = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.769, i64 5)
+  %str5 = call ptr @mesh_string_new(ptr @.str.659, i64 5)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %title, align 8
   %level = alloca i64, align 8
   %row8 = load ptr, ptr %row, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %row8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.770, i64 5)
+  %str10 = call ptr @mesh_string_new(ptr @.str.660, i64 5)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %level, align 8
   %status = alloca i64, align 8
   %row13 = load ptr, ptr %row, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %row13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.771, i64 6)
+  %str15 = call ptr @mesh_string_new(ptr @.str.661, i64 6)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %status, align 8
   %event_count = alloca i64, align 8
   %row18 = load ptr, ptr %row, align 8
   %call19 = call ptr @mesh_map_tag_string(ptr %row18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.772, i64 11)
+  %str20 = call ptr @mesh_string_new(ptr @.str.662, i64 11)
   %ptr_to_i6421 = ptrtoint ptr %str20 to i64
   %call22 = call i64 @mesh_map_get(ptr %call19, i64 %ptr_to_i6421)
   store i64 %call22, ptr %event_count, align 8
   %first_seen = alloca i64, align 8
   %row23 = load ptr, ptr %row, align 8
   %call24 = call ptr @mesh_map_tag_string(ptr %row23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.773, i64 10)
+  %str25 = call ptr @mesh_string_new(ptr @.str.663, i64 10)
   %ptr_to_i6426 = ptrtoint ptr %str25 to i64
   %call27 = call i64 @mesh_map_get(ptr %call24, i64 %ptr_to_i6426)
   store i64 %call27, ptr %first_seen, align 8
   %last_seen = alloca i64, align 8
   %row28 = load ptr, ptr %row, align 8
   %call29 = call ptr @mesh_map_tag_string(ptr %row28)
-  %str30 = call ptr @mesh_string_new(ptr @.str.774, i64 9)
+  %str30 = call ptr @mesh_string_new(ptr @.str.664, i64 9)
   %ptr_to_i6431 = ptrtoint ptr %str30 to i64
   %call32 = call i64 @mesh_map_get(ptr %call29, i64 %ptr_to_i6431)
   store i64 %call32, ptr %last_seen, align 8
   %assigned_to = alloca i64, align 8
   %row33 = load ptr, ptr %row, align 8
   %call34 = call ptr @mesh_map_tag_string(ptr %row33)
-  %str35 = call ptr @mesh_string_new(ptr @.str.775, i64 11)
+  %str35 = call ptr @mesh_string_new(ptr @.str.665, i64 11)
   %ptr_to_i6436 = ptrtoint ptr %str35 to i64
   %call37 = call i64 @mesh_map_get(ptr %call34, i64 %ptr_to_i6436)
   store i64 %call37, ptr %assigned_to, align 8
-  %str38 = call ptr @mesh_string_new(ptr @.str.776, i64 10)
+  %str38 = call ptr @mesh_string_new(ptr @.str.666, i64 7)
   %id39 = load i64, ptr %id, align 8
   %concat_arg_ptr = inttoptr i64 %id39 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str38, ptr %concat_arg_ptr)
-  %str40 = call ptr @mesh_string_new(ptr @.str.777, i64 15)
+  %str40 = call ptr @mesh_string_new(ptr @.str.667, i64 11)
   %concat41 = call ptr @mesh_string_concat(ptr %concat, ptr %str40)
   %title42 = load i64, ptr %title, align 8
   %concat_arg_ptr43 = inttoptr i64 %title42 to ptr
   %concat44 = call ptr @mesh_string_concat(ptr %concat41, ptr %concat_arg_ptr43)
-  %str45 = call ptr @mesh_string_new(ptr @.str.778, i64 15)
+  %str45 = call ptr @mesh_string_new(ptr @.str.668, i64 11)
   %concat46 = call ptr @mesh_string_concat(ptr %concat44, ptr %str45)
   %level47 = load i64, ptr %level, align 8
   %concat_arg_ptr48 = inttoptr i64 %level47 to ptr
   %concat49 = call ptr @mesh_string_concat(ptr %concat46, ptr %concat_arg_ptr48)
-  %str50 = call ptr @mesh_string_new(ptr @.str.779, i64 16)
+  %str50 = call ptr @mesh_string_new(ptr @.str.669, i64 12)
   %concat51 = call ptr @mesh_string_concat(ptr %concat49, ptr %str50)
   %status52 = load i64, ptr %status, align 8
   %concat_arg_ptr53 = inttoptr i64 %status52 to ptr
   %concat54 = call ptr @mesh_string_concat(ptr %concat51, ptr %concat_arg_ptr53)
-  %str55 = call ptr @mesh_string_new(ptr @.str.780, i64 19)
+  %str55 = call ptr @mesh_string_new(ptr @.str.670, i64 16)
   %concat56 = call ptr @mesh_string_concat(ptr %concat54, ptr %str55)
   %event_count57 = load i64, ptr %event_count, align 8
   %concat_arg_ptr58 = inttoptr i64 %event_count57 to ptr
   %concat59 = call ptr @mesh_string_concat(ptr %concat56, ptr %concat_arg_ptr58)
-  %str60 = call ptr @mesh_string_new(ptr @.str.781, i64 18)
+  %str60 = call ptr @mesh_string_new(ptr @.str.671, i64 15)
   %concat61 = call ptr @mesh_string_concat(ptr %concat59, ptr %str60)
   %first_seen62 = load i64, ptr %first_seen, align 8
   %concat_arg_ptr63 = inttoptr i64 %first_seen62 to ptr
   %concat64 = call ptr @mesh_string_concat(ptr %concat61, ptr %concat_arg_ptr63)
-  %str65 = call ptr @mesh_string_new(ptr @.str.782, i64 19)
+  %str65 = call ptr @mesh_string_new(ptr @.str.672, i64 15)
   %concat66 = call ptr @mesh_string_concat(ptr %concat64, ptr %str65)
   %last_seen67 = load i64, ptr %last_seen, align 8
   %concat_arg_ptr68 = inttoptr i64 %last_seen67 to ptr
   %concat69 = call ptr @mesh_string_concat(ptr %concat66, ptr %concat_arg_ptr68)
-  %str70 = call ptr @mesh_string_new(ptr @.str.783, i64 21)
+  %str70 = call ptr @mesh_string_new(ptr @.str.673, i64 17)
   %concat71 = call ptr @mesh_string_concat(ptr %concat69, ptr %str70)
   %assigned_to72 = load i64, ptr %assigned_to, align 8
   %concat_arg_ptr73 = inttoptr i64 %assigned_to72 to ptr
   %concat74 = call ptr @mesh_string_concat(ptr %concat71, ptr %concat_arg_ptr73)
-  %str75 = call ptr @mesh_string_new(ptr @.str.784, i64 3)
+  %str75 = call ptr @mesh_string_new(ptr @.str.674, i64 2)
   %concat76 = call ptr @mesh_string_concat(ptr %concat74, ptr %str75)
   ret ptr %concat76
 }
@@ -18146,63 +16504,63 @@ entry:
   %id = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.785, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.675, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %id, align 8
   %issue_id = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.786, i64 8)
+  %str5 = call ptr @mesh_string_new(ptr @.str.676, i64 8)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %issue_id, align 8
   %level = alloca i64, align 8
   %row8 = load ptr, ptr %row, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %row8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.787, i64 5)
+  %str10 = call ptr @mesh_string_new(ptr @.str.677, i64 5)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %level, align 8
   %message = alloca i64, align 8
   %row13 = load ptr, ptr %row, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %row13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.788, i64 7)
+  %str15 = call ptr @mesh_string_new(ptr @.str.678, i64 7)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %message, align 8
   %received_at = alloca i64, align 8
   %row18 = load ptr, ptr %row, align 8
   %call19 = call ptr @mesh_map_tag_string(ptr %row18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.789, i64 11)
+  %str20 = call ptr @mesh_string_new(ptr @.str.679, i64 11)
   %ptr_to_i6421 = ptrtoint ptr %str20 to i64
   %call22 = call i64 @mesh_map_get(ptr %call19, i64 %ptr_to_i6421)
   store i64 %call22, ptr %received_at, align 8
-  %str23 = call ptr @mesh_string_new(ptr @.str.790, i64 10)
+  %str23 = call ptr @mesh_string_new(ptr @.str.680, i64 7)
   %id24 = load i64, ptr %id, align 8
   %concat_arg_ptr = inttoptr i64 %id24 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str23, ptr %concat_arg_ptr)
-  %str25 = call ptr @mesh_string_new(ptr @.str.791, i64 18)
+  %str25 = call ptr @mesh_string_new(ptr @.str.681, i64 14)
   %concat26 = call ptr @mesh_string_concat(ptr %concat, ptr %str25)
   %issue_id27 = load i64, ptr %issue_id, align 8
   %concat_arg_ptr28 = inttoptr i64 %issue_id27 to ptr
   %concat29 = call ptr @mesh_string_concat(ptr %concat26, ptr %concat_arg_ptr28)
-  %str30 = call ptr @mesh_string_new(ptr @.str.792, i64 15)
+  %str30 = call ptr @mesh_string_new(ptr @.str.682, i64 11)
   %concat31 = call ptr @mesh_string_concat(ptr %concat29, ptr %str30)
   %level32 = load i64, ptr %level, align 8
   %concat_arg_ptr33 = inttoptr i64 %level32 to ptr
   %concat34 = call ptr @mesh_string_concat(ptr %concat31, ptr %concat_arg_ptr33)
-  %str35 = call ptr @mesh_string_new(ptr @.str.793, i64 17)
+  %str35 = call ptr @mesh_string_new(ptr @.str.683, i64 13)
   %concat36 = call ptr @mesh_string_concat(ptr %concat34, ptr %str35)
   %message37 = load i64, ptr %message, align 8
   %concat_arg_ptr38 = inttoptr i64 %message37 to ptr
   %concat39 = call ptr @mesh_string_concat(ptr %concat36, ptr %concat_arg_ptr38)
-  %str40 = call ptr @mesh_string_new(ptr @.str.794, i64 21)
+  %str40 = call ptr @mesh_string_new(ptr @.str.684, i64 17)
   %concat41 = call ptr @mesh_string_concat(ptr %concat39, ptr %str40)
   %received_at42 = load i64, ptr %received_at, align 8
   %concat_arg_ptr43 = inttoptr i64 %received_at42 to ptr
   %concat44 = call ptr @mesh_string_concat(ptr %concat41, ptr %concat_arg_ptr43)
-  %str45 = call ptr @mesh_string_new(ptr @.str.795, i64 3)
+  %str45 = call ptr @mesh_string_new(ptr @.str.685, i64 2)
   %concat46 = call ptr @mesh_string_concat(ptr %concat44, ptr %str45)
   ret ptr %concat46
 }
@@ -18214,75 +16572,75 @@ entry:
   %id = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.796, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.686, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %id, align 8
   %issue_id = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.797, i64 8)
+  %str5 = call ptr @mesh_string_new(ptr @.str.687, i64 8)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %issue_id, align 8
   %level = alloca i64, align 8
   %row8 = load ptr, ptr %row, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %row8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.798, i64 5)
+  %str10 = call ptr @mesh_string_new(ptr @.str.688, i64 5)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %level, align 8
   %message = alloca i64, align 8
   %row13 = load ptr, ptr %row, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %row13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.799, i64 7)
+  %str15 = call ptr @mesh_string_new(ptr @.str.689, i64 7)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %message, align 8
   %tags = alloca i64, align 8
   %row18 = load ptr, ptr %row, align 8
   %call19 = call ptr @mesh_map_tag_string(ptr %row18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.800, i64 4)
+  %str20 = call ptr @mesh_string_new(ptr @.str.690, i64 4)
   %ptr_to_i6421 = ptrtoint ptr %str20 to i64
   %call22 = call i64 @mesh_map_get(ptr %call19, i64 %ptr_to_i6421)
   store i64 %call22, ptr %tags, align 8
   %received_at = alloca i64, align 8
   %row23 = load ptr, ptr %row, align 8
   %call24 = call ptr @mesh_map_tag_string(ptr %row23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.801, i64 11)
+  %str25 = call ptr @mesh_string_new(ptr @.str.691, i64 11)
   %ptr_to_i6426 = ptrtoint ptr %str25 to i64
   %call27 = call i64 @mesh_map_get(ptr %call24, i64 %ptr_to_i6426)
   store i64 %call27, ptr %received_at, align 8
-  %str28 = call ptr @mesh_string_new(ptr @.str.802, i64 10)
+  %str28 = call ptr @mesh_string_new(ptr @.str.692, i64 7)
   %id29 = load i64, ptr %id, align 8
   %concat_arg_ptr = inttoptr i64 %id29 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str28, ptr %concat_arg_ptr)
-  %str30 = call ptr @mesh_string_new(ptr @.str.803, i64 18)
+  %str30 = call ptr @mesh_string_new(ptr @.str.693, i64 14)
   %concat31 = call ptr @mesh_string_concat(ptr %concat, ptr %str30)
   %issue_id32 = load i64, ptr %issue_id, align 8
   %concat_arg_ptr33 = inttoptr i64 %issue_id32 to ptr
   %concat34 = call ptr @mesh_string_concat(ptr %concat31, ptr %concat_arg_ptr33)
-  %str35 = call ptr @mesh_string_new(ptr @.str.804, i64 15)
+  %str35 = call ptr @mesh_string_new(ptr @.str.694, i64 11)
   %concat36 = call ptr @mesh_string_concat(ptr %concat34, ptr %str35)
   %level37 = load i64, ptr %level, align 8
   %concat_arg_ptr38 = inttoptr i64 %level37 to ptr
   %concat39 = call ptr @mesh_string_concat(ptr %concat36, ptr %concat_arg_ptr38)
-  %str40 = call ptr @mesh_string_new(ptr @.str.805, i64 17)
+  %str40 = call ptr @mesh_string_new(ptr @.str.695, i64 13)
   %concat41 = call ptr @mesh_string_concat(ptr %concat39, ptr %str40)
   %message42 = load i64, ptr %message, align 8
   %concat_arg_ptr43 = inttoptr i64 %message42 to ptr
   %concat44 = call ptr @mesh_string_concat(ptr %concat41, ptr %concat_arg_ptr43)
-  %str45 = call ptr @mesh_string_new(ptr @.str.806, i64 12)
+  %str45 = call ptr @mesh_string_new(ptr @.str.696, i64 9)
   %concat46 = call ptr @mesh_string_concat(ptr %concat44, ptr %str45)
   %tags47 = load i64, ptr %tags, align 8
   %concat_arg_ptr48 = inttoptr i64 %tags47 to ptr
   %concat49 = call ptr @mesh_string_concat(ptr %concat46, ptr %concat_arg_ptr48)
-  %str50 = call ptr @mesh_string_new(ptr @.str.807, i64 19)
+  %str50 = call ptr @mesh_string_new(ptr @.str.697, i64 16)
   %concat51 = call ptr @mesh_string_concat(ptr %concat49, ptr %str50)
   %received_at52 = load i64, ptr %received_at, align 8
   %concat_arg_ptr53 = inttoptr i64 %received_at52 to ptr
   %concat54 = call ptr @mesh_string_concat(ptr %concat51, ptr %concat_arg_ptr53)
-  %str55 = call ptr @mesh_string_new(ptr @.str.808, i64 3)
+  %str55 = call ptr @mesh_string_new(ptr @.str.698, i64 2)
   %concat56 = call ptr @mesh_string_concat(ptr %concat54, ptr %str55)
   ret ptr %concat56
 }
@@ -18294,51 +16652,51 @@ entry:
   %id = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.809, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.699, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %id, align 8
   %level = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.810, i64 5)
+  %str5 = call ptr @mesh_string_new(ptr @.str.700, i64 5)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %level, align 8
   %message = alloca i64, align 8
   %row8 = load ptr, ptr %row, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %row8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.811, i64 7)
+  %str10 = call ptr @mesh_string_new(ptr @.str.701, i64 7)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %message, align 8
   %received_at = alloca i64, align 8
   %row13 = load ptr, ptr %row, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %row13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.812, i64 11)
+  %str15 = call ptr @mesh_string_new(ptr @.str.702, i64 11)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %received_at, align 8
-  %str18 = call ptr @mesh_string_new(ptr @.str.813, i64 10)
+  %str18 = call ptr @mesh_string_new(ptr @.str.703, i64 7)
   %id19 = load i64, ptr %id, align 8
   %concat_arg_ptr = inttoptr i64 %id19 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str18, ptr %concat_arg_ptr)
-  %str20 = call ptr @mesh_string_new(ptr @.str.814, i64 15)
+  %str20 = call ptr @mesh_string_new(ptr @.str.704, i64 11)
   %concat21 = call ptr @mesh_string_concat(ptr %concat, ptr %str20)
   %level22 = load i64, ptr %level, align 8
   %concat_arg_ptr23 = inttoptr i64 %level22 to ptr
   %concat24 = call ptr @mesh_string_concat(ptr %concat21, ptr %concat_arg_ptr23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.815, i64 17)
+  %str25 = call ptr @mesh_string_new(ptr @.str.705, i64 13)
   %concat26 = call ptr @mesh_string_concat(ptr %concat24, ptr %str25)
   %message27 = load i64, ptr %message, align 8
   %concat_arg_ptr28 = inttoptr i64 %message27 to ptr
   %concat29 = call ptr @mesh_string_concat(ptr %concat26, ptr %concat_arg_ptr28)
-  %str30 = call ptr @mesh_string_new(ptr @.str.816, i64 21)
+  %str30 = call ptr @mesh_string_new(ptr @.str.706, i64 17)
   %concat31 = call ptr @mesh_string_concat(ptr %concat29, ptr %str30)
   %received_at32 = load i64, ptr %received_at, align 8
   %concat_arg_ptr33 = inttoptr i64 %received_at32 to ptr
   %concat34 = call ptr @mesh_string_concat(ptr %concat31, ptr %concat_arg_ptr33)
-  %str35 = call ptr @mesh_string_new(ptr @.str.817, i64 3)
+  %str35 = call ptr @mesh_string_new(ptr @.str.707, i64 2)
   %concat36 = call ptr @mesh_string_concat(ptr %concat34, ptr %str35)
   ret ptr %concat36
 }
@@ -18376,16 +16734,16 @@ entry:
   %ptr_to_i6412 = ptrtoint ptr %id_key11 to i64
   %call13 = call i64 @mesh_map_get(ptr %call10, i64 %ptr_to_i6412)
   store i64 %call13, ptr %next_cursor_id, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.818, i64 19)
+  %str = call ptr @mesh_string_new(ptr @.str.708, i64 16)
   %next_cursor14 = load i64, ptr %next_cursor, align 8
   %concat_arg_ptr = inttoptr i64 %next_cursor14 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %concat_arg_ptr)
-  %str15 = call ptr @mesh_string_new(ptr @.str.819, i64 24)
+  %str15 = call ptr @mesh_string_new(ptr @.str.709, i64 20)
   %concat16 = call ptr @mesh_string_concat(ptr %concat, ptr %str15)
   %next_cursor_id17 = load i64, ptr %next_cursor_id, align 8
   %concat_arg_ptr18 = inttoptr i64 %next_cursor_id17 to ptr
   %concat19 = call ptr @mesh_string_concat(ptr %concat16, ptr %concat_arg_ptr18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.820, i64 21)
+  %str20 = call ptr @mesh_string_new(ptr @.str.710, i64 18)
   %concat21 = call ptr @mesh_string_concat(ptr %concat19, ptr %str20)
   ret ptr %concat21
 }
@@ -18409,12 +16767,12 @@ entry:
   br i1 %eq, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str = call ptr @mesh_string_new(ptr @.str.821, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.711, i64 8)
   %json_array4 = load ptr, ptr %json_array, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %json_array4)
   %rows5 = load ptr, ptr %rows, align 8
-  %str6 = call ptr @mesh_string_new(ptr @.str.822, i64 9)
-  %str7 = call ptr @mesh_string_new(ptr @.str.823, i64 2)
+  %str6 = call ptr @mesh_string_new(ptr @.str.712, i64 9)
+  %str7 = call ptr @mesh_string_new(ptr @.str.713, i64 2)
   %call8 = call ptr @Api_Search__extract_cursor_from_last(ptr %rows5, ptr %str6, ptr %str7)
   call void @mesh_reduction_check()
   %concat9 = call ptr @mesh_string_concat(ptr %concat, ptr %call8)
@@ -18422,10 +16780,10 @@ then:                                             ; preds = %entry
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str10 = call ptr @mesh_string_new(ptr @.str.824, i64 10)
+  %str10 = call ptr @mesh_string_new(ptr @.str.714, i64 8)
   %json_array11 = load ptr, ptr %json_array, align 8
   %concat12 = call ptr @mesh_string_concat(ptr %str10, ptr %json_array11)
-  %str13 = call ptr @mesh_string_new(ptr @.str.825, i64 20)
+  %str13 = call ptr @mesh_string_new(ptr @.str.715, i64 18)
   %concat14 = call ptr @mesh_string_concat(ptr %concat12, ptr %str13)
   store ptr %concat14, ptr %if_result, align 8
   br label %if_merge
@@ -18454,12 +16812,12 @@ entry:
   br i1 %eq, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str = call ptr @mesh_string_new(ptr @.str.826, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.716, i64 8)
   %json_array4 = load ptr, ptr %json_array, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %json_array4)
   %rows5 = load ptr, ptr %rows, align 8
-  %str6 = call ptr @mesh_string_new(ptr @.str.827, i64 11)
-  %str7 = call ptr @mesh_string_new(ptr @.str.828, i64 2)
+  %str6 = call ptr @mesh_string_new(ptr @.str.717, i64 11)
+  %str7 = call ptr @mesh_string_new(ptr @.str.718, i64 2)
   %call8 = call ptr @Api_Search__extract_cursor_from_last(ptr %rows5, ptr %str6, ptr %str7)
   call void @mesh_reduction_check()
   %concat9 = call ptr @mesh_string_concat(ptr %concat, ptr %call8)
@@ -18467,10 +16825,10 @@ then:                                             ; preds = %entry
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str10 = call ptr @mesh_string_new(ptr @.str.829, i64 10)
+  %str10 = call ptr @mesh_string_new(ptr @.str.719, i64 8)
   %json_array11 = load ptr, ptr %json_array, align 8
   %concat12 = call ptr @mesh_string_concat(ptr %str10, ptr %json_array11)
-  %str13 = call ptr @mesh_string_new(ptr @.str.830, i64 20)
+  %str13 = call ptr @mesh_string_new(ptr @.str.720, i64 18)
   %concat14 = call ptr @mesh_string_concat(ptr %concat12, ptr %str13)
   store ptr %concat14, ptr %if_result, align 8
   br label %if_merge
@@ -18506,7 +16864,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.831, i64 30, ptr @.panic_file.832, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.721, i64 30, ptr @.panic_file.722, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -18590,10 +16948,10 @@ define ptr @Api_Search__handle_issue_result_err(ptr %0) {
 entry:
   %e = alloca ptr, align 8
   store ptr %0, ptr %e, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.833, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.723, i64 10)
   %e1 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %e1)
-  %str2 = call ptr @mesh_string_new(ptr @.str.834, i64 3)
+  %str2 = call ptr @mesh_string_new(ptr @.str.724, i64 2)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   %call = call ptr @mesh_http_response_new(i64 500, ptr %concat3)
   ret ptr %call
@@ -18616,7 +16974,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.835, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.725, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -18628,36 +16986,36 @@ entry:
   store ptr %call7, ptr %project_id, align 8
   %status = alloca ptr, align 8
   %request8 = load ptr, ptr %request, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.836, i64 6)
-  %str10 = call ptr @mesh_string_new(ptr @.str.837, i64 0)
+  %str9 = call ptr @mesh_string_new(ptr @.str.726, i64 6)
+  %str10 = call ptr @mesh_string_new(ptr @.str.727, i64 0)
   %call11 = call ptr @query_or_default(ptr %request8, ptr %str9, ptr %str10)
   call void @mesh_reduction_check()
   store ptr %call11, ptr %status, align 8
   %level = alloca ptr, align 8
   %request12 = load ptr, ptr %request, align 8
-  %str13 = call ptr @mesh_string_new(ptr @.str.838, i64 5)
-  %str14 = call ptr @mesh_string_new(ptr @.str.839, i64 0)
+  %str13 = call ptr @mesh_string_new(ptr @.str.728, i64 5)
+  %str14 = call ptr @mesh_string_new(ptr @.str.729, i64 0)
   %call15 = call ptr @query_or_default(ptr %request12, ptr %str13, ptr %str14)
   call void @mesh_reduction_check()
   store ptr %call15, ptr %level, align 8
   %assigned_to = alloca ptr, align 8
   %request16 = load ptr, ptr %request, align 8
-  %str17 = call ptr @mesh_string_new(ptr @.str.840, i64 11)
-  %str18 = call ptr @mesh_string_new(ptr @.str.841, i64 0)
+  %str17 = call ptr @mesh_string_new(ptr @.str.730, i64 11)
+  %str18 = call ptr @mesh_string_new(ptr @.str.731, i64 0)
   %call19 = call ptr @query_or_default(ptr %request16, ptr %str17, ptr %str18)
   call void @mesh_reduction_check()
   store ptr %call19, ptr %assigned_to, align 8
   %cursor = alloca ptr, align 8
   %request20 = load ptr, ptr %request, align 8
-  %str21 = call ptr @mesh_string_new(ptr @.str.842, i64 6)
-  %str22 = call ptr @mesh_string_new(ptr @.str.843, i64 0)
+  %str21 = call ptr @mesh_string_new(ptr @.str.732, i64 6)
+  %str22 = call ptr @mesh_string_new(ptr @.str.733, i64 0)
   %call23 = call ptr @query_or_default(ptr %request20, ptr %str21, ptr %str22)
   call void @mesh_reduction_check()
   store ptr %call23, ptr %cursor, align 8
   %cursor_id = alloca ptr, align 8
   %request24 = load ptr, ptr %request, align 8
-  %str25 = call ptr @mesh_string_new(ptr @.str.844, i64 9)
-  %str26 = call ptr @mesh_string_new(ptr @.str.845, i64 0)
+  %str25 = call ptr @mesh_string_new(ptr @.str.734, i64 9)
+  %str26 = call ptr @mesh_string_new(ptr @.str.735, i64 0)
   %call27 = call ptr @query_or_default(ptr %request24, ptr %str25, ptr %str26)
   call void @mesh_reduction_check()
   store ptr %call27, ptr %cursor_id, align 8
@@ -18694,7 +17052,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.846, i64 30, ptr @.panic_file.847, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.736, i64 30, ptr @.panic_file.737, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -18757,7 +17115,7 @@ entry:
 
 define ptr @Api_Search__missing_query_response() {
 entry:
-  %str = call ptr @mesh_string_new(ptr @.str.848, i64 36)
+  %str = call ptr @mesh_string_new(ptr @.str.738, i64 32)
   %call = call ptr @mesh_http_response_new(i64 400, ptr %str)
   ret ptr %call
 }
@@ -18798,7 +17156,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.851, i64 30, ptr @.panic_file.852, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.741, i64 30, ptr @.panic_file.742, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -18816,10 +17174,10 @@ case_Err:                                         ; preds = %entry
   %variant_field9 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val10 = load ptr, ptr %variant_field9, align 8
   store ptr %path_val10, ptr %e, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.849, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.739, i64 10)
   %e11 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %e11)
-  %str12 = call ptr @mesh_string_new(ptr @.str.850, i64 3)
+  %str12 = call ptr @mesh_string_new(ptr @.str.740, i64 2)
   %concat13 = call ptr @mesh_string_concat(ptr %concat, ptr %str12)
   %call14 = call ptr @mesh_http_response_new(i64 500, ptr %concat13)
   store ptr %call14, ptr %match_result, align 8
@@ -18878,7 +17236,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.853, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.743, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -18890,8 +17248,8 @@ entry:
   store ptr %call7, ptr %project_id, align 8
   %q = alloca ptr, align 8
   %request8 = load ptr, ptr %request, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.854, i64 1)
-  %str10 = call ptr @mesh_string_new(ptr @.str.855, i64 0)
+  %str9 = call ptr @mesh_string_new(ptr @.str.744, i64 1)
+  %str10 = call ptr @mesh_string_new(ptr @.str.745, i64 0)
   %call11 = call ptr @query_or_default(ptr %request8, ptr %str9, ptr %str10)
   call void @mesh_reduction_check()
   store ptr %call11, ptr %q, align 8
@@ -18947,7 +17305,7 @@ entry:
 
 define ptr @Api_Search__missing_tag_response() {
 entry:
-  %str = call ptr @mesh_string_new(ptr @.str.856, i64 46)
+  %str = call ptr @mesh_string_new(ptr @.str.746, i64 42)
   %call = call ptr @mesh_http_response_new(i64 400, ptr %str)
   ret ptr %call
 }
@@ -18988,7 +17346,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.859, i64 30, ptr @.panic_file.860, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.749, i64 30, ptr @.panic_file.750, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -19006,10 +17364,10 @@ case_Err:                                         ; preds = %entry
   %variant_field9 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val10 = load ptr, ptr %variant_field9, align 8
   store ptr %path_val10, ptr %e, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.857, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.747, i64 10)
   %e11 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %e11)
-  %str12 = call ptr @mesh_string_new(ptr @.str.858, i64 3)
+  %str12 = call ptr @mesh_string_new(ptr @.str.748, i64 2)
   %concat13 = call ptr @mesh_string_concat(ptr %concat, ptr %str12)
   %call14 = call ptr @mesh_http_response_new(i64 500, ptr %concat13)
   store ptr %call14, ptr %match_result, align 8
@@ -19065,14 +17423,14 @@ then9:                                            ; preds = %else
 
 else10:                                           ; preds = %else
   %tag_json = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.861, i64 3)
+  %str = call ptr @mesh_string_new(ptr @.str.751, i64 2)
   %key13 = load ptr, ptr %key, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %key13)
-  %str14 = call ptr @mesh_string_new(ptr @.str.862, i64 5)
+  %str14 = call ptr @mesh_string_new(ptr @.str.752, i64 3)
   %concat15 = call ptr @mesh_string_concat(ptr %concat, ptr %str14)
   %value16 = load ptr, ptr %value, align 8
   %concat17 = call ptr @mesh_string_concat(ptr %concat15, ptr %value16)
-  %str18 = call ptr @mesh_string_new(ptr @.str.863, i64 3)
+  %str18 = call ptr @mesh_string_new(ptr @.str.753, i64 2)
   %concat19 = call ptr @mesh_string_concat(ptr %concat17, ptr %str18)
   store ptr %concat19, ptr %tag_json, align 8
   %pool20 = load i64, ptr %pool, align 8
@@ -19105,7 +17463,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.864, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.754, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -19117,15 +17475,15 @@ entry:
   store ptr %call7, ptr %project_id, align 8
   %key = alloca ptr, align 8
   %request8 = load ptr, ptr %request, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.865, i64 3)
-  %str10 = call ptr @mesh_string_new(ptr @.str.866, i64 0)
+  %str9 = call ptr @mesh_string_new(ptr @.str.755, i64 3)
+  %str10 = call ptr @mesh_string_new(ptr @.str.756, i64 0)
   %call11 = call ptr @query_or_default(ptr %request8, ptr %str9, ptr %str10)
   call void @mesh_reduction_check()
   store ptr %call11, ptr %key, align 8
   %value = alloca ptr, align 8
   %request12 = load ptr, ptr %request, align 8
-  %str13 = call ptr @mesh_string_new(ptr @.str.867, i64 5)
-  %str14 = call ptr @mesh_string_new(ptr @.str.868, i64 0)
+  %str13 = call ptr @mesh_string_new(ptr @.str.757, i64 5)
+  %str14 = call ptr @mesh_string_new(ptr @.str.758, i64 0)
   %call15 = call ptr @query_or_default(ptr %request12, ptr %str13, ptr %str14)
   call void @mesh_reduction_check()
   store ptr %call15, ptr %value, align 8
@@ -19225,21 +17583,21 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.869, i64 8)
+  %str = call ptr @mesh_string_new(ptr @.str.759, i64 8)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %issue_id, align 8
   %cursor = alloca ptr, align 8
   %request5 = load ptr, ptr %request, align 8
-  %str6 = call ptr @mesh_string_new(ptr @.str.870, i64 6)
-  %str7 = call ptr @mesh_string_new(ptr @.str.871, i64 0)
+  %str6 = call ptr @mesh_string_new(ptr @.str.760, i64 6)
+  %str7 = call ptr @mesh_string_new(ptr @.str.761, i64 0)
   %call8 = call ptr @query_or_default(ptr %request5, ptr %str6, ptr %str7)
   call void @mesh_reduction_check()
   store ptr %call8, ptr %cursor, align 8
   %cursor_id = alloca ptr, align 8
   %request9 = load ptr, ptr %request, align 8
-  %str10 = call ptr @mesh_string_new(ptr @.str.872, i64 9)
-  %str11 = call ptr @mesh_string_new(ptr @.str.873, i64 0)
+  %str10 = call ptr @mesh_string_new(ptr @.str.762, i64 9)
+  %str11 = call ptr @mesh_string_new(ptr @.str.763, i64 0)
   %call12 = call ptr @query_or_default(ptr %request9, ptr %str10, ptr %str11)
   call void @mesh_reduction_check()
   store ptr %call12, ptr %cursor_id, align 8
@@ -19273,7 +17631,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.876, i64 30, ptr @.panic_file.877, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.766, i64 30, ptr @.panic_file.767, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -19291,10 +17649,10 @@ case_Err:                                         ; preds = %entry
   %variant_field25 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val26 = load ptr, ptr %variant_field25, align 8
   store ptr %path_val26, ptr %e, align 8
-  %str27 = call ptr @mesh_string_new(ptr @.str.874, i64 13)
+  %str27 = call ptr @mesh_string_new(ptr @.str.764, i64 10)
   %e28 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str27, ptr %e28)
-  %str29 = call ptr @mesh_string_new(ptr @.str.875, i64 3)
+  %str29 = call ptr @mesh_string_new(ptr @.str.765, i64 2)
   %concat30 = call ptr @mesh_string_concat(ptr %concat, ptr %str29)
   %call31 = call ptr @mesh_http_response_new(i64 500, ptr %concat30)
   store ptr %call31, ptr %match_result, align 8
@@ -19317,31 +17675,31 @@ then:                                             ; preds = %entry
   %call3 = call i64 @mesh_list_head(ptr %rows2)
   %i64_to_ptr = inttoptr i64 %call3 to ptr
   store ptr %i64_to_ptr, ptr %row, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.878, i64 20)
+  %str = call ptr @mesh_string_new(ptr @.str.768, i64 18)
   %row4 = load ptr, ptr %row, align 8
   %call5 = call ptr @mesh_map_tag_string(ptr %row4)
-  %str6 = call ptr @mesh_string_new(ptr @.str.879, i64 14)
+  %str6 = call ptr @mesh_string_new(ptr @.str.769, i64 14)
   %ptr_to_i64 = ptrtoint ptr %str6 to i64
   %call7 = call i64 @mesh_map_get(ptr %call5, i64 %ptr_to_i64)
   %i64_to_ptr8 = inttoptr i64 %call7 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %i64_to_ptr8)
-  %str9 = call ptr @mesh_string_new(ptr @.str.880, i64 17)
+  %str9 = call ptr @mesh_string_new(ptr @.str.770, i64 15)
   %concat10 = call ptr @mesh_string_concat(ptr %concat, ptr %str9)
   %row11 = load ptr, ptr %row, align 8
   %call12 = call ptr @mesh_map_tag_string(ptr %row11)
-  %str13 = call ptr @mesh_string_new(ptr @.str.881, i64 11)
+  %str13 = call ptr @mesh_string_new(ptr @.str.771, i64 11)
   %ptr_to_i6414 = ptrtoint ptr %str13 to i64
   %call15 = call i64 @mesh_map_get(ptr %call12, i64 %ptr_to_i6414)
   %i64_to_ptr16 = inttoptr i64 %call15 to ptr
   %concat17 = call ptr @mesh_string_concat(ptr %concat10, ptr %i64_to_ptr16)
-  %str18 = call ptr @mesh_string_new(ptr @.str.882, i64 1)
+  %str18 = call ptr @mesh_string_new(ptr @.str.772, i64 1)
   %concat19 = call ptr @mesh_string_concat(ptr %concat17, ptr %str18)
   %call20 = call ptr @mesh_http_response_new(i64 200, ptr %concat19)
   store ptr %call20, ptr %if_result, align 8
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str21 = call ptr @mesh_string_new(ptr @.str.883, i64 33)
+  %str21 = call ptr @mesh_string_new(ptr @.str.773, i64 29)
   %call22 = call ptr @mesh_http_response_new(i64 404, ptr %str21)
   store ptr %call22, ptr %if_result, align 8
   br label %if_merge
@@ -19367,31 +17725,31 @@ then:                                             ; preds = %entry
   %call3 = call i64 @mesh_list_head(ptr %rows2)
   %i64_to_ptr = inttoptr i64 %call3 to ptr
   store ptr %i64_to_ptr, ptr %row, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.884, i64 17)
+  %str = call ptr @mesh_string_new(ptr @.str.774, i64 15)
   %row4 = load ptr, ptr %row, align 8
   %call5 = call ptr @mesh_map_tag_string(ptr %row4)
-  %str6 = call ptr @mesh_string_new(ptr @.str.885, i64 11)
+  %str6 = call ptr @mesh_string_new(ptr @.str.775, i64 11)
   %ptr_to_i64 = ptrtoint ptr %str6 to i64
   %call7 = call i64 @mesh_map_get(ptr %call5, i64 %ptr_to_i64)
   %i64_to_ptr8 = inttoptr i64 %call7 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %i64_to_ptr8)
-  %str9 = call ptr @mesh_string_new(ptr @.str.886, i64 21)
+  %str9 = call ptr @mesh_string_new(ptr @.str.776, i64 19)
   %concat10 = call ptr @mesh_string_concat(ptr %concat, ptr %str9)
   %row11 = load ptr, ptr %row, align 8
   %call12 = call ptr @mesh_map_tag_string(ptr %row11)
-  %str13 = call ptr @mesh_string_new(ptr @.str.887, i64 15)
+  %str13 = call ptr @mesh_string_new(ptr @.str.777, i64 15)
   %ptr_to_i6414 = ptrtoint ptr %str13 to i64
   %call15 = call i64 @mesh_map_get(ptr %call12, i64 %ptr_to_i6414)
   %i64_to_ptr16 = inttoptr i64 %call15 to ptr
   %concat17 = call ptr @mesh_string_concat(ptr %concat10, ptr %i64_to_ptr16)
-  %str18 = call ptr @mesh_string_new(ptr @.str.888, i64 1)
+  %str18 = call ptr @mesh_string_new(ptr @.str.778, i64 1)
   %concat19 = call ptr @mesh_string_concat(ptr %concat17, ptr %str18)
   %call20 = call ptr @mesh_http_response_new(i64 200, ptr %concat19)
   store ptr %call20, ptr %if_result, align 8
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str21 = call ptr @mesh_string_new(ptr @.str.889, i64 33)
+  %str21 = call ptr @mesh_string_new(ptr @.str.779, i64 29)
   %call22 = call ptr @mesh_http_response_new(i64 404, ptr %str21)
   store ptr %call22, ptr %if_result, align 8
   br label %if_merge
@@ -19418,7 +17776,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.890, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.780, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -19450,7 +17808,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.893, i64 30, ptr @.panic_file.894, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.783, i64 30, ptr @.panic_file.784, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -19467,10 +17825,10 @@ case_Err:                                         ; preds = %entry
   %variant_field14 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val15 = load ptr, ptr %variant_field14, align 8
   store ptr %path_val15, ptr %e, align 8
-  %str16 = call ptr @mesh_string_new(ptr @.str.891, i64 13)
+  %str16 = call ptr @mesh_string_new(ptr @.str.781, i64 10)
   %e17 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str16, ptr %e17)
-  %str18 = call ptr @mesh_string_new(ptr @.str.892, i64 3)
+  %str18 = call ptr @mesh_string_new(ptr @.str.782, i64 2)
   %concat19 = call ptr @mesh_string_concat(ptr %concat, ptr %str18)
   %call20 = call ptr @mesh_http_response_new(i64 500, ptr %concat19)
   store ptr %call20, ptr %match_result, align 8
@@ -19494,7 +17852,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.895, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.785, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -19531,18 +17889,18 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.900, i64 30, ptr @.panic_file.901, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.790, i64 30, ptr @.panic_file.791, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %n, align 8
-  %str15 = call ptr @mesh_string_new(ptr @.str.896, i64 32)
+  %str15 = call ptr @mesh_string_new(ptr @.str.786, i64 26)
   %n16 = load i64, ptr %n, align 8
   %call17 = call ptr @mesh_int_to_string(i64 %n16)
   %concat = call ptr @mesh_string_concat(ptr %str15, ptr %call17)
-  %str18 = call ptr @mesh_string_new(ptr @.str.897, i64 1)
+  %str18 = call ptr @mesh_string_new(ptr @.str.787, i64 1)
   %concat19 = call ptr @mesh_string_concat(ptr %concat, ptr %str18)
   %call20 = call ptr @mesh_http_response_new(i64 200, ptr %concat19)
   store ptr %call20, ptr %match_result, align 8
@@ -19552,10 +17910,10 @@ case_Err:                                         ; preds = %entry
   %variant_field21 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val22 = load ptr, ptr %variant_field21, align 8
   store ptr %path_val22, ptr %e, align 8
-  %str23 = call ptr @mesh_string_new(ptr @.str.898, i64 13)
+  %str23 = call ptr @mesh_string_new(ptr @.str.788, i64 10)
   %e24 = load ptr, ptr %e, align 8
   %concat25 = call ptr @mesh_string_concat(ptr %str23, ptr %e24)
-  %str26 = call ptr @mesh_string_new(ptr @.str.899, i64 3)
+  %str26 = call ptr @mesh_string_new(ptr @.str.789, i64 2)
   %concat27 = call ptr @mesh_string_concat(ptr %concat25, ptr %str26)
   %call28 = call ptr @mesh_http_response_new(i64 400, ptr %concat27)
   store ptr %call28, ptr %match_result, align 8
@@ -19579,7 +17937,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.902, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.792, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -19611,7 +17969,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.905, i64 30, ptr @.panic_file.906, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.795, i64 30, ptr @.panic_file.796, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -19628,10 +17986,10 @@ case_Err:                                         ; preds = %entry
   %variant_field14 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val15 = load ptr, ptr %variant_field14, align 8
   store ptr %path_val15, ptr %e, align 8
-  %str16 = call ptr @mesh_string_new(ptr @.str.903, i64 13)
+  %str16 = call ptr @mesh_string_new(ptr @.str.793, i64 10)
   %e17 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str16, ptr %e17)
-  %str18 = call ptr @mesh_string_new(ptr @.str.904, i64 3)
+  %str18 = call ptr @mesh_string_new(ptr @.str.794, i64 2)
   %concat19 = call ptr @mesh_string_concat(ptr %concat, ptr %str18)
   %call20 = call ptr @mesh_http_response_new(i64 500, ptr %concat19)
   store ptr %call20, ptr %match_result, align 8
@@ -19645,75 +18003,75 @@ entry:
   %id = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.907, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.797, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %id, align 8
   %user_id = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.908, i64 7)
+  %str5 = call ptr @mesh_string_new(ptr @.str.798, i64 7)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %user_id, align 8
   %email = alloca i64, align 8
   %row8 = load ptr, ptr %row, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %row8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.909, i64 5)
+  %str10 = call ptr @mesh_string_new(ptr @.str.799, i64 5)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %email, align 8
   %display_name = alloca i64, align 8
   %row13 = load ptr, ptr %row, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %row13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.910, i64 12)
+  %str15 = call ptr @mesh_string_new(ptr @.str.800, i64 12)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %display_name, align 8
   %role = alloca i64, align 8
   %row18 = load ptr, ptr %row, align 8
   %call19 = call ptr @mesh_map_tag_string(ptr %row18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.911, i64 4)
+  %str20 = call ptr @mesh_string_new(ptr @.str.801, i64 4)
   %ptr_to_i6421 = ptrtoint ptr %str20 to i64
   %call22 = call i64 @mesh_map_get(ptr %call19, i64 %ptr_to_i6421)
   store i64 %call22, ptr %role, align 8
   %joined_at = alloca i64, align 8
   %row23 = load ptr, ptr %row, align 8
   %call24 = call ptr @mesh_map_tag_string(ptr %row23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.912, i64 9)
+  %str25 = call ptr @mesh_string_new(ptr @.str.802, i64 9)
   %ptr_to_i6426 = ptrtoint ptr %str25 to i64
   %call27 = call i64 @mesh_map_get(ptr %call24, i64 %ptr_to_i6426)
   store i64 %call27, ptr %joined_at, align 8
-  %str28 = call ptr @mesh_string_new(ptr @.str.913, i64 10)
+  %str28 = call ptr @mesh_string_new(ptr @.str.803, i64 7)
   %id29 = load i64, ptr %id, align 8
   %concat_arg_ptr = inttoptr i64 %id29 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str28, ptr %concat_arg_ptr)
-  %str30 = call ptr @mesh_string_new(ptr @.str.914, i64 17)
+  %str30 = call ptr @mesh_string_new(ptr @.str.804, i64 13)
   %concat31 = call ptr @mesh_string_concat(ptr %concat, ptr %str30)
   %user_id32 = load i64, ptr %user_id, align 8
   %concat_arg_ptr33 = inttoptr i64 %user_id32 to ptr
   %concat34 = call ptr @mesh_string_concat(ptr %concat31, ptr %concat_arg_ptr33)
-  %str35 = call ptr @mesh_string_new(ptr @.str.915, i64 15)
+  %str35 = call ptr @mesh_string_new(ptr @.str.805, i64 11)
   %concat36 = call ptr @mesh_string_concat(ptr %concat34, ptr %str35)
   %email37 = load i64, ptr %email, align 8
   %concat_arg_ptr38 = inttoptr i64 %email37 to ptr
   %concat39 = call ptr @mesh_string_concat(ptr %concat36, ptr %concat_arg_ptr38)
-  %str40 = call ptr @mesh_string_new(ptr @.str.916, i64 22)
+  %str40 = call ptr @mesh_string_new(ptr @.str.806, i64 18)
   %concat41 = call ptr @mesh_string_concat(ptr %concat39, ptr %str40)
   %display_name42 = load i64, ptr %display_name, align 8
   %concat_arg_ptr43 = inttoptr i64 %display_name42 to ptr
   %concat44 = call ptr @mesh_string_concat(ptr %concat41, ptr %concat_arg_ptr43)
-  %str45 = call ptr @mesh_string_new(ptr @.str.917, i64 14)
+  %str45 = call ptr @mesh_string_new(ptr @.str.807, i64 10)
   %concat46 = call ptr @mesh_string_concat(ptr %concat44, ptr %str45)
   %role47 = load i64, ptr %role, align 8
   %concat_arg_ptr48 = inttoptr i64 %role47 to ptr
   %concat49 = call ptr @mesh_string_concat(ptr %concat46, ptr %concat_arg_ptr48)
-  %str50 = call ptr @mesh_string_new(ptr @.str.918, i64 19)
+  %str50 = call ptr @mesh_string_new(ptr @.str.808, i64 15)
   %concat51 = call ptr @mesh_string_concat(ptr %concat49, ptr %str50)
   %joined_at52 = load i64, ptr %joined_at, align 8
   %concat_arg_ptr53 = inttoptr i64 %joined_at52 to ptr
   %concat54 = call ptr @mesh_string_concat(ptr %concat51, ptr %concat_arg_ptr53)
-  %str55 = call ptr @mesh_string_new(ptr @.str.919, i64 3)
+  %str55 = call ptr @mesh_string_new(ptr @.str.809, i64 2)
   %concat56 = call ptr @mesh_string_concat(ptr %concat54, ptr %str55)
   ret ptr %concat56
 }
@@ -19725,42 +18083,42 @@ entry:
   %id = alloca i64, align 8
   %row1 = load ptr, ptr %row, align 8
   %call = call ptr @mesh_map_tag_string(ptr %row1)
-  %str = call ptr @mesh_string_new(ptr @.str.920, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.810, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i64 @mesh_map_get(ptr %call, i64 %ptr_to_i64)
   store i64 %call2, ptr %id, align 8
   %project_id = alloca i64, align 8
   %row3 = load ptr, ptr %row, align 8
   %call4 = call ptr @mesh_map_tag_string(ptr %row3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.921, i64 10)
+  %str5 = call ptr @mesh_string_new(ptr @.str.811, i64 10)
   %ptr_to_i646 = ptrtoint ptr %str5 to i64
   %call7 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i646)
   store i64 %call7, ptr %project_id, align 8
   %key_value = alloca i64, align 8
   %row8 = load ptr, ptr %row, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %row8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.922, i64 9)
+  %str10 = call ptr @mesh_string_new(ptr @.str.812, i64 9)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %key_value, align 8
   %label = alloca i64, align 8
   %row13 = load ptr, ptr %row, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %row13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.923, i64 5)
+  %str15 = call ptr @mesh_string_new(ptr @.str.813, i64 5)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %label, align 8
   %created_at = alloca i64, align 8
   %row18 = load ptr, ptr %row, align 8
   %call19 = call ptr @mesh_map_tag_string(ptr %row18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.924, i64 10)
+  %str20 = call ptr @mesh_string_new(ptr @.str.814, i64 10)
   %ptr_to_i6421 = ptrtoint ptr %str20 to i64
   %call22 = call i64 @mesh_map_get(ptr %call19, i64 %ptr_to_i6421)
   store i64 %call22, ptr %created_at, align 8
   %revoked_at = alloca i64, align 8
   %row23 = load ptr, ptr %row, align 8
   %call24 = call ptr @mesh_map_tag_string(ptr %row23)
-  %str25 = call ptr @mesh_string_new(ptr @.str.925, i64 10)
+  %str25 = call ptr @mesh_string_new(ptr @.str.815, i64 10)
   %ptr_to_i6426 = ptrtoint ptr %str25 to i64
   %call27 = call i64 @mesh_map_get(ptr %call24, i64 %ptr_to_i6426)
   store i64 %call27, ptr %revoked_at, align 8
@@ -19773,16 +18131,16 @@ entry:
   br i1 %eq, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str30 = call ptr @mesh_string_new(ptr @.str.926, i64 4)
+  %str30 = call ptr @mesh_string_new(ptr @.str.816, i64 4)
   store ptr %str30, ptr %if_result, align 8
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str31 = call ptr @mesh_string_new(ptr @.str.927, i64 2)
+  %str31 = call ptr @mesh_string_new(ptr @.str.817, i64 1)
   %revoked_at32 = load i64, ptr %revoked_at, align 8
   %concat_arg_ptr = inttoptr i64 %revoked_at32 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str31, ptr %concat_arg_ptr)
-  %str33 = call ptr @mesh_string_new(ptr @.str.928, i64 2)
+  %str33 = call ptr @mesh_string_new(ptr @.str.818, i64 1)
   %concat34 = call ptr @mesh_string_concat(ptr %concat, ptr %str33)
   store ptr %concat34, ptr %if_result, align 8
   br label %if_merge
@@ -19790,147 +18148,67 @@ else:                                             ; preds = %entry
 if_merge:                                         ; preds = %else, %then
   %if_val = load ptr, ptr %if_result, align 8
   store ptr %if_val, ptr %revoked_str, align 8
-  %str35 = call ptr @mesh_string_new(ptr @.str.929, i64 10)
+  %str35 = call ptr @mesh_string_new(ptr @.str.819, i64 7)
   %id36 = load i64, ptr %id, align 8
   %concat_arg_ptr37 = inttoptr i64 %id36 to ptr
   %concat38 = call ptr @mesh_string_concat(ptr %str35, ptr %concat_arg_ptr37)
-  %str39 = call ptr @mesh_string_new(ptr @.str.930, i64 20)
+  %str39 = call ptr @mesh_string_new(ptr @.str.820, i64 16)
   %concat40 = call ptr @mesh_string_concat(ptr %concat38, ptr %str39)
   %project_id41 = load i64, ptr %project_id, align 8
   %concat_arg_ptr42 = inttoptr i64 %project_id41 to ptr
   %concat43 = call ptr @mesh_string_concat(ptr %concat40, ptr %concat_arg_ptr42)
-  %str44 = call ptr @mesh_string_new(ptr @.str.931, i64 19)
+  %str44 = call ptr @mesh_string_new(ptr @.str.821, i64 15)
   %concat45 = call ptr @mesh_string_concat(ptr %concat43, ptr %str44)
   %key_value46 = load i64, ptr %key_value, align 8
   %concat_arg_ptr47 = inttoptr i64 %key_value46 to ptr
   %concat48 = call ptr @mesh_string_concat(ptr %concat45, ptr %concat_arg_ptr47)
-  %str49 = call ptr @mesh_string_new(ptr @.str.932, i64 15)
+  %str49 = call ptr @mesh_string_new(ptr @.str.822, i64 11)
   %concat50 = call ptr @mesh_string_concat(ptr %concat48, ptr %str49)
   %label51 = load i64, ptr %label, align 8
   %concat_arg_ptr52 = inttoptr i64 %label51 to ptr
   %concat53 = call ptr @mesh_string_concat(ptr %concat50, ptr %concat_arg_ptr52)
-  %str54 = call ptr @mesh_string_new(ptr @.str.933, i64 20)
+  %str54 = call ptr @mesh_string_new(ptr @.str.823, i64 16)
   %concat55 = call ptr @mesh_string_concat(ptr %concat53, ptr %str54)
   %created_at56 = load i64, ptr %created_at, align 8
   %concat_arg_ptr57 = inttoptr i64 %created_at56 to ptr
   %concat58 = call ptr @mesh_string_concat(ptr %concat55, ptr %concat_arg_ptr57)
-  %str59 = call ptr @mesh_string_new(ptr @.str.934, i64 18)
+  %str59 = call ptr @mesh_string_new(ptr @.str.824, i64 15)
   %concat60 = call ptr @mesh_string_concat(ptr %concat58, ptr %str59)
   %revoked_str61 = load ptr, ptr %revoked_str, align 8
   %concat62 = call ptr @mesh_string_concat(ptr %concat60, ptr %revoked_str61)
-  %str63 = call ptr @mesh_string_new(ptr @.str.935, i64 1)
+  %str63 = call ptr @mesh_string_new(ptr @.str.825, i64 1)
   %concat64 = call ptr @mesh_string_concat(ptr %concat62, ptr %str63)
   ret ptr %concat64
 }
 
 define { i8, ptr } @Api_Team__extract_json_field(i64 %0, ptr %1, ptr %2) {
 entry:
-  %__try_err_1 = alloca ptr, align 8
-  %__try_val_1 = alloca ptr, align 8
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %body = alloca ptr, align 8
   store ptr %1, ptr %body, align 8
   %field = alloca ptr, align 8
   store ptr %2, ptr %field, align 8
-  %rows = alloca ptr, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.936, i64 42)
-  %list_arr = alloca [2 x i64], align 8
-  %body2 = load ptr, ptr %body, align 8
-  %ptr_to_i64 = ptrtoint ptr %body2 to i64
-  %elem_ptr = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %field3 = load ptr, ptr %field, align 8
-  %ptr_to_i644 = ptrtoint ptr %field3 to i64
-  %elem_ptr5 = getelementptr [2 x i64], ptr %list_arr, i32 0, i32 1
-  store i64 %ptr_to_i644, ptr %elem_ptr5, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 2)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Ok
-  %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %rows, align 8
-  %rows11 = load ptr, ptr %rows, align 8
-  %call12 = call i64 @mesh_list_length(ptr %rows11)
-  %gt = icmp sgt i64 %call12, 0
-  %if_result = alloca { i8, ptr }, align 8
-  br i1 %gt, label %then, label %else
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.937, i64 30, ptr @.panic_file.938, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %__try_val_1, align 8
-  %__try_val_16 = load ptr, ptr %__try_val_1, align 8
-  store ptr %__try_val_16, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %variant_field7 = getelementptr inbounds nuw { i8, ptr }, ptr %call, i32 0, i32 1
-  %path_val8 = load ptr, ptr %variant_field7, align 8
-  store ptr %path_val8, ptr %__try_err_1, align 8
   %variant = alloca { i8, ptr }, align 8
-  %tag_ptr9 = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
-  store i8 1, ptr %tag_ptr9, align 1
-  %__try_err_110 = load ptr, ptr %__try_err_1, align 8
+  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 0
+  store i8 0, ptr %tag_ptr, align 1
+  %body1 = load ptr, ptr %body, align 8
+  %field2 = load ptr, ptr %field, align 8
+  %call = call ptr @mesh_json_get(ptr %body1, ptr %field2)
   %vfield_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %variant, i32 0, i32 1
-  store ptr %__try_err_110, ptr %vfield_ptr, align 8
+  store ptr %call, ptr %vfield_ptr, align 8
   %variant_val = load { i8, ptr }, ptr %variant, align 8
   ret { i8, ptr } %variant_val
-
-then:                                             ; preds = %match_merge
-  %variant13 = alloca { i8, ptr }, align 8
-  %tag_ptr14 = getelementptr inbounds nuw { i8, ptr }, ptr %variant13, i32 0, i32 0
-  store i8 0, ptr %tag_ptr14, align 1
-  %rows15 = load ptr, ptr %rows, align 8
-  %call16 = call i64 @mesh_list_head(ptr %rows15)
-  %i64_to_ptr = inttoptr i64 %call16 to ptr
-  %call17 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str18 = call ptr @mesh_string_new(ptr @.str.939, i64 3)
-  %ptr_to_i6419 = ptrtoint ptr %str18 to i64
-  %call20 = call i64 @mesh_map_get(ptr %call17, i64 %ptr_to_i6419)
-  %i64_to_ptr21 = inttoptr i64 %call20 to ptr
-  %vfield_ptr22 = getelementptr inbounds nuw { i8, ptr }, ptr %variant13, i32 0, i32 1
-  store ptr %i64_to_ptr21, ptr %vfield_ptr22, align 8
-  %variant_val23 = load { i8, ptr }, ptr %variant13, align 8
-  store { i8, ptr } %variant_val23, ptr %if_result, align 8
-  br label %if_merge
-
-else:                                             ; preds = %match_merge
-  %variant24 = alloca { i8, ptr }, align 8
-  %tag_ptr25 = getelementptr inbounds nuw { i8, ptr }, ptr %variant24, i32 0, i32 0
-  store i8 0, ptr %tag_ptr25, align 1
-  %str26 = call ptr @mesh_string_new(ptr @.str.940, i64 0)
-  %vfield_ptr27 = getelementptr inbounds nuw { i8, ptr }, ptr %variant24, i32 0, i32 1
-  store ptr %str26, ptr %vfield_ptr27, align 8
-  %variant_val28 = load { i8, ptr }, ptr %variant24, align 8
-  store { i8, ptr } %variant_val28, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %then
-  %if_val = load { i8, ptr }, ptr %if_result, align 8
-  ret { i8, ptr } %if_val
 }
 
 define ptr @Api_Team__add_member_success(ptr %0) {
 entry:
   %membership_id = alloca ptr, align 8
   store ptr %0, ptr %membership_id, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.941, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.826, i64 7)
   %membership_id1 = load ptr, ptr %membership_id, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %membership_id1)
-  %str2 = call ptr @mesh_string_new(ptr @.str.942, i64 3)
+  %str2 = call ptr @mesh_string_new(ptr @.str.827, i64 2)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   %call = call ptr @mesh_http_response_new(i64 201, ptr %concat3)
   ret ptr %call
@@ -19940,11 +18218,11 @@ define ptr @Api_Team__update_role_success(i64 %0) {
 entry:
   %n = alloca i64, align 8
   store i64 %0, ptr %n, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.943, i64 32)
+  %str = call ptr @mesh_string_new(ptr @.str.828, i64 26)
   %n1 = load i64, ptr %n, align 8
   %call = call ptr @mesh_int_to_string(i64 %n1)
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %call)
-  %str2 = call ptr @mesh_string_new(ptr @.str.944, i64 1)
+  %str2 = call ptr @mesh_string_new(ptr @.str.829, i64 1)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   %call4 = call ptr @mesh_http_response_new(i64 200, ptr %concat3)
   ret ptr %call4
@@ -19954,11 +18232,11 @@ define ptr @Api_Team__remove_success(i64 %0) {
 entry:
   %n = alloca i64, align 8
   store i64 %0, ptr %n, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.945, i64 32)
+  %str = call ptr @mesh_string_new(ptr @.str.830, i64 26)
   %n1 = load i64, ptr %n, align 8
   %call = call ptr @mesh_int_to_string(i64 %n1)
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %call)
-  %str2 = call ptr @mesh_string_new(ptr @.str.946, i64 1)
+  %str2 = call ptr @mesh_string_new(ptr @.str.831, i64 1)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   %call4 = call ptr @mesh_http_response_new(i64 200, ptr %concat3)
   ret ptr %call4
@@ -19968,10 +18246,10 @@ define ptr @Api_Team__create_key_success(ptr %0) {
 entry:
   %key_value = alloca ptr, align 8
   store ptr %0, ptr %key_value, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.947, i64 17)
+  %str = call ptr @mesh_string_new(ptr @.str.832, i64 14)
   %key_value1 = load ptr, ptr %key_value, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %key_value1)
-  %str2 = call ptr @mesh_string_new(ptr @.str.948, i64 3)
+  %str2 = call ptr @mesh_string_new(ptr @.str.833, i64 2)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   %call = call ptr @mesh_http_response_new(i64 201, ptr %concat3)
   ret ptr %call
@@ -19981,11 +18259,11 @@ define ptr @Api_Team__revoke_key_success(i64 %0) {
 entry:
   %n = alloca i64, align 8
   store i64 %0, ptr %n, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.949, i64 32)
+  %str = call ptr @mesh_string_new(ptr @.str.834, i64 26)
   %n1 = load i64, ptr %n, align 8
   %call = call ptr @mesh_int_to_string(i64 %n1)
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %call)
-  %str2 = call ptr @mesh_string_new(ptr @.str.950, i64 1)
+  %str2 = call ptr @mesh_string_new(ptr @.str.835, i64 1)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   %call4 = call ptr @mesh_http_response_new(i64 200, ptr %concat3)
   ret ptr %call4
@@ -20027,7 +18305,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.953, i64 30, ptr @.panic_file.954, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.838, i64 30, ptr @.panic_file.839, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20044,10 +18322,10 @@ case_Err:                                         ; preds = %entry
   %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val9 = load ptr, ptr %variant_field8, align 8
   store ptr %path_val9, ptr %e, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.951, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.836, i64 10)
   %e10 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %e10)
-  %str11 = call ptr @mesh_string_new(ptr @.str.952, i64 3)
+  %str11 = call ptr @mesh_string_new(ptr @.str.837, i64 2)
   %concat12 = call ptr @mesh_string_concat(ptr %concat, ptr %str11)
   %call13 = call ptr @mesh_http_response_new(i64 500, ptr %concat12)
   store ptr %call13, ptr %match_result, align 8
@@ -20069,7 +18347,7 @@ entry:
   %role_result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
   %body2 = load ptr, ptr %body, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.955, i64 4)
+  %str = call ptr @mesh_string_new(ptr @.str.840, i64 4)
   %call = call { i8, ptr } @Api_Team__extract_json_field(i64 %pool1, ptr %body2, ptr %str)
   call void @mesh_reduction_check()
   store { i8, ptr } %call, ptr %role_result, align 8
@@ -20089,7 +18367,7 @@ match_merge:                                      ; preds = %case_Err, %if_merge
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.958, i64 30, ptr @.panic_file.959, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.843, i64 30, ptr @.panic_file.844, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20109,13 +18387,13 @@ case_Err:                                         ; preds = %entry
   %variant_field12 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val13 = load ptr, ptr %variant_field12, align 8
   store ptr %path_val13, ptr %e, align 8
-  %str14 = call ptr @mesh_string_new(ptr @.str.957, i64 28)
+  %str14 = call ptr @mesh_string_new(ptr @.str.842, i64 24)
   %call15 = call ptr @mesh_http_response_new(i64 400, ptr %str14)
   store ptr %call15, ptr %match_result, align 8
   br label %match_merge
 
 then:                                             ; preds = %case_Ok
-  %str9 = call ptr @mesh_string_new(ptr @.str.956, i64 6)
+  %str9 = call ptr @mesh_string_new(ptr @.str.841, i64 6)
   store ptr %str9, ptr %if_result, align 8
   br label %if_merge
 
@@ -20149,7 +18427,7 @@ entry:
   br i1 %eq, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str = call ptr @mesh_string_new(ptr @.str.960, i64 35)
+  %str = call ptr @mesh_string_new(ptr @.str.845, i64 31)
   %call2 = call ptr @mesh_http_response_new(i64 400, ptr %str)
   store ptr %call2, ptr %if_result, align 8
   br label %if_merge
@@ -20182,7 +18460,7 @@ entry:
   %uid_result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
   %body2 = load ptr, ptr %body, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.961, i64 7)
+  %str = call ptr @mesh_string_new(ptr @.str.846, i64 7)
   %call = call { i8, ptr } @Api_Team__extract_json_field(i64 %pool1, ptr %body2, ptr %str)
   call void @mesh_reduction_check()
   store { i8, ptr } %call, ptr %uid_result, align 8
@@ -20202,7 +18480,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.963, i64 30, ptr @.panic_file.964, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.848, i64 30, ptr @.panic_file.849, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20222,7 +18500,7 @@ case_Err:                                         ; preds = %entry
   %variant_field9 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val10 = load ptr, ptr %variant_field9, align 8
   store ptr %path_val10, ptr %e, align 8
-  %str11 = call ptr @mesh_string_new(ptr @.str.962, i64 28)
+  %str11 = call ptr @mesh_string_new(ptr @.str.847, i64 24)
   %call12 = call ptr @mesh_http_response_new(i64 400, ptr %str11)
   store ptr %call12, ptr %match_result, align 8
   br label %match_merge
@@ -20261,7 +18539,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.967, i64 30, ptr @.panic_file.968, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.852, i64 30, ptr @.panic_file.853, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20278,10 +18556,10 @@ case_Err:                                         ; preds = %entry
   %variant_field7 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val8 = load ptr, ptr %variant_field7, align 8
   store ptr %path_val8, ptr %e, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.965, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.850, i64 10)
   %e9 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %e9)
-  %str10 = call ptr @mesh_string_new(ptr @.str.966, i64 3)
+  %str10 = call ptr @mesh_string_new(ptr @.str.851, i64 2)
   %concat11 = call ptr @mesh_string_concat(ptr %concat, ptr %str10)
   %call12 = call ptr @mesh_http_response_new(i64 500, ptr %concat11)
   store ptr %call12, ptr %match_result, align 8
@@ -20301,7 +18579,7 @@ entry:
   %role_result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
   %body2 = load ptr, ptr %body, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.969, i64 4)
+  %str = call ptr @mesh_string_new(ptr @.str.854, i64 4)
   %call = call { i8, ptr } @Api_Team__extract_json_field(i64 %pool1, ptr %body2, ptr %str)
   call void @mesh_reduction_check()
   store { i8, ptr } %call, ptr %role_result, align 8
@@ -20321,7 +18599,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.971, i64 30, ptr @.panic_file.972, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.856, i64 30, ptr @.panic_file.857, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20340,7 +18618,7 @@ case_Err:                                         ; preds = %entry
   %variant_field8 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val9 = load ptr, ptr %variant_field8, align 8
   store ptr %path_val9, ptr %e, align 8
-  %str10 = call ptr @mesh_string_new(ptr @.str.970, i64 28)
+  %str10 = call ptr @mesh_string_new(ptr @.str.855, i64 24)
   %call11 = call ptr @mesh_http_response_new(i64 400, ptr %str10)
   store ptr %call11, ptr %match_result, align 8
   br label %match_merge
@@ -20379,7 +18657,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.975, i64 30, ptr @.panic_file.976, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.860, i64 30, ptr @.panic_file.861, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20396,10 +18674,10 @@ case_Err:                                         ; preds = %entry
   %variant_field7 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val8 = load ptr, ptr %variant_field7, align 8
   store ptr %path_val8, ptr %e, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.973, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.858, i64 10)
   %e9 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %e9)
-  %str10 = call ptr @mesh_string_new(ptr @.str.974, i64 3)
+  %str10 = call ptr @mesh_string_new(ptr @.str.859, i64 2)
   %concat11 = call ptr @mesh_string_concat(ptr %concat, ptr %str10)
   %call12 = call ptr @mesh_http_response_new(i64 500, ptr %concat11)
   store ptr %call12, ptr %match_result, align 8
@@ -20419,7 +18697,7 @@ entry:
   %label_result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
   %body2 = load ptr, ptr %body, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.977, i64 5)
+  %str = call ptr @mesh_string_new(ptr @.str.862, i64 5)
   %call = call { i8, ptr } @Api_Team__extract_json_field(i64 %pool1, ptr %body2, ptr %str)
   call void @mesh_reduction_check()
   store { i8, ptr } %call, ptr %label_result, align 8
@@ -20439,7 +18717,7 @@ match_merge:                                      ; preds = %case_Err, %if_merge
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.980, i64 30, ptr @.panic_file.981, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.865, i64 30, ptr @.panic_file.866, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20458,13 +18736,13 @@ case_Err:                                         ; preds = %entry
   %variant_field11 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val12 = load ptr, ptr %variant_field11, align 8
   store ptr %path_val12, ptr %e, align 8
-  %str13 = call ptr @mesh_string_new(ptr @.str.979, i64 28)
+  %str13 = call ptr @mesh_string_new(ptr @.str.864, i64 24)
   %call14 = call ptr @mesh_http_response_new(i64 400, ptr %str13)
   store ptr %call14, ptr %match_result, align 8
   br label %match_merge
 
 then:                                             ; preds = %case_Ok
-  %str8 = call ptr @mesh_string_new(ptr @.str.978, i64 7)
+  %str8 = call ptr @mesh_string_new(ptr @.str.863, i64 7)
   store ptr %str8, ptr %if_result, align 8
   br label %if_merge
 
@@ -20510,7 +18788,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %org_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.982, i64 6)
+  %str = call ptr @mesh_string_new(ptr @.str.867, i64 6)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %org_id, align 8
@@ -20536,7 +18814,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.985, i64 30, ptr @.panic_file.986, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.870, i64 30, ptr @.panic_file.871, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20568,10 +18846,10 @@ case_Err:                                         ; preds = %entry
   %variant_field13 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val14 = load ptr, ptr %variant_field13, align 8
   store ptr %path_val14, ptr %e, align 8
-  %str15 = call ptr @mesh_string_new(ptr @.str.983, i64 13)
+  %str15 = call ptr @mesh_string_new(ptr @.str.868, i64 10)
   %e16 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str15, ptr %e16)
-  %str17 = call ptr @mesh_string_new(ptr @.str.984, i64 3)
+  %str17 = call ptr @mesh_string_new(ptr @.str.869, i64 2)
   %concat18 = call ptr @mesh_string_concat(ptr %concat, ptr %str17)
   %call19 = call ptr @mesh_http_response_new(i64 500, ptr %concat18)
   store ptr %call19, ptr %match_result, align 8
@@ -20593,7 +18871,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %org_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.987, i64 6)
+  %str = call ptr @mesh_string_new(ptr @.str.872, i64 6)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %org_id, align 8
@@ -20624,7 +18902,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %membership_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.988, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.873, i64 13)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %membership_id, align 8
@@ -20657,7 +18935,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %membership_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.989, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.874, i64 13)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %membership_id, align 8
@@ -20683,7 +18961,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.992, i64 30, ptr @.panic_file.993, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.877, i64 30, ptr @.panic_file.878, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20700,10 +18978,10 @@ case_Err:                                         ; preds = %entry
   %variant_field11 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val12 = load ptr, ptr %variant_field11, align 8
   store ptr %path_val12, ptr %e, align 8
-  %str13 = call ptr @mesh_string_new(ptr @.str.990, i64 13)
+  %str13 = call ptr @mesh_string_new(ptr @.str.875, i64 10)
   %e14 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str13, ptr %e14)
-  %str15 = call ptr @mesh_string_new(ptr @.str.991, i64 3)
+  %str15 = call ptr @mesh_string_new(ptr @.str.876, i64 2)
   %concat16 = call ptr @mesh_string_concat(ptr %concat, ptr %str15)
   %call17 = call ptr @mesh_http_response_new(i64 500, ptr %concat16)
   store ptr %call17, ptr %match_result, align 8
@@ -20739,7 +19017,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.994, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.879, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -20771,7 +19049,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.997, i64 30, ptr @.panic_file.998, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.882, i64 30, ptr @.panic_file.883, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20803,10 +19081,10 @@ case_Err:                                         ; preds = %entry
   %variant_field16 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val17 = load ptr, ptr %variant_field16, align 8
   store ptr %path_val17, ptr %e, align 8
-  %str18 = call ptr @mesh_string_new(ptr @.str.995, i64 13)
+  %str18 = call ptr @mesh_string_new(ptr @.str.880, i64 10)
   %e19 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str18, ptr %e19)
-  %str20 = call ptr @mesh_string_new(ptr @.str.996, i64 3)
+  %str20 = call ptr @mesh_string_new(ptr @.str.881, i64 2)
   %concat21 = call ptr @mesh_string_concat(ptr %concat, ptr %str20)
   %call22 = call ptr @mesh_http_response_new(i64 500, ptr %concat21)
   store ptr %call22, ptr %match_result, align 8
@@ -20828,7 +19106,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %raw_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.999, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.884, i64 10)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %raw_id, align 8
@@ -20867,7 +19145,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %key_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1000, i64 6)
+  %str = call ptr @mesh_string_new(ptr @.str.885, i64 6)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %key_id, align 8
@@ -20893,7 +19171,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1003, i64 30, ptr @.panic_file.1004, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.888, i64 30, ptr @.panic_file.889, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -20910,10 +19188,10 @@ case_Err:                                         ; preds = %entry
   %variant_field11 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val12 = load ptr, ptr %variant_field11, align 8
   store ptr %path_val12, ptr %e, align 8
-  %str13 = call ptr @mesh_string_new(ptr @.str.1001, i64 13)
+  %str13 = call ptr @mesh_string_new(ptr @.str.886, i64 10)
   %e14 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str13, ptr %e14)
-  %str15 = call ptr @mesh_string_new(ptr @.str.1002, i64 3)
+  %str15 = call ptr @mesh_string_new(ptr @.str.887, i64 2)
   %concat16 = call ptr @mesh_string_concat(ptr %concat, ptr %str15)
   %call17 = call ptr @mesh_http_response_new(i64 500, ptr %concat16)
   store ptr %call17, ptr %match_result, align 8
@@ -20922,7 +19200,7 @@ case_Err:                                         ; preds = %entry
 
 define ptr @Ingestion_Routes__unauthorized_response() {
 entry:
-  %str = call ptr @mesh_string_new(ptr @.str.1005, i64 28)
+  %str = call ptr @mesh_string_new(ptr @.str.890, i64 24)
   %call = call ptr @mesh_http_response_new(i64 401, ptr %str)
   ret ptr %call
 }
@@ -20931,10 +19209,10 @@ define ptr @Ingestion_Routes__bad_request_response(ptr %0) {
 entry:
   %reason = alloca ptr, align 8
   store ptr %0, ptr %reason, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1006, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.891, i64 10)
   %reason1 = load ptr, ptr %reason, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %reason1)
-  %str2 = call ptr @mesh_string_new(ptr @.str.1007, i64 3)
+  %str2 = call ptr @mesh_string_new(ptr @.str.892, i64 2)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   %call = call ptr @mesh_http_response_new(i64 400, ptr %concat3)
   ret ptr %call
@@ -20942,27 +19220,14 @@ entry:
 
 define ptr @Ingestion_Routes__rate_limited_response() {
 entry:
-  %empty_headers = alloca ptr, align 8
-  %call = call ptr @mesh_map_new()
-  store ptr %call, ptr %empty_headers, align 8
-  %headers = alloca ptr, align 8
-  %empty_headers1 = load ptr, ptr %empty_headers, align 8
-  %call2 = call ptr @mesh_map_tag_string(ptr %empty_headers1)
-  %str = call ptr @mesh_string_new(ptr @.str.1008, i64 11)
-  %str3 = call ptr @mesh_string_new(ptr @.str.1009, i64 2)
-  %ptr_to_i64 = ptrtoint ptr %str to i64
-  %ptr_to_i644 = ptrtoint ptr %str3 to i64
-  %call5 = call ptr @mesh_map_put(ptr %call2, i64 %ptr_to_i64, i64 %ptr_to_i644)
-  store ptr %call5, ptr %headers, align 8
-  %str6 = call ptr @mesh_string_new(ptr @.str.1010, i64 28)
-  %headers7 = load ptr, ptr %headers, align 8
-  %call8 = call ptr @mesh_http_response_with_headers(i64 429, ptr %str6, ptr %headers7)
-  ret ptr %call8
+  %str = call ptr @mesh_string_new(ptr @.str.893, i64 24)
+  %call = call ptr @mesh_http_response_new(i64 429, ptr %str)
+  ret ptr %call
 }
 
 define ptr @Ingestion_Routes__accepted_response() {
 entry:
-  %str = call ptr @mesh_string_new(ptr @.str.1011, i64 25)
+  %str = call ptr @mesh_string_new(ptr @.str.894, i64 21)
   %call = call ptr @mesh_http_response_new(i64 202, ptr %str)
   ret ptr %call
 }
@@ -20985,26 +19250,26 @@ then:                                             ; preds = %entry
   %call3 = call i64 @mesh_list_head(ptr %rows2)
   %i64_to_ptr = inttoptr i64 %call3 to ptr
   %call4 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str = call ptr @mesh_string_new(ptr @.str.1012, i64 3)
+  %str = call ptr @mesh_string_new(ptr @.str.895, i64 3)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call5 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i64)
   store i64 %call5, ptr %count, align 8
   %room = alloca ptr, align 8
-  %str6 = call ptr @mesh_string_new(ptr @.str.1013, i64 8)
+  %str6 = call ptr @mesh_string_new(ptr @.str.896, i64 8)
   %project_id7 = load ptr, ptr %project_id, align 8
   %concat = call ptr @mesh_string_concat(ptr %str6, ptr %project_id7)
   store ptr %concat, ptr %room, align 8
   %_ = alloca i64, align 8
   %room8 = load ptr, ptr %room, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.1014, i64 43)
+  %str9 = call ptr @mesh_string_new(ptr @.str.897, i64 36)
   %project_id10 = load ptr, ptr %project_id, align 8
   %concat11 = call ptr @mesh_string_concat(ptr %str9, ptr %project_id10)
-  %str12 = call ptr @mesh_string_new(ptr @.str.1015, i64 13)
+  %str12 = call ptr @mesh_string_new(ptr @.str.898, i64 10)
   %concat13 = call ptr @mesh_string_concat(ptr %concat11, ptr %str12)
   %count14 = load i64, ptr %count, align 8
   %concat_arg_ptr = inttoptr i64 %count14 to ptr
   %concat15 = call ptr @mesh_string_concat(ptr %concat13, ptr %concat_arg_ptr)
-  %str16 = call ptr @mesh_string_new(ptr @.str.1016, i64 1)
+  %str16 = call ptr @mesh_string_new(ptr @.str.899, i64 1)
   %concat17 = call ptr @mesh_string_concat(ptr %concat15, ptr %str16)
   %call18 = call i64 @mesh_ws_broadcast(ptr %room8, ptr %concat17)
   store i64 %call18, ptr %_, align 8
@@ -21036,16 +19301,10 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %count_result = alloca { i8, ptr }, align 8
   %pool3 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1017, i64 94)
-  %list_arr = alloca [1 x i64], align 8
   %project_id4 = load ptr, ptr %project_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %project_id4 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call5 = call ptr @mesh_pool_query(i64 %pool3, ptr %str, ptr %list)
-  %deref_sum = load { i8, ptr }, ptr %call5, align 8
-  store { i8, ptr } %deref_sum, ptr %count_result, align 8
+  %call5 = call { i8, ptr } @count_unresolved_issues(i64 %pool3, ptr %project_id4)
+  call void @mesh_reduction_check()
+  store { i8, ptr } %call5, ptr %count_result, align 8
   %count_result6 = load { i8, ptr }, ptr %count_result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
   store { i8, ptr } %count_result6, ptr %scrutinee, align 8
@@ -21062,7 +19321,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1018, i64 30, ptr @.panic_file.1019, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.900, i64 30, ptr @.panic_file.901, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -21094,27 +19353,27 @@ entry:
   %message = alloca ptr, align 8
   store ptr %4, ptr %message, align 8
   %room = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1020, i64 8)
+  %str = call ptr @mesh_string_new(ptr @.str.902, i64 8)
   %project_id1 = load ptr, ptr %project_id, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %project_id1)
   store ptr %concat, ptr %room, align 8
   %msg = alloca ptr, align 8
-  %str2 = call ptr @mesh_string_new(ptr @.str.1021, i64 35)
+  %str2 = call ptr @mesh_string_new(ptr @.str.903, i64 28)
   %alert_id3 = load ptr, ptr %alert_id, align 8
   %concat4 = call ptr @mesh_string_concat(ptr %str2, ptr %alert_id3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.1022, i64 19)
+  %str5 = call ptr @mesh_string_new(ptr @.str.904, i64 15)
   %concat6 = call ptr @mesh_string_concat(ptr %concat4, ptr %str5)
   %rule_name7 = load ptr, ptr %rule_name, align 8
   %concat8 = call ptr @mesh_string_concat(ptr %concat6, ptr %rule_name7)
-  %str9 = call ptr @mesh_string_new(ptr @.str.1023, i64 19)
+  %str9 = call ptr @mesh_string_new(ptr @.str.905, i64 15)
   %concat10 = call ptr @mesh_string_concat(ptr %concat8, ptr %str9)
   %condition_type11 = load ptr, ptr %condition_type, align 8
   %concat12 = call ptr @mesh_string_concat(ptr %concat10, ptr %condition_type11)
-  %str13 = call ptr @mesh_string_new(ptr @.str.1024, i64 17)
+  %str13 = call ptr @mesh_string_new(ptr @.str.906, i64 13)
   %concat14 = call ptr @mesh_string_concat(ptr %concat12, ptr %str13)
   %message15 = load ptr, ptr %message, align 8
   %concat16 = call ptr @mesh_string_concat(ptr %concat14, ptr %message15)
-  %str17 = call ptr @mesh_string_new(ptr @.str.1025, i64 3)
+  %str17 = call ptr @mesh_string_new(ptr @.str.907, i64 2)
   %concat18 = call ptr @mesh_string_concat(ptr %concat16, ptr %str17)
   store ptr %concat18, ptr %msg, align 8
   %_ = alloca i64, align 8
@@ -21149,7 +19408,7 @@ entry:
 then:                                             ; preds = %entry
   %message = alloca ptr, align 8
   %condition_type2 = load ptr, ptr %condition_type, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1026, i64 20)
+  %str = call ptr @mesh_string_new(ptr @.str.908, i64 20)
   %concat = call ptr @mesh_string_concat(ptr %condition_type2, ptr %str)
   %issue_id3 = load ptr, ptr %issue_id, align 8
   %concat4 = call ptr @mesh_string_concat(ptr %concat, ptr %issue_id3)
@@ -21189,7 +19448,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   br label %if_merge
 
 switch_default:                                   ; preds = %then
-  call void @mesh_panic(ptr @.panic_msg.1027, i64 30, ptr @.panic_file.1028, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.909, i64 30, ptr @.panic_file.910, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %then
@@ -21251,7 +19510,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1029, i64 30, ptr @.panic_file.1030, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.911, i64 30, ptr @.panic_file.912, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -21313,19 +19572,19 @@ then:                                             ; preds = %tce_loop
   store ptr %i64_to_ptr, ptr %rule, align 8
   %rule5 = load ptr, ptr %rule, align 8
   %call6 = call ptr @mesh_map_tag_string(ptr %rule5)
-  %str = call ptr @mesh_string_new(ptr @.str.1031, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.913, i64 2)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call7 = call i64 @mesh_map_get(ptr %call6, i64 %ptr_to_i64)
   store i64 %call7, ptr %rule_id, align 8
   %rule8 = load ptr, ptr %rule, align 8
   %call9 = call ptr @mesh_map_tag_string(ptr %rule8)
-  %str10 = call ptr @mesh_string_new(ptr @.str.1032, i64 4)
+  %str10 = call ptr @mesh_string_new(ptr @.str.914, i64 4)
   %ptr_to_i6411 = ptrtoint ptr %str10 to i64
   %call12 = call i64 @mesh_map_get(ptr %call9, i64 %ptr_to_i6411)
   store i64 %call12, ptr %rule_name, align 8
   %rule13 = load ptr, ptr %rule, align 8
   %call14 = call ptr @mesh_map_tag_string(ptr %rule13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.1033, i64 16)
+  %str15 = call ptr @mesh_string_new(ptr @.str.915, i64 16)
   %ptr_to_i6416 = ptrtoint ptr %str15 to i64
   %call17 = call i64 @mesh_map_get(ptr %call14, i64 %ptr_to_i6416)
   store i64 %call17, ptr %cooldown_str, align 8
@@ -21403,7 +19662,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1034, i64 30, ptr @.panic_file.1035, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.916, i64 30, ptr @.panic_file.917, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -21445,7 +19704,7 @@ then:                                             ; preds = %entry
   %_ = alloca i64, align 8
   %pool2 = load i64, ptr %pool, align 8
   %project_id3 = load ptr, ptr %project_id, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1036, i64 9)
+  %str = call ptr @mesh_string_new(ptr @.str.918, i64 9)
   %issue_id4 = load ptr, ptr %issue_id, align 8
   %call = call i64 @Ingestion_Routes__fire_matching_event_alerts(i64 %pool2, ptr %project_id3, ptr %str, ptr %issue_id4)
   call void @mesh_reduction_check()
@@ -21493,7 +19752,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1037, i64 30, ptr @.panic_file.1038, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.919, i64 30, ptr @.panic_file.920, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -21523,19 +19782,19 @@ entry:
   %body = alloca ptr, align 8
   store ptr %2, ptr %body, align 8
   %room = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1039, i64 8)
+  %str = call ptr @mesh_string_new(ptr @.str.921, i64 8)
   %project_id1 = load ptr, ptr %project_id, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %project_id1)
   store ptr %concat, ptr %room, align 8
   %notification = alloca ptr, align 8
-  %str2 = call ptr @mesh_string_new(ptr @.str.1040, i64 35)
+  %str2 = call ptr @mesh_string_new(ptr @.str.922, i64 28)
   %issue_id3 = load ptr, ptr %issue_id, align 8
   %concat4 = call ptr @mesh_string_concat(ptr %str2, ptr %issue_id3)
-  %str5 = call ptr @mesh_string_new(ptr @.str.1041, i64 12)
+  %str5 = call ptr @mesh_string_new(ptr @.str.923, i64 9)
   %concat6 = call ptr @mesh_string_concat(ptr %concat4, ptr %str5)
   %body7 = load ptr, ptr %body, align 8
   %concat8 = call ptr @mesh_string_concat(ptr %concat6, ptr %body7)
-  %str9 = call ptr @mesh_string_new(ptr @.str.1042, i64 1)
+  %str9 = call ptr @mesh_string_new(ptr @.str.924, i64 1)
   %concat10 = call ptr @mesh_string_concat(ptr %concat8, ptr %str9)
   store ptr %concat10, ptr %notification, align 8
   %_ = alloca i64, align 8
@@ -21586,9 +19845,9 @@ entry:
   %project_id2 = load ptr, ptr %project_id, align 8
   %writer_pid3 = load i64, ptr %writer_pid, align 8
   %body4 = load ptr, ptr %body, align 8
-  %call = call i64 @__service_eventprocessor_call_process_event(i64 %processor_pid1, ptr %project_id2, i64 %writer_pid3, ptr %body4)
+  %call = call { i8, ptr } @__service_eventprocessor_call_process_event(i64 %processor_pid1, ptr %project_id2, i64 %writer_pid3, ptr %body4)
   call void @mesh_reduction_check()
-  store i64 %call, ptr %result, align 8
+  store { i8, ptr } %call, ptr %result, align 8
   %result5 = load { i8, ptr }, ptr %result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
   store { i8, ptr } %result5, ptr %scrutinee, align 8
@@ -21605,7 +19864,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1043, i64 30, ptr @.panic_file.1044, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.925, i64 30, ptr @.panic_file.926, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -21663,7 +19922,7 @@ match_merge:                                      ; preds = %case_Ok, %case_Err
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1045, i64 30, ptr @.panic_file.1046, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.927, i64 30, ptr @.panic_file.928, i64 9, i32 0)
   unreachable
 
 case_Err:                                         ; preds = %entry
@@ -21702,9 +19961,9 @@ entry:
   %allowed = alloca i1, align 1
   %rate_limiter_pid1 = load i64, ptr %rate_limiter_pid, align 8
   %project_id2 = load ptr, ptr %project_id, align 8
-  %call = call i64 @__service_ratelimiter_call_check_limit(i64 %rate_limiter_pid1, ptr %project_id2)
+  %call = call i1 @__service_ratelimiter_call_check_limit(i64 %rate_limiter_pid1, ptr %project_id2)
   call void @mesh_reduction_check()
-  store i64 %call, ptr %allowed, align 8
+  store i1 %call, ptr %allowed, align 1
   %allowed3 = load i1, ptr %allowed, align 1
   %if_result = alloca ptr, align 8
   br i1 %allowed3, label %then, label %else
@@ -21734,49 +19993,8 @@ if_merge:                                         ; preds = %else, %then
   ret ptr %if_val
 }
 
-define ptr @Ingestion_Routes__handle_event_sample_decision(i1 %0, ptr %1, i64 %2, i64 %3, i64 %4, ptr %5) {
-entry:
-  %should_keep = alloca i1, align 1
-  store i1 %0, ptr %should_keep, align 1
-  %project_id = alloca ptr, align 8
-  store ptr %1, ptr %project_id, align 8
-  %rate_limiter_pid = alloca i64, align 8
-  store i64 %2, ptr %rate_limiter_pid, align 8
-  %processor_pid = alloca i64, align 8
-  store i64 %3, ptr %processor_pid, align 8
-  %writer_pid = alloca i64, align 8
-  store i64 %4, ptr %writer_pid, align 8
-  %request = alloca ptr, align 8
-  store ptr %5, ptr %request, align 8
-  %should_keep1 = load i1, ptr %should_keep, align 1
-  %if_result = alloca ptr, align 8
-  br i1 %should_keep1, label %then, label %else
-
-then:                                             ; preds = %entry
-  %project_id2 = load ptr, ptr %project_id, align 8
-  %rate_limiter_pid3 = load i64, ptr %rate_limiter_pid, align 8
-  %processor_pid4 = load i64, ptr %processor_pid, align 8
-  %writer_pid5 = load i64, ptr %writer_pid, align 8
-  %request6 = load ptr, ptr %request, align 8
-  %call = call ptr @Ingestion_Routes__handle_event_authed(ptr %project_id2, i64 %rate_limiter_pid3, i64 %processor_pid4, i64 %writer_pid5, ptr %request6)
-  call void @mesh_reduction_check()
-  store ptr %call, ptr %if_result, align 8
-  br label %if_merge
-
-else:                                             ; preds = %entry
-  %call7 = call ptr @Ingestion_Routes__accepted_response()
-  call void @mesh_reduction_check()
-  store ptr %call7, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %then
-  %if_val = load ptr, ptr %if_result, align 8
-  ret ptr %if_val
-}
-
 define ptr @Ingestion_Routes__handle_event_sampled(i64 %0, ptr %1, i64 %2, i64 %3, i64 %4, ptr %5) {
 entry:
-  %should_keep = alloca i1, align 1
   %pool = alloca i64, align 8
   store i64 %0, ptr %pool, align 8
   %project_id = alloca ptr, align 8
@@ -21789,56 +20007,14 @@ entry:
   store i64 %4, ptr %writer_pid, align 8
   %request = alloca ptr, align 8
   store ptr %5, ptr %request, align 8
-  %sample_result = alloca { i8, ptr }, align 8
-  %pool1 = load i64, ptr %pool, align 8
-  %project_id2 = load ptr, ptr %project_id, align 8
-  %call = call { i8, ptr } @check_sample_rate(i64 %pool1, ptr %project_id2)
+  %project_id1 = load ptr, ptr %project_id, align 8
+  %rate_limiter_pid2 = load i64, ptr %rate_limiter_pid, align 8
+  %processor_pid3 = load i64, ptr %processor_pid, align 8
+  %writer_pid4 = load i64, ptr %writer_pid, align 8
+  %request5 = load ptr, ptr %request, align 8
+  %call = call ptr @Ingestion_Routes__handle_event_authed(ptr %project_id1, i64 %rate_limiter_pid2, i64 %processor_pid3, i64 %writer_pid4, ptr %request5)
   call void @mesh_reduction_check()
-  store { i8, ptr } %call, ptr %sample_result, align 8
-  %sample_result3 = load { i8, ptr }, ptr %sample_result, align 8
-  %scrutinee = alloca { i8, ptr }, align 8
-  store { i8, ptr } %sample_result3, ptr %scrutinee, align 8
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Err, %case_Ok
-  %match_val = load ptr, ptr %match_result, align 8
-  ret ptr %match_val
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1047, i64 30, ptr @.panic_file.1048, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %should_keep, align 8
-  %should_keep4 = load i1, ptr %should_keep, align 1
-  %project_id5 = load ptr, ptr %project_id, align 8
-  %rate_limiter_pid6 = load i64, ptr %rate_limiter_pid, align 8
-  %processor_pid7 = load i64, ptr %processor_pid, align 8
-  %writer_pid8 = load i64, ptr %writer_pid, align 8
-  %request9 = load ptr, ptr %request, align 8
-  %call10 = call ptr @Ingestion_Routes__handle_event_sample_decision(i1 %should_keep4, ptr %project_id5, i64 %rate_limiter_pid6, i64 %processor_pid7, i64 %writer_pid8, ptr %request9)
-  call void @mesh_reduction_check()
-  store ptr %call10, ptr %match_result, align 8
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
-  %project_id11 = load ptr, ptr %project_id, align 8
-  %rate_limiter_pid12 = load i64, ptr %rate_limiter_pid, align 8
-  %processor_pid13 = load i64, ptr %processor_pid, align 8
-  %writer_pid14 = load i64, ptr %writer_pid, align 8
-  %request15 = load ptr, ptr %request, align 8
-  %call16 = call ptr @Ingestion_Routes__handle_event_authed(ptr %project_id11, i64 %rate_limiter_pid12, i64 %processor_pid13, i64 %writer_pid14, ptr %request15)
-  call void @mesh_reduction_check()
-  store ptr %call16, ptr %match_result, align 8
-  br label %match_merge
+  ret ptr %call
 }
 
 define ptr @handle_event(ptr %0) {
@@ -21860,30 +20036,15 @@ entry:
   %call4 = call i64 @__service_pipelineregistry_call_get_pool(i64 %reg_pid3)
   call void @mesh_reduction_check()
   store i64 %call4, ptr %pool, align 8
-  %rate_limiter_pid = alloca i64, align 8
-  %reg_pid5 = load i64, ptr %reg_pid, align 8
-  %call6 = call i64 @__service_pipelineregistry_call_get_rate_limiter(i64 %reg_pid5)
-  call void @mesh_reduction_check()
-  store i64 %call6, ptr %rate_limiter_pid, align 8
-  %processor_pid = alloca i64, align 8
-  %reg_pid7 = load i64, ptr %reg_pid, align 8
-  %call8 = call i64 @__service_pipelineregistry_call_get_processor(i64 %reg_pid7)
-  call void @mesh_reduction_check()
-  store i64 %call8, ptr %processor_pid, align 8
-  %writer_pid = alloca i64, align 8
-  %reg_pid9 = load i64, ptr %reg_pid, align 8
-  %call10 = call i64 @__service_pipelineregistry_call_get_writer(i64 %reg_pid9)
-  call void @mesh_reduction_check()
-  store i64 %call10, ptr %writer_pid, align 8
   %auth_result = alloca { i8, ptr }, align 8
-  %pool11 = load i64, ptr %pool, align 8
-  %request12 = load ptr, ptr %request, align 8
-  %call13 = call { i8, ptr } @authenticate_request(i64 %pool11, ptr %request12)
+  %pool5 = load i64, ptr %pool, align 8
+  %request6 = load ptr, ptr %request, align 8
+  %call7 = call { i8, ptr } @authenticate_request(i64 %pool5, ptr %request6)
   call void @mesh_reduction_check()
-  store { i8, ptr } %call13, ptr %auth_result, align 8
-  %auth_result14 = load { i8, ptr }, ptr %auth_result, align 8
+  store { i8, ptr } %call7, ptr %auth_result, align 8
+  %auth_result8 = load { i8, ptr }, ptr %auth_result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
-  store { i8, ptr } %auth_result14, ptr %scrutinee, align 8
+  store { i8, ptr } %auth_result8, ptr %scrutinee, align 8
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -21897,13 +20058,13 @@ match_merge:                                      ; preds = %case_Ok, %case_Err
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1049, i64 30, ptr @.panic_file.1050, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.929, i64 30, ptr @.panic_file.930, i64 9, i32 0)
   unreachable
 
 case_Err:                                         ; preds = %entry
-  %call15 = call ptr @Ingestion_Routes__unauthorized_response()
+  %call9 = call ptr @Ingestion_Routes__unauthorized_response()
   call void @mesh_reduction_check()
-  store ptr %call15, ptr %match_result, align 8
+  store ptr %call9, ptr %match_result, align 8
   br label %match_merge
 
 case_Ok:                                          ; preds = %entry
@@ -21911,19 +20072,25 @@ case_Ok:                                          ; preds = %entry
   %path_val = load ptr, ptr %variant_field, align 8
   %deref_struct = load %Project, ptr %path_val, align 8
   store %Project %deref_struct, ptr %project, align 8
-  %pool16 = load i64, ptr %pool, align 8
-  %project17 = load %Project, ptr %project, align 8
+  %pool10 = load i64, ptr %pool, align 8
+  %project11 = load %Project, ptr %project, align 8
   %obj_tmp = alloca %Project, align 8
-  store %Project %project17, ptr %obj_tmp, align 8
+  store %Project %project11, ptr %obj_tmp, align 8
   %field_ptr = getelementptr inbounds nuw %Project, ptr %obj_tmp, i32 0, i32 0
   %field_val = load ptr, ptr %field_ptr, align 8
-  %rate_limiter_pid18 = load i64, ptr %rate_limiter_pid, align 8
-  %processor_pid19 = load i64, ptr %processor_pid, align 8
-  %writer_pid20 = load i64, ptr %writer_pid, align 8
-  %request21 = load ptr, ptr %request, align 8
-  %call22 = call ptr @Ingestion_Routes__handle_event_sampled(i64 %pool16, ptr %field_val, i64 %rate_limiter_pid18, i64 %processor_pid19, i64 %writer_pid20, ptr %request21)
+  %reg_pid12 = load i64, ptr %reg_pid, align 8
+  %call13 = call i64 @__service_pipelineregistry_call_get_rate_limiter(i64 %reg_pid12)
   call void @mesh_reduction_check()
-  store ptr %call22, ptr %match_result, align 8
+  %reg_pid14 = load i64, ptr %reg_pid, align 8
+  %call15 = call i64 @__service_pipelineregistry_call_get_processor(i64 %reg_pid14)
+  call void @mesh_reduction_check()
+  %reg_pid16 = load i64, ptr %reg_pid, align 8
+  %call17 = call i64 @__service_pipelineregistry_call_get_writer(i64 %reg_pid16)
+  call void @mesh_reduction_check()
+  %request18 = load ptr, ptr %request, align 8
+  %call19 = call ptr @Ingestion_Routes__handle_event_sampled(i64 %pool10, ptr %field_val, i64 %call13, i64 %call15, i64 %call17, ptr %request18)
+  call void @mesh_reduction_check()
+  store ptr %call19, ptr %match_result, align 8
   br label %match_merge
 }
 
@@ -21943,9 +20110,9 @@ entry:
   %allowed = alloca i1, align 1
   %rate_limiter_pid1 = load i64, ptr %rate_limiter_pid, align 8
   %project_id2 = load ptr, ptr %project_id, align 8
-  %call = call i64 @__service_ratelimiter_call_check_limit(i64 %rate_limiter_pid1, ptr %project_id2)
+  %call = call i1 @__service_ratelimiter_call_check_limit(i64 %rate_limiter_pid1, ptr %project_id2)
   call void @mesh_reduction_check()
-  store i64 %call, ptr %allowed, align 8
+  store i1 %call, ptr %allowed, align 1
   %allowed3 = load i1, ptr %allowed, align 1
   %if_result = alloca ptr, align 8
   br i1 %allowed3, label %then, label %else
@@ -21987,7 +20154,7 @@ match_merge:                                      ; preds = %case_Ok, %case_Err
   br label %if_merge
 
 switch_default:                                   ; preds = %then
-  call void @mesh_panic(ptr @.panic_msg.1051, i64 30, ptr @.panic_file.1052, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.931, i64 30, ptr @.panic_file.932, i64 9, i32 0)
   unreachable
 
 case_Err:                                         ; preds = %then
@@ -22088,7 +20255,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1053, i64 30, ptr @.panic_file.1054, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.933, i64 30, ptr @.panic_file.934, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -22174,7 +20341,7 @@ match_merge:                                      ; preds = %case_Ok, %case_Err
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1055, i64 30, ptr @.panic_file.1056, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.935, i64 30, ptr @.panic_file.936, i64 9, i32 0)
   unreachable
 
 case_Err:                                         ; preds = %entry
@@ -22224,25 +20391,25 @@ then:                                             ; preds = %entry
   %call3 = call i64 @mesh_list_head(ptr %rows2)
   %i64_to_ptr = inttoptr i64 %call3 to ptr
   %call4 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str = call ptr @mesh_string_new(ptr @.str.1057, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.937, i64 10)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call5 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i64)
   store i64 %call5, ptr %project_id, align 8
   %room = alloca ptr, align 8
-  %str6 = call ptr @mesh_string_new(ptr @.str.1058, i64 8)
+  %str6 = call ptr @mesh_string_new(ptr @.str.938, i64 8)
   %project_id7 = load i64, ptr %project_id, align 8
   %concat_arg_ptr = inttoptr i64 %project_id7 to ptr
   %concat = call ptr @mesh_string_concat(ptr %str6, ptr %concat_arg_ptr)
   store ptr %concat, ptr %room, align 8
   %msg = alloca ptr, align 8
-  %str8 = call ptr @mesh_string_new(ptr @.str.1059, i64 33)
+  %str8 = call ptr @mesh_string_new(ptr @.str.939, i64 26)
   %action9 = load ptr, ptr %action, align 8
   %concat10 = call ptr @mesh_string_concat(ptr %str8, ptr %action9)
-  %str11 = call ptr @mesh_string_new(ptr @.str.1060, i64 18)
+  %str11 = call ptr @mesh_string_new(ptr @.str.940, i64 14)
   %concat12 = call ptr @mesh_string_concat(ptr %concat10, ptr %str11)
   %issue_id13 = load ptr, ptr %issue_id, align 8
   %concat14 = call ptr @mesh_string_concat(ptr %concat12, ptr %issue_id13)
-  %str15 = call ptr @mesh_string_new(ptr @.str.1061, i64 3)
+  %str15 = call ptr @mesh_string_new(ptr @.str.941, i64 2)
   %concat16 = call ptr @mesh_string_concat(ptr %concat14, ptr %str15)
   store ptr %concat16, ptr %msg, align 8
   %_ = alloca i64, align 8
@@ -22273,16 +20440,10 @@ entry:
   store ptr %2, ptr %action, align 8
   %rows_result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1062, i64 55)
-  %list_arr = alloca [1 x i64], align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
-  %ptr_to_i64 = ptrtoint ptr %issue_id2 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call = call ptr @mesh_pool_query(i64 %pool1, ptr %str, ptr %list)
-  %deref_sum = load { i8, ptr }, ptr %call, align 8
-  store { i8, ptr } %deref_sum, ptr %rows_result, align 8
+  %call = call { i8, ptr } @get_issue_project_id(i64 %pool1, ptr %issue_id2)
+  call void @mesh_reduction_check()
+  store { i8, ptr } %call, ptr %rows_result, align 8
   %rows_result3 = load { i8, ptr }, ptr %rows_result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
   store { i8, ptr } %rows_result3, ptr %scrutinee, align 8
@@ -22299,7 +20460,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1063, i64 30, ptr @.panic_file.1064, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.942, i64 30, ptr @.panic_file.943, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -22330,15 +20491,15 @@ entry:
   %_ = alloca i64, align 8
   %pool1 = load i64, ptr %pool, align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1065, i64 8)
+  %str = call ptr @mesh_string_new(ptr @.str.944, i64 8)
   %call = call i64 @Ingestion_Routes__broadcast_issue_update(i64 %pool1, ptr %issue_id2, ptr %str)
   call void @mesh_reduction_check()
   store i64 %call, ptr %_, align 8
-  %str3 = call ptr @mesh_string_new(ptr @.str.1066, i64 32)
+  %str3 = call ptr @mesh_string_new(ptr @.str.945, i64 26)
   %n4 = load i64, ptr %n, align 8
   %call5 = call ptr @mesh_int_to_string(i64 %n4)
   %concat = call ptr @mesh_string_concat(ptr %str3, ptr %call5)
-  %str6 = call ptr @mesh_string_new(ptr @.str.1067, i64 1)
+  %str6 = call ptr @mesh_string_new(ptr @.str.946, i64 1)
   %concat7 = call ptr @mesh_string_concat(ptr %concat, ptr %str6)
   %call8 = call ptr @mesh_http_response_new(i64 200, ptr %concat7)
   ret ptr %call8
@@ -22355,15 +20516,15 @@ entry:
   %_ = alloca i64, align 8
   %pool1 = load i64, ptr %pool, align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1068, i64 8)
+  %str = call ptr @mesh_string_new(ptr @.str.947, i64 8)
   %call = call i64 @Ingestion_Routes__broadcast_issue_update(i64 %pool1, ptr %issue_id2, ptr %str)
   call void @mesh_reduction_check()
   store i64 %call, ptr %_, align 8
-  %str3 = call ptr @mesh_string_new(ptr @.str.1069, i64 32)
+  %str3 = call ptr @mesh_string_new(ptr @.str.948, i64 26)
   %n4 = load i64, ptr %n, align 8
   %call5 = call ptr @mesh_int_to_string(i64 %n4)
   %concat = call ptr @mesh_string_concat(ptr %str3, ptr %call5)
-  %str6 = call ptr @mesh_string_new(ptr @.str.1070, i64 1)
+  %str6 = call ptr @mesh_string_new(ptr @.str.949, i64 1)
   %concat7 = call ptr @mesh_string_concat(ptr %concat, ptr %str6)
   %call8 = call ptr @mesh_http_response_new(i64 200, ptr %concat7)
   ret ptr %call8
@@ -22380,15 +20541,15 @@ entry:
   %_ = alloca i64, align 8
   %pool1 = load i64, ptr %pool, align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1071, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.950, i64 10)
   %call = call i64 @Ingestion_Routes__broadcast_issue_update(i64 %pool1, ptr %issue_id2, ptr %str)
   call void @mesh_reduction_check()
   store i64 %call, ptr %_, align 8
-  %str3 = call ptr @mesh_string_new(ptr @.str.1072, i64 32)
+  %str3 = call ptr @mesh_string_new(ptr @.str.951, i64 26)
   %n4 = load i64, ptr %n, align 8
   %call5 = call ptr @mesh_int_to_string(i64 %n4)
   %concat = call ptr @mesh_string_concat(ptr %str3, ptr %call5)
-  %str6 = call ptr @mesh_string_new(ptr @.str.1073, i64 1)
+  %str6 = call ptr @mesh_string_new(ptr @.str.952, i64 1)
   %concat7 = call ptr @mesh_string_concat(ptr %concat, ptr %str6)
   %call8 = call ptr @mesh_http_response_new(i64 200, ptr %concat7)
   ret ptr %call8
@@ -22405,15 +20566,15 @@ entry:
   %_ = alloca i64, align 8
   %pool1 = load i64, ptr %pool, align 8
   %issue_id2 = load ptr, ptr %issue_id, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1074, i64 9)
+  %str = call ptr @mesh_string_new(ptr @.str.953, i64 9)
   %call = call i64 @Ingestion_Routes__broadcast_issue_update(i64 %pool1, ptr %issue_id2, ptr %str)
   call void @mesh_reduction_check()
   store i64 %call, ptr %_, align 8
-  %str3 = call ptr @mesh_string_new(ptr @.str.1075, i64 32)
+  %str3 = call ptr @mesh_string_new(ptr @.str.954, i64 26)
   %n4 = load i64, ptr %n, align 8
   %call5 = call ptr @mesh_int_to_string(i64 %n4)
   %concat = call ptr @mesh_string_concat(ptr %str3, ptr %call5)
-  %str6 = call ptr @mesh_string_new(ptr @.str.1076, i64 1)
+  %str6 = call ptr @mesh_string_new(ptr @.str.955, i64 1)
   %concat7 = call ptr @mesh_string_concat(ptr %concat, ptr %str6)
   %call8 = call ptr @mesh_http_response_new(i64 200, ptr %concat7)
   ret ptr %call8
@@ -22436,7 +20597,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1077, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.956, i64 2)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %issue_id, align 8
@@ -22462,7 +20623,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1080, i64 30, ptr @.panic_file.1081, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.959, i64 30, ptr @.panic_file.960, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -22481,10 +20642,10 @@ case_Err:                                         ; preds = %entry
   %variant_field13 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val14 = load ptr, ptr %variant_field13, align 8
   store ptr %path_val14, ptr %e, align 8
-  %str15 = call ptr @mesh_string_new(ptr @.str.1078, i64 13)
+  %str15 = call ptr @mesh_string_new(ptr @.str.957, i64 10)
   %e16 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str15, ptr %e16)
-  %str17 = call ptr @mesh_string_new(ptr @.str.1079, i64 3)
+  %str17 = call ptr @mesh_string_new(ptr @.str.958, i64 2)
   %concat18 = call ptr @mesh_string_concat(ptr %concat, ptr %str17)
   %call19 = call ptr @mesh_http_response_new(i64 500, ptr %concat18)
   store ptr %call19, ptr %match_result, align 8
@@ -22508,7 +20669,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1082, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.961, i64 2)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %issue_id, align 8
@@ -22534,7 +20695,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1085, i64 30, ptr @.panic_file.1086, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.964, i64 30, ptr @.panic_file.965, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -22553,10 +20714,10 @@ case_Err:                                         ; preds = %entry
   %variant_field13 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val14 = load ptr, ptr %variant_field13, align 8
   store ptr %path_val14, ptr %e, align 8
-  %str15 = call ptr @mesh_string_new(ptr @.str.1083, i64 13)
+  %str15 = call ptr @mesh_string_new(ptr @.str.962, i64 10)
   %e16 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str15, ptr %e16)
-  %str17 = call ptr @mesh_string_new(ptr @.str.1084, i64 3)
+  %str17 = call ptr @mesh_string_new(ptr @.str.963, i64 2)
   %concat18 = call ptr @mesh_string_concat(ptr %concat, ptr %str17)
   %call19 = call ptr @mesh_http_response_new(i64 500, ptr %concat18)
   store ptr %call19, ptr %match_result, align 8
@@ -22580,7 +20741,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1087, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.966, i64 2)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %issue_id, align 8
@@ -22606,7 +20767,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1090, i64 30, ptr @.panic_file.1091, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.969, i64 30, ptr @.panic_file.970, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -22625,17 +20786,17 @@ case_Err:                                         ; preds = %entry
   %variant_field13 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val14 = load ptr, ptr %variant_field13, align 8
   store ptr %path_val14, ptr %e, align 8
-  %str15 = call ptr @mesh_string_new(ptr @.str.1088, i64 13)
+  %str15 = call ptr @mesh_string_new(ptr @.str.967, i64 10)
   %e16 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str15, ptr %e16)
-  %str17 = call ptr @mesh_string_new(ptr @.str.1089, i64 3)
+  %str17 = call ptr @mesh_string_new(ptr @.str.968, i64 2)
   %concat18 = call ptr @mesh_string_concat(ptr %concat, ptr %str17)
   %call19 = call ptr @mesh_http_response_new(i64 500, ptr %concat18)
   store ptr %call19, ptr %match_result, align 8
   br label %match_merge
 }
 
-define ptr @Ingestion_Routes__assign_from_rows(i64 %0, ptr %1, ptr %2) {
+define ptr @Ingestion_Routes__assign_with_user_id(i64 %0, ptr %1, ptr %2) {
 entry:
   %e = alloca ptr, align 8
   %n = alloca i64, align 8
@@ -22643,35 +20804,18 @@ entry:
   store i64 %0, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   store ptr %1, ptr %issue_id, align 8
-  %rows = alloca ptr, align 8
-  store ptr %2, ptr %rows, align 8
-  %rows1 = load ptr, ptr %rows, align 8
-  %call = call i64 @mesh_list_length(ptr %rows1)
-  %gt = icmp sgt i64 %call, 0
-  %if_result = alloca ptr, align 8
-  br i1 %gt, label %then, label %else
-
-then:                                             ; preds = %entry
-  %user_id = alloca i64, align 8
-  %rows2 = load ptr, ptr %rows, align 8
-  %call3 = call i64 @mesh_list_head(ptr %rows2)
-  %i64_to_ptr = inttoptr i64 %call3 to ptr
-  %call4 = call ptr @mesh_map_tag_string(ptr %i64_to_ptr)
-  %str = call ptr @mesh_string_new(ptr @.str.1092, i64 7)
-  %ptr_to_i64 = ptrtoint ptr %str to i64
-  %call5 = call i64 @mesh_map_get(ptr %call4, i64 %ptr_to_i64)
-  store i64 %call5, ptr %user_id, align 8
+  %user_id = alloca ptr, align 8
+  store ptr %2, ptr %user_id, align 8
   %result = alloca { i8, ptr }, align 8
-  %pool6 = load i64, ptr %pool, align 8
-  %issue_id7 = load ptr, ptr %issue_id, align 8
-  %user_id8 = load i64, ptr %user_id, align 8
-  %i64_to_ptr9 = inttoptr i64 %user_id8 to ptr
-  %call10 = call { i8, ptr } @assign_issue(i64 %pool6, ptr %issue_id7, ptr %i64_to_ptr9)
+  %pool1 = load i64, ptr %pool, align 8
+  %issue_id2 = load ptr, ptr %issue_id, align 8
+  %user_id3 = load ptr, ptr %user_id, align 8
+  %call = call { i8, ptr } @assign_issue(i64 %pool1, ptr %issue_id2, ptr %user_id3)
   call void @mesh_reduction_check()
-  store { i8, ptr } %call10, ptr %result, align 8
-  %result11 = load { i8, ptr }, ptr %result, align 8
+  store { i8, ptr } %call, ptr %result, align 8
+  %result4 = load { i8, ptr }, ptr %result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
-  store { i8, ptr } %result11, ptr %scrutinee, align 8
+  store { i8, ptr } %result4, ptr %scrutinee, align 8
   %match_result = alloca ptr, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -22680,52 +20824,39 @@ then:                                             ; preds = %entry
     i8 1, label %case_Err
   ]
 
-else:                                             ; preds = %entry
-  %str21 = call ptr @mesh_string_new(ptr @.str.1098, i64 28)
-  %call22 = call ptr @mesh_http_response_new(i64 400, ptr %str21)
-  store ptr %call22, ptr %if_result, align 8
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %match_merge
-  %if_val = load ptr, ptr %if_result, align 8
-  ret ptr %if_val
-
 match_merge:                                      ; preds = %case_Err, %case_Ok
   %match_val = load ptr, ptr %match_result, align 8
-  store ptr %match_val, ptr %if_result, align 8
-  br label %if_merge
+  ret ptr %match_val
 
-switch_default:                                   ; preds = %then
-  call void @mesh_panic(ptr @.panic_msg.1096, i64 30, ptr @.panic_file.1097, i64 9, i32 0)
+switch_default:                                   ; preds = %entry
+  call void @mesh_panic(ptr @.panic_msg.974, i64 30, ptr @.panic_file.975, i64 9, i32 0)
   unreachable
 
-case_Ok:                                          ; preds = %then
+case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %n, align 8
-  %str12 = call ptr @mesh_string_new(ptr @.str.1093, i64 19)
-  %call13 = call ptr @mesh_http_response_new(i64 200, ptr %str12)
-  store ptr %call13, ptr %match_result, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.971, i64 15)
+  %call5 = call ptr @mesh_http_response_new(i64 200, ptr %str)
+  store ptr %call5, ptr %match_result, align 8
   br label %match_merge
 
-case_Err:                                         ; preds = %then
-  %variant_field14 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
-  %path_val15 = load ptr, ptr %variant_field14, align 8
-  store ptr %path_val15, ptr %e, align 8
-  %str16 = call ptr @mesh_string_new(ptr @.str.1094, i64 13)
-  %e17 = load ptr, ptr %e, align 8
-  %concat = call ptr @mesh_string_concat(ptr %str16, ptr %e17)
-  %str18 = call ptr @mesh_string_new(ptr @.str.1095, i64 3)
-  %concat19 = call ptr @mesh_string_concat(ptr %concat, ptr %str18)
-  %call20 = call ptr @mesh_http_response_new(i64 500, ptr %concat19)
-  store ptr %call20, ptr %match_result, align 8
+case_Err:                                         ; preds = %entry
+  %variant_field6 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
+  %path_val7 = load ptr, ptr %variant_field6, align 8
+  store ptr %path_val7, ptr %e, align 8
+  %str8 = call ptr @mesh_string_new(ptr @.str.972, i64 10)
+  %e9 = load ptr, ptr %e, align 8
+  %concat = call ptr @mesh_string_concat(ptr %str8, ptr %e9)
+  %str10 = call ptr @mesh_string_new(ptr @.str.973, i64 2)
+  %concat11 = call ptr @mesh_string_concat(ptr %concat, ptr %str10)
+  %call12 = call ptr @mesh_http_response_new(i64 500, ptr %concat11)
+  store ptr %call12, ptr %match_result, align 8
   br label %match_merge
 }
 
 define ptr @handle_assign_issue(ptr %0) {
 entry:
-  %rows = alloca ptr, align 8
-  %e = alloca ptr, align 8
   %request = alloca ptr, align 8
   store ptr %0, ptr %request, align 8
   %reg_pid = alloca i64, align 8
@@ -22739,7 +20870,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1099, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.976, i64 2)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %issue_id, align 8
@@ -22747,57 +20878,17 @@ entry:
   %request5 = load ptr, ptr %request, align 8
   %call6 = call ptr @mesh_http_request_body(ptr %request5)
   store ptr %call6, ptr %body, align 8
-  %rows_result = alloca { i8, ptr }, align 8
-  %pool7 = load i64, ptr %pool, align 8
-  %str8 = call ptr @mesh_string_new(ptr @.str.1100, i64 53)
-  %list_arr = alloca [1 x i64], align 8
-  %body9 = load ptr, ptr %body, align 8
-  %ptr_to_i64 = ptrtoint ptr %body9 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call10 = call ptr @mesh_pool_query(i64 %pool7, ptr %str8, ptr %list)
-  %deref_sum = load { i8, ptr }, ptr %call10, align 8
-  store { i8, ptr } %deref_sum, ptr %rows_result, align 8
-  %rows_result11 = load { i8, ptr }, ptr %rows_result, align 8
-  %scrutinee = alloca { i8, ptr }, align 8
-  store { i8, ptr } %rows_result11, ptr %scrutinee, align 8
-  %match_result = alloca ptr, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 1, label %case_Err
-    i8 0, label %case_Ok
-  ]
-
-match_merge:                                      ; preds = %case_Ok, %case_Err
-  %match_val = load ptr, ptr %match_result, align 8
-  ret ptr %match_val
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1102, i64 30, ptr @.panic_file.1103, i64 9, i32 0)
-  unreachable
-
-case_Err:                                         ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %e, align 8
-  %str12 = call ptr @mesh_string_new(ptr @.str.1101, i64 28)
-  %call13 = call ptr @mesh_http_response_new(i64 400, ptr %str12)
-  store ptr %call13, ptr %match_result, align 8
-  br label %match_merge
-
-case_Ok:                                          ; preds = %entry
-  %variant_field14 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
-  %path_val15 = load ptr, ptr %variant_field14, align 8
-  store ptr %path_val15, ptr %rows, align 8
-  %pool16 = load i64, ptr %pool, align 8
-  %issue_id17 = load ptr, ptr %issue_id, align 8
-  %rows18 = load ptr, ptr %rows, align 8
-  %call19 = call ptr @Ingestion_Routes__assign_from_rows(i64 %pool16, ptr %issue_id17, ptr %rows18)
+  %user_id = alloca ptr, align 8
+  %body7 = load ptr, ptr %body, align 8
+  %str8 = call ptr @mesh_string_new(ptr @.str.977, i64 7)
+  %call9 = call ptr @mesh_json_get(ptr %body7, ptr %str8)
+  store ptr %call9, ptr %user_id, align 8
+  %pool10 = load i64, ptr %pool, align 8
+  %issue_id11 = load ptr, ptr %issue_id, align 8
+  %user_id12 = load ptr, ptr %user_id, align 8
+  %call13 = call ptr @Ingestion_Routes__assign_with_user_id(i64 %pool10, ptr %issue_id11, ptr %user_id12)
   call void @mesh_reduction_check()
-  store ptr %call19, ptr %match_result, align 8
-  br label %match_merge
+  ret ptr %call13
 }
 
 define ptr @handle_discard_issue(ptr %0) {
@@ -22817,7 +20908,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1104, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.978, i64 2)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %issue_id, align 8
@@ -22843,7 +20934,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1107, i64 30, ptr @.panic_file.1108, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.981, i64 30, ptr @.panic_file.982, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -22862,10 +20953,10 @@ case_Err:                                         ; preds = %entry
   %variant_field13 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val14 = load ptr, ptr %variant_field13, align 8
   store ptr %path_val14, ptr %e, align 8
-  %str15 = call ptr @mesh_string_new(ptr @.str.1105, i64 13)
+  %str15 = call ptr @mesh_string_new(ptr @.str.979, i64 10)
   %e16 = load ptr, ptr %e, align 8
   %concat = call ptr @mesh_string_concat(ptr %str15, ptr %e16)
-  %str17 = call ptr @mesh_string_new(ptr @.str.1106, i64 3)
+  %str17 = call ptr @mesh_string_new(ptr @.str.980, i64 2)
   %concat18 = call ptr @mesh_string_concat(ptr %concat, ptr %str17)
   %call19 = call ptr @mesh_http_response_new(i64 500, ptr %concat18)
   store ptr %call19, ptr %match_result, align 8
@@ -22889,7 +20980,7 @@ entry:
   store i64 %call2, ptr %pool, align 8
   %issue_id = alloca ptr, align 8
   %request3 = load ptr, ptr %request, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1109, i64 2)
+  %str = call ptr @mesh_string_new(ptr @.str.983, i64 2)
   %call4 = call ptr @require_param(ptr %request3, ptr %str)
   call void @mesh_reduction_check()
   store ptr %call4, ptr %issue_id, align 8
@@ -22915,18 +21006,18 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1114, i64 30, ptr @.panic_file.1115, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.988, i64 30, ptr @.panic_file.989, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
   %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val = load ptr, ptr %variant_field, align 8
   store ptr %path_val, ptr %n, align 8
-  %str9 = call ptr @mesh_string_new(ptr @.str.1110, i64 32)
+  %str9 = call ptr @mesh_string_new(ptr @.str.984, i64 26)
   %n10 = load i64, ptr %n, align 8
   %call11 = call ptr @mesh_int_to_string(i64 %n10)
   %concat = call ptr @mesh_string_concat(ptr %str9, ptr %call11)
-  %str12 = call ptr @mesh_string_new(ptr @.str.1111, i64 1)
+  %str12 = call ptr @mesh_string_new(ptr @.str.985, i64 1)
   %concat13 = call ptr @mesh_string_concat(ptr %concat, ptr %str12)
   %call14 = call ptr @mesh_http_response_new(i64 200, ptr %concat13)
   store ptr %call14, ptr %match_result, align 8
@@ -22936,10 +21027,10 @@ case_Err:                                         ; preds = %entry
   %variant_field15 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
   %path_val16 = load ptr, ptr %variant_field15, align 8
   store ptr %path_val16, ptr %e, align 8
-  %str17 = call ptr @mesh_string_new(ptr @.str.1112, i64 13)
+  %str17 = call ptr @mesh_string_new(ptr @.str.986, i64 10)
   %e18 = load ptr, ptr %e, align 8
   %concat19 = call ptr @mesh_string_concat(ptr %str17, ptr %e18)
-  %str20 = call ptr @mesh_string_new(ptr @.str.1113, i64 3)
+  %str20 = call ptr @mesh_string_new(ptr @.str.987, i64 2)
   %concat21 = call ptr @mesh_string_concat(ptr %concat19, ptr %str20)
   %call22 = call ptr @mesh_http_response_new(i64 500, ptr %concat21)
   store ptr %call22, ptr %match_result, align 8
@@ -22955,7 +21046,7 @@ entry:
   %has_auth = alloca i1, align 1
   %headers1 = load ptr, ptr %headers, align 8
   %call = call ptr @mesh_map_tag_string(ptr %headers1)
-  %str = call ptr @mesh_string_new(ptr @.str.1116, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.990, i64 13)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i8 @mesh_map_has_key(ptr %call, i64 %ptr_to_i64)
   %to_bool = trunc i8 %call2 to i1
@@ -22998,7 +21089,7 @@ entry:
   %conn = alloca i64, align 8
   store i64 %0, ptr %conn, align 8
   %conn1 = load i64, ptr %conn, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1117, i64 25)
+  %str = call ptr @mesh_string_new(ptr @.str.991, i64 21)
   %call = call {} @Ingestion_WsHandler__ws_write(i64 %conn1, ptr %str)
   call void @mesh_reduction_check()
   ret {} zeroinitializer
@@ -23011,10 +21102,10 @@ entry:
   %reason = alloca ptr, align 8
   store ptr %1, ptr %reason, align 8
   %msg = alloca ptr, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1118, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.992, i64 10)
   %reason1 = load ptr, ptr %reason, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %reason1)
-  %str2 = call ptr @mesh_string_new(ptr @.str.1119, i64 3)
+  %str2 = call ptr @mesh_string_new(ptr @.str.993, i64 2)
   %concat3 = call ptr @mesh_string_concat(ptr %concat, ptr %str2)
   store ptr %concat3, ptr %msg, align 8
   %conn4 = load i64, ptr %conn, align 8
@@ -23032,39 +21123,64 @@ entry:
   store ptr %1, ptr %path, align 8
   %parts = alloca ptr, align 8
   %path1 = load ptr, ptr %path, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1120, i64 1)
+  %str = call ptr @mesh_string_new(ptr @.str.994, i64 1)
   %call = call ptr @mesh_string_split(ptr %path1, ptr %str)
   store ptr %call, ptr %parts, align 8
-  %project_id = alloca ptr, align 8
+  %seg1 = alloca ptr, align 8
   %parts2 = load ptr, ptr %parts, align 8
-  %call3 = call i64 @mesh_list_get(ptr %parts2, i64 3)
+  %call3 = call i64 @mesh_list_get(ptr %parts2, i64 1)
   %i64_to_ptr = inttoptr i64 %call3 to ptr
-  store ptr %i64_to_ptr, ptr %project_id, align 8
+  store ptr %i64_to_ptr, ptr %seg1, align 8
+  %project_id = alloca ptr, align 8
+  %seg14 = load ptr, ptr %seg1, align 8
+  %str5 = call ptr @mesh_string_new(ptr @.str.995, i64 2)
+  %str_eq = call i8 @mesh_string_eq(ptr %seg14, ptr %str5)
+  %str_eq_bool = icmp ne i8 %str_eq, 0
+  %if_result = alloca ptr, align 8
+  br i1 %str_eq_bool, label %then, label %else
+
+then:                                             ; preds = %entry
+  %parts6 = load ptr, ptr %parts, align 8
+  %call7 = call i64 @mesh_list_get(ptr %parts6, i64 4)
+  %i64_to_ptr8 = inttoptr i64 %call7 to ptr
+  store ptr %i64_to_ptr8, ptr %if_result, align 8
+  br label %if_merge
+
+else:                                             ; preds = %entry
+  %parts9 = load ptr, ptr %parts, align 8
+  %call10 = call i64 @mesh_list_get(ptr %parts9, i64 3)
+  %i64_to_ptr11 = inttoptr i64 %call10 to ptr
+  store ptr %i64_to_ptr11, ptr %if_result, align 8
+  br label %if_merge
+
+if_merge:                                         ; preds = %else, %then
+  %if_val = load ptr, ptr %if_result, align 8
+  store ptr %if_val, ptr %project_id, align 8
   %room = alloca ptr, align 8
-  %str4 = call ptr @mesh_string_new(ptr @.str.1121, i64 8)
-  %project_id5 = load ptr, ptr %project_id, align 8
-  %concat = call ptr @mesh_string_concat(ptr %str4, ptr %project_id5)
+  %str12 = call ptr @mesh_string_new(ptr @.str.996, i64 8)
+  %project_id13 = load ptr, ptr %project_id, align 8
+  %concat = call ptr @mesh_string_concat(ptr %str12, ptr %project_id13)
   store ptr %concat, ptr %room, align 8
   %_ = alloca i64, align 8
-  %conn6 = load i64, ptr %conn, align 8
-  %room7 = load ptr, ptr %room, align 8
-  %i64_to_ptr8 = inttoptr i64 %conn6 to ptr
-  %call9 = call i64 @mesh_ws_join(ptr %i64_to_ptr8, ptr %room7)
-  store i64 %call9, ptr %_, align 8
-  %stream_mgr_pid = alloca i64, align 8
-  %str10 = call ptr @mesh_string_new(ptr @.str.1122, i64 14)
-  %call11 = call i64 @mesh_process_whereis(ptr %str10)
-  %i64_to_ptr12 = inttoptr i64 %call11 to ptr
-  store ptr %i64_to_ptr12, ptr %stream_mgr_pid, align 8
-  %stream_mgr_pid13 = load i64, ptr %stream_mgr_pid, align 8
   %conn14 = load i64, ptr %conn, align 8
-  %project_id15 = load ptr, ptr %project_id, align 8
-  %str16 = call ptr @mesh_string_new(ptr @.str.1123, i64 0)
-  %str17 = call ptr @mesh_string_new(ptr @.str.1124, i64 0)
-  %call18 = call {} @__service_streammanager_cast_register_client(i64 %stream_mgr_pid13, i64 %conn14, ptr %project_id15, ptr %str16, ptr %str17)
+  %room15 = load ptr, ptr %room, align 8
+  %i64_to_ptr16 = inttoptr i64 %conn14 to ptr
+  %call17 = call i64 @mesh_ws_join(ptr %i64_to_ptr16, ptr %room15)
+  store i64 %call17, ptr %_, align 8
+  %stream_mgr_pid = alloca i64, align 8
+  %str18 = call ptr @mesh_string_new(ptr @.str.997, i64 14)
+  %call19 = call i64 @mesh_process_whereis(ptr %str18)
+  %i64_to_ptr20 = inttoptr i64 %call19 to ptr
+  store ptr %i64_to_ptr20, ptr %stream_mgr_pid, align 8
+  %stream_mgr_pid21 = load i64, ptr %stream_mgr_pid, align 8
+  %conn22 = load i64, ptr %conn, align 8
+  %project_id23 = load ptr, ptr %project_id, align 8
+  %str24 = call ptr @mesh_string_new(ptr @.str.998, i64 0)
+  %str25 = call ptr @mesh_string_new(ptr @.str.999, i64 0)
+  %call26 = call {} @__service_streammanager_cast_register_client(i64 %stream_mgr_pid21, i64 %conn22, ptr %project_id23, ptr %str24, ptr %str25)
   call void @mesh_reduction_check()
-  %conn19 = load i64, ptr %conn, align 8
-  ret i64 %conn19
+  %conn27 = load i64, ptr %conn, align 8
+  ret i64 %conn27
 }
 
 define i64 @Ingestion_WsHandler__handle_ingest_connect(i64 %0, ptr %1) {
@@ -23076,7 +21192,7 @@ entry:
   %has_key = alloca i1, align 1
   %headers1 = load ptr, ptr %headers, align 8
   %call = call ptr @mesh_map_tag_string(ptr %headers1)
-  %str = call ptr @mesh_string_new(ptr @.str.1125, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.1000, i64 13)
   %ptr_to_i64 = ptrtoint ptr %str to i64
   %call2 = call i8 @mesh_map_has_key(ptr %call, i64 %ptr_to_i64)
   %to_bool = trunc i8 %call2 to i1
@@ -23107,65 +21223,11 @@ define i1 @Ingestion_WsHandler__is_stream_path(ptr %0) {
 entry:
   %path = alloca ptr, align 8
   store ptr %0, ptr %path, align 8
-  %parts = alloca ptr, align 8
   %path1 = load ptr, ptr %path, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1126, i64 1)
-  %call = call ptr @mesh_string_split(ptr %path1, ptr %str)
-  store ptr %call, ptr %parts, align 8
-  %len = alloca i64, align 8
-  %parts2 = load ptr, ptr %parts, align 8
-  %call3 = call i64 @mesh_list_length(ptr %parts2)
-  store i64 %call3, ptr %len, align 8
-  %len4 = load i64, ptr %len, align 8
-  %gt = icmp sgt i64 %len4, 3
-  %if_result = alloca i1, align 1
-  br i1 %gt, label %then, label %else
-
-then:                                             ; preds = %entry
-  %seg1 = alloca ptr, align 8
-  %parts5 = load ptr, ptr %parts, align 8
-  %call6 = call i64 @mesh_list_get(ptr %parts5, i64 1)
-  %i64_to_ptr = inttoptr i64 %call6 to ptr
-  store ptr %i64_to_ptr, ptr %seg1, align 8
-  %seg2 = alloca ptr, align 8
-  %parts7 = load ptr, ptr %parts, align 8
-  %call8 = call i64 @mesh_list_get(ptr %parts7, i64 2)
-  %i64_to_ptr9 = inttoptr i64 %call8 to ptr
-  store ptr %i64_to_ptr9, ptr %seg2, align 8
-  %s1_ok = alloca i1, align 1
-  %seg110 = load ptr, ptr %seg1, align 8
-  %str11 = call ptr @mesh_string_new(ptr @.str.1127, i64 6)
-  %str_eq = call i8 @mesh_string_eq(ptr %seg110, ptr %str11)
-  %str_eq_bool = icmp ne i8 %str_eq, 0
-  store i1 %str_eq_bool, ptr %s1_ok, align 1
-  %s1_ok12 = load i1, ptr %s1_ok, align 1
-  %if_result13 = alloca i1, align 1
-  br i1 %s1_ok12, label %then14, label %else15
-
-else:                                             ; preds = %entry
-  store i1 false, ptr %if_result, align 1
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %if_merge16
-  %if_val21 = load i1, ptr %if_result, align 1
-  ret i1 %if_val21
-
-then14:                                           ; preds = %then
-  %seg217 = load ptr, ptr %seg2, align 8
-  %str18 = call ptr @mesh_string_new(ptr @.str.1128, i64 8)
-  %str_eq19 = call i8 @mesh_string_eq(ptr %seg217, ptr %str18)
-  %str_eq_bool20 = icmp ne i8 %str_eq19, 0
-  store i1 %str_eq_bool20, ptr %if_result13, align 1
-  br label %if_merge16
-
-else15:                                           ; preds = %then
-  store i1 false, ptr %if_result13, align 1
-  br label %if_merge16
-
-if_merge16:                                       ; preds = %else15, %then14
-  %if_val = load i1, ptr %if_result13, align 1
-  store i1 %if_val, ptr %if_result, align 1
-  br label %if_merge
+  %str = call ptr @mesh_string_new(ptr @.str.1001, i64 17)
+  %call = call i8 @mesh_string_contains(ptr %path1, ptr %str)
+  %to_bool = trunc i8 %call to i1
+  ret i1 %to_bool
 }
 
 define i64 @ws_on_connect(i64 %0, ptr %1, ptr %2) {
@@ -23206,143 +21268,47 @@ if_merge:                                         ; preds = %else, %then
   ret i64 %if_val
 }
 
-define {} @Ingestion_WsHandler__apply_filter_update(i64 %0, ptr %1) {
-entry:
-  %conn = alloca i64, align 8
-  store i64 %0, ptr %conn, align 8
-  %rows = alloca ptr, align 8
-  store ptr %1, ptr %rows, align 8
-  %rows1 = load ptr, ptr %rows, align 8
-  %call = call i64 @mesh_list_length(ptr %rows1)
-  %gt = icmp sgt i64 %call, 0
-  %if_result = alloca {}, align 8
-  br i1 %gt, label %then, label %else
-
-then:                                             ; preds = %entry
-  %row = alloca ptr, align 8
-  %rows2 = load ptr, ptr %rows, align 8
-  %call3 = call i64 @mesh_list_head(ptr %rows2)
-  %i64_to_ptr = inttoptr i64 %call3 to ptr
-  store ptr %i64_to_ptr, ptr %row, align 8
-  %level = alloca i64, align 8
-  %row4 = load ptr, ptr %row, align 8
-  %call5 = call ptr @mesh_map_tag_string(ptr %row4)
-  %str = call ptr @mesh_string_new(ptr @.str.1129, i64 5)
-  %ptr_to_i64 = ptrtoint ptr %str to i64
-  %call6 = call i64 @mesh_map_get(ptr %call5, i64 %ptr_to_i64)
-  store i64 %call6, ptr %level, align 8
-  %env = alloca i64, align 8
-  %row7 = load ptr, ptr %row, align 8
-  %call8 = call ptr @mesh_map_tag_string(ptr %row7)
-  %str9 = call ptr @mesh_string_new(ptr @.str.1130, i64 3)
-  %ptr_to_i6410 = ptrtoint ptr %str9 to i64
-  %call11 = call i64 @mesh_map_get(ptr %call8, i64 %ptr_to_i6410)
-  store i64 %call11, ptr %env, align 8
-  %stream_mgr_pid = alloca i64, align 8
-  %str12 = call ptr @mesh_string_new(ptr @.str.1131, i64 14)
-  %call13 = call i64 @mesh_process_whereis(ptr %str12)
-  %i64_to_ptr14 = inttoptr i64 %call13 to ptr
-  store ptr %i64_to_ptr14, ptr %stream_mgr_pid, align 8
-  %project_id = alloca ptr, align 8
-  %stream_mgr_pid15 = load i64, ptr %stream_mgr_pid, align 8
-  %conn16 = load i64, ptr %conn, align 8
-  %call17 = call i64 @__service_streammanager_call_get_project_id(i64 %stream_mgr_pid15, i64 %conn16)
-  call void @mesh_reduction_check()
-  store i64 %call17, ptr %project_id, align 8
-  %stream_mgr_pid18 = load i64, ptr %stream_mgr_pid, align 8
-  %conn19 = load i64, ptr %conn, align 8
-  %project_id20 = load ptr, ptr %project_id, align 8
-  %level21 = load i64, ptr %level, align 8
-  %env22 = load i64, ptr %env, align 8
-  %i64_to_ptr23 = inttoptr i64 %level21 to ptr
-  %i64_to_ptr24 = inttoptr i64 %env22 to ptr
-  %call25 = call {} @__service_streammanager_cast_register_client(i64 %stream_mgr_pid18, i64 %conn19, ptr %project_id20, ptr %i64_to_ptr23, ptr %i64_to_ptr24)
-  call void @mesh_reduction_check()
-  %conn26 = load i64, ptr %conn, align 8
-  %str27 = call ptr @mesh_string_new(ptr @.str.1132, i64 30)
-  %call28 = call {} @Ingestion_WsHandler__ws_write(i64 %conn26, ptr %str27)
-  call void @mesh_reduction_check()
-  store {} zeroinitializer, ptr %if_result, align 1
-  br label %if_merge
-
-else:                                             ; preds = %entry
-  %conn29 = load i64, ptr %conn, align 8
-  %str30 = call ptr @mesh_string_new(ptr @.str.1133, i64 56)
-  %call31 = call {} @Ingestion_WsHandler__ws_write(i64 %conn29, ptr %str30)
-  call void @mesh_reduction_check()
-  store {} zeroinitializer, ptr %if_result, align 1
-  br label %if_merge
-
-if_merge:                                         ; preds = %else, %then
-  %if_val = load {}, ptr %if_result, align 1
-  ret {} zeroinitializer
-}
-
 define {} @Ingestion_WsHandler__handle_subscribe_update(i64 %0, ptr %1) {
 entry:
-  %rows = alloca ptr, align 8
   %conn = alloca i64, align 8
   store i64 %0, ptr %conn, align 8
   %message = alloca ptr, align 8
   store ptr %1, ptr %message, align 8
-  %reg_pid = alloca i64, align 8
-  %call = call i64 @get_registry()
-  call void @mesh_reduction_check()
-  store i64 %call, ptr %reg_pid, align 8
-  %pool = alloca i64, align 8
-  %reg_pid1 = load i64, ptr %reg_pid, align 8
-  %call2 = call i64 @__service_pipelineregistry_call_get_pool(i64 %reg_pid1)
-  call void @mesh_reduction_check()
-  store i64 %call2, ptr %pool, align 8
-  %query_result = alloca { i8, ptr }, align 8
-  %pool3 = load i64, ptr %pool, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1134, i64 119)
-  %list_arr = alloca [1 x i64], align 8
-  %message4 = load ptr, ptr %message, align 8
-  %ptr_to_i64 = ptrtoint ptr %message4 to i64
-  %elem_ptr = getelementptr [1 x i64], ptr %list_arr, i32 0, i32 0
-  store i64 %ptr_to_i64, ptr %elem_ptr, align 8
-  %list = call ptr @mesh_list_from_array(ptr %list_arr, i64 1)
-  %call5 = call ptr @mesh_pool_query(i64 %pool3, ptr %str, ptr %list)
-  %deref_sum = load { i8, ptr }, ptr %call5, align 8
-  store { i8, ptr } %deref_sum, ptr %query_result, align 8
-  %query_result6 = load { i8, ptr }, ptr %query_result, align 8
-  %scrutinee = alloca { i8, ptr }, align 8
-  store { i8, ptr } %query_result6, ptr %scrutinee, align 8
-  %match_result = alloca {}, align 8
-  %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
-  %tag = load i8, ptr %tag_ptr, align 1
-  switch i8 %tag, label %switch_default [
-    i8 0, label %case_Ok
-    i8 1, label %case_Err
-  ]
-
-match_merge:                                      ; preds = %case_Err, %case_Ok
-  %match_val = load {}, ptr %match_result, align 1
-  ret {} zeroinitializer
-
-switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1136, i64 30, ptr @.panic_file.1137, i64 9, i32 0)
-  unreachable
-
-case_Ok:                                          ; preds = %entry
-  %variant_field = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 1
-  %path_val = load ptr, ptr %variant_field, align 8
-  store ptr %path_val, ptr %rows, align 8
-  %conn7 = load i64, ptr %conn, align 8
-  %rows8 = load ptr, ptr %rows, align 8
-  %call9 = call {} @Ingestion_WsHandler__apply_filter_update(i64 %conn7, ptr %rows8)
-  call void @mesh_reduction_check()
-  store {} zeroinitializer, ptr %match_result, align 1
-  br label %match_merge
-
-case_Err:                                         ; preds = %entry
+  %level = alloca ptr, align 8
+  %message1 = load ptr, ptr %message, align 8
+  %str = call ptr @mesh_string_new(ptr @.str.1002, i64 7)
+  %str2 = call ptr @mesh_string_new(ptr @.str.1003, i64 5)
+  %call = call ptr @mesh_json_get_nested(ptr %message1, ptr %str, ptr %str2)
+  store ptr %call, ptr %level, align 8
+  %env = alloca ptr, align 8
+  %message3 = load ptr, ptr %message, align 8
+  %str4 = call ptr @mesh_string_new(ptr @.str.1004, i64 7)
+  %str5 = call ptr @mesh_string_new(ptr @.str.1005, i64 11)
+  %call6 = call ptr @mesh_json_get_nested(ptr %message3, ptr %str4, ptr %str5)
+  store ptr %call6, ptr %env, align 8
+  %stream_mgr_pid = alloca i64, align 8
+  %str7 = call ptr @mesh_string_new(ptr @.str.1006, i64 14)
+  %call8 = call i64 @mesh_process_whereis(ptr %str7)
+  %i64_to_ptr = inttoptr i64 %call8 to ptr
+  store ptr %i64_to_ptr, ptr %stream_mgr_pid, align 8
+  %project_id = alloca ptr, align 8
+  %stream_mgr_pid9 = load i64, ptr %stream_mgr_pid, align 8
   %conn10 = load i64, ptr %conn, align 8
-  %str11 = call ptr @mesh_string_new(ptr @.str.1135, i64 62)
-  %call12 = call {} @Ingestion_WsHandler__ws_write(i64 %conn10, ptr %str11)
+  %call11 = call ptr @__service_streammanager_call_get_project_id(i64 %stream_mgr_pid9, i64 %conn10)
   call void @mesh_reduction_check()
-  store {} zeroinitializer, ptr %match_result, align 1
-  br label %match_merge
+  store ptr %call11, ptr %project_id, align 8
+  %stream_mgr_pid12 = load i64, ptr %stream_mgr_pid, align 8
+  %conn13 = load i64, ptr %conn, align 8
+  %project_id14 = load ptr, ptr %project_id, align 8
+  %level15 = load ptr, ptr %level, align 8
+  %env16 = load ptr, ptr %env, align 8
+  %call17 = call {} @__service_streammanager_cast_register_client(i64 %stream_mgr_pid12, i64 %conn13, ptr %project_id14, ptr %level15, ptr %env16)
+  call void @mesh_reduction_check()
+  %conn18 = load i64, ptr %conn, align 8
+  %str19 = call ptr @mesh_string_new(ptr @.str.1007, i64 26)
+  %call20 = call {} @Ingestion_WsHandler__ws_write(i64 %conn18, ptr %str19)
+  call void @mesh_reduction_check()
+  ret {} zeroinitializer
 }
 
 define {} @Ingestion_WsHandler__handle_ingest_message(i64 %0, ptr %1) {
@@ -23368,12 +21334,12 @@ entry:
   store i64 %call4, ptr %writer_pid, align 8
   %result = alloca { i8, ptr }, align 8
   %processor_pid5 = load i64, ptr %processor_pid, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1138, i64 10)
+  %str = call ptr @mesh_string_new(ptr @.str.1008, i64 10)
   %writer_pid6 = load i64, ptr %writer_pid, align 8
   %message7 = load ptr, ptr %message, align 8
-  %call8 = call i64 @__service_eventprocessor_call_process_event(i64 %processor_pid5, ptr %str, i64 %writer_pid6, ptr %message7)
+  %call8 = call { i8, ptr } @__service_eventprocessor_call_process_event(i64 %processor_pid5, ptr %str, i64 %writer_pid6, ptr %message7)
   call void @mesh_reduction_check()
-  store i64 %call8, ptr %result, align 8
+  store { i8, ptr } %call8, ptr %result, align 8
   %result9 = load { i8, ptr }, ptr %result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
   store { i8, ptr } %result9, ptr %scrutinee, align 8
@@ -23390,7 +21356,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret {} zeroinitializer
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1139, i64 30, ptr @.panic_file.1140, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.1009, i64 30, ptr @.panic_file.1010, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -23419,16 +21385,16 @@ entry:
   %message = alloca ptr, align 8
   store ptr %1, ptr %message, align 8
   %stream_mgr_pid = alloca i64, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1141, i64 14)
+  %str = call ptr @mesh_string_new(ptr @.str.1011, i64 14)
   %call = call i64 @mesh_process_whereis(ptr %str)
   %i64_to_ptr = inttoptr i64 %call to ptr
   store ptr %i64_to_ptr, ptr %stream_mgr_pid, align 8
   %is_stream = alloca i1, align 1
   %stream_mgr_pid1 = load i64, ptr %stream_mgr_pid, align 8
   %conn2 = load i64, ptr %conn, align 8
-  %call3 = call i64 @__service_streammanager_call_is_stream_client(i64 %stream_mgr_pid1, i64 %conn2)
+  %call3 = call i1 @__service_streammanager_call_is_stream_client(i64 %stream_mgr_pid1, i64 %conn2)
   call void @mesh_reduction_check()
-  store i64 %call3, ptr %is_stream, align 8
+  store i1 %call3, ptr %is_stream, align 1
   %is_stream4 = load i1, ptr %is_stream, align 1
   %if_result = alloca {}, align 8
   br i1 %is_stream4, label %then, label %else
@@ -23463,7 +21429,7 @@ entry:
   %reason = alloca {}, align 8
   store {} %2, ptr %reason, align 1
   %stream_mgr_pid = alloca i64, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1142, i64 14)
+  %str = call ptr @mesh_string_new(ptr @.str.1012, i64 14)
   %call = call i64 @mesh_process_whereis(ptr %str)
   %i64_to_ptr = inttoptr i64 %call to ptr
   store ptr %i64_to_ptr, ptr %stream_mgr_pid, align 8
@@ -23471,7 +21437,7 @@ entry:
   %conn2 = load i64, ptr %conn, align 8
   %call3 = call {} @__service_streammanager_cast_remove_client(i64 %stream_mgr_pid1, i64 %conn2)
   call void @mesh_reduction_check()
-  %str4 = call ptr @mesh_string_new(ptr @.str.1143, i64 24)
+  %str4 = call ptr @mesh_string_new(ptr @.str.1013, i64 24)
   %code5 = load {}, ptr %code, align 1
   %call6 = call ptr @mesh_int_to_string(i64 0)
   %concat = call ptr @mesh_string_concat(ptr %str4, ptr %call6)
@@ -23507,7 +21473,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret ptr %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1144, i64 30, ptr @.panic_file.1145, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.1014, i64 30, ptr @.panic_file.1015, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -23552,7 +21518,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret i64 %match_val
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1146, i64 30, ptr @.panic_file.1147, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.1016, i64 30, ptr @.panic_file.1017, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -23574,7 +21540,7 @@ entry:
   %peer = alloca ptr, align 8
   store ptr %0, ptr %peer, align 8
   %peer1 = load ptr, ptr %peer, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1148, i64 0)
+  %str = call ptr @mesh_string_new(ptr @.str.1018, i64 0)
   %str_eq = call i8 @mesh_string_eq(ptr %peer1, ptr %str)
   %str_eq_bool = icmp ne i8 %str_eq, 0
   %str_neq = xor i1 %str_eq_bool, true
@@ -23595,7 +21561,7 @@ then:                                             ; preds = %entry
   br i1 %eq, label %then6, label %else7
 
 else:                                             ; preds = %entry
-  %str14 = call ptr @mesh_string_new(ptr @.str.1151, i64 28)
+  %str14 = call ptr @mesh_string_new(ptr @.str.1021, i64 28)
   call void @mesh_println(ptr %str14)
   store {} zeroinitializer, ptr %if_result, align 1
   br label %if_merge
@@ -23605,7 +21571,7 @@ if_merge:                                         ; preds = %else, %if_merge8
   ret {} zeroinitializer
 
 then6:                                            ; preds = %then
-  %str9 = call ptr @mesh_string_new(ptr @.str.1149, i64 28)
+  %str9 = call ptr @mesh_string_new(ptr @.str.1019, i64 28)
   %peer10 = load ptr, ptr %peer, align 8
   %concat = call ptr @mesh_string_concat(ptr %str9, ptr %peer10)
   call void @mesh_println(ptr %concat)
@@ -23613,7 +21579,7 @@ then6:                                            ; preds = %then
   br label %if_merge8
 
 else7:                                            ; preds = %then
-  %str11 = call ptr @mesh_string_new(ptr @.str.1150, i64 36)
+  %str11 = call ptr @mesh_string_new(ptr @.str.1020, i64 36)
   %peer12 = load ptr, ptr %peer, align 8
   %concat13 = call ptr @mesh_string_concat(ptr %str11, ptr %peer12)
   call void @mesh_println(ptr %concat13)
@@ -23630,7 +21596,7 @@ define {} @Main__try_connect_peers() {
 entry:
   %peer = alloca ptr, align 8
   %peer_opt = alloca { i8, ptr }, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1152, i64 12)
+  %str = call ptr @mesh_string_new(ptr @.str.1022, i64 12)
   %call = call ptr @mesh_env_get(ptr %str)
   %deref_sum = load { i8, ptr }, ptr %call, align 8
   store { i8, ptr } %deref_sum, ptr %peer_opt, align 8
@@ -23650,7 +21616,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret {} zeroinitializer
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1154, i64 30, ptr @.panic_file.1155, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.1024, i64 30, ptr @.panic_file.1025, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -23664,7 +21630,7 @@ case_Some:                                        ; preds = %entry
   br label %match_merge
 
 case_None:                                        ; preds = %entry
-  %str4 = call ptr @mesh_string_new(ptr @.str.1153, i64 28)
+  %str4 = call ptr @mesh_string_new(ptr @.str.1023, i64 28)
   call void @mesh_println(ptr %str4)
   store {} zeroinitializer, ptr %match_result, align 1
   br label %match_merge
@@ -23693,7 +21659,7 @@ entry:
   br i1 %eq, label %then, label %else
 
 then:                                             ; preds = %entry
-  %str = call ptr @mesh_string_new(ptr @.str.1156, i64 23)
+  %str = call ptr @mesh_string_new(ptr @.str.1026, i64 23)
   %node_name8 = load ptr, ptr %node_name, align 8
   %concat = call ptr @mesh_string_concat(ptr %str, ptr %node_name8)
   call void @mesh_println(ptr %concat)
@@ -23701,7 +21667,7 @@ then:                                             ; preds = %entry
   br label %if_merge
 
 else:                                             ; preds = %entry
-  %str9 = call ptr @mesh_string_new(ptr @.str.1157, i64 32)
+  %str9 = call ptr @mesh_string_new(ptr @.str.1027, i64 32)
   %node_name10 = load ptr, ptr %node_name, align 8
   %concat11 = call ptr @mesh_string_concat(ptr %str9, ptr %node_name10)
   call void @mesh_println(ptr %concat11)
@@ -23721,7 +21687,7 @@ entry:
   %node_name = alloca ptr, align 8
   store ptr %0, ptr %node_name, align 8
   %cookie_opt = alloca { i8, ptr }, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1158, i64 13)
+  %str = call ptr @mesh_string_new(ptr @.str.1028, i64 13)
   %call = call ptr @mesh_env_get(ptr %str)
   %deref_sum = load { i8, ptr }, ptr %call, align 8
   store { i8, ptr } %deref_sum, ptr %cookie_opt, align 8
@@ -23741,7 +21707,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret {} zeroinitializer
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1160, i64 30, ptr @.panic_file.1161, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.1030, i64 30, ptr @.panic_file.1031, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -23756,7 +21722,7 @@ case_Some:                                        ; preds = %entry
   br label %match_merge
 
 case_None:                                        ; preds = %entry
-  %str5 = call ptr @mesh_string_new(ptr @.str.1159, i64 53)
+  %str5 = call ptr @mesh_string_new(ptr @.str.1029, i64 53)
   call void @mesh_println(ptr %str5)
   store {} zeroinitializer, ptr %match_result, align 1
   br label %match_merge
@@ -23766,7 +21732,7 @@ define {} @Main__start_node() {
 entry:
   %node_name = alloca ptr, align 8
   %name_opt = alloca { i8, ptr }, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1162, i64 16)
+  %str = call ptr @mesh_string_new(ptr @.str.1032, i64 16)
   %call = call ptr @mesh_env_get(ptr %str)
   %deref_sum = load { i8, ptr }, ptr %call, align 8
   store { i8, ptr } %deref_sum, ptr %name_opt, align 8
@@ -23786,7 +21752,7 @@ match_merge:                                      ; preds = %case_None, %case_So
   ret {} zeroinitializer
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1164, i64 30, ptr @.panic_file.1165, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.1034, i64 30, ptr @.panic_file.1035, i64 9, i32 0)
   unreachable
 
 case_Some:                                        ; preds = %entry
@@ -23800,7 +21766,7 @@ case_Some:                                        ; preds = %entry
   br label %match_merge
 
 case_None:                                        ; preds = %entry
-  %str4 = call ptr @mesh_string_new(ptr @.str.1163, i64 53)
+  %str4 = call ptr @mesh_string_new(ptr @.str.1033, i64 53)
   call void @mesh_println(ptr %str4)
   store {} zeroinitializer, ptr %match_result, align 1
   br label %match_merge
@@ -23857,14 +21823,14 @@ entry:
   store i64 %0, ptr %pool, align 8
   %call = call {} @Main__start_node()
   call void @mesh_reduction_check()
-  %schema_result = alloca { i8, ptr }, align 8
+  %partition_result = alloca { i8, ptr }, align 8
   %pool1 = load i64, ptr %pool, align 8
-  %call2 = call { i8, ptr } @create_schema(i64 %pool1)
+  %call2 = call { i8, ptr } @create_partitions_ahead(i64 %pool1, i64 7)
   call void @mesh_reduction_check()
-  store { i8, ptr } %call2, ptr %schema_result, align 8
-  %schema_result3 = load { i8, ptr }, ptr %schema_result, align 8
+  store { i8, ptr } %call2, ptr %partition_result, align 8
+  %partition_result3 = load { i8, ptr }, ptr %partition_result, align 8
   %scrutinee = alloca { i8, ptr }, align 8
-  store { i8, ptr } %schema_result3, ptr %scrutinee, align 8
+  store { i8, ptr } %partition_result3, ptr %scrutinee, align 8
   %match_result = alloca {}, align 8
   %tag_ptr = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee, i32 0, i32 0
   %tag = load i8, ptr %tag_ptr, align 1
@@ -23875,201 +21841,167 @@ entry:
 
 match_merge:                                      ; preds = %case_Err, %case_Ok
   %match_val = load {}, ptr %match_result, align 1
-  %partition_result = alloca { i8, ptr }, align 8
+  %org_svc = alloca i64, align 8
   %pool5 = load i64, ptr %pool, align 8
-  %call6 = call { i8, ptr } @create_partitions_ahead(i64 %pool5, i64 7)
+  %call6 = call i64 @__service_orgservice_start(i64 %pool5)
   call void @mesh_reduction_check()
-  store { i8, ptr } %call6, ptr %partition_result, align 8
-  %partition_result7 = load { i8, ptr }, ptr %partition_result, align 8
-  %scrutinee8 = alloca { i8, ptr }, align 8
-  store { i8, ptr } %partition_result7, ptr %scrutinee8, align 8
-  %match_result9 = alloca {}, align 8
-  %tag_ptr11 = getelementptr inbounds nuw { i8, ptr }, ptr %scrutinee8, i32 0, i32 0
-  %tag12 = load i8, ptr %tag_ptr11, align 1
-  switch i8 %tag12, label %switch_default13 [
-    i8 0, label %case_Ok14
-    i8 1, label %case_Err15
-  ]
+  store i64 %call6, ptr %org_svc, align 8
+  %str7 = call ptr @mesh_string_new(ptr @.str.1040, i64 27)
+  call void @mesh_println(ptr %str7)
+  %project_svc = alloca i64, align 8
+  %pool8 = load i64, ptr %pool, align 8
+  %call9 = call i64 @__service_projectservice_start(i64 %pool8)
+  call void @mesh_reduction_check()
+  store i64 %call9, ptr %project_svc, align 8
+  %str10 = call ptr @mesh_string_new(ptr @.str.1041, i64 31)
+  call void @mesh_println(ptr %str10)
+  %user_svc = alloca i64, align 8
+  %pool11 = load i64, ptr %pool, align 8
+  %call12 = call i64 @__service_userservice_start(i64 %pool11)
+  call void @mesh_reduction_check()
+  store i64 %call12, ptr %user_svc, align 8
+  %str13 = call ptr @mesh_string_new(ptr @.str.1042, i64 28)
+  call void @mesh_println(ptr %str13)
+  %registry_pid = alloca i64, align 8
+  %pool14 = load i64, ptr %pool, align 8
+  %call15 = call i64 @start_pipeline(i64 %pool14)
+  call void @mesh_reduction_check()
+  store i64 %call15, ptr %registry_pid, align 8
+  %str16 = call ptr @mesh_string_new(ptr @.str.1043, i64 25)
+  call void @mesh_println(ptr %str16)
+  %ws_port_str = alloca ptr, align 8
+  %str17 = call ptr @mesh_string_new(ptr @.str.1044, i64 14)
+  %str18 = call ptr @mesh_string_new(ptr @.str.1045, i64 4)
+  %call19 = call ptr @Main__get_env_or_default(ptr %str17, ptr %str18)
+  call void @mesh_reduction_check()
+  store ptr %call19, ptr %ws_port_str, align 8
+  %ws_port = alloca i64, align 8
+  %ws_port_str20 = load ptr, ptr %ws_port_str, align 8
+  %call21 = call i64 @Main__parse_port(ptr %ws_port_str20, i64 8081)
+  call void @mesh_reduction_check()
+  store i64 %call21, ptr %ws_port, align 8
+  %http_port_str = alloca ptr, align 8
+  %str22 = call ptr @mesh_string_new(ptr @.str.1046, i64 16)
+  %str23 = call ptr @mesh_string_new(ptr @.str.1047, i64 4)
+  %call24 = call ptr @Main__get_env_or_default(ptr %str22, ptr %str23)
+  call void @mesh_reduction_check()
+  store ptr %call24, ptr %http_port_str, align 8
+  %http_port = alloca i64, align 8
+  %http_port_str25 = load ptr, ptr %http_port_str, align 8
+  %call26 = call i64 @Main__parse_port(ptr %http_port_str25, i64 8080)
+  call void @mesh_reduction_check()
+  store i64 %call26, ptr %http_port, align 8
+  %str27 = call ptr @mesh_string_new(ptr @.str.1048, i64 39)
+  %ws_port_str28 = load ptr, ptr %ws_port_str, align 8
+  %concat = call ptr @mesh_string_concat(ptr %str27, ptr %ws_port_str28)
+  call void @mesh_println(ptr %concat)
+  %ws_port29 = load i64, ptr %ws_port, align 8
+  call void @mesh_ws_serve(ptr @Main__on_ws_connect, ptr null, ptr @Main__on_ws_message, ptr null, ptr @Main__on_ws_close, ptr null, i64 %ws_port29)
+  %str30 = call ptr @mesh_string_new(ptr @.str.1049, i64 34)
+  %http_port_str31 = load ptr, ptr %http_port_str, align 8
+  %concat32 = call ptr @mesh_string_concat(ptr %str30, ptr %http_port_str31)
+  call void @mesh_println(ptr %concat32)
+  %call33 = call ptr @mesh_http_router()
+  %str34 = call ptr @mesh_string_new(ptr @.str.1050, i64 14)
+  %call35 = call ptr @mesh_http_route_post(ptr %call33, ptr %str34, ptr @handle_event)
+  %str36 = call ptr @mesh_string_new(ptr @.str.1051, i64 19)
+  %call37 = call ptr @mesh_http_route_post(ptr %call35, ptr %str36, ptr @handle_bulk)
+  %str38 = call ptr @mesh_string_new(ptr @.str.1052, i64 35)
+  %call39 = call ptr @mesh_http_route_get(ptr %call37, ptr %str38, ptr @handle_search_issues)
+  %str40 = call ptr @mesh_string_new(ptr @.str.1053, i64 42)
+  %call41 = call ptr @mesh_http_route_get(ptr %call39, ptr %str40, ptr @handle_search_events)
+  %str42 = call ptr @mesh_string_new(ptr @.str.1054, i64 40)
+  %call43 = call ptr @mesh_http_route_get(ptr %call41, ptr %str42, ptr @handle_filter_by_tag)
+  %str44 = call ptr @mesh_string_new(ptr @.str.1055, i64 31)
+  %call45 = call ptr @mesh_http_route_get(ptr %call43, ptr %str44, ptr @handle_list_issue_events)
+  %str46 = call ptr @mesh_string_new(ptr @.str.1056, i64 45)
+  %call47 = call ptr @mesh_http_route_get(ptr %call45, ptr %str46, ptr @handle_event_volume)
+  %str48 = call ptr @mesh_string_new(ptr @.str.1057, i64 45)
+  %call49 = call ptr @mesh_http_route_get(ptr %call47, ptr %str48, ptr @handle_error_breakdown)
+  %str50 = call ptr @mesh_string_new(ptr @.str.1058, i64 49)
+  %call51 = call ptr @mesh_http_route_get(ptr %call49, ptr %str50, ptr @handle_top_issues)
+  %str52 = call ptr @mesh_string_new(ptr @.str.1059, i64 43)
+  %call53 = call ptr @mesh_http_route_get(ptr %call51, ptr %str52, ptr @handle_tag_breakdown)
+  %str54 = call ptr @mesh_string_new(ptr @.str.1060, i64 33)
+  %call55 = call ptr @mesh_http_route_get(ptr %call53, ptr %str54, ptr @handle_issue_timeline)
+  %str56 = call ptr @mesh_string_new(ptr @.str.1061, i64 45)
+  %call57 = call ptr @mesh_http_route_get(ptr %call55, ptr %str56, ptr @handle_project_health)
+  %str58 = call ptr @mesh_string_new(ptr @.str.1062, i64 24)
+  %call59 = call ptr @mesh_http_route_get(ptr %call57, ptr %str58, ptr @handle_event_detail)
+  %str60 = call ptr @mesh_string_new(ptr @.str.1063, i64 26)
+  %call61 = call ptr @mesh_http_route_post(ptr %call59, ptr %str60, ptr @handle_resolve_issue)
+  %str62 = call ptr @mesh_string_new(ptr @.str.1064, i64 26)
+  %call63 = call ptr @mesh_http_route_post(ptr %call61, ptr %str62, ptr @handle_archive_issue)
+  %str64 = call ptr @mesh_string_new(ptr @.str.1065, i64 28)
+  %call65 = call ptr @mesh_http_route_post(ptr %call63, ptr %str64, ptr @handle_unresolve_issue)
+  %str66 = call ptr @mesh_string_new(ptr @.str.1066, i64 25)
+  %call67 = call ptr @mesh_http_route_post(ptr %call65, ptr %str66, ptr @handle_assign_issue)
+  %str68 = call ptr @mesh_string_new(ptr @.str.1067, i64 26)
+  %call69 = call ptr @mesh_http_route_post(ptr %call67, ptr %str68, ptr @handle_discard_issue)
+  %str70 = call ptr @mesh_string_new(ptr @.str.1068, i64 25)
+  %call71 = call ptr @mesh_http_route_post(ptr %call69, ptr %str70, ptr @handle_delete_issue)
+  %str72 = call ptr @mesh_string_new(ptr @.str.1069, i64 28)
+  %call73 = call ptr @mesh_http_route_get(ptr %call71, ptr %str72, ptr @handle_list_members)
+  %str74 = call ptr @mesh_string_new(ptr @.str.1070, i64 28)
+  %call75 = call ptr @mesh_http_route_post(ptr %call73, ptr %str74, ptr @handle_add_member)
+  %str76 = call ptr @mesh_string_new(ptr @.str.1071, i64 48)
+  %call77 = call ptr @mesh_http_route_post(ptr %call75, ptr %str76, ptr @handle_update_member_role)
+  %str78 = call ptr @mesh_string_new(ptr @.str.1072, i64 50)
+  %call79 = call ptr @mesh_http_route_post(ptr %call77, ptr %str78, ptr @handle_remove_member)
+  %str80 = call ptr @mesh_string_new(ptr @.str.1073, i64 37)
+  %call81 = call ptr @mesh_http_route_get(ptr %call79, ptr %str80, ptr @handle_list_api_keys)
+  %str82 = call ptr @mesh_string_new(ptr @.str.1074, i64 37)
+  %call83 = call ptr @mesh_http_route_post(ptr %call81, ptr %str82, ptr @handle_create_api_key)
+  %str84 = call ptr @mesh_string_new(ptr @.str.1075, i64 31)
+  %call85 = call ptr @mesh_http_route_post(ptr %call83, ptr %str84, ptr @handle_revoke_api_key)
+  %str86 = call ptr @mesh_string_new(ptr @.str.1076, i64 40)
+  %call87 = call ptr @mesh_http_route_get(ptr %call85, ptr %str86, ptr @handle_list_alert_rules)
+  %str88 = call ptr @mesh_string_new(ptr @.str.1077, i64 40)
+  %call89 = call ptr @mesh_http_route_post(ptr %call87, ptr %str88, ptr @handle_create_alert_rule)
+  %str90 = call ptr @mesh_string_new(ptr @.str.1078, i64 35)
+  %call91 = call ptr @mesh_http_route_post(ptr %call89, ptr %str90, ptr @handle_toggle_alert_rule)
+  %str92 = call ptr @mesh_string_new(ptr @.str.1079, i64 35)
+  %call93 = call ptr @mesh_http_route_post(ptr %call91, ptr %str92, ptr @handle_delete_alert_rule)
+  %str94 = call ptr @mesh_string_new(ptr @.str.1080, i64 35)
+  %call95 = call ptr @mesh_http_route_get(ptr %call93, ptr %str94, ptr @handle_list_alerts)
+  %str96 = call ptr @mesh_string_new(ptr @.str.1081, i64 30)
+  %call97 = call ptr @mesh_http_route_post(ptr %call95, ptr %str96, ptr @handle_acknowledge_alert)
+  %str98 = call ptr @mesh_string_new(ptr @.str.1082, i64 26)
+  %call99 = call ptr @mesh_http_route_post(ptr %call97, ptr %str98, ptr @handle_resolve_alert)
+  %str100 = call ptr @mesh_string_new(ptr @.str.1083, i64 37)
+  %call101 = call ptr @mesh_http_route_get(ptr %call99, ptr %str100, ptr @handle_get_project_settings)
+  %str102 = call ptr @mesh_string_new(ptr @.str.1084, i64 37)
+  %call103 = call ptr @mesh_http_route_post(ptr %call101, ptr %str102, ptr @handle_update_project_settings)
+  %str104 = call ptr @mesh_string_new(ptr @.str.1085, i64 36)
+  %call105 = call ptr @mesh_http_route_get(ptr %call103, ptr %str104, ptr @handle_get_project_storage)
+  %http_port106 = load i64, ptr %http_port, align 8
+  call void @mesh_http_serve(ptr %call105, i64 %http_port106)
+  ret {} zeroinitializer
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1168, i64 30, ptr @.panic_file.1169, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.1038, i64 30, ptr @.panic_file.1039, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
-  %str = call ptr @mesh_string_new(ptr @.str.1166, i64 32)
+  %str = call ptr @mesh_string_new(ptr @.str.1036, i64 42)
   call void @mesh_println(ptr %str)
   store {} zeroinitializer, ptr %match_result, align 1
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
-  %str4 = call ptr @mesh_string_new(ptr @.str.1167, i64 21)
+  %str4 = call ptr @mesh_string_new(ptr @.str.1037, i64 24)
   call void @mesh_println(ptr %str4)
   store {} zeroinitializer, ptr %match_result, align 1
   br label %match_merge
-
-match_merge10:                                    ; preds = %case_Err15, %case_Ok14
-  %match_val18 = load {}, ptr %match_result9, align 1
-  %org_svc = alloca i64, align 8
-  %pool19 = load i64, ptr %pool, align 8
-  %call20 = call i64 @__service_orgservice_start(i64 %pool19)
-  call void @mesh_reduction_check()
-  store i64 %call20, ptr %org_svc, align 8
-  %str21 = call ptr @mesh_string_new(ptr @.str.1174, i64 27)
-  call void @mesh_println(ptr %str21)
-  %project_svc = alloca i64, align 8
-  %pool22 = load i64, ptr %pool, align 8
-  %call23 = call i64 @__service_projectservice_start(i64 %pool22)
-  call void @mesh_reduction_check()
-  store i64 %call23, ptr %project_svc, align 8
-  %str24 = call ptr @mesh_string_new(ptr @.str.1175, i64 31)
-  call void @mesh_println(ptr %str24)
-  %user_svc = alloca i64, align 8
-  %pool25 = load i64, ptr %pool, align 8
-  %call26 = call i64 @__service_userservice_start(i64 %pool25)
-  call void @mesh_reduction_check()
-  store i64 %call26, ptr %user_svc, align 8
-  %str27 = call ptr @mesh_string_new(ptr @.str.1176, i64 28)
-  call void @mesh_println(ptr %str27)
-  %registry_pid = alloca i64, align 8
-  %pool28 = load i64, ptr %pool, align 8
-  %call29 = call i64 @start_pipeline(i64 %pool28)
-  call void @mesh_reduction_check()
-  store i64 %call29, ptr %registry_pid, align 8
-  %str30 = call ptr @mesh_string_new(ptr @.str.1177, i64 25)
-  call void @mesh_println(ptr %str30)
-  %ws_port_str = alloca ptr, align 8
-  %str31 = call ptr @mesh_string_new(ptr @.str.1178, i64 14)
-  %str32 = call ptr @mesh_string_new(ptr @.str.1179, i64 4)
-  %call33 = call ptr @Main__get_env_or_default(ptr %str31, ptr %str32)
-  call void @mesh_reduction_check()
-  store ptr %call33, ptr %ws_port_str, align 8
-  %ws_port = alloca i64, align 8
-  %ws_port_str34 = load ptr, ptr %ws_port_str, align 8
-  %call35 = call i64 @Main__parse_port(ptr %ws_port_str34, i64 8081)
-  call void @mesh_reduction_check()
-  store i64 %call35, ptr %ws_port, align 8
-  %http_port_str = alloca ptr, align 8
-  %str36 = call ptr @mesh_string_new(ptr @.str.1180, i64 16)
-  %str37 = call ptr @mesh_string_new(ptr @.str.1181, i64 4)
-  %call38 = call ptr @Main__get_env_or_default(ptr %str36, ptr %str37)
-  call void @mesh_reduction_check()
-  store ptr %call38, ptr %http_port_str, align 8
-  %http_port = alloca i64, align 8
-  %http_port_str39 = load ptr, ptr %http_port_str, align 8
-  %call40 = call i64 @Main__parse_port(ptr %http_port_str39, i64 8080)
-  call void @mesh_reduction_check()
-  store i64 %call40, ptr %http_port, align 8
-  %str41 = call ptr @mesh_string_new(ptr @.str.1182, i64 39)
-  %ws_port_str42 = load ptr, ptr %ws_port_str, align 8
-  %concat = call ptr @mesh_string_concat(ptr %str41, ptr %ws_port_str42)
-  call void @mesh_println(ptr %concat)
-  %ws_port43 = load i64, ptr %ws_port, align 8
-  call void @mesh_ws_serve(ptr @Main__on_ws_connect, ptr null, ptr @Main__on_ws_message, ptr null, ptr @Main__on_ws_close, ptr null, i64 %ws_port43)
-  %str44 = call ptr @mesh_string_new(ptr @.str.1183, i64 34)
-  %http_port_str45 = load ptr, ptr %http_port_str, align 8
-  %concat46 = call ptr @mesh_string_concat(ptr %str44, ptr %http_port_str45)
-  call void @mesh_println(ptr %concat46)
-  %call47 = call ptr @mesh_http_router()
-  %str48 = call ptr @mesh_string_new(ptr @.str.1184, i64 14)
-  %call49 = call ptr @mesh_http_route_post(ptr %call47, ptr %str48, ptr @handle_event)
-  %str50 = call ptr @mesh_string_new(ptr @.str.1185, i64 19)
-  %call51 = call ptr @mesh_http_route_post(ptr %call49, ptr %str50, ptr @handle_bulk)
-  %str52 = call ptr @mesh_string_new(ptr @.str.1186, i64 35)
-  %call53 = call ptr @mesh_http_route_get(ptr %call51, ptr %str52, ptr @handle_search_issues)
-  %str54 = call ptr @mesh_string_new(ptr @.str.1187, i64 42)
-  %call55 = call ptr @mesh_http_route_get(ptr %call53, ptr %str54, ptr @handle_search_events)
-  %str56 = call ptr @mesh_string_new(ptr @.str.1188, i64 40)
-  %call57 = call ptr @mesh_http_route_get(ptr %call55, ptr %str56, ptr @handle_filter_by_tag)
-  %str58 = call ptr @mesh_string_new(ptr @.str.1189, i64 31)
-  %call59 = call ptr @mesh_http_route_get(ptr %call57, ptr %str58, ptr @handle_list_issue_events)
-  %str60 = call ptr @mesh_string_new(ptr @.str.1190, i64 45)
-  %call61 = call ptr @mesh_http_route_get(ptr %call59, ptr %str60, ptr @handle_event_volume)
-  %str62 = call ptr @mesh_string_new(ptr @.str.1191, i64 45)
-  %call63 = call ptr @mesh_http_route_get(ptr %call61, ptr %str62, ptr @handle_error_breakdown)
-  %str64 = call ptr @mesh_string_new(ptr @.str.1192, i64 49)
-  %call65 = call ptr @mesh_http_route_get(ptr %call63, ptr %str64, ptr @handle_top_issues)
-  %str66 = call ptr @mesh_string_new(ptr @.str.1193, i64 43)
-  %call67 = call ptr @mesh_http_route_get(ptr %call65, ptr %str66, ptr @handle_tag_breakdown)
-  %str68 = call ptr @mesh_string_new(ptr @.str.1194, i64 33)
-  %call69 = call ptr @mesh_http_route_get(ptr %call67, ptr %str68, ptr @handle_issue_timeline)
-  %str70 = call ptr @mesh_string_new(ptr @.str.1195, i64 45)
-  %call71 = call ptr @mesh_http_route_get(ptr %call69, ptr %str70, ptr @handle_project_health)
-  %str72 = call ptr @mesh_string_new(ptr @.str.1196, i64 24)
-  %call73 = call ptr @mesh_http_route_get(ptr %call71, ptr %str72, ptr @handle_event_detail)
-  %str74 = call ptr @mesh_string_new(ptr @.str.1197, i64 26)
-  %call75 = call ptr @mesh_http_route_post(ptr %call73, ptr %str74, ptr @handle_resolve_issue)
-  %str76 = call ptr @mesh_string_new(ptr @.str.1198, i64 26)
-  %call77 = call ptr @mesh_http_route_post(ptr %call75, ptr %str76, ptr @handle_archive_issue)
-  %str78 = call ptr @mesh_string_new(ptr @.str.1199, i64 28)
-  %call79 = call ptr @mesh_http_route_post(ptr %call77, ptr %str78, ptr @handle_unresolve_issue)
-  %str80 = call ptr @mesh_string_new(ptr @.str.1200, i64 25)
-  %call81 = call ptr @mesh_http_route_post(ptr %call79, ptr %str80, ptr @handle_assign_issue)
-  %str82 = call ptr @mesh_string_new(ptr @.str.1201, i64 26)
-  %call83 = call ptr @mesh_http_route_post(ptr %call81, ptr %str82, ptr @handle_discard_issue)
-  %str84 = call ptr @mesh_string_new(ptr @.str.1202, i64 25)
-  %call85 = call ptr @mesh_http_route_post(ptr %call83, ptr %str84, ptr @handle_delete_issue)
-  %str86 = call ptr @mesh_string_new(ptr @.str.1203, i64 28)
-  %call87 = call ptr @mesh_http_route_get(ptr %call85, ptr %str86, ptr @handle_list_members)
-  %str88 = call ptr @mesh_string_new(ptr @.str.1204, i64 28)
-  %call89 = call ptr @mesh_http_route_post(ptr %call87, ptr %str88, ptr @handle_add_member)
-  %str90 = call ptr @mesh_string_new(ptr @.str.1205, i64 48)
-  %call91 = call ptr @mesh_http_route_post(ptr %call89, ptr %str90, ptr @handle_update_member_role)
-  %str92 = call ptr @mesh_string_new(ptr @.str.1206, i64 50)
-  %call93 = call ptr @mesh_http_route_post(ptr %call91, ptr %str92, ptr @handle_remove_member)
-  %str94 = call ptr @mesh_string_new(ptr @.str.1207, i64 37)
-  %call95 = call ptr @mesh_http_route_get(ptr %call93, ptr %str94, ptr @handle_list_api_keys)
-  %str96 = call ptr @mesh_string_new(ptr @.str.1208, i64 37)
-  %call97 = call ptr @mesh_http_route_post(ptr %call95, ptr %str96, ptr @handle_create_api_key)
-  %str98 = call ptr @mesh_string_new(ptr @.str.1209, i64 31)
-  %call99 = call ptr @mesh_http_route_post(ptr %call97, ptr %str98, ptr @handle_revoke_api_key)
-  %str100 = call ptr @mesh_string_new(ptr @.str.1210, i64 40)
-  %call101 = call ptr @mesh_http_route_get(ptr %call99, ptr %str100, ptr @handle_list_alert_rules)
-  %str102 = call ptr @mesh_string_new(ptr @.str.1211, i64 40)
-  %call103 = call ptr @mesh_http_route_post(ptr %call101, ptr %str102, ptr @handle_create_alert_rule)
-  %str104 = call ptr @mesh_string_new(ptr @.str.1212, i64 35)
-  %call105 = call ptr @mesh_http_route_post(ptr %call103, ptr %str104, ptr @handle_toggle_alert_rule)
-  %str106 = call ptr @mesh_string_new(ptr @.str.1213, i64 35)
-  %call107 = call ptr @mesh_http_route_post(ptr %call105, ptr %str106, ptr @handle_delete_alert_rule)
-  %str108 = call ptr @mesh_string_new(ptr @.str.1214, i64 35)
-  %call109 = call ptr @mesh_http_route_get(ptr %call107, ptr %str108, ptr @handle_list_alerts)
-  %str110 = call ptr @mesh_string_new(ptr @.str.1215, i64 30)
-  %call111 = call ptr @mesh_http_route_post(ptr %call109, ptr %str110, ptr @handle_acknowledge_alert)
-  %str112 = call ptr @mesh_string_new(ptr @.str.1216, i64 26)
-  %call113 = call ptr @mesh_http_route_post(ptr %call111, ptr %str112, ptr @handle_resolve_alert)
-  %str114 = call ptr @mesh_string_new(ptr @.str.1217, i64 37)
-  %call115 = call ptr @mesh_http_route_get(ptr %call113, ptr %str114, ptr @handle_get_project_settings)
-  %str116 = call ptr @mesh_string_new(ptr @.str.1218, i64 37)
-  %call117 = call ptr @mesh_http_route_post(ptr %call115, ptr %str116, ptr @handle_update_project_settings)
-  %str118 = call ptr @mesh_string_new(ptr @.str.1219, i64 36)
-  %call119 = call ptr @mesh_http_route_get(ptr %call117, ptr %str118, ptr @handle_get_project_storage)
-  %http_port120 = load i64, ptr %http_port, align 8
-  call void @mesh_http_serve(ptr %call119, i64 %http_port120)
-  ret {} zeroinitializer
-
-switch_default13:                                 ; preds = %match_merge
-  call void @mesh_panic(ptr @.panic_msg.1172, i64 30, ptr @.panic_file.1173, i64 9, i32 0)
-  unreachable
-
-case_Ok14:                                        ; preds = %match_merge
-  %str16 = call ptr @mesh_string_new(ptr @.str.1170, i64 42)
-  call void @mesh_println(ptr %str16)
-  store {} zeroinitializer, ptr %match_result9, align 1
-  br label %match_merge10
-
-case_Err15:                                       ; preds = %match_merge
-  %str17 = call ptr @mesh_string_new(ptr @.str.1171, i64 24)
-  call void @mesh_println(ptr %str17)
-  store {} zeroinitializer, ptr %match_result9, align 1
-  br label %match_merge10
 }
 
 define {} @mesh_main() {
 entry:
   %pool = alloca i64, align 8
-  %str = call ptr @mesh_string_new(ptr @.str.1220, i64 36)
+  %str = call ptr @mesh_string_new(ptr @.str.1086, i64 36)
   call void @mesh_println(ptr %str)
   %pool_result = alloca { i8, ptr }, align 8
-  %str1 = call ptr @mesh_string_new(ptr @.str.1221, i64 42)
+  %str1 = call ptr @mesh_string_new(ptr @.str.1087, i64 42)
   %call = call ptr @mesh_pool_open(ptr %str1, i64 2, i64 10, i64 5000)
   %deref_sum = load { i8, ptr }, ptr %call, align 8
   store { i8, ptr } %deref_sum, ptr %pool_result, align 8
@@ -24089,7 +22021,7 @@ match_merge:                                      ; preds = %case_Err, %case_Ok
   ret {} zeroinitializer
 
 switch_default:                                   ; preds = %entry
-  call void @mesh_panic(ptr @.panic_msg.1223, i64 30, ptr @.panic_file.1224, i64 9, i32 0)
+  call void @mesh_panic(ptr @.panic_msg.1089, i64 30, ptr @.panic_file.1090, i64 9, i32 0)
   unreachable
 
 case_Ok:                                          ; preds = %entry
@@ -24103,7 +22035,7 @@ case_Ok:                                          ; preds = %entry
   br label %match_merge
 
 case_Err:                                         ; preds = %entry
-  %str5 = call ptr @mesh_string_new(ptr @.str.1222, i64 40)
+  %str5 = call ptr @mesh_string_new(ptr @.str.1088, i64 40)
   call void @mesh_println(ptr %str5)
   store {} zeroinitializer, ptr %match_result, align 1
   br label %match_merge
@@ -24127,11 +22059,15 @@ entry:
   call void @mesh_register_function(ptr @fn_reg_Services_StreamManager__drain_single_connection, i64 47, ptr @Services_StreamManager__drain_single_connection)
   call void @mesh_register_function(ptr @fn_reg_Services_StreamManager__drain_connections_loop, i64 46, ptr @Services_StreamManager__drain_connections_loop)
   call void @mesh_register_function(ptr @fn_reg_Services_StreamManager__drain_all_buffers, i64 41, ptr @Services_StreamManager__drain_all_buffers)
-  call void @mesh_register_function(ptr @fn_reg_create_schema, i64 13, ptr @create_schema)
   call void @mesh_register_function(ptr @fn_reg_create_partition, i64 16, ptr @create_partition)
   call void @mesh_register_function(ptr @fn_reg_Storage_Schema__create_partitions_loop, i64 38, ptr @Storage_Schema__create_partitions_loop)
   call void @mesh_register_function(ptr @fn_reg_create_partitions_ahead, i64 23, ptr @create_partitions_ahead)
   call void @mesh_register_function(ptr @fn_reg_insert_event, i64 12, ptr @insert_event)
+  call void @mesh_register_function(ptr @fn_reg_AlertRule____table__, i64 20, ptr @AlertRule____table__)
+  call void @mesh_register_function(ptr @fn_reg_Organization____table__, i64 23, ptr @Organization____table__)
+  call void @mesh_register_function(ptr @fn_reg_Project____table__, i64 18, ptr @Project____table__)
+  call void @mesh_register_function(ptr @fn_reg_User____table__, i64 15, ptr @User____table__)
+  call void @mesh_register_function(ptr @fn_reg_OrgMembership____table__, i64 24, ptr @OrgMembership____table__)
   call void @mesh_register_function(ptr @fn_reg_Services_Writer__flush_loop, i64 27, ptr @Services_Writer__flush_loop)
   call void @mesh_register_function(ptr @fn_reg_Services_Writer__flush_batch, i64 28, ptr @Services_Writer__flush_batch)
   call void @mesh_register_function(ptr @fn_reg_Services_Writer__flush_drop, i64 27, ptr @Services_Writer__flush_drop)
@@ -24141,6 +22077,8 @@ entry:
   call void @mesh_register_function(ptr @fn_reg_Services_Writer__writer_store, i64 29, ptr @Services_Writer__writer_store)
   call void @mesh_register_function(ptr @fn_reg_Services_Writer__writer_flush, i64 29, ptr @Services_Writer__writer_flush)
   call void @mesh_register_function(ptr @fn_reg_validate_payload_size, i64 21, ptr @validate_payload_size)
+  call void @mesh_register_function(ptr @fn_reg_count_unresolved_issues, i64 23, ptr @count_unresolved_issues)
+  call void @mesh_register_function(ptr @fn_reg_get_issue_project_id, i64 20, ptr @get_issue_project_id)
   call void @mesh_register_function(ptr @fn_reg_insert_org, i64 10, ptr @insert_org)
   call void @mesh_register_function(ptr @fn_reg_get_org, i64 7, ptr @get_org)
   call void @mesh_register_function(ptr @fn_reg_list_orgs, i64 9, ptr @list_orgs)
@@ -24257,7 +22195,7 @@ entry:
   call void @mesh_register_function(ptr @fn_reg_Api_Alerts__format_nullable_ts, i64 30, ptr @Api_Alerts__format_nullable_ts)
   call void @mesh_register_function(ptr @fn_reg_Api_Alerts__rule_row_to_json, i64 28, ptr @Api_Alerts__rule_row_to_json)
   call void @mesh_register_function(ptr @fn_reg_Api_Alerts__alert_row_to_json, i64 29, ptr @Api_Alerts__alert_row_to_json)
-  call void @mesh_register_function(ptr @fn_reg_Api_Alerts__toggle_from_rows, i64 28, ptr @Api_Alerts__toggle_from_rows)
+  call void @mesh_register_function(ptr @fn_reg_Api_Alerts__do_toggle, i64 21, ptr @Api_Alerts__do_toggle)
   call void @mesh_register_function(ptr @fn_reg_handle_create_alert_rule, i64 24, ptr @handle_create_alert_rule)
   call void @mesh_register_function(ptr @fn_reg_handle_list_alert_rules, i64 23, ptr @handle_list_alert_rules)
   call void @mesh_register_function(ptr @fn_reg_handle_toggle_alert_rule, i64 24, ptr @handle_toggle_alert_rule)
@@ -24364,7 +22302,6 @@ entry:
   call void @mesh_register_function(ptr @fn_reg_Ingestion_Routes__route_to_processor, i64 36, ptr @Ingestion_Routes__route_to_processor)
   call void @mesh_register_function(ptr @fn_reg_Ingestion_Routes__process_event_body, i64 36, ptr @Ingestion_Routes__process_event_body)
   call void @mesh_register_function(ptr @fn_reg_Ingestion_Routes__handle_event_authed, i64 37, ptr @Ingestion_Routes__handle_event_authed)
-  call void @mesh_register_function(ptr @fn_reg_Ingestion_Routes__handle_event_sample_decision, i64 46, ptr @Ingestion_Routes__handle_event_sample_decision)
   call void @mesh_register_function(ptr @fn_reg_Ingestion_Routes__handle_event_sampled, i64 38, ptr @Ingestion_Routes__handle_event_sampled)
   call void @mesh_register_function(ptr @fn_reg_handle_event, i64 12, ptr @handle_event)
   call void @mesh_register_function(ptr @fn_reg_Ingestion_Routes__handle_bulk_authed, i64 36, ptr @Ingestion_Routes__handle_bulk_authed)
@@ -24380,7 +22317,7 @@ entry:
   call void @mesh_register_function(ptr @fn_reg_handle_resolve_issue, i64 20, ptr @handle_resolve_issue)
   call void @mesh_register_function(ptr @fn_reg_handle_archive_issue, i64 20, ptr @handle_archive_issue)
   call void @mesh_register_function(ptr @fn_reg_handle_unresolve_issue, i64 22, ptr @handle_unresolve_issue)
-  call void @mesh_register_function(ptr @fn_reg_Ingestion_Routes__assign_from_rows, i64 34, ptr @Ingestion_Routes__assign_from_rows)
+  call void @mesh_register_function(ptr @fn_reg_Ingestion_Routes__assign_with_user_id, i64 37, ptr @Ingestion_Routes__assign_with_user_id)
   call void @mesh_register_function(ptr @fn_reg_handle_assign_issue, i64 19, ptr @handle_assign_issue)
   call void @mesh_register_function(ptr @fn_reg_handle_discard_issue, i64 20, ptr @handle_discard_issue)
   call void @mesh_register_function(ptr @fn_reg_handle_delete_issue, i64 19, ptr @handle_delete_issue)
@@ -24392,7 +22329,6 @@ entry:
   call void @mesh_register_function(ptr @fn_reg_Ingestion_WsHandler__handle_ingest_connect, i64 42, ptr @Ingestion_WsHandler__handle_ingest_connect)
   call void @mesh_register_function(ptr @fn_reg_Ingestion_WsHandler__is_stream_path, i64 35, ptr @Ingestion_WsHandler__is_stream_path)
   call void @mesh_register_function(ptr @fn_reg_ws_on_connect, i64 13, ptr @ws_on_connect)
-  call void @mesh_register_function(ptr @fn_reg_Ingestion_WsHandler__apply_filter_update, i64 40, ptr @Ingestion_WsHandler__apply_filter_update)
   call void @mesh_register_function(ptr @fn_reg_Ingestion_WsHandler__handle_subscribe_update, i64 44, ptr @Ingestion_WsHandler__handle_subscribe_update)
   call void @mesh_register_function(ptr @fn_reg_Ingestion_WsHandler__handle_ingest_message, i64 42, ptr @Ingestion_WsHandler__handle_ingest_message)
   call void @mesh_register_function(ptr @fn_reg_ws_on_message, i64 13, ptr @ws_on_message)
