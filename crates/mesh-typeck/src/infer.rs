@@ -1160,6 +1160,37 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
             vec![ptr_t.clone(), Ty::string()],
             ptr_t.clone(),
         )));
+        // ── Phase 108: Aggregate SELECT functions ─────────────────────────
+        // Query.select_count(Ptr) -> Ptr  (count all rows)
+        query_mod.insert("select_count".to_string(), Scheme::mono(Ty::fun(
+            vec![ptr_t.clone()],
+            ptr_t.clone(),
+        )));
+        // Query.select_count_field(Ptr, Atom) -> Ptr  (count specific field)
+        query_mod.insert("select_count_field".to_string(), Scheme::mono(Ty::fun(
+            vec![ptr_t.clone(), atom_t.clone()],
+            ptr_t.clone(),
+        )));
+        // Query.select_sum(Ptr, Atom) -> Ptr
+        query_mod.insert("select_sum".to_string(), Scheme::mono(Ty::fun(
+            vec![ptr_t.clone(), atom_t.clone()],
+            ptr_t.clone(),
+        )));
+        // Query.select_avg(Ptr, Atom) -> Ptr
+        query_mod.insert("select_avg".to_string(), Scheme::mono(Ty::fun(
+            vec![ptr_t.clone(), atom_t.clone()],
+            ptr_t.clone(),
+        )));
+        // Query.select_min(Ptr, Atom) -> Ptr
+        query_mod.insert("select_min".to_string(), Scheme::mono(Ty::fun(
+            vec![ptr_t.clone(), atom_t.clone()],
+            ptr_t.clone(),
+        )));
+        // Query.select_max(Ptr, Atom) -> Ptr
+        query_mod.insert("select_max".to_string(), Scheme::mono(Ty::fun(
+            vec![ptr_t.clone(), atom_t.clone()],
+            ptr_t.clone(),
+        )));
         modules.insert("Query".to_string(), query_mod);
     }
 

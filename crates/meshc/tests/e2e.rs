@@ -4193,6 +4193,96 @@ end
     assert_eq!(output, "ok\n");
 }
 
+// ── Phase 108: Aggregate SELECT functions ────────────────────────────
+
+#[test]
+fn e2e_query_builder_select_count() {
+    let output = compile_and_run(r#"
+import Query
+
+fn main() do
+  let q = Query.from("issues")
+    |> Query.select_count()
+  println("ok")
+end
+"#);
+    assert_eq!(output, "ok\n");
+}
+
+#[test]
+fn e2e_query_builder_select_sum() {
+    let output = compile_and_run(r#"
+import Query
+
+fn main() do
+  let q = Query.from("orders")
+    |> Query.select_sum(:amount)
+  println("ok")
+end
+"#);
+    assert_eq!(output, "ok\n");
+}
+
+#[test]
+fn e2e_query_builder_select_avg_group_by() {
+    let output = compile_and_run(r#"
+import Query
+
+fn main() do
+  let q = Query.from("products")
+    |> Query.select_avg(:price)
+    |> Query.group_by(:category)
+  println("ok")
+end
+"#);
+    assert_eq!(output, "ok\n");
+}
+
+#[test]
+fn e2e_query_builder_select_min_max() {
+    let output = compile_and_run(r#"
+import Query
+
+fn main() do
+  let q = Query.from("events")
+    |> Query.select_min(:created_at)
+    |> Query.select_max(:created_at)
+  println("ok")
+end
+"#);
+    assert_eq!(output, "ok\n");
+}
+
+#[test]
+fn e2e_query_builder_aggregate_with_having() {
+    let output = compile_and_run(r#"
+import Query
+
+fn main() do
+  let q = Query.from("issues")
+    |> Query.select_count()
+    |> Query.group_by(:project_id)
+    |> Query.having("count(*) >", "5")
+  println("ok")
+end
+"#);
+    assert_eq!(output, "ok\n");
+}
+
+#[test]
+fn e2e_query_builder_select_count_field() {
+    let output = compile_and_run(r#"
+import Query
+
+fn main() do
+  let q = Query.from("issues")
+    |> Query.select_count_field(:assignee_id)
+  println("ok")
+end
+"#);
+    assert_eq!(output, "ok\n");
+}
+
 // ── Phase 99: Changeset e2e tests ────────────────────────────────────
 
 /// Test 1: Changeset.cast creates changeset from params, filtering to allowed fields.

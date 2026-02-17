@@ -287,6 +287,13 @@ fn register_runtime_symbols() {
     add_sym("mesh_query_group_by", mesh_rt::mesh_query_group_by as *const ());
     add_sym("mesh_query_having", mesh_rt::mesh_query_having as *const ());
     add_sym("mesh_query_fragment", mesh_rt::mesh_query_fragment as *const ());
+    // Aggregate SELECT functions (Phase 108)
+    add_sym("mesh_query_select_count", mesh_rt::mesh_query_select_count as *const ());
+    add_sym("mesh_query_select_count_field", mesh_rt::mesh_query_select_count_field as *const ());
+    add_sym("mesh_query_select_sum", mesh_rt::mesh_query_select_sum as *const ());
+    add_sym("mesh_query_select_avg", mesh_rt::mesh_query_select_avg as *const ());
+    add_sym("mesh_query_select_min", mesh_rt::mesh_query_select_min as *const ());
+    add_sym("mesh_query_select_max", mesh_rt::mesh_query_select_max as *const ());
     // Query Builder Raw Extensions (Phase 103)
     add_sym("mesh_query_select_raw", mesh_rt::mesh_query_select_raw as *const ());
     add_sym("mesh_query_where_raw", mesh_rt::mesh_query_where_raw as *const ());

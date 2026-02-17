@@ -1005,6 +1005,38 @@ pub fn declare_intrinsics<'ctx>(module: &Module<'ctx>) {
         ptr_type.fn_type(&[ptr_type.into(), ptr_type.into(), ptr_type.into()], false),
         Some(inkwell::module::Linkage::External));
 
+    // ── Phase 108: Aggregate SELECT functions ────────────────────────
+
+    // mesh_query_select_count(q: ptr) -> ptr
+    module.add_function("mesh_query_select_count",
+        ptr_type.fn_type(&[ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External));
+
+    // mesh_query_select_count_field(q: ptr, field: ptr) -> ptr
+    module.add_function("mesh_query_select_count_field",
+        ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External));
+
+    // mesh_query_select_sum(q: ptr, field: ptr) -> ptr
+    module.add_function("mesh_query_select_sum",
+        ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External));
+
+    // mesh_query_select_avg(q: ptr, field: ptr) -> ptr
+    module.add_function("mesh_query_select_avg",
+        ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External));
+
+    // mesh_query_select_min(q: ptr, field: ptr) -> ptr
+    module.add_function("mesh_query_select_min",
+        ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External));
+
+    // mesh_query_select_max(q: ptr, field: ptr) -> ptr
+    module.add_function("mesh_query_select_max",
+        ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External));
+
     // mesh_query_fragment(q: ptr, sql: ptr, params: ptr) -> ptr
     module.add_function("mesh_query_fragment",
         ptr_type.fn_type(&[ptr_type.into(), ptr_type.into(), ptr_type.into()], false),
@@ -1628,6 +1660,13 @@ mod tests {
         // Phase 106: Raw ORDER BY / GROUP BY
         assert!(module.get_function("mesh_query_order_by_raw").is_some());
         assert!(module.get_function("mesh_query_group_by_raw").is_some());
+        // Phase 108: Aggregate SELECT functions
+        assert!(module.get_function("mesh_query_select_count").is_some());
+        assert!(module.get_function("mesh_query_select_count_field").is_some());
+        assert!(module.get_function("mesh_query_select_sum").is_some());
+        assert!(module.get_function("mesh_query_select_avg").is_some());
+        assert!(module.get_function("mesh_query_select_min").is_some());
+        assert!(module.get_function("mesh_query_select_max").is_some());
     }
 
     #[test]

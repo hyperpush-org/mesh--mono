@@ -886,6 +886,19 @@ impl<'a> Lowerer<'a> {
         self.known_functions.insert("mesh_query_group_by".to_string(), MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)));
         // mesh_query_having(q: ptr, clause: ptr, value: ptr) -> ptr
         self.known_functions.insert("mesh_query_having".to_string(), MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)));
+        // ── Phase 108: Aggregate SELECT functions ─────────────────────────
+        // mesh_query_select_count(q: ptr) -> ptr
+        self.known_functions.insert("mesh_query_select_count".to_string(), MirType::FnPtr(vec![MirType::Ptr], Box::new(MirType::Ptr)));
+        // mesh_query_select_count_field(q: ptr, field: ptr) -> ptr
+        self.known_functions.insert("mesh_query_select_count_field".to_string(), MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)));
+        // mesh_query_select_sum(q: ptr, field: ptr) -> ptr
+        self.known_functions.insert("mesh_query_select_sum".to_string(), MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)));
+        // mesh_query_select_avg(q: ptr, field: ptr) -> ptr
+        self.known_functions.insert("mesh_query_select_avg".to_string(), MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)));
+        // mesh_query_select_min(q: ptr, field: ptr) -> ptr
+        self.known_functions.insert("mesh_query_select_min".to_string(), MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)));
+        // mesh_query_select_max(q: ptr, field: ptr) -> ptr
+        self.known_functions.insert("mesh_query_select_max".to_string(), MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)));
         // mesh_query_fragment(q: ptr, sql: ptr, params: ptr) -> ptr
         self.known_functions.insert("mesh_query_fragment".to_string(), MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)));
         // ── Phase 103: Query Builder Raw Extensions ─────────────────────
@@ -10519,6 +10532,13 @@ fn map_builtin_name(name: &str) -> String {
         "query_group_by" => "mesh_query_group_by".to_string(),
         "query_having" => "mesh_query_having".to_string(),
         "query_fragment" => "mesh_query_fragment".to_string(),
+        // ── Phase 108: Aggregate SELECT functions ─────────────────────────
+        "query_select_count" => "mesh_query_select_count".to_string(),
+        "query_select_count_field" => "mesh_query_select_count_field".to_string(),
+        "query_select_sum" => "mesh_query_select_sum".to_string(),
+        "query_select_avg" => "mesh_query_select_avg".to_string(),
+        "query_select_min" => "mesh_query_select_min".to_string(),
+        "query_select_max" => "mesh_query_select_max".to_string(),
         // ── Phase 103: Query Builder Raw Extensions ─────────────────────
         "query_select_raw" => "mesh_query_select_raw".to_string(),
         "query_where_raw" => "mesh_query_where_raw".to_string(),
