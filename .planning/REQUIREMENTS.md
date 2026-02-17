@@ -16,10 +16,10 @@ Requirements for Query Builder milestone. Expand ORM with comprehensive query ca
 
 ### Aggregations
 
-- [ ] **AGG-01**: Query builder supports count() aggregation
-- [ ] **AGG-02**: Query builder supports sum()/avg()/min()/max() aggregations
-- [ ] **AGG-03**: Query builder supports group_by clause
-- [ ] **AGG-04**: Query builder supports having clause with conditions
+- [x] **AGG-01**: Query builder supports count() aggregation
+- [x] **AGG-02**: Query builder supports sum()/avg()/min()/max() aggregations
+- [x] **AGG-03**: Query builder supports group_by clause
+- [x] **AGG-04**: Query builder supports having clause with conditions
 
 ### Advanced WHERE
 
@@ -102,10 +102,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | JOIN-02 | Phase 107 | Complete |
 | JOIN-03 | Phase 107 | Complete |
 | JOIN-04 | Phase 107 | Complete |
-| AGG-01 | Phase 108 | Pending |
-| AGG-02 | Phase 108 | Pending |
-| AGG-03 | Phase 108 | Pending |
-| AGG-04 | Phase 108 | Pending |
+| AGG-01 | Phase 108 | Complete |
+| AGG-02 | Phase 108 | Complete |
+| AGG-03 | Phase 108 | Complete |
+| AGG-04 | Phase 108 | Complete |
 | UPS-01 | Phase 109 | Pending |
 | UPS-02 | Phase 109 | Pending |
 | UPS-03 | Phase 109 | Pending |

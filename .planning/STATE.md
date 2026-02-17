@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Expressive, readable concurrency -- writing concurrent programs should feel as natural and clean as writing sequential code, with the safety net of supervision and fault tolerance built into the language.
-**Current focus:** v11.0 Query Builder -- Phase 107 (next)
+**Current focus:** v11.0 Query Builder -- Phase 108
 
 ## Current Position
 
-Phase: 107 of 114 (v11.0 Query Builder)
-Plan: 2 of 2 in current phase
-Status: Phase Complete
-Last activity: 2026-02-17 -- Completed 107-02 (JOIN runtime verification and requirement closure)
+Phase: 108 of 114 (v11.0 Query Builder)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-02-17 -- Completed 108-01 (Aggregate SELECT functions)
 
-Progress: [█░░░░░░░░░] 10% (v11.0)
+Progress: [██░░░░░░░░] 20% (v11.0)
 
 ## Performance Metrics
 
 **All-time Totals:**
-- Plans completed: 314
-- Phases completed: 106
+- Plans completed: 315
+- Phases completed: 107
 - Milestones shipped: 20 (v1.0-v10.1)
 - Lines of Rust: ~98,850
 - Lines of website: ~5,500
@@ -39,6 +39,7 @@ Progress: [█░░░░░░░░░] 10% (v11.0)
 | 106   | 02   | 8min     | 2     | 8     |
 | 107   | 01   | 6min     | 2     | 8     |
 | 107   | 02   | 1min     | 1     | 4     |
+| 108   | 01   | 4min     | 2     | 8     |
 
 ## Accumulated Context
 
@@ -57,6 +58,8 @@ Recent decisions affecting current work:
 - [Phase 106]: RAW: prefix reused for ORDER BY and GROUP BY raw expressions, consistent with existing pattern
 - [Phase 107]: ALIAS: prefix encoding distinguishes aliased from regular joins in join_clauses list
 - [Phase 107]: SQL aliases (AS) used in JOIN queries for unambiguous column names in runtime E2E tests
+- [Phase 108]: RAW: prefix reused for aggregate SELECT expressions -- consistent with existing select_raw pattern
+- [Phase 108]: select_count (no args) and select_count_field (with field) split for cleaner API
 
 ### Roadmap Evolution
 
@@ -73,6 +76,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 107-02-PLAN.md (JOIN runtime verification and requirement closure) -- Phase 107 fully complete
+Stopped at: Completed 108-01-PLAN.md (Aggregate SELECT functions)
 Resume file: None
-Next action: Plan Phase 108
+Next action: Execute 108-02-PLAN.md
