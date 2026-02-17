@@ -1622,6 +1622,45 @@ fn e2e_sqlite_join_runtime() {
     assert!(output.contains("done"), "Program should complete successfully");
 }
 
+// ── Phase 108: SQLite Aggregate Runtime Tests ───────────────────────────
+//
+// Verifies aggregate queries (count/sum/avg/min/max, GROUP BY, HAVING)
+// execute correctly against a real SQLite database with correct results.
+// Proves AGG-01 through AGG-04 at runtime.
+
+#[test]
+fn e2e_sqlite_aggregate_runtime() {
+    let source = read_fixture("sqlite_aggregate_runtime.mpl");
+    let output = compile_and_run(&source);
+    let lines: Vec<&str> = output.trim().split('\n').collect();
+
+    // AGG-01: count(*) = 6 total orders
+    assert_eq!(lines[0], "count_all");
+    assert_eq!(lines[1], "6");
+
+    // AGG-02: sum=710, avg=118.333..., min=25, max=300
+    assert_eq!(lines[2], "sum_avg_min_max");
+    let agg_parts: Vec<&str> = lines[3].split(':').collect();
+    assert_eq!(agg_parts[0], "710");       // sum
+    // avg may be 118.333... or 118 depending on SQLite integer division
+    assert!(agg_parts[1].starts_with("118"));  // avg (118 or 118.333...)
+    assert_eq!(agg_parts[2], "25");        // min
+    assert_eq!(agg_parts[3], "300");       // max
+
+    // AGG-03: GROUP BY -- 3 groups
+    assert_eq!(lines[4], "group_by");
+    assert_eq!(lines[5], "books:2:60");           // books: 2 orders, sum=60
+    assert_eq!(lines[6], "clothing:1:50");        // clothing: 1 order, sum=50
+    assert_eq!(lines[7], "electronics:3:600");    // electronics: 3 orders, sum=600
+
+    // AGG-04: HAVING count > 1 -- only books and electronics
+    assert_eq!(lines[8], "having");
+    assert_eq!(lines[9], "books:2");
+    assert_eq!(lines[10], "electronics:3");
+
+    assert_eq!(lines[11], "done");
+}
+
 // ── PostgreSQL E2E Tests (Phase 54 Plan 02) ─────────────────────────────
 //
 // Verifies the full PostgreSQL driver pipeline: Mesh source -> compiler ->
