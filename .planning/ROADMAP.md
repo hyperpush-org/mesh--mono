@@ -192,7 +192,7 @@ See milestones/v9.0-ROADMAP.md for full phase details.
 - [x] **Phase 107: JOINs** - Inner and left join with on-clause expressions, multi-join, and joined-table column access (completed 2026-02-17)
 - [x] **Phase 108: Aggregations** - count/sum/avg/min/max, group_by, having clause (completed 2026-02-17)
 - [x] **Phase 109: Upserts, RETURNING, and Subqueries** - INSERT ON CONFLICT, RETURNING clause, subqueries in WHERE (completed 2026-02-17)
-- [ ] **Phase 110: Mesher Rewrite -- Auth and Users** - User, session, and API-key queries rewritten with ORM + fragments
+- [x] **Phase 110: Mesher Rewrite -- Auth and Users** - User, session, and API-key queries rewritten with ORM + fragments (completed 2026-02-18)
 - [ ] **Phase 111: Mesher Rewrite -- Issues and Events** - Issue management (upserts) and event writer/extraction (JSONB fragments)
 - [ ] **Phase 112: Mesher Rewrite -- Search, Dashboard, and Alerts** - FTS search, aggregation dashboards, alert system with JSONB
 - [ ] **Phase 113: Mesher Rewrite -- Retention and Final Cleanup** - Retention/storage queries, zero remaining raw SQL data queries
@@ -355,7 +355,7 @@ Phases execute in numeric order: 106 -> 107 -> 108 -> 109 -> 110 -> 111 -> 112 -
 | 107. JOINs | 2/2 | Complete    | 2026-02-17 | - |
 | 108. Aggregations | 2/2 | Complete    | 2026-02-17 | - |
 | 109. Upserts/RETURNING/Subqueries | 2/2 | Complete    | 2026-02-17 | - |
-| 110. Rewrite: Auth & Users | 1/2 | In Progress|  | - |
+| 110. Rewrite: Auth & Users | 2/2 | Complete   | 2026-02-18 | - |
 | 111. Rewrite: Issues & Events | v11.0 | 0/TBD | Not started | - |
 | 112. Rewrite: Search/Dashboard/Alerts | v11.0 | 0/TBD | Not started | - |
 | 113. Rewrite: Retention & Cleanup | v11.0 | 0/TBD | Not started | - |

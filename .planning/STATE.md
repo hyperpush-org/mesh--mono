@@ -9,18 +9,18 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 
 ## Current Position
 
-Phase: 110 of 114 (v11.0 Query Builder)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-18 -- Completed 110-01 (Rewrite auth/session queries to ORM)
+Phase: 110 of 114 (v11.0 Query Builder) -- COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase Complete
+Last activity: 2026-02-18 -- Completed 110-02 (Rewrite API key queries to ORM)
 
-Progress: [████░░░░░░] 40% (v11.0)
+Progress: [█████░░░░░] 50% (v11.0)
 
 ## Performance Metrics
 
 **All-time Totals:**
-- Plans completed: 320
-- Phases completed: 109
+- Plans completed: 321
+- Phases completed: 110
 - Milestones shipped: 20 (v1.0-v10.1)
 - Lines of Rust: ~98,850
 - Lines of website: ~5,500
@@ -46,6 +46,7 @@ Progress: [████░░░░░░] 40% (v11.0)
 | 109.1 | 01   | 13min    | 1     | 3     |
 | 109.1 | 02   | 4min     | 2     | 3     |
 | 110   | 01   | 6min     | 2     | 2     |
+| 110   | 02   | 4min     | 2     | 2     |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Recent decisions affecting current work:
 - [Phase 109.1]: Service arg decoercion pattern: after loading i64, convert to expected handler param type via inverse of coerce_to_i64
 - [Phase 110]: Repo.delete_where type signature corrected from Ptr to Result<Int, String> to match runtime behavior
 - [Phase 110]: Two-step ORM pattern for PG crypto: minimal Repo.query_raw SELECT for expression, then Repo.insert for data
+- [Phase 110]: Repo.update_where type signature corrected: fields_map from Ptr to Map<String,String>, return from Ptr to Result<Map,String>
 
 ### Roadmap Evolution
 
@@ -93,6 +95,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 110-01-PLAN.md (Rewrite auth/session queries to ORM)
+Stopped at: Completed 110-02-PLAN.md (Rewrite API key queries to ORM)
 Resume file: None
-Next action: Execute 110-02-PLAN.md (remaining query rewrites).
+Next action: Plan and execute Phase 111.
