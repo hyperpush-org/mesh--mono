@@ -302,7 +302,10 @@ Plans:
   2. Dashboard queries use `Query.select(count())` with `Query.group_by` and `Query.fragment("date_trunc('hour', $1)", ...)` for time-bucketed analytics
   3. Alert queries use `Query.fragment("metadata @> $1::jsonb", [filter])` for JSONB containment checks and `Query.fragment("metadata ? $1", [key])` for key existence
   4. All 23 search + dashboard + alert queries in queries.mpl are replaced with ORM calls
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 112-01-PLAN.md -- Rewrite search, dashboard, detail, and team queries to ORM (11 rewritten, 7 documented boundaries)
+- [ ] 112-02-PLAN.md -- Rewrite alert system queries to ORM (7 rewritten, 3 documented boundaries)
 
 ### Phase 113: Mesher Rewrite -- Retention and Final Cleanup
 **Goal**: All remaining Mesher data queries use the ORM -- retention/storage queries are rewritten, and zero Repo.query_raw/execute_raw calls remain for data operations
