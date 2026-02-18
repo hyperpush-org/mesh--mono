@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Expressive, readable concurrency -- writing concurrent programs should feel as natural and clean as writing sequential code, with the safety net of supervision and fault tolerance built into the language.
-**Current focus:** v11.0 Query Builder -- Phase 112
+**Current focus:** v11.0 Query Builder -- Phase 113
 
 ## Current Position
 
-Phase: 112 of 114 (v11.0 Query Builder)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-18 -- Completed 112-01 (Rewrite search/dashboard/detail/team queries to ORM)
+Phase: 113 of 114 (v11.0 Query Builder)
+Plan: 1 of N in current phase
+Status: Ready for planning
+Last activity: 2026-02-18 -- Completed 112-02 (Rewrite alert system queries to ORM)
 
-Progress: [██████░░░░] 56% (v11.0)
+Progress: [███████░░░] 67% (v11.0)
 
 ## Performance Metrics
 
 **All-time Totals:**
-- Plans completed: 323
-- Phases completed: 111
+- Plans completed: 325
+- Phases completed: 112
 - Milestones shipped: 20 (v1.0-v10.1)
 - Lines of Rust: ~98,850
 - Lines of website: ~5,500
@@ -50,6 +50,7 @@ Progress: [██████░░░░] 56% (v11.0)
 | 111   | 01   | 7min     | 2     | 1     |
 | 111   | 02   | 1min     | 2     | 2     |
 | 112   | 01   | 5min     | 2     | 1     |
+| 112   | 02   | 3min     | 2     | 1     |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Recent decisions affecting current work:
 - [Phase 111]: 4 complex queries retain raw SQL with documented ORM boundary rationale (upsert_issue, check_volume_spikes, insert_event, extract_event_fields)
 - [Phase 112]: Inline let = case ... end not supported by Mesh parser; use helper functions for case expressions
 - [Phase 112]: acknowledge_alert and resolve_fired_alert retain execute_raw for SET column = now() server-side function calls
+- [Phase 112]: toggle_alert_rule and check_new_issue verified as already rewritten by Plan 01
+- [Phase 112]: list_alerts uses Query.join_as with status passed 3 times for optional status filter
 
 ### Roadmap Evolution
 
@@ -102,6 +105,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 112-01-PLAN.md (Rewrite search/dashboard/detail/team queries to ORM)
+Stopped at: Completed 112-02-PLAN.md (Rewrite alert system queries to ORM)
 Resume file: None
-Next action: Execute Phase 112 Plan 02.
+Next action: Plan and execute Phase 113 (retention query cleanup).
