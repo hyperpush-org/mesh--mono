@@ -15,14 +15,22 @@ from Types.Retention import RetentionSettings
 
 # Count unresolved issues for a project. Returns rows with "cnt" key.
 # Used by ingestion/routes.mpl for WebSocket issue count broadcasting.
+# Uses ORM Query.where_raw + Query.select_raw + Repo.all instead of Repo.query_raw.
 pub fn count_unresolved_issues(pool :: PoolHandle, project_id :: String) -> List<Map<String, String>>!String do
-  Repo.query_raw(pool, "SELECT count(*)::text AS cnt FROM issues WHERE project_id = $1::uuid AND status = 'unresolved'", [project_id])
+  let q = Query.from(Issue.__table__())
+    |> Query.where_raw("project_id = ?::uuid AND status = 'unresolved'", [project_id])
+    |> Query.select_raw(["count(*)::text AS cnt"])
+  Repo.all(pool, q)
 end
 
 # Look up the project_id for an issue by issue_id. Returns rows with "project_id" key.
 # Used by ingestion/routes.mpl for broadcasting issue state change notifications.
+# Uses ORM Query.where_raw + Query.select_raw + Repo.all instead of Repo.query_raw.
 pub fn get_issue_project_id(pool :: PoolHandle, issue_id :: String) -> List<Map<String, String>>!String do
-  Repo.query_raw(pool, "SELECT project_id::text FROM issues WHERE id = $1::uuid", [issue_id])
+  let q = Query.from(Issue.__table__())
+    |> Query.where_raw("id = ?::uuid", [issue_id])
+    |> Query.select_raw(["project_id::text"])
+  Repo.all(pool, q)
 end
 
 # --- Organization queries ---
@@ -372,8 +380,14 @@ end
 
 # List issues for a project filtered by status (for API listing).
 # Constructs Issue structs manually with parse_event_count for the Int field.
+# Uses ORM Query.where + Query.order_by + Query.select_raw + Repo.all instead of Repo.query_raw.
 pub fn list_issues_by_status(pool :: PoolHandle, project_id :: String, status :: String) -> List<Issue>!String do
-  let rows = Repo.query_raw(pool, "SELECT id::text, project_id::text, fingerprint, title, level, status, event_count::text, first_seen::text, last_seen::text, COALESCE(assigned_to::text, '') as assigned_to FROM issues WHERE project_id = $1::uuid AND status = $2 ORDER BY last_seen DESC", [project_id, status])?
+  let q = Query.from(Issue.__table__())
+    |> Query.where_raw("project_id = ?::uuid", [project_id])
+    |> Query.where(:status, status)
+    |> Query.order_by(:last_seen, :desc)
+    |> Query.select_raw(["id::text", "project_id::text", "fingerprint", "title", "level", "status", "event_count::text", "first_seen::text", "last_seen::text", "COALESCE(assigned_to::text, '') as assigned_to"])
+  let rows = Repo.all(pool, q)?
   Ok(List.map(rows, fn(row) do
     Issue { id: Map.get(row, "id"), project_id: Map.get(row, "project_id"), fingerprint: Map.get(row, "fingerprint"), title: Map.get(row, "title"), level: Map.get(row, "level"), status: Map.get(row, "status"), event_count: parse_event_count(Map.get(row, "event_count")), first_seen: Map.get(row, "first_seen"), last_seen: Map.get(row, "last_seen"), assigned_to: Map.get(row, "assigned_to") }
   end))
