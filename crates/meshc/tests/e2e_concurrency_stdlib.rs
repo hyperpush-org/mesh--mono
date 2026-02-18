@@ -171,6 +171,27 @@ fn e2e_service_state_management() {
     assert_eq!(output, "6\n");
 }
 
+// ── Service Return Type E2E Tests ─────────────────────────────────────
+
+/// Test: Service returning Bool (not Int) from a struct-state service.
+/// Exercises: Bool truncation path (i64 -> i1) in codegen_service_call_helper,
+/// and struct state serialization through ActorSpawn for large (>8 byte) state.
+#[test]
+fn e2e_service_bool_return() {
+    let source = read_fixture("service_bool_return.mpl");
+    let output = compile_and_run_with_timeout(&source, 30);
+    assert_eq!(output, "true\ntrue\nfalse\nenabled:true\ndisabled:false\n");
+}
+
+/// Test: Service returning String (pointer type) via inttoptr conversion.
+/// Exercises: String/Ptr reply path in codegen_service_call_helper.
+#[test]
+fn e2e_service_string_return() {
+    let source = read_fixture("service_string_return.mpl");
+    let output = compile_and_run_with_timeout(&source, 30);
+    assert_eq!(output, "hello\nworld\n");
+}
+
 // ── Job E2E Tests ──────────────────────────────────────────────────────
 
 /// Test: Job.async spawns work, Job.await collects Result.
