@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Expressive, readable concurrency -- writing concurrent programs should feel as natural and clean as writing sequential code, with the safety net of supervision and fault tolerance built into the language.
-**Current focus:** v11.0 Query Builder -- Phase 111
+**Current focus:** v11.0 Query Builder -- Phase 112
 
 ## Current Position
 
-Phase: 111 of 114 (v11.0 Query Builder) -- COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-18 -- Completed 111-02 (Document ORM boundaries for complex queries)
+Phase: 112 of 114 (v11.0 Query Builder)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-18 -- Completed 112-01 (Rewrite search/dashboard/detail/team queries to ORM)
 
 Progress: [██████░░░░] 56% (v11.0)
 
@@ -49,6 +49,7 @@ Progress: [██████░░░░] 56% (v11.0)
 | 110   | 02   | 4min     | 2     | 2     |
 | 111   | 01   | 7min     | 2     | 1     |
 | 111   | 02   | 1min     | 2     | 2     |
+| 112   | 01   | 5min     | 2     | 1     |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase 110]: Repo.update_where type signature corrected: fields_map from Ptr to Map<String,String>, return from Ptr to Result<Map,String>
 - [Phase 111]: assign_issue retains Repo.execute_raw for NULL unassign branch -- ORM Map<String,String> cannot represent NULL
 - [Phase 111]: 4 complex queries retain raw SQL with documented ORM boundary rationale (upsert_issue, check_volume_spikes, insert_event, extract_event_fields)
+- [Phase 112]: Inline let = case ... end not supported by Mesh parser; use helper functions for case expressions
+- [Phase 112]: acknowledge_alert and resolve_fired_alert retain execute_raw for SET column = now() server-side function calls
 
 ### Roadmap Evolution
 
@@ -99,6 +102,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 111-02-PLAN.md (Document ORM boundaries for complex queries)
+Stopped at: Completed 112-01-PLAN.md (Rewrite search/dashboard/detail/team queries to ORM)
 Resume file: None
-Next action: Plan and execute Phase 112.
+Next action: Execute Phase 112 Plan 02.
