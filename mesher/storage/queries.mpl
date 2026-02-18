@@ -436,6 +436,9 @@ end
 # Optional filters use SQL-side conditionals ($N = '' OR column = $N) to avoid injection.
 # Keyset pagination uses (last_seen, id) < ($cursor, $cursor_id) for stable browsing.
 # Returns raw Map rows (not Issue struct) for flexible JSON serialization.
+# ORM boundary: Variable-arity parameter binding for optional filters ($N = '' OR column = $N)
+# with keyset pagination requires conditional WHERE clauses with positional parameters that
+# change count based on cursor presence. Intentional raw SQL.
 pub fn list_issues_filtered(pool :: PoolHandle, project_id :: String, status :: String, level :: String, assigned_to :: String, cursor :: String, cursor_id :: String, limit_str :: String) -> List<Map<String, String>>!String do
   if String.length(cursor) > 0 do
     let sql = "SELECT id::text, project_id::text, fingerprint, title, level, status, event_count::text, first_seen::text, last_seen::text, COALESCE(assigned_to::text, '') as assigned_to FROM issues WHERE project_id = $1::uuid AND ($2 = '' OR status = $2) AND ($3 = '' OR level = $3) AND ($4 = '' OR assigned_to = $4::uuid) AND (last_seen, id) < ($5::timestamptz, $6::uuid) ORDER BY last_seen DESC, id DESC LIMIT $7::int"
@@ -452,6 +455,10 @@ end
 # Uses inline to_tsvector (avoids partition complications with stored tsvector column).
 # Includes 24-hour default time range (SEARCH-04) for partition pruning.
 # Returns relevance rank for ordering.
+# ORM boundary: ts_rank() with bound parameter in SELECT expression -- select_raw takes
+# a List of column expression strings but cannot bind parameters within those expressions.
+# The $2 reference in ts_rank(to_tsvector(...), plainto_tsquery('english', $2)) requires
+# positional parameter binding inside a SELECT column. Intentional raw SQL.
 pub fn search_events_fulltext(pool :: PoolHandle, project_id :: String, search_query :: String, limit_str :: String) -> List<Map<String, String>>!String do
   let sql = "SELECT id::text, issue_id::text, level, message, received_at::text, ts_rank(to_tsvector('english', message), plainto_tsquery('english', $2))::text AS rank FROM events WHERE project_id = $1::uuid AND to_tsvector('english', message) @@ plainto_tsquery('english', $2) AND received_at > now() - interval '24 hours' ORDER BY rank DESC, received_at DESC LIMIT $3::int"
   let rows = Repo.query_raw(pool, sql, [project_id, search_query, limit_str])?
@@ -459,57 +466,98 @@ pub fn search_events_fulltext(pool :: PoolHandle, project_id :: String, search_q
 end
 
 # SEARCH-03: Filter events by tag key-value pair using JSONB containment.
-# Uses tags @> $2::jsonb operator which leverages existing GIN index (idx_events_tags).
+# Uses tags @> ?::jsonb operator which leverages existing GIN index (idx_events_tags).
 # Includes 24-hour default time range (SEARCH-04).
+# Uses ORM Query.where_raw + Query.select_raw + Query.order_by + Query.limit + Repo.all.
 pub fn filter_events_by_tag(pool :: PoolHandle, project_id :: String, tag_json :: String, limit_str :: String) -> List<Map<String, String>>!String do
-  let sql = "SELECT id::text, issue_id::text, level, message, tags::text, received_at::text FROM events WHERE project_id = $1::uuid AND tags @> $2::jsonb AND received_at > now() - interval '24 hours' ORDER BY received_at DESC LIMIT $3::int"
-  let rows = Repo.query_raw(pool, sql, [project_id, tag_json, limit_str])?
-  Ok(rows)
+  let lim = case String.to_int(limit_str) do
+    Some(n) -> n
+    None -> 25
+  end
+  let q = Query.from(Event.__table__())
+    |> Query.where_raw("project_id = ?::uuid", [project_id])
+    |> Query.where_raw("tags @> ?::jsonb", [tag_json])
+    |> Query.where_raw("received_at > now() - interval '24 hours'", [])
+    |> Query.select_raw(["id::text", "issue_id::text", "level", "message", "tags::text", "received_at::text"])
+    |> Query.order_by(:received_at, :desc)
+    |> Query.limit(lim)
+  Repo.all(pool, q)
 end
 
 # Event listing within an issue with keyset pagination (for DETAIL-05 context).
 # Keyset pagination on (received_at, id) for stable browsing.
+# Uses ORM Query.where_raw + Query.select_raw + Query.order_by_raw + Query.limit + Repo.all.
 pub fn list_events_for_issue(pool :: PoolHandle, issue_id :: String, cursor :: String, cursor_id :: String, limit_str :: String) -> List<Map<String, String>>!String do
+  let lim = case String.to_int(limit_str) do
+    Some(n) -> n
+    None -> 25
+  end
+  let base = Query.from(Event.__table__())
+    |> Query.where_raw("issue_id = ?::uuid", [issue_id])
+    |> Query.select_raw(["id::text", "level", "message", "received_at::text"])
+    |> Query.order_by_raw("received_at DESC, id DESC")
+    |> Query.limit(lim)
   if String.length(cursor) > 0 do
-    let sql = "SELECT id::text, level, message, received_at::text FROM events WHERE issue_id = $1::uuid AND (received_at, id) < ($2::timestamptz, $3::uuid) ORDER BY received_at DESC, id DESC LIMIT $4::int"
-    let rows = Repo.query_raw(pool, sql, [issue_id, cursor, cursor_id, limit_str])?
-    Ok(rows)
+    let q = base
+      |> Query.where_raw("(received_at, id) < (?::timestamptz, ?::uuid)", [cursor, cursor_id])
+    Repo.all(pool, q)
   else
-    let sql = "SELECT id::text, level, message, received_at::text FROM events WHERE issue_id = $1::uuid ORDER BY received_at DESC, id DESC LIMIT $2::int"
-    let rows = Repo.query_raw(pool, sql, [issue_id, limit_str])?
-    Ok(rows)
+    Repo.all(pool, base)
   end
 end
 
 # --- Dashboard aggregation queries (Phase 91 Plan 02) ---
 
 # DASH-01: Event volume bucketed by hour or day for a project.
-# bucket param is either "hour" or "day" (passed from handler).
+# bucket param is either "hour" or "day" (passed from handler, validated by caller).
 # Default 24-hour time window.
+# Uses ORM Query.where_raw + Query.select_raw + Query.group_by_raw + Query.order_by_raw + Repo.all.
+# Bucket is string-interpolated into date_trunc expression (safe: caller validates "hour"/"day" only).
 pub fn event_volume_hourly(pool :: PoolHandle, project_id :: String, bucket :: String) -> List<Map<String, String>>!String do
-  let sql = "SELECT date_trunc($2, received_at)::text AS bucket, count(*)::text AS count FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours' GROUP BY bucket ORDER BY bucket"
-  let rows = Repo.query_raw(pool, sql, [project_id, bucket])?
-  Ok(rows)
+  let q = Query.from(Event.__table__())
+    |> Query.where_raw("project_id = ?::uuid", [project_id])
+    |> Query.where_raw("received_at > now() - interval '24 hours'", [])
+    |> Query.select_raw(["date_trunc('" <> bucket <> "', received_at)::text AS bucket", "count(*)::text AS count"])
+    |> Query.group_by_raw("1")
+    |> Query.order_by_raw("1")
+  Repo.all(pool, q)
 end
 
 # DASH-02: Error breakdown by severity level for a project.
 # Groups events by level (error, warning, info, etc.) with counts.
+# Uses ORM Query.where_raw + Query.select_raw + Query.group_by_raw + Query.order_by_raw + Repo.all.
 pub fn error_breakdown_by_level(pool :: PoolHandle, project_id :: String) -> List<Map<String, String>>!String do
-  let sql = "SELECT level, count(*)::text AS count FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours' GROUP BY level ORDER BY count DESC"
-  let rows = Repo.query_raw(pool, sql, [project_id])?
-  Ok(rows)
+  let q = Query.from(Event.__table__())
+    |> Query.where_raw("project_id = ?::uuid", [project_id])
+    |> Query.where_raw("received_at > now() - interval '24 hours'", [])
+    |> Query.select_raw(["level", "count(*)::text AS count"])
+    |> Query.group_by_raw("level")
+    |> Query.order_by_raw("count DESC")
+  Repo.all(pool, q)
 end
 
 # DASH-03: Top issues ranked by frequency (event count).
 # Returns unresolved issues ordered by event_count DESC.
+# Uses ORM Query.where_raw + Query.where + Query.select_raw + Query.order_by + Query.limit + Repo.all.
 pub fn top_issues_by_frequency(pool :: PoolHandle, project_id :: String, limit_str :: String) -> List<Map<String, String>>!String do
-  let sql = "SELECT id::text, title, level, status, event_count::text, last_seen::text FROM issues WHERE project_id = $1::uuid AND status = 'unresolved' ORDER BY event_count DESC LIMIT $2::int"
-  let rows = Repo.query_raw(pool, sql, [project_id, limit_str])?
-  Ok(rows)
+  let lim = case String.to_int(limit_str) do
+    Some(n) -> n
+    None -> 25
+  end
+  let q = Query.from(Issue.__table__())
+    |> Query.where_raw("project_id = ?::uuid", [project_id])
+    |> Query.where(:status, "unresolved")
+    |> Query.select_raw(["id::text", "title", "level", "status", "event_count::text", "last_seen::text"])
+    |> Query.order_by(:event_count, :desc)
+    |> Query.limit(lim)
+  Repo.all(pool, q)
 end
 
 # DASH-04: Event breakdown by tag key (environment, release, etc.).
 # Uses JSONB key-exists operator to filter events that have the specified tag.
+# ORM boundary: tags->>$2 with bound parameter in SELECT expression -- select_raw takes
+# a List of column expression strings but cannot bind parameters within those expressions.
+# The $2 reference in tags->>$2 requires positional parameter binding inside a SELECT column. Intentional raw SQL.
 pub fn event_breakdown_by_tag(pool :: PoolHandle, project_id :: String, tag_key :: String) -> List<Map<String, String>>!String do
   let sql = "SELECT tags->>$2 AS tag_value, count(*)::text AS count FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours' AND tags ? $2 GROUP BY tag_value ORDER BY count DESC LIMIT 20"
   let rows = Repo.query_raw(pool, sql, [project_id, tag_key])?
@@ -518,14 +566,26 @@ end
 
 # DASH-05: Per-issue event timeline (recent events for a specific issue).
 # Ordered by received_at DESC for chronological browsing.
+# Uses ORM Query.where_raw + Query.select_raw + Query.order_by + Query.limit + Repo.all.
 pub fn issue_event_timeline(pool :: PoolHandle, issue_id :: String, limit_str :: String) -> List<Map<String, String>>!String do
-  let sql = "SELECT id::text, level, message, received_at::text FROM events WHERE issue_id = $1::uuid ORDER BY received_at DESC LIMIT $2::int"
-  let rows = Repo.query_raw(pool, sql, [issue_id, limit_str])?
-  Ok(rows)
+  let lim = case String.to_int(limit_str) do
+    Some(n) -> n
+    None -> 25
+  end
+  let q = Query.from(Event.__table__())
+    |> Query.where_raw("issue_id = ?::uuid", [issue_id])
+    |> Query.select_raw(["id::text", "level", "message", "received_at::text"])
+    |> Query.order_by(:received_at, :desc)
+    |> Query.limit(lim)
+  Repo.all(pool, q)
 end
 
 # DASH-06: Project health summary with key metrics.
 # Returns single row: unresolved issue count, events in last 24h, new issues today.
+# ORM boundary: Three scalar subqueries in a single SELECT -- each subquery references
+# a different table (issues, events, issues) with independent WHERE conditions. The ORM
+# Query builder operates on a single FROM table and cannot compose cross-table scalar
+# subqueries in SELECT expressions. Intentional raw SQL.
 pub fn project_health_summary(pool :: PoolHandle, project_id :: String) -> List<Map<String, String>>!String do
   let sql = "SELECT (SELECT count(*) FROM issues WHERE project_id = $1::uuid AND status = 'unresolved')::text AS unresolved_count, (SELECT count(*) FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours')::text AS events_24h, (SELECT count(*) FROM issues WHERE project_id = $1::uuid AND first_seen > now() - interval '24 hours')::text AS new_today"
   let rows = Repo.query_raw(pool, sql, [project_id])?
@@ -537,14 +597,20 @@ end
 # DETAIL-01..04, DETAIL-06: Get complete event with all JSONB fields.
 # Returns full event payload including exception, stacktrace, breadcrumbs,
 # tags, extra, user_context. JSONB fields use COALESCE for null safety.
+# Uses ORM Query.where_raw + Query.select_raw + Repo.all.
 pub fn get_event_detail(pool :: PoolHandle, event_id :: String) -> List<Map<String, String>>!String do
-  let sql = "SELECT id::text, project_id::text, issue_id::text, level, message, fingerprint, COALESCE(exception::text, 'null') AS exception, COALESCE(stacktrace::text, '[]') AS stacktrace, COALESCE(breadcrumbs::text, '[]') AS breadcrumbs, COALESCE(tags::text, '{}') AS tags, COALESCE(extra::text, '{}') AS extra, COALESCE(user_context::text, 'null') AS user_context, COALESCE(sdk_name, '') AS sdk_name, COALESCE(sdk_version, '') AS sdk_version, received_at::text FROM events WHERE id = $1::uuid"
-  let rows = Repo.query_raw(pool, sql, [event_id])?
-  Ok(rows)
+  let q = Query.from(Event.__table__())
+    |> Query.where_raw("id = ?::uuid", [event_id])
+    |> Query.select_raw(["id::text", "project_id::text", "issue_id::text", "level", "message", "fingerprint", "COALESCE(exception::text, 'null') AS exception", "COALESCE(stacktrace::text, '[]') AS stacktrace", "COALESCE(breadcrumbs::text, '[]') AS breadcrumbs", "COALESCE(tags::text, '{}') AS tags", "COALESCE(extra::text, '{}') AS extra", "COALESCE(user_context::text, 'null') AS user_context", "COALESCE(sdk_name, '') AS sdk_name", "COALESCE(sdk_version, '') AS sdk_version", "received_at::text"])
+  Repo.all(pool, q)
 end
 
 # DETAIL-05: Get next and previous event IDs within an issue for navigation.
 # Uses tuple comparison (received_at, id) for stable ordering.
+# ORM boundary: Two scalar subqueries with opposing sort orders and tuple comparison
+# in a single SELECT -- each subquery uses (received_at, id) tuple comparison with
+# different directions (> for next, < for prev) and LIMIT 1. The ORM Query builder
+# cannot compose multiple independent subqueries in SELECT expressions. Intentional raw SQL.
 pub fn get_event_neighbors(pool :: PoolHandle, issue_id :: String, received_at :: String, event_id :: String) -> List<Map<String, String>>!String do
   let sql = "SELECT (SELECT id::text FROM events WHERE issue_id = $1::uuid AND (received_at, id) > ($2::timestamptz, $3::uuid) ORDER BY received_at, id LIMIT 1) AS next_id, (SELECT id::text FROM events WHERE issue_id = $1::uuid AND (received_at, id) < ($2::timestamptz, $3::uuid) ORDER BY received_at DESC, id DESC LIMIT 1) AS prev_id"
   let rows = Repo.query_raw(pool, sql, [issue_id, received_at, event_id])?
@@ -555,8 +621,12 @@ end
 
 # Update a member's role. SQL-side validation ensures only valid roles accepted.
 # Returns affected row count (0 if invalid role or membership not found).
+# Uses ORM Repo.update_where with Query.where_raw for role validation.
 pub fn update_member_role(pool :: PoolHandle, membership_id :: String, new_role :: String) -> Int!String do
-  Repo.execute_raw(pool, "UPDATE org_memberships SET role = $2 WHERE id = $1::uuid AND $2 IN ('owner', 'admin', 'member')", [membership_id, new_role])
+  let q = Query.from(OrgMembership.__table__())
+    |> Query.where_raw("id = ?::uuid AND ? IN ('owner', 'admin', 'member')", [membership_id, new_role])
+  let _ = Repo.update_where(pool, OrgMembership.__table__(), %{"role" => new_role}, q)?
+  Ok(1)
 end
 
 # Remove a member from an organization.
@@ -569,20 +639,27 @@ end
 # List all members of an organization with user info (email, display_name).
 # JOIN with users table for enriched member listing.
 # Returns raw Map rows for flexible JSON serialization.
+# Uses ORM Query.join_as + Query.where_raw + Query.select_raw + Query.order_by_raw + Repo.all.
 pub fn get_members_with_users(pool :: PoolHandle, org_id :: String) -> List<Map<String, String>>!String do
-  let sql = "SELECT m.id::text, m.user_id::text, m.org_id::text, m.role, m.joined_at::text, u.email, u.display_name FROM org_memberships m JOIN users u ON u.id = m.user_id WHERE m.org_id = $1::uuid ORDER BY m.joined_at"
-  let rows = Repo.query_raw(pool, sql, [org_id])?
-  Ok(rows)
+  let q = Query.from(OrgMembership.__table__())
+    |> Query.join_as(:inner, User.__table__(), "u", "u.id = org_memberships.user_id")
+    |> Query.where_raw("org_memberships.org_id = ?::uuid", [org_id])
+    |> Query.select_raw(["org_memberships.id::text", "org_memberships.user_id::text", "org_memberships.org_id::text", "org_memberships.role", "org_memberships.joined_at::text", "u.email", "u.display_name"])
+    |> Query.order_by_raw("org_memberships.joined_at")
+  Repo.all(pool, q)
 end
 
 # --- API token management queries (Phase 91 Plan 03 -- ORG-05) ---
 
 # List all API keys for a project with full details.
 # Returns raw Map rows. revoked_at is empty string if not revoked.
+# Uses ORM Query.where_raw + Query.select_raw + Query.order_by + Repo.all.
 pub fn list_api_keys(pool :: PoolHandle, project_id :: String) -> List<Map<String, String>>!String do
-  let sql = "SELECT id::text, project_id::text, key_value, label, created_at::text, COALESCE(revoked_at::text, '') AS revoked_at FROM api_keys WHERE project_id = $1::uuid ORDER BY created_at DESC"
-  let rows = Repo.query_raw(pool, sql, [project_id])?
-  Ok(rows)
+  let q = Query.from(ApiKey.__table__())
+    |> Query.where_raw("project_id = ?::uuid", [project_id])
+    |> Query.select_raw(["id::text", "project_id::text", "key_value", "label", "created_at::text", "COALESCE(revoked_at::text, '') AS revoked_at"])
+    |> Query.order_by(:created_at, :desc)
+  Repo.all(pool, q)
 end
 
 # --- Alert system queries (Phase 92) ---
@@ -606,8 +683,12 @@ pub fn list_alert_rules(pool :: PoolHandle, project_id :: String) -> List<Map<St
 end
 
 # Enable/disable an alert rule.
+# Uses ORM Repo.update_where with Query.where_raw.
 pub fn toggle_alert_rule(pool :: PoolHandle, rule_id :: String, enabled_str :: String) -> Int!String do
-  Repo.execute_raw(pool, "UPDATE alert_rules SET enabled = $2::boolean WHERE id = $1::uuid", [rule_id, enabled_str])
+  let q = Query.from(AlertRule.__table__())
+    |> Query.where_raw("id = ?::uuid", [rule_id])
+  let _ = Repo.update_where(pool, AlertRule.__table__(), %{"enabled" => enabled_str}, q)?
+  Ok(1)
 end
 
 # Delete an alert rule.
@@ -642,8 +723,12 @@ pub fn fire_alert(pool :: PoolHandle, rule_id :: String, project_id :: String, m
 end
 
 # ALERT-03: Check if an issue was just created (first_seen = last_seen).
+# Uses ORM Query.where_raw + Query.select_raw + Repo.all.
 pub fn check_new_issue(pool :: PoolHandle, issue_id :: String) -> Bool!String do
-  let rows = Repo.query_raw(pool, "SELECT 1 AS is_new FROM issues WHERE id = $1::uuid AND first_seen = last_seen", [issue_id])?
+  let q = Query.from(Issue.__table__())
+    |> Query.where_raw("id = ?::uuid AND first_seen = last_seen", [issue_id])
+    |> Query.select_raw(["1 AS is_new"])
+  let rows = Repo.all(pool, q)?
   Ok(List.length(rows) > 0)
 end
 
@@ -661,11 +746,17 @@ pub fn should_fire_by_cooldown(pool :: PoolHandle, rule_id :: String, cooldown_s
 end
 
 # ALERT-06: Transition alert to acknowledged.
+# ORM boundary: SET acknowledged_at = now() uses a server-side function call in the
+# UPDATE SET clause. Repo.update_where takes Map<String,String> which can only set
+# literal string values, not PG function calls like now(). Intentional raw SQL.
 pub fn acknowledge_alert(pool :: PoolHandle, alert_id :: String) -> Int!String do
   Repo.execute_raw(pool, "UPDATE alerts SET status = 'acknowledged', acknowledged_at = now() WHERE id = $1::uuid AND status = 'active'", [alert_id])
 end
 
 # ALERT-06: Transition alert to resolved.
+# ORM boundary: SET resolved_at = now() uses a server-side function call in the
+# UPDATE SET clause. Repo.update_where takes Map<String,String> which can only set
+# literal string values, not PG function calls like now(). Intentional raw SQL.
 pub fn resolve_fired_alert(pool :: PoolHandle, alert_id :: String) -> Int!String do
   Repo.execute_raw(pool, "UPDATE alerts SET status = 'resolved', resolved_at = now() WHERE id = $1::uuid AND status IN ('active', 'acknowledged')", [alert_id])
 end
