@@ -12,14 +12,14 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 Phase: 109.1 of 114 (v11.0 Query Builder)
 Plan: 2 of 2 in current phase
 Status: Phase Complete
-Last activity: 2026-02-17 -- Completed 109.1-02 (Service loop argument type fix)
+Last activity: 2026-02-17 -- Completed 109.1-01 (Fix E0003 arity bug / Int.to_string)
 
 Progress: [███░░░░░░░] 30% (v11.0)
 
 ## Performance Metrics
 
 **All-time Totals:**
-- Plans completed: 318
+- Plans completed: 319
 - Phases completed: 109
 - Milestones shipped: 20 (v1.0-v10.1)
 - Lines of Rust: ~98,850
@@ -43,6 +43,7 @@ Progress: [███░░░░░░░] 30% (v11.0)
 | 108   | 02   | 1min     | 1     | 2     |
 | 109   | 01   | 10min    | 2     | 9     |
 | 109   | 02   | 20min    | 1     | 2     |
+| 109.1 | 01   | 13min    | 1     | 3     |
 | 109.1 | 02   | 4min     | 2     | 3     |
 
 ## Accumulated Context
@@ -69,6 +70,7 @@ Recent decisions affecting current work:
 - [Phase 109]: E2E tests verify compilation pipeline without runtime execution since Repo functions expect PoolHandle not SqliteConn
 - [Phase 109]: Runtime E2E uses raw SQL via Sqlite.query matching build_upsert_sql_pure output (Repo functions require PoolHandle, not SqliteConn)
 - [Phase 109]: Pre-existing type checker arity bug: let x = Sqlite.execute(db, sql, params)? followed by f(x) triggers spurious E0003
+- [Phase 109.1]: E0003 root cause was missing Int.to_string in typeck stdlib, not a type inference bug
 - [Phase 109.1]: Use BasicMetadataTypeEnum->BasicTypeEnum try_from conversion for struct type in build_load
 - [Phase 109.1]: Service arg decoercion pattern: after loading i64, convert to expected handler param type via inverse of coerce_to_i64
 
@@ -88,6 +90,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 109.1-02-PLAN.md (Service loop argument type fix)
+Stopped at: Completed 109.1-01-PLAN.md (Fix E0003 arity bug / Int.to_string)
 Resume file: None
 Next action: Phase 109.1 complete. Proceed to Phase 110.
