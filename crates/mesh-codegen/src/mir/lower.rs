@@ -10,8 +10,8 @@ use rustc_hash::FxHashMap;
 use mesh_parser::ast::expr::{
     BinaryExpr, CallExpr, CaseExpr, ClosureExpr, Expr, FieldAccess, ForInExpr, IfExpr, LinkExpr,
     ListLiteral, Literal, MapLiteral, MatchArm, NameRef, PipeExpr, ReceiveExpr, ReturnExpr,
-    SendExpr, SpawnExpr, StringExpr, StructLiteral, StructUpdate, TryExpr, TupleExpr, UnaryExpr,
-    WhileExpr,
+    SendExpr, SlotPipeExpr, SpawnExpr, StringExpr, StructLiteral, StructUpdate, TryExpr,
+    TupleExpr, UnaryExpr, WhileExpr,
 };
 use mesh_parser::ast::item::{
     ActorDef, Block, FnDef, ImplDef, InterfaceMethod, Item, LetBinding, RelationshipDecl,
@@ -5476,10 +5476,8 @@ impl<'a> Lowerer<'a> {
             }
             // Struct update expression: %{base | field: value, ...}
             Expr::StructUpdate(update) => self.lower_struct_update(update),
-            // Slot pipe expression -- TODO(116): MIR lowering implemented in Plan 02
-            Expr::SlotPipeExpr(_) => {
-                todo!("SlotPipeExpr MIR lowering not yet implemented")
-            }
+            // Slot pipe expression -- |N> desugaring (Phase 116, Plan 02)
+            Expr::SlotPipeExpr(pipe) => self.lower_slot_pipe_expr(pipe),
         }
     }
 
@@ -6422,6 +6420,55 @@ impl<'a> Lowerer<'a> {
         }
 
         result
+    }
+
+    // ── Slot pipe expression lowering (DESUGARING) ───────────────────
+
+    fn lower_slot_pipe_expr(&mut self, pipe: &SlotPipeExpr) -> MirExpr {
+        // Desugar: `x |N> f(a, b, c)` -> `f(a[0..N-2], x, a[N-2..])`
+        // where N is 1-indexed slot position and a[i] are the explicit args.
+        let lhs = pipe
+            .lhs()
+            .map(|e| self.lower_expr(&e))
+            .unwrap_or(MirExpr::Unit);
+
+        let slot = pipe.slot().unwrap_or(2) as usize; // 1-indexed
+        let insert_idx = slot - 1; // 0-indexed position to insert lhs
+        let ty = self.resolve_range(pipe.syntax().text_range());
+
+        match pipe.rhs() {
+            Some(Expr::CallExpr(call)) => {
+                let callee = call.callee().map(|e| self.lower_expr(&e));
+                let mut explicit_args: Vec<MirExpr> = Vec::new();
+                if let Some(arg_list) = call.arg_list() {
+                    for arg in arg_list.args() {
+                        explicit_args.push(self.lower_expr(&arg));
+                    }
+                }
+                // Insert lhs at insert_idx (0-indexed), clamping to length
+                let actual_idx = insert_idx.min(explicit_args.len());
+                explicit_args.insert(actual_idx, lhs);
+                let callee = match callee {
+                    Some(c) => c,
+                    None => return MirExpr::Unit,
+                };
+                MirExpr::Call {
+                    func: Box::new(callee),
+                    args: explicit_args,
+                    ty,
+                }
+            }
+            Some(rhs_expr) => {
+                // Bare function reference with slot — treat as regular pipe (insert at position 0)
+                let func = self.lower_expr(&rhs_expr);
+                MirExpr::Call {
+                    func: Box::new(func),
+                    args: vec![lhs],
+                    ty,
+                }
+            }
+            None => MirExpr::Unit,
+        }
     }
 
     // ── Field access lowering ────────────────────────────────────────

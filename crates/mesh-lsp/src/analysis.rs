@@ -215,6 +215,8 @@ fn type_error_span(error: &TypeError) -> Option<TextRange> {
         TypeError::MissingAssocType { .. } => None,
         TypeError::ExtraAssocType { .. } => None,
         TypeError::UnresolvedAssocType { span, .. } => Some(*span),
+        TypeError::SlotPositionConflict { span, .. } => Some(*span),
+        TypeError::SlotPipeOutOfRange { span, .. } => Some(*span),
     }
 }
 

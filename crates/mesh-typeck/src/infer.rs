@@ -4867,42 +4867,13 @@ fn infer_slot_pipe(
                 }
             }
 
-            // Conflict check: explicit args fill positions 0..N-1 (0-indexed).
-            // Piped value inserts at insert_idx (0-indexed). Conflict if insert_idx < explicit_arg_types.len().
-            // Per design: `x |2> func(a, b)` — explicit args (a, b) fill indices 0 and 1.
-            // Piping to slot 2 (insert_idx=1) conflicts with `b` at index 1.
-            if insert_idx < explicit_arg_types.len() {
-                let fn_name = if let Expr::NameRef(ref nr) = callee_expr {
-                    nr.text().unwrap_or_default()
-                } else {
-                    String::new()
-                };
-                let err = TypeError::SlotPositionConflict {
-                    slot,
-                    fn_name,
-                    span: pipe.syntax().text_range(),
-                };
-                ctx.errors.push(err.clone());
-                return Err(err);
-            }
-
-            // Build the full arg type list with lhs inserted at insert_idx.
-            // Since conflict check passed, insert_idx >= explicit_arg_types.len(),
-            // meaning all explicit args come before the piped position.
-            // Any gap between explicit args and insert_idx is padded with fresh type vars.
-            let mut full_args: Vec<Ty> = Vec::new();
-            for i in 0..insert_idx {
-                if i < explicit_arg_types.len() {
-                    full_args.push(explicit_arg_types[i].clone());
-                } else {
-                    full_args.push(ctx.fresh_var()); // gap-filling (unusual case)
-                }
-            }
-            full_args.push(lhs_ty.clone());
-            // remaining explicit args after the insert point
-            for i in insert_idx..explicit_arg_types.len() {
-                full_args.push(explicit_arg_types[i].clone());
-            }
+            // Build the full arg type list by inserting lhs_ty at insert_idx (0-indexed).
+            // `x |2> f(a, b, c)` means f(a, x, b, c): insert at index 1 (slot-1).
+            // The explicit args shift: args before insert_idx come first, then lhs, then rest.
+            // If insert_idx > explicit_arg_types.len(), clamp to end (lhs appended at the end).
+            let actual_idx = insert_idx.min(explicit_arg_types.len());
+            let mut full_args: Vec<Ty> = explicit_arg_types.clone();
+            full_args.insert(actual_idx, lhs_ty.clone());
 
             // Arity-range check: if callee has a known Fun type, validate slot <= arity
             let resolved_callee = ctx.resolve(callee_ty.clone());

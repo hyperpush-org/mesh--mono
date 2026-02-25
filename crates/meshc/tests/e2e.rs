@@ -5105,3 +5105,41 @@ end
 "#);
     assert_eq!(output, "ok\n");
 }
+
+/// Phase 116: Slot pipe basic usage — |2> inserts piped value at argument position 2.
+#[test]
+fn e2e_slot_pipe_basic() {
+    let source = read_fixture("slot_pipe_basic.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "11\nhello world !\n");
+}
+
+/// Phase 116: Slot pipe chaining — |2> chains with |> correctly.
+#[test]
+fn e2e_slot_pipe_chain() {
+    let source = read_fixture("slot_pipe_chain.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "15\n20\n");
+}
+
+/// Phase 116: Slot pipe arity error — |N> where N > arity emits a clear error.
+#[test]
+fn e2e_slot_pipe_arity_error() {
+    let source = read_fixture("slot_pipe_arity_error.mpl");
+    let err = compile_expect_error(&source);
+    assert!(
+        err.contains("slot position 5") || err.contains("out of range"),
+        "Expected arity error message, got: {}", err
+    );
+}
+
+/// Phase 116: Slot pipe parse error — |1> is rejected at parse time.
+#[test]
+fn e2e_slot_pipe_parse_error_slot_1() {
+    let source = "fn main() do\n  let x = 5 |1> println\nend\n";
+    let err = compile_expect_error(source);
+    assert!(
+        err.contains("|>") || err.contains("first argument") || err.contains("error"),
+        "Expected parse error for |1>, got: {}", err
+    );
+}
