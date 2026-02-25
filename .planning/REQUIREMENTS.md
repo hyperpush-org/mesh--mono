@@ -91,45 +91,45 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01 | — | Pending |
-| PIPE-02 | — | Pending |
-| PIPE-03 | — | Pending |
-| PIPE-04 | — | Pending |
-| PIPE-05 | — | Pending |
-| REGEX-01 | — | Pending |
-| REGEX-02 | — | Pending |
-| REGEX-03 | — | Pending |
-| REGEX-04 | — | Pending |
-| REGEX-05 | — | Pending |
-| REGEX-06 | — | Pending |
-| STRG-01 | — | Pending |
-| STRG-02 | — | Pending |
-| STRG-03 | — | Pending |
-| STRG-04 | — | Pending |
-| STRG-05 | — | Pending |
-| STRG-06 | — | Pending |
-| SKILL-01 | — | Pending |
-| SKILL-02 | — | Pending |
-| SKILL-03 | — | Pending |
-| SKILL-04 | — | Pending |
-| REPO-01 | — | Pending |
-| REPO-02 | — | Pending |
-| REPO-03 | — | Pending |
-| REPO-04 | — | Pending |
-| REPO-05 | — | Pending |
-| REPO-06 | — | Pending |
-| BENCH-01 | — | Pending |
-| BENCH-02 | — | Pending |
-| BENCH-03 | — | Pending |
-| BENCH-04 | — | Pending |
-| BENCH-05 | — | Pending |
-| BENCH-06 | — | Pending |
+| PIPE-01 | Phase 116 | Pending |
+| PIPE-02 | Phase 116 | Pending |
+| PIPE-03 | Phase 116 | Pending |
+| PIPE-04 | Phase 116 | Pending |
+| PIPE-05 | Phase 120 | Pending |
+| REGEX-01 | Phase 119 | Pending |
+| REGEX-02 | Phase 119 | Pending |
+| REGEX-03 | Phase 119 | Pending |
+| REGEX-04 | Phase 119 | Pending |
+| REGEX-05 | Phase 119 | Pending |
+| REGEX-06 | Phase 119 | Pending |
+| STRG-01 | Phase 117 | Pending |
+| STRG-02 | Phase 117 | Pending |
+| STRG-03 | Phase 117 | Pending |
+| STRG-04 | Phase 118 | Pending |
+| STRG-05 | Phase 118 | Pending |
+| STRG-06 | Phase 120 | Pending |
+| SKILL-01 | Phase 121 | Pending |
+| SKILL-02 | Phase 121 | Pending |
+| SKILL-03 | Phase 121 | Pending |
+| SKILL-04 | Phase 121 | Pending |
+| REPO-01 | Phase 122 | Pending |
+| REPO-02 | Phase 122 | Pending |
+| REPO-03 | Phase 122 | Pending |
+| REPO-04 | Phase 122 | Pending |
+| REPO-05 | Phase 122 | Pending |
+| REPO-06 | Phase 122 | Pending |
+| BENCH-01 | Phase 123 | Pending |
+| BENCH-02 | Phase 123 | Pending |
+| BENCH-03 | Phase 123 | Pending |
+| BENCH-04 | Phase 123 | Pending |
+| BENCH-05 | Phase 123 | Pending |
+| BENCH-06 | Phase 123 | Pending |
 
 **Coverage:**
 - v12.0 requirements: 33 total
-- Mapped to phases: 0
-- Unmapped: 33 ⚠️
+- Mapped to phases: 33
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-25*
-*Last updated: 2026-02-25 after initial definition*
+*Last updated: 2026-02-25 after v12.0 roadmap creation (phases 116-123)*

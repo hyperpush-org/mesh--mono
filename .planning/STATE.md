@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v12.0
 milestone_name: Language Ergonomics & Open Source Readiness
-status: defining_requirements
+status: ready_to_plan
 last_updated: "2026-02-25"
 progress:
-  total_phases: 0
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,14 +18,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** Expressive, readable concurrency -- writing concurrent programs should feel as natural and clean as writing sequential code, with the safety net of supervision and fault tolerance built into the language.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 116 — Slot Pipe Operator (first phase of v12.0)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-25 — Milestone v12.0 started
+Phase: 116 of 123 (Phase 116: Slot Pipe Operator)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-02-25 — v12.0 roadmap created (8 phases, 33 requirements mapped)
 
 Progress: [░░░░░░░░░░] 0% (v12.0)
 
@@ -42,28 +42,6 @@ Progress: [░░░░░░░░░░] 0% (v12.0)
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
-| 104   | 01   | 12min    | 2     | 3     |
-| 105   | 01   | 18min    | 3     | 1     |
-| 105   | 02   | 8min     | 3     | 4     |
-| 105.1 | 02   | 9min     | 1     | 1     |
-| 105.1 | 01   | 17min    | 2     | 5     |
-| 105.1 | 03   | 9min     | 2     | 2     |
-| 106   | 01   | 8min     | 2     | 8     |
-| 106   | 02   | 8min     | 2     | 8     |
-| 107   | 01   | 6min     | 2     | 8     |
-| 107   | 02   | 1min     | 1     | 4     |
-| 108   | 01   | 4min     | 2     | 8     |
-| 108   | 02   | 1min     | 1     | 2     |
-| 109   | 01   | 10min    | 2     | 9     |
-| 109   | 02   | 20min    | 1     | 2     |
-| 109.1 | 01   | 13min    | 1     | 3     |
-| 109.1 | 02   | 4min     | 2     | 3     |
-| 110   | 01   | 6min     | 2     | 2     |
-| 110   | 02   | 4min     | 2     | 2     |
-| 111   | 01   | 7min     | 2     | 1     |
-| 111   | 02   | 1min     | 2     | 2     |
-| 112   | 01   | 5min     | 2     | 1     |
-| 112   | 02   | 3min     | 2     | 1     |
 | 113   | 01   | 5min     | 2     | 1     |
 | 114   | 01   | 30min    | 2     | 2     |
 | 114   | 02   | 15min    | 1     | 1     |
@@ -77,53 +55,19 @@ Progress: [░░░░░░░░░░] 0% (v12.0)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- Phase 105.1: Pass MIR return type to codegen_service_call_helper for type-aware reply conversion
-- Phase 105.1: Construction-side fix only for struct-in-Result: existing codegen_leaf deref logic handles destructuring
-- Phase 105.1: Auth workaround reverted -- authenticate_request returns Project!String directly
-- Phase 105.1: EventProcessor service call SIGSEGV persists -- needs dedicated investigation
-- [Phase 106]: OR clause encoding uses OR:field1,field2,...:N format with field names embedded in clause string
-- [Phase 106]: ILIKE added as atom_to_sql_op mapping -- no new function needed, works via existing where_op
-- [Phase 106]: Unified renumber_placeholders helper handles both ? and $N styles in a single pass
-- [Phase 106]: RAW: prefix reused for ORDER BY and GROUP BY raw expressions, consistent with existing pattern
-- [Phase 107]: ALIAS: prefix encoding distinguishes aliased from regular joins in join_clauses list
-- [Phase 107]: SQL aliases (AS) used in JOIN queries for unambiguous column names in runtime E2E tests
-- [Phase 108]: RAW: prefix reused for aggregate SELECT expressions -- consistent with existing select_raw pattern
-- [Phase 108]: select_count (no args) and select_count_field (with field) split for cleaner API
-- [Phase 108]: Raw SQL strings in runtime E2E tests match query builder output -- Plan 01 verifies pipeline, Plan 02 verifies SQL semantics
-- [Phase 109]: Subquery WHERE uses inline SQL serialization at where_sub call time, stored as RAW: clause with ? placeholders
-- [Phase 109]: E2E tests verify compilation pipeline without runtime execution since Repo functions expect PoolHandle not SqliteConn
-- [Phase 109]: Runtime E2E uses raw SQL via Sqlite.query matching build_upsert_sql_pure output (Repo functions require PoolHandle, not SqliteConn)
-- [Phase 109]: Pre-existing type checker arity bug: let x = Sqlite.execute(db, sql, params)? followed by f(x) triggers spurious E0003
-- [Phase 109.1]: E0003 root cause was missing Int.to_string in typeck stdlib, not a type inference bug
-- [Phase 109.1]: Use BasicMetadataTypeEnum->BasicTypeEnum try_from conversion for struct type in build_load
-- [Phase 109.1]: Service arg decoercion pattern: after loading i64, convert to expected handler param type via inverse of coerce_to_i64
-- [Phase 110]: Repo.delete_where type signature corrected from Ptr to Result<Int, String> to match runtime behavior
-- [Phase 110]: Two-step ORM pattern for PG crypto: minimal Repo.query_raw SELECT for expression, then Repo.insert for data
-- [Phase 110]: Repo.update_where type signature corrected: fields_map from Ptr to Map<String,String>, return from Ptr to Result<Map,String>
-- [Phase 111]: assign_issue retains Repo.execute_raw for NULL unassign branch -- ORM Map<String,String> cannot represent NULL
-- [Phase 111]: 4 complex queries retain raw SQL with documented ORM boundary rationale (upsert_issue, check_volume_spikes, insert_event, extract_event_fields)
-- [Phase 112]: Inline let = case ... end not supported by Mesh parser; use helper functions for case expressions
-- [Phase 112]: acknowledge_alert and resolve_fired_alert retain execute_raw for SET column = now() server-side function calls
-- [Phase 112]: toggle_alert_rule and check_new_issue verified as already rewritten by Plan 01
-- [Phase 112]: list_alerts uses Query.join_as with status passed 3 times for optional status filter
-- [Phase 113]: delete_expired_events uses Repo.delete_where + Query.where_raw for interval expression -- interval arithmetic expressible via where_raw
-- [Phase 113]: update_project_settings retains raw SQL: COALESCE with server-side JSONB extraction + fallback to current column not expressible via Repo.update_where Map<String,String>
-- [Phase 113]: check_sample_rate retains raw SQL: random() comparison with scalar subquery + COALESCE default not expressible via ORM query builder
-- [Phase 114]: MirType::Tuple SIGSEGV fix confirmed active: arm returns context.ptr_type(...) heap pointer, not by-value struct -- no crash during Mesher startup
-- [Phase 114]: PostgreSQL running in Docker mesher-postgres (postgres:16-alpine); single migration 20260216120000_create_initial_schema applied cleanly
-- [Phase 114]: Mesher startup reaches [Mesher] Foundation ready with all 7 services started; EventProcessor SIGSEGV does not manifest at startup (triggered by POST /api/v1/events, tested in 114-02)
-- [Phase 114]: Event ingestion uses x-sentry-auth header (not X-Api-Key) -- confirmed from mesher/ingestion/auth.mpl
-- [Phase 114]: POST /api/v1/events returns 202 Accepted; all 8 HTTP domain endpoints return 2xx; WebSocket :8081 returns 101; process alive -- MirType::Tuple SIGSEGV confirmed resolved
 - [Phase 115]: Documentation-only gap closure: Phase 106/109 implementations were correct, only tracking records were missing
-- [Phase 115]: Phase 109 positional API (insert_or_update, delete_where_returning, where_sub) accepted as canonical v11.0 API; keyword-option style was never implemented
-- [Phase 115]: get_project_id_by_key and get_user_orgs removed from queries.mpl (zero import sites; superseded and unwired respectively)
+- [Phase 115]: Phase 109 positional API (insert_or_update, delete_where_returning, where_sub) accepted as canonical v11.0 API
+- [Phase 115]: get_project_id_by_key and get_user_orgs removed from queries.mpl (zero import sites)
+- [v12.0 Roadmap]: Phase 119 (Regex) depends only on Phase 115 -- may run in parallel with 117-118 if desired
+- [v12.0 Roadmap]: Phase 121 (Agent Skill) depends only on Phase 115 -- no code changes, can run at any point
+- [v12.0 Roadmap]: PIPE-05 and STRG-06 bundled into Phase 120 (Mesher Dogfooding) after all compiler work done
+- [v12.0 Roadmap]: REPO (Phase 122) scheduled after Mesher dogfooding -- disruptive restructure deferred until language features stable
+- [v12.0 Roadmap]: BENCH (Phase 123) scheduled last -- depends on repo being stable for benchmark code commit location
 
 ### Roadmap Evolution
 
-- v11.0 roadmap created: 9 phases (106-114), 32 requirements mapped
-- Phase 109.1 inserted after Phase 109: Fix the issues encountered in 109 (URGENT)
-- Phase 115 added: Tracking corrections and API acceptance (shipped 2026-02-25)
-- v11.0 Query Builder complete: all 10 phases (106-115) shipped 2026-02-25
+- v12.0 roadmap created 2026-02-25: 8 phases (116-123), 33 requirements mapped, 100% coverage
+- Phase ordering: compiler features first (116-119), then dogfooding (120), then skill (121), then repo (122), then benchmarks (123)
 
 ### Pending Todos
 
@@ -131,11 +75,11 @@ None.
 
 ### Blockers/Concerns
 
-None. The EventProcessor SIGSEGV blocker is confirmed resolved (MirType::Tuple fix -- types.rs returns ptr not by-value struct). POST /api/v1/events returned 202 with Mesher process alive after all endpoint tests.
+None. v11.0 fully shipped and verified. Zero known compiler correctness issues.
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: v12.0 milestone started. Requirements defined (33 requirements across 6 categories). Roadmap pending.
+Stopped at: v12.0 roadmap created and written to .planning/ROADMAP.md
 Resume file: None
-Next action: Complete roadmap creation, then /gsd:plan-phase 116
+Next action: /gsd:plan-phase 116

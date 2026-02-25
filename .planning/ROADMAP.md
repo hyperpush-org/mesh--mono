@@ -23,6 +23,7 @@
 - [x] **v10.0 ORM** - Phases 96-103 (shipped 2026-02-17)
 - [x] **v10.1 Stabilization** - Phases 104-105.1 (shipped 2026-02-17)
 - [x] **v11.0 Query Builder** - Phases 106-115 (shipped 2026-02-25)
+- [ ] **v12.0 Language Ergonomics & Open Source Readiness** - Phases 116-123 (planned)
 
 ## Phases
 
@@ -185,7 +186,7 @@ See milestones/v9.0-ROADMAP.md for full phase details.
 </details>
 
 <details>
-<summary>v11.0 Query Builder (Phases 106-115) — SHIPPED 2026-02-25</summary>
+<summary>v11.0 Query Builder (Phases 106-115) - SHIPPED 2026-02-25</summary>
 
 See milestones/v11.0-ROADMAP.md for full phase details.
 22 plans across 11 phases (including 109.1). ~7,700 lines of Mesh. 82 commits. 32/32 requirements satisfied.
@@ -204,7 +205,115 @@ See milestones/v11.0-ROADMAP.md for full phase details.
 
 </details>
 
+### v12.0 Language Ergonomics & Open Source Readiness (Planned)
+
+**Milestone Goal:** Make Mesh more ergonomic for real programs and ready for open source with slot pipe operator, string interpolation, heredocs, regex, env var stdlib, Mesher dogfooding, a Mesh agent skill, repo reorganization, and performance benchmarks.
+
+**Phase Numbering:** 116-123 (8 phases)
+
+- [ ] **Phase 116: Slot Pipe Operator** - Add `|N>` argument-position routing to the compiler with full type checking
+- [ ] **Phase 117: String Interpolation & Heredocs** - Add `#{expr}` interpolation and `"""..."""` multiline heredoc strings
+- [ ] **Phase 118: Env Var Stdlib** - Add `Env.get` and `Env.get_int` typed stdlib functions
+- [ ] **Phase 119: Regular Expressions** - Add regex literals, `Regex.compile`, and match/capture/replace/split API
+- [ ] **Phase 120: Mesher Dogfooding** - Update Mesher to use slot pipe and string features; verify E2E
+- [ ] **Phase 121: Mesh Agent Skill** - Create GSD agent skill with progressive disclosure for all Mesh topics
+- [ ] **Phase 122: Repository Reorganization** - Move crates and apps under compiler/mesher/website/tools/
+- [ ] **Phase 123: Performance Benchmarks** - HTTP throughput benchmarks vs Rust, Go, and Elixir with published results
+
+## Phase Details
+
+### Phase 116: Slot Pipe Operator
+**Goal**: Users can pipe expressions to any argument position using `|N>` syntax with full type checking
+**Depends on**: Phase 115
+**Requirements**: PIPE-01, PIPE-02, PIPE-03, PIPE-04
+**Success Criteria** (what must be TRUE):
+  1. User can write `value |2> func(a)` and it compiles correctly, placing value as the second argument to func
+  2. User can use any N >= 2 in `|N>` and it inserts the piped value at that argument position
+  3. User can chain slot pipes with regular pipes (`a |2> f(b) |> g()`) and all positions resolve correctly
+  4. Compiler emits a clear, actionable error when slot position N exceeds the target function's arity
+**Plans**: TBD
+
+### Phase 117: String Interpolation & Heredocs
+**Goal**: Users can embed expressions directly in strings with `#{expr}` and write multiline strings with `"""..."""`
+**Depends on**: Phase 116
+**Requirements**: STRG-01, STRG-02, STRG-03
+**Success Criteria** (what must be TRUE):
+  1. User can write `"Value: #{expr}"` with any valid expression and it evaluates at runtime and concatenates into the string
+  2. User can write `"""..."""` heredoc strings containing newlines and special characters without escape sequences
+  3. Heredoc strings support embedded interpolation: `"""{"id": "#{id}"}"""` evaluates correctly
+**Plans**: TBD
+
+### Phase 118: Env Var Stdlib
+**Goal**: Users can read environment variables with typed defaults using `Env.get` and `Env.get_int`
+**Depends on**: Phase 117
+**Requirements**: STRG-04, STRG-05
+**Success Criteria** (what must be TRUE):
+  1. User can call `Env.get("KEY", "default")` and receive the env var string value, or the default string if unset
+  2. User can call `Env.get_int("PORT", 8080)` and receive the env var parsed as Int, or the default Int if unset or not parseable as an integer
+**Plans**: TBD
+
+### Phase 119: Regular Expressions
+**Goal**: Users can use regular expressions in Mesh programs via literals and runtime compilation with a complete API
+**Depends on**: Phase 115
+**Requirements**: REGEX-01, REGEX-02, REGEX-03, REGEX-04, REGEX-05, REGEX-06
+**Success Criteria** (what must be TRUE):
+  1. User can write `~r/pattern/` and `~r/pattern/flags` regex literals; i, m, s flags are recognized and applied
+  2. User can call `Regex.compile(str)` at runtime and receive `Result<Regex, String>` with a descriptive error on invalid syntax
+  3. User can call `Regex.match(rx, str)` returning Bool to test whether a pattern matches
+  4. User can call `Regex.captures(rx, str)` returning `Option<List<String>>` to extract capture groups
+  5. User can call `Regex.replace(rx, str, replacement)` and `Regex.split(rx, str)` for replacement and splitting
+**Plans**: TBD
+
+### Phase 120: Mesher Dogfooding
+**Goal**: Mesher production codebase demonstrates slot pipe and string features in real usage, verified end-to-end
+**Depends on**: Phase 118, Phase 119
+**Requirements**: PIPE-05, STRG-06
+**Success Criteria** (what must be TRUE):
+  1. At least one real Mesher usage of slot pipe (`|N>`) improves readability over the equivalent manual argument threading
+  2. At least one real Mesher usage of string interpolation or heredocs replaces less ergonomic string construction
+  3. Mesher compiles with zero errors after all updates
+  4. Mesher E2E verification passes: all 8 HTTP API endpoints return 2xx, WebSocket 101 confirmed
+**Plans**: TBD
+
+### Phase 121: Mesh Agent Skill
+**Goal**: An AI agent skill exists that provides complete progressive-disclosure coverage of the Mesh language
+**Depends on**: Phase 115 (language stable; can execute at any point in v12.0)
+**Requirements**: SKILL-01, SKILL-02, SKILL-03, SKILL-04
+**Success Criteria** (what must be TRUE):
+  1. Skill file exists in GSD skill format with a main entry command providing a concise language overview and list of available sub-topics
+  2. Skill provides per-topic deep-dive commands covering syntax, types, actors, ORM, HTTP/WS, stdlib, and distributed actors
+  3. Skill is registered in the GSD system and can be auto-loaded for Mesh questions without explicit invocation
+**Plans**: TBD
+
+### Phase 122: Repository Reorganization
+**Goal**: Repository top-level is clean and navigable for open source with compiler/mesher/website/tools/ directories
+**Depends on**: Phase 120
+**Requirements**: REPO-01, REPO-02, REPO-03, REPO-04, REPO-05, REPO-06
+**Success Criteria** (what must be TRUE):
+  1. All compiler Rust crates live under `compiler/` and `cargo build` succeeds from the repo root
+  2. Mesher application lives under `mesher/` and compiles with zero errors
+  3. Documentation website lives under `website/` and the dev server starts without error
+  4. Install scripts and build tooling live under `tools/`
+  5. All GitHub Actions CI/CD pipelines pass with the new directory structure
+  6. All tests pass and Mesher E2E is verified after reorganization (all HTTP endpoints 2xx, WebSocket 101)
+**Plans**: TBD
+
+### Phase 123: Performance Benchmarks
+**Goal**: Published benchmark results demonstrate Mesh HTTP performance compared to Rust, Go, and Elixir
+**Depends on**: Phase 122
+**Requirements**: BENCH-01, BENCH-02, BENCH-03, BENCH-04, BENCH-05, BENCH-06
+**Success Criteria** (what must be TRUE):
+  1. A Mesh HTTP benchmark server exists with a JSON endpoint and configurable concurrency
+  2. Equivalent benchmark servers exist in Go, Rust, and Elixir using idiomatic frameworks
+  3. Benchmarks measure throughput (req/s), p50/p99 latency, and memory usage for all four languages under the same conditions
+  4. Benchmark methodology is documented (tool, hardware, concurrency settings) and results are committed to the repository
+**Plans**: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 116 → 117 → 118 → 119 → 120 → 121 → 122 → 123
+Note: Phase 119 (Regex) depends only on Phase 115 and may proceed in parallel with 117-118 if desired.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -229,5 +338,13 @@ See milestones/v11.0-ROADMAP.md for full phase details.
 | 96-103 | v10.0 | 25/25 | Complete | 2026-02-17 |
 | 104-105.1 | v10.1 | 6/6 | Complete | 2026-02-17 |
 | 106-115 | v11.0 | 22/22 | Complete | 2026-02-25 |
+| 116. Slot Pipe Operator | v12.0 | 0/? | Not started | - |
+| 117. String Interpolation & Heredocs | v12.0 | 0/? | Not started | - |
+| 118. Env Var Stdlib | v12.0 | 0/? | Not started | - |
+| 119. Regular Expressions | v12.0 | 0/? | Not started | - |
+| 120. Mesher Dogfooding | v12.0 | 0/? | Not started | - |
+| 121. Mesh Agent Skill | v12.0 | 0/? | Not started | - |
+| 122. Repository Reorganization | v12.0 | 0/? | Not started | - |
+| 123. Performance Benchmarks | v12.0 | 0/? | Not started | - |
 
-**Total: 115 phases shipped across 21 milestones. 319 plans completed. v11.0 Query Builder complete.**
+**Total through v11.0: 115 phases shipped, 319 plans completed across 21 milestones.**
