@@ -125,24 +125,6 @@ pub fn get_project_by_api_key(pool :: PoolHandle, key_value :: String) -> Projec
   end
 end
 
-# Get the project ID associated with a valid (non-revoked) API key.
-# Returns just the project ID string to avoid struct-in-Result ABI issues.
-# Used by ingestion auth to avoid returning multi-field struct in Result.
-# Uses ORM Query.join_as + Query.where_raw instead of raw SQL JOIN.
-pub fn get_project_id_by_key(pool :: PoolHandle, key_value :: String) -> String!String do
-  let q = Query.from(Project.__table__())
-    |> Query.join_as(:inner, ApiKey.__table__(), "ak", "ak.project_id = projects.id")
-    |> Query.where_raw("ak.key_value = ?", [key_value])
-    |> Query.where_raw("ak.revoked_at IS NULL", [])
-    |> Query.select_raw(["projects.id::text"])
-  let rows = Repo.all(pool, q)?
-  if List.length(rows) > 0 do
-    Ok(Map.get(List.head(rows), "id"))
-  else
-    Err("not found")
-  end
-end
-
 # Revoke an API key by setting revoked_at to now().
 # Two-step pattern: Repo.query_raw for now() timestamp, then Repo.update_where for the UPDATE.
 pub fn revoke_api_key(pool :: PoolHandle, key_id :: String) -> Int!String do
@@ -257,16 +239,6 @@ end
 pub fn get_members(pool :: PoolHandle, org_id :: String) -> List<OrgMembership>!String do
   let q = Query.from(OrgMembership.__table__())
     |> Query.where(:org_id, org_id)
-  let rows = Repo.all(pool, q)?
-  Ok(List.map(rows, fn(row) do
-    OrgMembership { id: Map.get(row, "id"), user_id: Map.get(row, "user_id"), org_id: Map.get(row, "org_id"), role: Map.get(row, "role"), joined_at: Map.get(row, "joined_at") }
-  end))
-end
-
-# Get all organizations a user belongs to.
-pub fn get_user_orgs(pool :: PoolHandle, user_id :: String) -> List<OrgMembership>!String do
-  let q = Query.from(OrgMembership.__table__())
-    |> Query.where(:user_id, user_id)
   let rows = Repo.all(pool, q)?
   Ok(List.map(rows, fn(row) do
     OrgMembership { id: Map.get(row, "id"), user_id: Map.get(row, "user_id"), org_id: Map.get(row, "org_id"), role: Map.get(row, "role"), joined_at: Map.get(row, "joined_at") }
