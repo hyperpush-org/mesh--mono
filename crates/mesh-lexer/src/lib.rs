@@ -551,6 +551,22 @@ impl<'src> Lexer<'src> {
                         return self.pending.remove(0);
                     }
                 }
+                Some('#') if self.cursor.peek_next() == Some('{') => {
+                    let content_end = self.cursor.pos();
+                    self.cursor.advance(); // consume '#'
+                    self.cursor.advance(); // consume '{'
+                    let interp_end = self.cursor.pos();
+
+                    self.state_stack.push(LexerState::InInterpolation { brace_depth: 0 });
+
+                    self.pending.push(Token::new(TokenKind::InterpolationStart, content_end, interp_end));
+
+                    if content_end > start {
+                        return Token::new(TokenKind::StringContent, start, content_end);
+                    } else {
+                        return self.pending.remove(0);
+                    }
+                }
                 Some('"') if !triple => {
                     let content_end = self.cursor.pos();
                     self.cursor.advance(); // consume closing '"'
