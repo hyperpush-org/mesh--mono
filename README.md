@@ -120,6 +120,21 @@ pub fn main() do
 end
 ```
 
+## Performance
+
+Measured on dedicated Fly.io `performance-2x` VMs (2 vCPU, 4 GB RAM), server and load generator in the same region, over Fly.io's private WireGuard network. 100 concurrent connections, 30 s timed runs × 3 averaged.
+
+| Language | /text req/s | /json req/s |
+|----------|------------|------------|
+| **Mesh** | **14,493** † | **20,021** |
+| Go       | 25,892     | 25,871     |
+| Rust     | 27,685     | 28,716     |
+| Elixir   | 11,809     | 11,689     |
+
+† Mesh /text avg includes a cold-start first run (4,041 req/s); steady-state throughput is ~19,700 req/s.
+
+[Full results and methodology →](benchmarks/RESULTS.md)
+
 ## Documentation
 
 Full documentation, including guides and API references, is available at **[meshlang.dev](https://meshlang.dev)** (placeholder link).
