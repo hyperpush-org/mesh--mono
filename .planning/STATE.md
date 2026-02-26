@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Language Ergonomics & Open Source Readiness
 status: unknown
-last_updated: "2026-02-26T07:55:51.214Z"
+last_updated: "2026-02-26T08:22:23.855Z"
 progress:
   total_phases: 131
-  completed_phases: 129
+  completed_phases: 130
   total_plans: 339
-  completed_plans: 338
+  completed_plans: 339
 ---
 
 # Project State
@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 
 ## Current Position
 
-Phase: 122 of 123 (Phase 122: Repository Reorganization — COMPLETE)
-Plan: 02 complete (2 of 2 plans)
-Status: Phase 122 complete — all builds verified, Mesher compiles, human-approved; next is Phase 123 (benchmarks)
-Last activity: 2026-02-26 — 122-02 complete: cargo build/release pass, 12/13 tests green, Mesher compiles, human checkpoint approved
+Phase: 123 of 123 (Phase 123: Performance Benchmarks — IN PROGRESS)
+Plan: 03 paused at Task 4 checkpoint (3 of 3 plans, Tasks 1-3 complete, awaiting human benchmark run)
+Status: Phase 123 Plan 03 paused at human-action checkpoint — Fly.io infrastructure committed, awaiting benchmark results
+Last activity: 2026-02-26 — 123-03 Tasks 1-3 complete: Dockerfile.servers, start-servers.sh, Dockerfile.loadgen, run-benchmarks.sh, README.md committed
 
 Progress: [█░░░░░░░░░] 5% (v12.0)
 
@@ -66,6 +66,7 @@ Progress: [█░░░░░░░░░] 5% (v12.0)
 | Phase 122 P02 | 15min | 3 tasks | 1 files |
 | Phase 123 P02 | 2min | 2 tasks | 5 files |
 | Phase 123 P01 | 5min | 2 tasks | 3 files |
+| Phase 123 P03 | 3 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,9 @@ Recent decisions affecting current work:
 - [Phase 123]: Port assignments: Mesh=3000, Go=3001, Rust=3002, Elixir=3003 — consistent across all benchmark plans
 - [Phase 123]: Port 3000 for Mesh benchmark server, port 3001 for Go benchmark server (hardcoded, wrk runner script uses these)
 - [Phase 123]: Go benchmark uses GOMAXPROCS(NumCPU()) at startup for fair multi-core CPU utilization comparison
+- [Phase 123]: Mesh compiler built from compiler/ Rust workspace in Dockerfile (mesher/ contains only macOS arm64 binary)
+- [Phase 123]: Internal DNS hostname (bench-servers.vm.bench-mesh.internal) recommended over raw IPv6 to avoid bracket notation issues
+- [Phase 123]: RSS logged as CSV to stdout (RSS,lang,epoch,kB) every 2s; extracted via fly logs | grep '^RSS,'
 
 ### Roadmap Evolution
 
@@ -138,6 +142,6 @@ None. v11.0 fully shipped and verified. Zero known compiler correctness issues.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 122-02-PLAN.md (build verification — cargo build/release pass, Mesher compiles, human-approved)
+Stopped at: Paused at 123-03 Task 4 checkpoint (human-action: run Fly.io benchmarks and provide results for RESULTS.md)
 Resume file: None
-Next action: /gsd:execute-phase 123 (benchmarks)
+Next action: After user provides benchmark results, continue 123-03 Task 5 (populate RESULTS.md, METHODOLOGY.md, chart, README.md)
