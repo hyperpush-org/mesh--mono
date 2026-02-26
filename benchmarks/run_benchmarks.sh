@@ -220,15 +220,20 @@ echo ""
 # Mesh: try meshc
 # ---
 if command -v meshc > /dev/null 2>&1; then
-  echo "[Mesh] Starting on port 3000..."
-  meshc run "${SCRIPT_DIR}/mesh/bench.mpl" > "${TMP_DIR}/mesh.log" 2>&1 &
-  MESH_PID=$!
-  SERVER_PIDS+=("$MESH_PID")
-  if wait_for_server 3000; then
-    echo "[Mesh] Ready on port 3000 (PID ${MESH_PID})"
-    MESH_AVAILABLE=true
+  echo "[Mesh] Building and starting on port 3000..."
+  if meshc build "${SCRIPT_DIR}/mesh" > "${TMP_DIR}/mesh_build.log" 2>&1; then
+    "${SCRIPT_DIR}/mesh/mesh" > "${TMP_DIR}/mesh.log" 2>&1 &
+    MESH_PID=$!
+    SERVER_PIDS+=("$MESH_PID")
+    if wait_for_server 3000; then
+      echo "[Mesh] Ready on port 3000 (PID ${MESH_PID})"
+      MESH_AVAILABLE=true
+    else
+      echo "[Mesh] WARNING: server did not start within 30s — skipping"
+      MESH_AVAILABLE=false
+    fi
   else
-    echo "[Mesh] WARNING: server did not start within 30s — skipping"
+    echo "[Mesh] WARNING: meshc build failed — skipping (see ${TMP_DIR}/mesh_build.log)"
     MESH_AVAILABLE=false
   fi
 else

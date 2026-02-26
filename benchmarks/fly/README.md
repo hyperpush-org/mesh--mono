@@ -5,7 +5,7 @@ Two dedicated Fly.io VMs (server + load generator) for running the Mesh HTTP thr
 ## Architecture
 
 ```
-[Load Gen VM]  ---wrk---> [Server VM]
+[Load Gen VM]  ---hey---> [Server VM]
   performance-2x             performance-2x
   (2 CPUs, 4GB RAM)         (2 CPUs, 4GB RAM)
   run-benchmarks.sh          start-servers.sh
@@ -115,7 +115,7 @@ fly machine run registry.fly.io/bench-mesh/loadgen:latest \
   --env "SERVER_HOST=[fdaa:0:xxxx:a7b:xxxx:xxxx:xxxx:2]"
 ```
 
-> **Note on IPv6:** If using a raw IPv6 address with curl/wrk, wrap it in brackets: `[fdaa:...]`. The internal DNS hostname avoids this entirely.
+> **Note on IPv6:** If using a raw IPv6 address with curl/hey, wrap it in brackets: `[fdaa:...]`. The internal DNS hostname avoids this entirely.
 
 ### 7. Collect benchmark results
 
@@ -160,7 +160,7 @@ fly apps destroy bench-mesh --yes
 
 - **Same region for both VMs** gives ~0.1ms intra-datacenter latency via Fly.io's private WireGuard network
 - **performance-2x** = 2 dedicated CPUs, 4 GB RAM — dedicated means no CPU time-sharing with other tenants
-- **Build time:** The server image takes 10-15 minutes due to Rust compilation (`meshc` + the Rust benchmark server). The load gen image is much faster (only `wrk` from source, ~2 minutes).
+- **Build time:** The server image takes 10-15 minutes due to Rust compilation (`meshc` + the Rust benchmark server). The load gen image is much faster (~2 minutes).
 - **Server ready signal:** The server machine logs `=== All servers running ===` when all four language servers have passed health checks. Wait for this before launching the load gen VM.
 - **Mesh server:** If `meshc` is not found in PATH, the Mesh server is skipped with a warning and only Go/Rust/Elixir are benchmarked.
 
@@ -170,7 +170,7 @@ The results table shows:
 
 | Column | Meaning |
 |--------|---------|
-| Req/s | Average requests per second across 3 timed runs (after 10s warmup) |
+| Req/s | Average requests per second across runs 2–5 (30s warmup + 5 timed runs, Run 1 excluded) |
 | p50 | Median response latency (50th percentile) |
 | p99 | 99th percentile response latency (long tail) |
 | Peak RSS | Maximum resident set size (MB) during the benchmark run |
@@ -187,7 +187,8 @@ Edit `run-benchmarks.sh` to change benchmark parameters:
 
 ```bash
 CONNECTIONS=100      # concurrent connections
-WARMUP_DURATION=10   # warmup seconds (results discarded)
+WARMUP_DURATION=30   # warmup seconds (results discarded)
 BENCH_DURATION=30    # timed run seconds
-RUNS=3               # number of timed runs to average
+RUNS=5               # timed runs (Run 1 excluded from average)
+DISCARD_RUNS=1       # first N timed runs excluded (JIT warmup)
 ```
