@@ -354,7 +354,7 @@ Note: Phase 119 (Regex) depends only on Phase 115 and may proceed in parallel wi
 | 116. Slot Pipe Operator | 2/2 | Complete    | 2026-02-25 | - |
 | 117. String Interpolation & Heredocs | 2/2 | Complete    | 2026-02-26 | - |
 | 118. Env Var Stdlib | 2/2 | Complete    | 2026-02-26 | - |
-| 119. Regular Expressions | 3/3 | Complete   | 2026-02-26 | - |
+| 119. Regular Expressions | 3/3 | Complete    | 2026-02-26 | - |
 | 120. Mesher Dogfooding | v12.0 | 0/? | Not started | - |
 | 121. Mesh Agent Skill | v12.0 | 0/? | Not started | - |
 | 122. Repository Reorganization | v12.0 | 0/? | Not started | - |
