@@ -27,10 +27,10 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /app
 
-# Build meshc (Mesh compiler)
+# Build meshc and mesh-rt (runtime static library needed by meshc at link time)
 COPY Cargo.toml Cargo.lock ./
 COPY compiler/ compiler/
-RUN cargo build --release -p meshc
+RUN cargo build --release -p meshc -p mesh-rt
 
 # Build Rust benchmark server
 COPY benchmarks/rust/ benchmarks/rust/
@@ -64,6 +64,12 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 
 # Copy pre-built meshc binary from builder stage
 COPY --from=builder /app/target/release/meshc /usr/local/bin/meshc
+
+# Copy mesh-rt static library so meshc can link Mesh programs at runtime
+# meshc finds it via CARGO_TARGET_DIR → $CARGO_TARGET_DIR/release/libmesh_rt.a
+RUN mkdir -p /app/target/release
+COPY --from=builder /app/target/release/libmesh_rt.a /app/target/release/libmesh_rt.a
+ENV CARGO_TARGET_DIR=/app/target
 
 WORKDIR /app
 
