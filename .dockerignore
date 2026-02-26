@@ -1,0 +1,8 @@
+target/
+.git/
+.planning/
+tests/
+mesher/mesher
+node_modules/
+*.log
+.DS_Store
