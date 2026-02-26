@@ -52,7 +52,7 @@ Mesh compiles directly to a standalone native binary—no virtual machine to ins
 ```bash
 git clone https://github.com/mesh-lang/mesh.git
 cd mesh
-cargo install --path crates/meshc
+cargo install --path compiler/meshc
 ```
 
 ### 2. Hello World

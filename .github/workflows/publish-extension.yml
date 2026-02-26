@@ -24,29 +24,29 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        working-directory: editors/vscode-mesh
+        working-directory: tools/editors/vscode-mesh
 
       - name: Compile TypeScript
         run: npm run compile
-        working-directory: editors/vscode-mesh
+        working-directory: tools/editors/vscode-mesh
 
       - name: Package VSIX
         id: package
         run: |
           npx vsce package --no-dependencies
           echo "vsix_path=$(ls *.vsix)" >> "$GITHUB_OUTPUT"
-        working-directory: editors/vscode-mesh
+        working-directory: tools/editors/vscode-mesh
 
       - name: Publish to Open VSX Registry
         uses: HaaLeo/publish-vscode-extension@v2
         continue-on-error: true
         with:
           pat: ${{ secrets.OPEN_VSX_TOKEN }}
-          extensionFile: editors/vscode-mesh/${{ steps.package.outputs.vsix_path }}
+          extensionFile: tools/editors/vscode-mesh/${{ steps.package.outputs.vsix_path }}
 
       - name: Publish to Visual Studio Marketplace
         uses: HaaLeo/publish-vscode-extension@v2
         with:
           pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
-          extensionFile: editors/vscode-mesh/${{ steps.package.outputs.vsix_path }}
+          extensionFile: tools/editors/vscode-mesh/${{ steps.package.outputs.vsix_path }}
