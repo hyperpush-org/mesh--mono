@@ -29,7 +29,7 @@ Hardware: Fly.io `performance-2x` (2 dedicated vCPU, 4 GB RAM), region `ord`.
 
 _This run used the old 3-run procedure; Run 1 is excluded. Future runs use 5 timed runs with Run 1 excluded, averaging runs 2–5._
 
-_p50/p99 for Mesh: hey latency percentiles not captured by log parser for the counted runs._
+_Mesh p50/p99 not recorded — original run predated the latency parser fix; will be populated on next benchmark run._
 
 ## /json endpoint — `GET /json` → `200 application/json {"message":"Hello, World!"}`
 
@@ -52,6 +52,42 @@ _p50/p99 for Mesh: hey latency percentiles not captured by log parser for the co
 | Elixir   | ~1.6 MB    |
 
 _RSS captured from `/proc/PID/status` (VmRSS) at server startup. During-load peak RSS logging via PID tracking had an issue with Mesh's process tree; values above are pre-load baselines._
+
+---
+
+## Isolated Peak Throughput Results
+
+Each language benchmarked in isolation on a dedicated `performance-2x` VM (2 vCPU, 4 GB RAM).
+Same protocol: 100 connections, 30s warmup + 5 × 30s timed runs, Run 1 excluded.
+
+_Results to be populated after isolated run — see `benchmarks/fly/run-benchmarks-isolated.sh`._
+
+### /text endpoint
+
+| Language | Run 1 (excl.) | Runs 2–5 avg (req/s) | p50 | p99 | Peak RSS |
+|----------|--------------|----------------------|-----|-----|----------|
+| Mesh     |              |                      |     |     |          |
+| Go       |              |                      |     |     |          |
+| Rust     |              |                      |     |     |          |
+| Elixir   |              |                      |     |     |          |
+
+### /json endpoint
+
+| Language | Run 1 (excl.) | Runs 2–5 avg (req/s) | p50 | p99 | Peak RSS |
+|----------|--------------|----------------------|-----|-----|----------|
+| Mesh     |              |                      |     |     |          |
+| Go       |              |                      |     |     |          |
+| Rust     |              |                      |     |     |          |
+| Elixir   |              |                      |     |     |          |
+
+### Comparison: Co-located vs Isolated
+
+| Language | Co-located /text | Isolated /text | Delta | Co-located /json | Isolated /json | Delta |
+|----------|-----------------|----------------|-------|-----------------|----------------|-------|
+| Mesh     | 19,718          |                |       | 20,483          |                |       |
+| Go       | 26,278          |                |       | 26,175          |                |       |
+| Rust     | 27,133          |                |       | 28,563          |                |       |
+| Elixir   | 11,842          |                |       | 11,481          |                |       |
 
 ---
 

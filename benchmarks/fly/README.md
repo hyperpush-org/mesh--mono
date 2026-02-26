@@ -156,6 +156,43 @@ Or destroy the entire app:
 fly apps destroy bench-mesh --yes
 ```
 
+## Isolated Peak Throughput Run
+
+The isolated benchmark runs each language server alone on the server VM, giving it exclusive access to both CPUs. The `run-benchmarks-isolated.sh` script handles the full machine lifecycle automatically — no manual server VM management required.
+
+### Steps
+
+1. Build and push the server image (same image as co-located — `start-server-isolated.sh` is used as the per-language entrypoint):
+
+```bash
+docker buildx build --platform linux/amd64 \
+  -f benchmarks/fly/Dockerfile.servers \
+  -t registry.fly.io/bench-mesh/servers:latest .
+fly auth docker
+docker push registry.fly.io/bench-mesh/servers:latest
+```
+
+2. Run the isolated orchestrator from the load gen VM (or via `fly ssh`):
+
+```bash
+SERVER_IMAGE=registry.fly.io/bench-mesh/servers:latest \
+APP=bench-mesh \
+REGION=ord \
+bash benchmarks/fly/run-benchmarks-isolated.sh
+```
+
+3. The script loops through Mesh → Go → Rust → Elixir. For each language it:
+   - Destroys any leftover `bench-isolated-server` machine from a prior run
+   - Launches a fresh `performance-2x` machine with `LANG=<language>` and `start-server-isolated.sh` as entrypoint
+   - Polls logs for the `SERVER_READY` signal, then polls HTTP for reachability
+   - Runs hey with the same parameters (100 connections, 30s warmup + 5 × 30s timed runs, Run 1 excluded)
+   - Collects peak RSS from the machine logs
+   - Stops and destroys the machine before the next language
+
+4. Results are printed as a summary table when all languages complete.
+
+> **Note:** Each language takes roughly 10 minutes (warmup + 5 timed runs). The full loop for all four languages takes approximately 40 minutes.
+
 ## Important Notes
 
 - **Same region for both VMs** gives ~0.1ms intra-datacenter latency via Fly.io's private WireGuard network

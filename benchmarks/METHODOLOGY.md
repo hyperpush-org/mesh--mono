@@ -107,6 +107,39 @@ All server and load generator code is in `benchmarks/` and `benchmarks/fly/`. Th
 
 ## Caveats
 
-- All 4 language servers run on the **same VM**. Under sustained load, they compete for the 2 dedicated CPUs and 4 GB RAM. Results reflect realistic co-located throughput, not isolated single-server maximum throughput.
+- All four language servers run co-located on the **same VM** (2 dedicated vCPUs, 4 GB RAM). Under sustained load they share these resources; reported throughput reflects realistic multi-tenant conditions, not the isolated peak each server could sustain alone.
 - Mesh's first timed run for `/text` was 4,041 req/s (JIT warmup). It is excluded from the reported average (19,718 req/s); subsequent runs stabilised at ~19,500–20,000 req/s.
-- p50/p99 for Mesh were not reliably captured — the hey latency percentile format was not matched by the log parser for the warmed-up runs.
+- Mesh p50/p99 are absent from the recorded results — the original run predated the latency parser fix in `fly/run-benchmarks.sh`; a fresh run will populate these values.
+
+## Isolated Peak Throughput
+
+The co-located results above reflect realistic multi-tenant conditions (all four servers sharing 2 vCPUs). To measure each server's actual peak throughput, a separate isolated run benchmarks each language alone on the server VM.
+
+### Procedure
+
+For each language (Mesh → Go → Rust → Elixir):
+
+1. Spin up a fresh `performance-2x` Fly.io server VM with `LANG=<language>` — only that language's server starts.
+2. Run the same benchmark protocol: 30s warmup + 5 × 30s timed runs, Run 1 excluded, runs 2–5 averaged.
+3. Stop and destroy the server VM before starting the next language.
+
+This gives each server exclusive access to both dedicated vCPUs and full 4 GB RAM, eliminating cross-language interference entirely.
+
+### Running Isolated Benchmarks
+
+```bash
+# Build and push the server image (same image as co-located — start-server-isolated.sh is the entrypoint)
+docker buildx build --platform linux/amd64 \
+  -f benchmarks/fly/Dockerfile.servers \
+  -t registry.fly.io/bench-mesh/servers:latest .
+fly auth docker
+docker push registry.fly.io/bench-mesh/servers:latest
+
+# On the load gen VM (or locally with fly ssh):
+SERVER_IMAGE=registry.fly.io/bench-mesh/servers:latest \
+APP=bench-mesh \
+REGION=ord \
+bash benchmarks/fly/run-benchmarks-isolated.sh
+```
+
+Results are printed to stdout in the same table format as the co-located runner.
