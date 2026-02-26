@@ -1,28 +1,25 @@
-FROM ubuntu:22.04 AS base
+# ── Stage 1: builder ─────────────────────────────────────────────────────────
+# Full LLVM 21 dev + Rust toolchain to compile meshc and the Rust bench server.
+# This stage is discarded after build; only binaries are copied to runtime.
+FROM ubuntu:22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     curl wget gnupg git build-essential pkg-config libssl-dev \
     libzstd-dev libffi-dev libxml2-dev \
-    erlang-dev elixir \
     && rm -rf /var/lib/apt/lists/*
 
-# Install LLVM 21 (required by meshc's inkwell/llvm-sys code generation backend)
+# Install LLVM 21 dev (required to compile meshc's llvm-sys / inkwell)
 RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - \
     && echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-21 main" \
        > /etc/apt/sources.list.d/llvm.list \
     && apt-get update \
     && apt-get install -y llvm-21-dev libpolly-21-dev clang-21 \
     && rm -rf /var/lib/apt/lists/*
-ENV LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
-# Use monolithic LLVM dylib so individual component libs (like Polly) need not be present
-ENV LLVM_LINK_LLVM_DYLIB=1
 
-# Install Go 1.21 from official release (apt gives 1.18 which is too old for some projects)
-RUN wget -q https://go.dev/dl/go1.21.6.linux-amd64.tar.gz -O /tmp/go.tar.gz \
-    && tar -C /usr/local -xzf /tmp/go.tar.gz \
-    && rm /tmp/go.tar.gz
-ENV PATH="/usr/local/go/bin:${PATH}"
+ENV LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
+# Link against the monolithic LLVM dylib so Polly/other component .a files are not needed
+ENV LLVM_LINK_LLVM_DYLIB=1
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
@@ -30,18 +27,51 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /app
 
-# Build Mesh runtime from source
-# Compiler source lives in compiler/ (workspace Cargo.toml at repo root)
+# Build meshc (Mesh compiler)
 COPY Cargo.toml Cargo.lock ./
 COPY compiler/ compiler/
-RUN cargo build --release -p meshc \
-    && cp target/release/meshc /usr/local/bin/meshc
+RUN cargo build --release -p meshc
 
-# Copy benchmark servers
-COPY benchmarks/ benchmarks/
-
-# Pre-build Rust benchmark server (so container startup is fast)
+# Build Rust benchmark server
+COPY benchmarks/rust/ benchmarks/rust/
 RUN cd benchmarks/rust && cargo build --release
+
+
+# ── Stage 2: runtime ─────────────────────────────────────────────────────────
+# Small image with only what's needed to RUN the 4 benchmark servers.
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+    curl wget gnupg git build-essential pkg-config \
+    libzstd1 libffi8 libxml2 libncurses6 \
+    erlang-dev elixir \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install LLVM 21 runtime shared library (libLLVM-21.so) — needed by meshc at runtime
+RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - \
+    && echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-21 main" \
+       > /etc/apt/sources.list.d/llvm.list \
+    && apt-get update \
+    && apt-get install -y libllvm21 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Go 1.21 (needed at runtime for go run .)
+RUN wget -q https://go.dev/dl/go1.21.6.linux-amd64.tar.gz -O /tmp/go.tar.gz \
+    && tar -C /usr/local -xzf /tmp/go.tar.gz \
+    && rm /tmp/go.tar.gz
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# Copy pre-built binaries from builder stage
+COPY --from=builder /app/target/release/meshc /usr/local/bin/meshc
+RUN mkdir -p /app/benchmarks/rust/target/release
+COPY --from=builder /app/benchmarks/rust/target/release/bench \
+    /app/benchmarks/rust/target/release/bench
+
+WORKDIR /app
+
+# Copy benchmark source files needed at runtime
+COPY benchmarks/ benchmarks/
 
 # Pre-fetch Elixir dependencies
 RUN cd benchmarks/elixir \
