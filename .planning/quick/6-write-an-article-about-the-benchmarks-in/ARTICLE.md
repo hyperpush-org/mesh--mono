@@ -4,16 +4,16 @@ Mesh is my language — statically typed, Hindley-Milner inference, actors as pr
 
 **THE NUMBERS**
 
-Two Fly.io `performance-2x` machines (2 dedicated vCPU, 4 GB RAM each) in the same region (Chicago). Load generator on a separate VM. 100 concurrent connections, HTTP/1.1, `hey` load tester. 30 s warmup + 5 timed runs of 30 s each, first run excluded, runs 2–5 averaged.
+Two Fly.io `performance-2x` machines (2 dedicated vCPU, 4 GB RAM each) in the same region (Chicago), each server on its own dedicated VM. Load generator on a separate VM. 100 concurrent connections, HTTP/1.1, `hey` load tester. 30 s warmup + 5 timed runs of 30 s each, first run excluded, runs 2–5 averaged.
 
 | Language | /text req/s | /json req/s |
 |----------|------------|------------|
-| **Mesh** | **19,718** | **20,483** |
-| Go       | 26,278     | 26,175     |
-| Rust     | 27,133     | 28,563     |
-| Elixir   | 11,842     | 11,481     |
+| **Mesh** | **29,108** | **28,955** |
+| Go       | 30,306     | 29,934     |
+| Rust     | 46,244     | 46,234     |
+| Elixir   | 12,441     | 12,733     |
 
-Latency (p50 / p99): Go 3.1 ms / 14.1 ms, Rust 2.8 ms / 14.5 ms, Elixir 7.8 ms / 19.7 ms. Mesh p50/p99 aren't recorded — the latency parser fix in the benchmark runner arrived after this run.
+Latency (p50 / p99): Mesh 2.77 ms / 16.94 ms, Go 2.95 ms / 8.51 ms, Rust 2.06 ms / 4.55 ms, Elixir 6.74 ms / 25.14 ms.
 
 **THE MESH SERVER**
 
@@ -39,17 +39,17 @@ Compiled to a native binary via meshc (LLVM 21 backend), linked against mesh-rt.
 
 **WHAT THE NUMBERS MEAN**
 
-Mesh beats Elixir by ~66% on throughput. That's the right comparison — both are actor-model languages. Both pay the cost of a supervision tree and scheduled processes. Mesh wins that fight handily.
+Mesh beats Elixir by ~134% on throughput. That's the right comparison — both are actor-model languages. Both pay the cost of a supervision tree and scheduled processes. Mesh wins that fight decisively.
 
-Go and Rust are ~35% ahead of Mesh. That's not a failure. Go's `net/http` and Rust's axum/tokio are raw thread-pool HTTP servers with no actor machinery at all. They take a request, dispatch it to a thread or task, return a response. That's it.
+Go is 4% ahead of Mesh. Rust is ~59% ahead. Go's `net/http` and Rust's axum/tokio are raw thread-pool HTTP servers with no actor machinery at all. They take a request, dispatch it to a thread or task, return a response. That's it.
 
-Mesh does more. Every HTTP request goes through the mesh-rt actor scheduler: process spawning, mailbox dispatch, the supervision tree. The same infrastructure that gives you fault isolation and location-transparent PIDs handles every request. The ~35% gap is the honest cost of that abstraction.
+Mesh does more. Every HTTP request goes through the mesh-rt actor scheduler: process spawning, mailbox dispatch, the supervision tree. The same infrastructure that gives you fault isolation and location-transparent PIDs handles every request. A 4% gap to Go is the honest cost of that abstraction.
 
 **THE ACTOR OVERHEAD**
 
 It's structural, not accidental. In Go, handling a request means calling a function. In Mesh, handling a request means creating a supervised process, routing a message through its mailbox, and collecting the reply. That machinery exists whether you use it or not.
 
-The payoff is that the same runtime that handles your HTTP server also handles your stateful actors, your supervision trees, your distributed PIDs. You get fault isolation and concurrency primitives for free. Go gives you goroutines. Rust gives you tokio tasks. Mesh gives you an Erlang-style actor runtime baked into the language itself.
+The payoff is that the same runtime that handles your HTTP server also handles your stateful actors, your supervision trees, your distributed PIDs. You get fault isolation and concurrency primitives for free. Go gives you goroutines. Rust gives you tokio tasks. Mesh gives you an Erlang-style actor runtime baked into the language itself — at 4% overhead vs Go.
 
 **MEMORY**
 
