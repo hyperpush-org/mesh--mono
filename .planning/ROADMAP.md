@@ -255,11 +255,11 @@ Plans:
   2. User can write `pub type UserId = Int` to export a type alias for use in other modules
   3. Compiler emits a clear error when a type alias references a type name that does not exist
   4. Type aliases are transparent to the type checker — values of the alias type unify with the aliased type without explicit conversion
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 127-01: Parser and AST for type alias declarations
-- [ ] 127-02: Type checker resolution and cross-module export
+- [ ] 127-01-PLAN.md — Fix pub type parsing, AST visibility, ALIAS-04 undefined type error, E2E tests
+- [ ] 127-02-PLAN.md — Cross-module pub type export (ExportedSymbols, ModuleExports, import pre-registration)
 
 ### Phase 128: TryFrom/TryInto Traits
 **Goal**: Users can implement fallible conversions between types using the TryFrom/TryInto trait protocol
