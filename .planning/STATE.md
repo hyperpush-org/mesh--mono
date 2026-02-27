@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Language Completeness
 status: unknown
-last_updated: "2026-02-27T20:52:44.372Z"
+last_updated: "2026-02-27T21:42:32.733Z"
 progress:
   total_phases: 124
   completed_phases: 124
-  total_plans: 323
-  completed_plans: 323
+  total_plans: 324
+  completed_plans: 324
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-27)
 
 **Core value:** Expressive, readable concurrency -- writing concurrent programs should feel as natural and clean as writing sequential code, with the safety net of supervision and fault tolerance built into the language.
-**Current focus:** v13.0 Language Completeness — Phase 127 complete, Phase 128 (TryFrom/TryInto) next
+**Current focus:** v13.0 Language Completeness — Phase 127 complete (incl. ALIAS-03 E2E), Phase 128 (TryFrom/TryInto) next
 
 ## Current Position
 
 Phase: 127 of 131 (Type Aliases) — Complete
-Plan: 02 complete — Phase 128 next
+Plan: 03 complete — Phase 128 next
 Status: In Progress
-Last activity: 2026-02-27 — 127-02 complete: pub type cross-module export/import, ALIAS-03 done
+Last activity: 2026-02-27 — 127-03 complete: cross-module pub type E2E, ALIAS-03 fully verified with compile_multifile_and_run
 
-Progress: [████░░░░░░] 36% (4/11 plans)
+Progress: [████░░░░░░] 45% (5/11 plans)
 
 ## Performance Metrics
 
@@ -41,7 +41,7 @@ Progress: [████░░░░░░] 36% (4/11 plans)
 | Phase | Plans | Status |
 |-------|-------|--------|
 | 126. Multi-line Pipe | 2 | Complete (2/2) |
-| 127. Type Aliases | 2 | Complete (2/2) |
+| 127. Type Aliases | 3 | Complete (3/3) |
 | 128. TryFrom/TryInto | 2 | Not started |
 | 129. Map.collect + Quality | 2 | Not started |
 | 130. Mesher Dogfooding | 1 | Not started |
@@ -55,6 +55,7 @@ Progress: [████░░░░░░] 36% (4/11 plans)
 | 126 | P02 | 3m | 2 | 3 |
 | 127 | P01 | 18m | 2 | 9 |
 | 127 | P02 | 12m | 2 | 5 |
+| 127 | P03 | 20m | 1 | 3 |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Recent decisions affecting current work:
 - [Phase 127-01]: target_type_name() returns None for complex types — only validates simple single-IDENT alias targets to avoid false positives
 - [Phase 127]: Used single-file fallback form for E2E pub type alias test since compile_and_run writes one main.mpl file
 - [Phase 127]: Made TypeRegistry::register_alias pub to allow pre-registration from infer_with_imports
+- [Phase 127]: Added DOT to collect_annotation_tokens and IDENT.DOT.IDENT joining in parse_type_tokens to support qualified type annotations like Types.UserId
+- [Phase 127]: Register imported aliases under qualified name (Types.UserId) as well as short name (UserId) during infer_with_imports pre-registration
+- [Phase 127]: Use fn main() wrapper in cross-module fixtures — all compile_multifile_and_run tests require a main function
 
 ### Pending Todos
 
@@ -86,5 +90,5 @@ None. v12.0 fully shipped. v13.0 roadmap created with 100% requirement coverage 
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 127-02-PLAN.md — pub type cross-module export/import, ALIAS-03 complete
+Stopped at: Completed 127-03-PLAN.md — cross-module pub type E2E coverage, ALIAS-03 fully verified with compile_multifile_and_run
 Resume file: None
