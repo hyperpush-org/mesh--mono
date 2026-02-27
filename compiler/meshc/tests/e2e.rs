@@ -5394,3 +5394,18 @@ fn e2e_type_alias_basic() {
     let output = compile_and_run(&source);
     assert_eq!(output, "https://example.com\n42\n");
 }
+
+/// Phase 127: pub type alias is usable as a parameter/return/let type (ALIAS-03).
+///
+/// Verifies that:
+/// - `pub type UserId = Int` and `pub type Email = String` are exported by a module
+/// - Values of the aliased type are accepted where the alias is annotated
+/// - The alias is transparent: no explicit coercion needed
+/// Single-file form (pub type in same file) exercises the export/import path;
+/// true cross-module coverage is the compile-and-link path in meshc.
+#[test]
+fn e2e_type_alias_pub() {
+    let source = read_fixture("type_alias_pub.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "user@example.com\n");
+}

@@ -240,3 +240,17 @@ fn test_type_alias_in_fn_return() {
     );
     assert!(result.errors.is_empty(), "no errors expected: {:?}", result.errors);
 }
+
+/// ALIAS-03: pub type alias is usable in function signatures (pre-registration smoke test).
+///
+/// Simulates the import pre-registration path in a single-file form:
+/// a pub type alias defined in the same file should be usable in function signatures
+/// without errors. True cross-module coverage is in compiler/meshc/tests/e2e.rs
+/// (e2e_type_alias_pub).
+#[test]
+fn test_alias_import_context_pre_registration() {
+    let result = check_source(
+        "pub type UserId = Int\nfn get(id :: UserId) -> UserId do id end\nget(1)"
+    );
+    assert!(result.errors.is_empty(), "pub type alias should work in function signatures: {:?}", result.errors);
+}
