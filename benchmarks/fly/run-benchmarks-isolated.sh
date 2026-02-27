@@ -54,7 +54,7 @@ for lang in Mesh Go Rust Elixir; do
   if [ -n "$existing_id" ]; then
     echo "Found existing machine $existing_id ($machine_name) — destroying before reuse..."
     fly machine stop "$existing_id" --app "$APP" 2>/dev/null || true
-    fly machine destroy "$existing_id" --app "$APP" --yes 2>/dev/null || true
+    fly machine destroy "$existing_id" --app "$APP" --force 2>/dev/null || true
     sleep 3
   fi
 
@@ -81,18 +81,25 @@ for lang in Mesh Go Rust Elixir; do
   # (regex on raw output would match image IDs first, giving the wrong result)
   machine_id=$(echo "$machine_output" | grep "Machine ID:" | awk '{print $NF}' | head -1 || true)
 
-  # Use internal DNS hostname for stable addressing
-  SERVER_HOST="${machine_name}.vm.${APP}.internal"
+  # Extract IPv6 address from fly machine run output ("connect via the following private ip")
+  # Internal DNS (*.vm.app.internal) has propagation delays inside Fly machines — use direct IPv6 instead.
+  server_ipv6=$(echo "$machine_output" | grep -A1 "private ip" | grep -oE 'fdaa:[0-9a-f:]+' | head -1 || true)
+  if [ -n "$server_ipv6" ]; then
+    SERVER_HOST="[$server_ipv6]"
+  else
+    # Fallback to internal DNS if IPv6 extraction failed
+    SERVER_HOST="${machine_name}.vm.${APP}.internal"
+  fi
 
   echo "Machine ID: ${machine_id:-unknown}"
   echo "Server host: $SERVER_HOST"
 
   # Wait for HTTP reachability
-  # (Skipping log-based SERVER_READY: fly logs streams live only, missing signals emitted before poll starts)
+  # (Using direct IPv6 address to avoid internal DNS propagation delays inside Fly machines)
   echo "Polling $SERVER_HOST:$port for HTTP reachability..."
   http_ready=false
-  for attempt in $(seq 1 60); do
-    if curl -sf "http://$SERVER_HOST:$port/text" > /dev/null 2>&1; then
+  for attempt in $(seq 1 90); do
+    if curl -sf -6 "http://$SERVER_HOST:$port/text" > /dev/null 2>&1; then
       http_ready=true
       echo "$lang server is reachable at $SERVER_HOST:$port"
       break
@@ -101,7 +108,7 @@ for lang in Mesh Go Rust Elixir; do
   done
 
   if [ "$http_ready" != "true" ]; then
-    echo "WARNING: $lang server not reachable after 120s — skipping" >&2
+    echo "WARNING: $lang server not reachable after 180s — skipping" >&2
     for ep in text json; do
       RESULT_RPS["${lang}_${ep}"]="N/A"
       RESULT_P50["${lang}_${ep}"]="N/A"
@@ -110,7 +117,7 @@ for lang in Mesh Go Rust Elixir; do
     RESULT_RSS["$lang"]="N/A"
     if [ -n "$machine_id" ]; then
       fly machine stop "$machine_id" --app "$APP" 2>/dev/null || true
-      fly machine destroy "$machine_id" --app "$APP" --yes 2>/dev/null || true
+      fly machine destroy "$machine_id" --app "$APP" --force 2>/dev/null || true
     fi
     continue
   fi
@@ -133,9 +140,15 @@ for lang in Mesh Go Rust Elixir; do
 
     for i in $(seq 1 $RUNS); do
       output=$(run_hey "$url" "$BENCH_DURATION")
+      # DEBUG: show latency lines verbatim (with hidden chars) on first good run
+      if [ "$i" -eq 2 ] && [ "$endpoint" = "text" ] && [ "$lang" = "Mesh" ]; then
+        echo "=== LATENCY DEBUG (cat -A) ==="
+        echo "$output" | grep -i "latency\|% in\|percentile" | cat -A
+        echo "=== END LATENCY DEBUG ==="
+      fi
       rps=$(echo "$output" | grep "Requests/sec:" | awk '{print $2}' | tr -d '[:space:]')
-      p50=$(echo "$output" | grep -E "^\s+50% in" | awk '{print $3, $4}')
-      p99=$(echo "$output" | grep -E "^\s+99% in" | awk '{print $3, $4}')
+      p50=$(echo "$output" | awk '/50% in/ {print $3, $4}')
+      p99=$(echo "$output" | awk '/99% in/ {print $3, $4}')
       if [ "$i" -le "$DISCARD_RUNS" ]; then
         echo "    Run $i: ${rps:-N/A} req/s  p50=${p50:-N/A}  p99=${p99:-N/A}  [warmup — excluded]"
       else
@@ -177,13 +190,13 @@ for lang in Mesh Go Rust Elixir; do
   echo "  Stopping and destroying machine ${machine_id:-$machine_name}..."
   if [ -n "$machine_id" ]; then
     fly machine stop "$machine_id" --app "$APP" 2>/dev/null || true
-    fly machine destroy "$machine_id" --app "$APP" --yes 2>/dev/null || true
+    fly machine destroy "$machine_id" --app "$APP" --force 2>/dev/null || true
   else
     stop_id=$(fly machine list --app "$APP" 2>/dev/null \
       | awk -v name="$machine_name" '$0 ~ name {print $1}' | head -1 || true)
     if [ -n "$stop_id" ]; then
       fly machine stop "$stop_id" --app "$APP" 2>/dev/null || true
-      fly machine destroy "$stop_id" --app "$APP" --yes 2>/dev/null || true
+      fly machine destroy "$stop_id" --app "$APP" --force 2>/dev/null || true
     fi
   fi
   echo "  Machine destroyed. Moving to next language."

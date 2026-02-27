@@ -84,8 +84,8 @@ for lang in Mesh Go Rust Elixir; do
       # hey outputs: "  Requests/sec: NNNN.NN" and "  50% in X.XXXX secs"
       output=$(run_hey "$url" "$BENCH_DURATION")
       rps=$(echo "$output" | grep "Requests/sec:" | awk '{print $2}' | tr -d '[:space:]')
-      p50=$(echo "$output" | grep "^ *50% in" | awk '{print $3, $4}')
-      p99=$(echo "$output" | grep "^ *99% in" | awk '{print $3, $4}')
+      p50=$(echo "$output" | awk '/50% in/ {print $3, $4}')
+      p99=$(echo "$output" | awk '/99% in/ {print $3, $4}')
       if [ "$i" -le "$DISCARD_RUNS" ]; then
         echo "    Run $i: ${rps:-N/A} req/s  p50=${p50:-N/A}  p99=${p99:-N/A}  [warmup — excluded]"
       else
