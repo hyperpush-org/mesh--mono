@@ -42,6 +42,7 @@ description: Mesh programming language — use for any question about Mesh synta
 2. HTTP/WebSocket: built-in `HTTP.router()`, `HTTP.route()`, `HTTP.serve()`, `HTTP.use()` for middleware.
 3. Database: Sqlite and PostgreSQL raw clients plus an ORM query builder (deriving Row, schema DSL).
 4. Stdlib: List, Map, Set, Range, Queue, Iter (pipeline), String, Json, IO, Env, Regex modules.
+5. Concurrency Utilities: Job module for async task spawning/awaiting; service blocks for stateful OTP-style gen_server processes.
 
 ## Available Sub-Skills
 1. `skills/syntax` — Functions, closures, pipe operators (|> and |N>), operators, control flow
@@ -49,7 +50,7 @@ description: Mesh programming language — use for any question about Mesh synta
 3. `skills/pattern-matching` — case/match, pattern binding, destructuring, guards
 4. `skills/error-handling` — Result, Option, ? operator, chaining, error conversion
 5. `skills/traits` — Interfaces, impl blocks, deriving (Json, Row, Display, Eq, Ord), associated types
-6. `skills/actors` — Actor blocks, spawn, send, receive, typed PIDs, linking, preemption
+6. `skills/actors` — Actor blocks, spawn, send, receive, typed PIDs, services (call/cast), Job.async/await
 7. `skills/supervisors` — Supervisor blocks, strategies, child specs, restart policies
 8. `skills/collections` — List, Map, Set, Range, Queue, Iter pipelines, map/filter/reduce
 9. `skills/strings` — String interpolation, heredocs, String stdlib, Env vars, Regex

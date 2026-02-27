@@ -19,14 +19,36 @@ Rules:
 11. `List.zip(list1, list2)` — pairs elements into `List<(A, B)>`.
 12. `List.enumerate(list)` — wraps each element with its index `(index, value)`.
 13. `List.flat_map(list, fn)` — map then flatten (fn returns a List).
+14. `List.get(list, index)` — returns element at zero-based index (panics if out of bounds).
+15. `List.length(list)` — returns the number of elements as Int.
+16. `list1 ++ list2` — concatenates two lists into a new list (the `++` infix operator).
 
 Code example (from tests/e2e/stdlib_list_pipe_chain.mpl):
 ```mesh
+# Note: bare map/filter/reduce are global aliases — prefer module-qualified List.map,
+# List.filter, List.reduce in new code for clarity.
 let list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 let doubled = map(list, fn(x) -> x * 2 end)
 let filtered = filter(doubled, fn(x) -> x > 10 end)
 let sum = reduce(filtered, 0, fn(acc, x) -> acc + x end)
 println("#{sum}")
+```
+
+Code example — indexing and concat (from tests/e2e/list_append_string.mpl and tests/e2e/list_concat.mpl):
+```mesh
+# Indexing and length:
+let ss = ["hello"]
+let ss = List.append(ss, "world")
+let len = List.length(ss)       # 2
+let second = List.get(ss, 1)    # "world"
+println("${len}")
+println(second)
+
+# List concatenation with ++:
+let a = [1, 2]
+let b = [3, 4]
+let combined = a ++ b           # [1, 2, 3, 4]
+let first = List.get(combined, 0)  # 1
 ```
 
 ## Map<K, V>
