@@ -240,11 +240,11 @@ See milestones/v12.0-ROADMAP.md for full phase details.
   2. User can place `|>` or `|N>` at the start of a continuation line and the parser accepts it as a continuation
   3. A multi-line pipe chain produces exactly the same compiled output as its single-line equivalent
   4. All existing single-line pipe chains continue to compile and run without change
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 126-01: Parser support for multi-line pipe continuation
-- [ ] 126-02: Semantic verification and regression tests
+- [ ] 126-01-PLAN.md — Parser: trailing-pipe continuation + snapshot tests (TDD)
+- [ ] 126-02-PLAN.md — E2E tests for all pipe forms and PIPE-02 equivalence
 
 ### Phase 127: Type Aliases
 **Goal**: Users can declare named aliases for existing types to improve code readability
