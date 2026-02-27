@@ -1590,6 +1590,32 @@ fn register_compiler_known_traits(registry: &mut TraitRegistry) {
         associated_types: vec![],
     });
 
+    // ── TryFrom<T> trait ────────────────────────────────────────────────
+    registry.register_trait(TraitDef {
+        name: "TryFrom".to_string(),
+        methods: vec![TraitMethodSig {
+            name: "try_from".to_string(),
+            has_self: false,        // static method like From.from()
+            param_count: 1,
+            return_type: None,      // Result<Self, E> -- resolved per impl
+            has_default_body: false,
+        }],
+        associated_types: vec![],
+    });
+
+    // ── TryInto<T> trait ────────────────────────────────────────────────
+    registry.register_trait(TraitDef {
+        name: "TryInto".to_string(),
+        methods: vec![TraitMethodSig {
+            name: "try_into".to_string(),
+            has_self: true,         // instance method like Into.into()
+            param_count: 0,
+            return_type: None,      // Result<T, E> -- the target type wrapped in Result
+            has_default_body: false,
+        }],
+        associated_types: vec![],
+    });
+
     // ── Built-in From impls ────────────────────────────────────────
     // Each registers a From impl with trait_type_args; synthetic Into
     // generation in register_impl automatically creates corresponding Into impls.
