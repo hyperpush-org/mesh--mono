@@ -58,6 +58,10 @@ Requirements for v12.0 Language Ergonomics & Open Source Readiness. Each maps to
 - [x] **BENCH-05**: Benchmarks measure throughput (req/s), p50/p99 latency, and memory usage
 - [x] **BENCH-06**: Methodology documented (tool, hardware, concurrency settings) and results published in repo
 
+## Documentation Requirements (Phase 125)
+
+- [ ] **DOC-01**: All public-facing documentation (README.md, landing page, docs pages) accurately reflects v12.0 features using passing e2e tests as source of truth — correct version badge, isolated benchmark numbers, #{} interpolation, slot pipe |N>, heredocs, regex, and env var stdlib documented.
+
 ## Future Requirements
 
 ### Language Features (v13.0+)

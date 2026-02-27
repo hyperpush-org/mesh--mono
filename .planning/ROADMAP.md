@@ -388,3 +388,15 @@ Note: Phase 119 (Regex) depends only on Phase 115 and may proceed in parallel wi
 
 Plans:
 - [ ] 124-01-PLAN.md — Seed migration: default org, project, and API key (mshr_devdefaultapikey000000000000000000000000000)
+
+### Phase 125: update documentation such that it is up to date in the main read me, landing page, documents page. Use the mesh test's that are all passing as the source of truth.
+
+**Goal:** Update all public-facing documentation (README, landing page, docs pages) to be accurate and current for v12.0, using the passing mesh tests as the authoritative source of truth.
+**Requirements**: DOC-01
+**Depends on:** Phase 124
+**Plans:** 3 plans
+
+Plans:
+- [ ] 125-01-PLAN.md — Update README.md: version badge, isolated benchmark numbers, project status, code examples
+- [ ] 125-02-PLAN.md — Update landing page: config.mts version, HeroSection.vue, FeatureShowcase.vue code examples
+- [ ] 125-03-PLAN.md — Update docs pages: cheatsheet #{} + slot pipe, getting-started + language-basics interpolation notes
