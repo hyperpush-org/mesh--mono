@@ -12,7 +12,8 @@ A quick reference for Mesh syntax. For details, see the full guides linked in ea
 |--------|---------|
 | Variable binding | `let x = 42` |
 | Type annotation | `x :: Int` |
-| String interpolation | `"Hello, ${name}!"` |
+| String interpolation | `"Hello, #{name}!"` or `"Hello, ${name}!"` |
+| Heredoc string | `"""multiline #{expr} content"""` |
 | Comment | `# this is a comment` |
 | Print | `println("hello")` |
 
@@ -22,13 +23,41 @@ A quick reference for Mesh syntax. For details, see the full guides linked in ea
 |------|---------|
 | `Int` | `42`, `0`, `-5` |
 | `Float` | `3.14`, `0.5` |
-| `String` | `"hello"`, `"${x}"` |
+| `String` | `"hello"`, `"#{x}"` |
 | `Bool` | `true`, `false` |
 | `List<T>` | `[1, 2, 3]` |
 | `Map<K, V>` | `%{"key" => "value"}` |
 | `Option<T>` | `Some(42)`, `None` (shorthand: `Int?`) |
 | `Result<T, E>` | `Ok(42)`, `Err("fail")` (shorthand: `Int!String`) |
 | `Fun(A) -> B` | `Fun(Int) -> String` |
+
+## String Features
+
+```mesh
+# Hash-brace interpolation (v12.0, preferred)
+let name = "World"
+println("Hello, #{name}!")
+println("Expr: #{count * 2 + 1}")
+
+# Dollar-brace interpolation (also valid)
+println("Hello, ${name}!")
+
+# Heredoc strings (multiline, no escaping needed)
+let body = """
+  {"id": #{id}, "name": "#{name}"}
+  """
+
+# Regex literals
+let rx = ~r/\d+/
+let rx_flags = ~r/[a-z]+/i     # i, m, s flags
+let matched = Regex.is_match(rx, "hello123")
+
+# Environment variables
+let host = Env.get("HOST", "localhost")
+let port = Env.get_int("PORT", 8080)
+```
+
+See [Language Basics](/docs/language-basics/) for details.
 
 ## Functions
 
@@ -52,6 +81,9 @@ let double = fn(x :: Int) -> x * 2 end
 
 # Pipe operator
 let result = 5 |> double |> add_one
+
+# Slot pipe: route value to argument position N
+let result = 10 |2> add(1)   # = add(1, 10) = 11
 ```
 
 See [Language Basics](/docs/language-basics/) for details.
@@ -80,7 +112,7 @@ end
 
 # For with range
 for i in 0..5 do
-  println("${i}")
+  println("#{i}")
 end
 
 # While loop
@@ -255,7 +287,7 @@ end
 # Actor definition
 actor worker() do
   receive do
-    msg -> println("got: ${msg}")
+    msg -> println("got: #{msg}")
   end
 end
 
@@ -311,7 +343,9 @@ let n = length("test")
 | Arithmetic | `+`, `-`, `*`, `/`, `%` |
 | Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` |
 | Logical | `and`, `or`, `not` |
-| Pipe | `|>` |
-| String concat | `++` |
+| Pipe | `\|>` |
+| Slot pipe | `\|N>` (e.g. `\|2>`) |
+| String concat | `<>` |
+| List concat | `++` |
 | Error propagation | `?` |
 | Range | `..` |
