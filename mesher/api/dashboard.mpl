@@ -50,9 +50,13 @@ end
 # tag_value may be empty if COALESCE returns empty string for null tags.
 fn tag_entry_to_json(row) -> String do
   let tag_value = Map.get(row, "tag_value")
-  let count = Map.get(row, "count")
-  let value_str = if String.length(tag_value) == 0 do "null" else "\"" <> tag_value <> "\"" end
-  "{\"value\":" <> value_str <> ",\"count\":" <> count <> "}"
+  let value = if String.length(tag_value) == 0 do None else Some(tag_value) end
+  let count_opt = String.to_int(Map.get(row, "count"))
+  let count = case count_opt do
+    Some(n) -> n
+    None -> 0
+  end
+  json { value: value, count: count }
 end
 
 # Serialize timeline event row to JSON.

@@ -31,9 +31,9 @@ fn api_key_to_json(row) -> String do
   let key_value = Map.get(row, "key_value")
   let label = Map.get(row, "label")
   let created_at = Map.get(row, "created_at")
-  let revoked_at = Map.get(row, "revoked_at")
-  let revoked_str = if String.length(revoked_at) == 0 do "null" else "\"" <> revoked_at <> "\"" end
-  "{\"id\":\"" <> id <> "\",\"project_id\":\"" <> project_id <> "\",\"key_value\":\"" <> key_value <> "\",\"label\":\"" <> label <> "\",\"created_at\":\"" <> created_at <> "\",\"revoked_at\":" <> revoked_str <> "}"
+  let revoked_at_raw = Map.get(row, "revoked_at")
+  let revoked_at = if String.length(revoked_at_raw) == 0 do None else Some(revoked_at_raw) end
+  json { id: id, project_id: project_id, key_value: key_value, label: label, created_at: created_at, revoked_at: revoked_at }
 end
 
 
