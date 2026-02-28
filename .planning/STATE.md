@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Ecosystem & Standard Library
 status: unknown
-last_updated: "2026-02-28T19:34:14.218Z"
+last_updated: "2026-02-28T19:47:10Z"
 progress:
   total_phases: 125
-  completed_phases: 124
+  completed_phases: 125
   total_plans: 325
-  completed_plans: 324
+  completed_plans: 325
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Expressive, readable concurrency -- writing concurrent programs should feel as natural and clean as writing sequential code, with the safety net of supervision and fault tolerance built into the language.
-**Current focus:** v14.0 Phase 137 — HTTP Client Improvements (Plan 01 complete)
+**Current focus:** v14.0 Phase 138 — Testing Framework (next phase)
 
 ## Current Position
 
-Phase: 137 of 140 (HTTP Client Improvements)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-28 — Phase 137 Plan 01 complete: Http builder API (Http.build/header/body/timeout/query/json/send), ureq 3.2.0 upgrade, HttpResponse struct, 5-point compiler registration, e2e test passes
+Phase: 137 of 140 (HTTP Client Improvements) — COMPLETE
+Plan: 2 of 2 in current phase — COMPLETE
+Status: Phase Complete, ready for Phase 138
+Last activity: 2026-02-28 — Phase 137 Plan 02 complete: Http streaming (OS-thread-per-stream, Arc<AtomicBool> cancel handle), keep-alive client (Http.client/send_with/client_close), all 6 functions registered in 5 compiler points, e2e tests pass
 
-Progress: [████░░░░░░] 31%  (4/13 plans)
+Progress: [█████░░░░░] 38%  (5/13 plans)
 
 ## Performance Metrics
 
@@ -42,7 +42,7 @@ Progress: [████░░░░░░] 31%  (4/13 plans)
 |-------|-------|--------|
 | 135. Encoding & Crypto Stdlib | 2 | Complete |
 | 136. DateTime Stdlib | 2 | Complete |
-| 137. HTTP Client Improvements | 2 | In Progress (1/2 done) |
+| 137. HTTP Client Improvements | 2 | Complete |
 | 138. Testing Framework | 3 | Not started |
 | 139. Package Manifest & meshpkg CLI | 2 | Not started |
 | 140. Package Registry Backend & Website | 2 | Not started |
@@ -78,6 +78,11 @@ Recent decisions affecting current work:
 - [Phase 137]: Atom type for Http.build method param — :get/:post literals type-check correctly; same pattern as DateTime.add :day/:hour
 - [Phase 137]: MeshRequest handle is u64 ABI (MirType::Int) via Box::into_raw — same as SqliteConn pattern
 - [Phase 137]: http_status_as_error(false) set at Agent level via Agent::config_builder() — ureq 3 removed per-request setting
+- [Phase 137 Plan 02]: OS-thread-per-stream mandatory — std::thread::spawn for Http.stream to avoid blocking M:N scheduler; same WS reader pattern from v4.0
+- [Phase 137 Plan 02]: Peek-without-drop for cancel — mesh_http_cancel reads Arc via raw reference (not Box::from_raw) to avoid dropping Arc while stream thread holds its clone
+- [Phase 137 Plan 02]: usize bridge for *mut u8 across thread boundary — cast to usize before spawn, cast back inside closure; same pattern as ws/server.rs
+- [Phase 137 Plan 02]: :continue is a Mesh reserved keyword (loop control) — fixture closures return "ok" string instead; only "stop" is checked by is_stop_atom
+- [Phase 137 Plan 02]: Multi-statement closure bodies need 'fn param do ... end' syntax, not arrow form 'fn param -> ...'
 
 ### Pending Todos
 
@@ -92,5 +97,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Phase 137 Plan 01 complete — Http builder API + ureq 3 upgrade + e2e test passes; ready for Phase 137 Plan 02 (streaming + keep-alive)
+Stopped at: Phase 137 complete — Plan 02 done: Http streaming, cancel handle, keep-alive client through 5 compiler points; ready for Phase 138 (Testing Framework)
 Resume file: None

@@ -42,8 +42,8 @@
 - [x] **HTTP-03**: User can set the request body via `Http.body(req, s)` returning an updated Request
 - [x] **HTTP-04**: User can set a per-request timeout via `Http.timeout(req, ms)` returning an updated Request
 - [x] **HTTP-05**: User can execute an HTTP request via `Http.send(req)` returning `Result<Response, String>` with status, body, and headers
-- [ ] **HTTP-06**: User can stream an HTTP response chunk-by-chunk via `Http.stream(req, fn chunk -> ... end)` without buffering the full body in memory
-- [ ] **HTTP-07**: User can create a keep-alive HTTP client handle via `Http.client()` and reuse connections via `Http.send_with(client, req)`
+- [x] **HTTP-06**: User can stream an HTTP response chunk-by-chunk via `Http.stream(req, fn chunk -> ... end)` without buffering the full body in memory
+- [x] **HTTP-07**: User can create a keep-alive HTTP client handle via `Http.client()` and reuse connections via `Http.send_with(client, req)`
 
 ### Testing Framework (TEST)
 
@@ -139,8 +139,8 @@ Which phases cover which requirements.
 | HTTP-03 | Phase 137 | Complete |
 | HTTP-04 | Phase 137 | Complete |
 | HTTP-05 | Phase 137 | Complete |
-| HTTP-06 | Phase 137 | Pending |
-| HTTP-07 | Phase 137 | Pending |
+| HTTP-06 | Phase 137 | Complete |
+| HTTP-07 | Phase 137 | Complete |
 | TEST-01 | Phase 138 | Pending |
 | TEST-02 | Phase 138 | Pending |
 | TEST-03 | Phase 138 | Pending |
