@@ -482,6 +482,54 @@ end
 
 Use `|2>` to insert the piped value as the second argument, `|3>` for the third, and so on. Slot pipes can be chained with regular pipes.
 
+### Multi-Line Pipes
+
+Long pipe chains can be split across lines using either the **trailing form** (`|>` at the end of a line) or the **leading form** (`|>` at the start of the next line):
+
+```mesh
+fn double(x :: Int) -> Int do
+  x * 2
+end
+
+fn add_one(x :: Int) -> Int do
+  x + 1
+end
+
+fn negate(x :: Int) -> Int do
+  -x
+end
+
+fn main() do
+  # Trailing form: |> at the end of each line
+  let result = 5 |>
+    double |>
+    add_one |>
+    negate
+
+  # Leading form: |> at the start of continuation lines
+  let result2 = 5
+    |> double
+    |> add_one
+    |> negate
+
+  println("#{result}")
+  println("#{result2}")
+end
+```
+
+Both forms produce identical compiled output to their single-line equivalents -- only formatting differs. Choose whichever reads more clearly for your use case.
+
+Multi-line pipes are especially useful for long chains where all steps would not fit on a single line, such as building an HTTP router:
+
+```mesh
+fn main() do
+  let router = HTTP.router()
+    |> HTTP.on_post("/api/events", handle_event)
+    |> HTTP.on_get("/api/issues", handle_issues)
+    |> HTTP.on_get("/api/dashboard", handle_dashboard)
+end
+```
+
 ## Error Handling
 
 Mesh uses result types for error handling. A function that can fail returns `T!E`, where `T` is the success type and `E` is the error type:
@@ -626,6 +674,56 @@ end
 ```
 
 Note that `Map.put` returns a new map -- all collections in Mesh are immutable.
+
+## Type Aliases
+
+A type alias creates a new name for an existing type. The alias is **transparent** -- the compiler treats the alias and the original type as identical, so no conversion is needed:
+
+```mesh
+type Url = String
+type Count = Int
+
+fn fetch(url :: Url) -> String do
+  # url is transparently a String -- no conversion needed
+  url
+end
+
+fn main() do
+  let u :: Url = "https://example.com"
+  println(fetch(u))
+end
+```
+
+Type aliases improve code readability by giving domain-meaningful names to primitive types without introducing any runtime overhead.
+
+### Exported Type Aliases
+
+Use `pub type` to export a type alias so other modules can import and use it:
+
+```mesh
+# types/user.mpl
+pub type UserId = Int
+pub type Email = String
+```
+
+```mesh
+# main.mpl
+from Types.User import UserId, Email
+
+fn create_user(id :: UserId, email :: Email) -> String do
+  "user-#{id}: #{email}"
+end
+
+fn main() do
+  println(create_user(1, "alice@example.com"))
+end
+```
+
+Because aliases are transparent, a `UserId` value satisfies any `Int` constraint and an `Email` value satisfies any `String` constraint.
+
+> **Note:** Type aliases are not generic in v13.0. Parameterized aliases like `type Pair<T> = {T, T}` are not yet supported.
+
+See [Type System](/docs/type-system/) for full trait and type documentation.
 
 ## What's Next?
 
