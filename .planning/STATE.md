@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Language Completeness
 status: unknown
-last_updated: "2026-02-27T23:12:15.946Z"
+last_updated: "2026-02-28T00:36:10.583Z"
 progress:
-  total_phases: 125
+  total_phases: 126
   completed_phases: 125
-  total_plans: 326
-  completed_plans: 326
+  total_plans: 328
+  completed_plans: 327
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-27)
 
 **Core value:** Expressive, readable concurrency -- writing concurrent programs should feel as natural and clean as writing sequential code, with the safety net of supervision and fault tolerance built into the language.
-**Current focus:** v13.0 Language Completeness — Phase 128 complete (TryFrom/TryInto full end-to-end), Phase 129 (Map.collect + Quality) next
+**Current focus:** v13.0 Language Completeness — Phase 129 Plan 01 complete (Map.collect zip fix), Phase 129-02 next
 
 ## Current Position
 
-Phase: 128 of 131 (TryFrom/TryInto Traits) — Complete
-Plan: 02 complete — Phase 129 next
+Phase: 129 of 131 (Map.collect + Quality) — In Progress
+Plan: 01 complete — 129-02 next
 Status: In Progress
-Last activity: 2026-02-27 — 128-02 complete: TryFrom/TryInto E2E tests, dispatch wiring, 3 bug fixes
+Last activity: 2026-02-28 — 129-01 complete: Map.collect string key dispatch for Iter.zip pattern (MAPCOL-01)
 
-Progress: [███████░░░] 73% (8/11 plans)
+Progress: [███████░░░] 82% (9/11 plans)
 
 ## Performance Metrics
 
@@ -43,7 +43,7 @@ Progress: [███████░░░] 73% (8/11 plans)
 | 126. Multi-line Pipe | 2 | Complete (2/2) |
 | 127. Type Aliases | 3 | Complete (3/3) |
 | 128. TryFrom/TryInto | 2 | Complete (2/2) |
-| 129. Map.collect + Quality | 2 | Not started |
+| 129. Map.collect + Quality | 2 | In Progress (1/2) |
 | 130. Mesher Dogfooding | 1 | Not started |
 | 131. Documentation | 2 | Not started |
 
@@ -58,6 +58,7 @@ Progress: [███████░░░] 73% (8/11 plans)
 | 127 | P03 | 20m | 1 | 3 |
 | 128 | P01 | 3m | 2 | 2 |
 | 128 | P02 | 22m | 2 | 9 |
+| 129 | P01 | 11m | 2 | 3 |
 
 ## Accumulated Context
 
@@ -85,6 +86,7 @@ Recent decisions affecting current work:
 - [Phase 128-02]: Struct boxing threshold changed from >8 to always-box — ptr slot in {i8,ptr} variant layout is always dereferenced, even 8-byte structs must be heap-allocated
 - [Phase 128-02]: TryInto return type now mirrors TryFrom return type at synthesis time so type-checker accepts .try_into() calls
 - [Phase 128-02]: impl method return type now uses resolve_type_annotation (handles generic types) over resolve_type_name (simple ident only)
+- [Phase 129]: Fixed Map.collect string key dispatch for Iter.zip: extended pipe_chain_has_string_keys with Iter.zip detection (rhs_is_iter_zip + pipe_source_has_string_list) instead of result-type check, because HM let-generalization prevents K=String unification at collect-pipe time
 
 ### Pending Todos
 
@@ -96,6 +98,6 @@ None. v12.0 fully shipped. v13.0 roadmap created with 100% requirement coverage 
 
 ## Session Continuity
 
-Last session: 2026-02-27
-Stopped at: Completed 128-02-PLAN.md — TryFrom/TryInto E2E tests, MIR dispatch wiring, 3 auto-fixed bugs
+Last session: 2026-02-28
+Stopped at: Completed 129-01-PLAN.md — Map.collect string key dispatch for Iter.zip pattern, MAPCOL-01
 Resume file: None

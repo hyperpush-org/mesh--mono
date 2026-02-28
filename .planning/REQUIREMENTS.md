@@ -28,7 +28,7 @@ Requirements for v13.0. Each maps to roadmap phases.
 
 ### MAPCOL — Map.collect string keys
 
-- [ ] **MAPCOL-01**: User can collect an iterator of `{String, V}` pairs into `Map<String, V>` via `.collect()`
+- [x] **MAPCOL-01**: User can collect an iterator of `{String, V}` pairs into `Map<String, V>` via `.collect()`
 
 ### QUAL — Code quality
 
@@ -80,7 +80,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRYFROM-01 | Phase 128 | Complete |
 | TRYFROM-02 | Phase 128 | Complete |
 | TRYFROM-03 | Phase 128 | Complete |
-| MAPCOL-01 | Phase 129 | Pending |
+| MAPCOL-01 | Phase 129 | Complete |
 | QUAL-01 | Phase 129 | Pending |
 | QUAL-02 | Phase 129 | Pending |
 | DOGFOOD-01 | Phase 130 | Pending |
