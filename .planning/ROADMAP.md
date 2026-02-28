@@ -329,4 +329,4 @@ Plans:
 | 128. TryFrom/TryInto Traits | 2/2 | Complete    | 2026-02-27 | - |
 | 129. Map.collect + Code Quality | 2/2 | Complete    | 2026-02-28 | - |
 | 130. Mesher Dogfooding | 1/1 | Complete    | 2026-02-28 | - |
-| 131. Documentation Site Update | 2/2 | Complete   | 2026-02-28 | - |
+| 131. Documentation Site Update | 2/2 | Complete    | 2026-02-28 | - |
