@@ -348,7 +348,7 @@ Plans:
 **Goal:** VSCode extension v0.3.0 with grammar and LSP completions reflecting all syntax additions from milestones 10-13 — slot pipe operators, regex literals, atom literals, json keyword, nil constant, type alias and json snippets
 **Requirements**: none
 **Depends on:** Phase 132
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 133-01-PLAN.md — Grammar + LSP: json keyword, nil constant, atom literals, regex literals, slot pipe, new snippets
