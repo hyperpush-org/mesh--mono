@@ -5545,3 +5545,49 @@ fn e2e_crypto_uuid4() {
     let output = compile_and_run(&source);
     assert_eq!(output, "36\n");
 }
+
+// ── Phase 135: Base64 stdlib tests ──────────────────────────────────────
+
+/// Phase 135: Base64.encode returns standard-alphabet padded string (ENCODE-01).
+#[test]
+fn e2e_base64_encode() {
+    let source = read_fixture("base64_encode_decode.mpl");
+    let output = compile_and_run(&source);
+    assert!(output.starts_with("aGVsbG8=\n"), "Expected aGVsbG8= as first line, got: {}", output);
+}
+
+/// Phase 135: Base64.decode round-trips and returns Err on invalid input (ENCODE-02).
+#[test]
+fn e2e_base64_encode_decode() {
+    let source = read_fixture("base64_encode_decode.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "aGVsbG8=\nhello\ninvalid base64\n");
+}
+
+/// Phase 135: Base64.encode_url and Base64.decode_url use URL-safe alphabet without padding (ENCODE-03, ENCODE-04).
+#[test]
+fn e2e_base64_url_encode_decode() {
+    let source = read_fixture("base64_url_encode_decode.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "aGVsbG8\nhello\n");
+}
+
+// ── Phase 135: Hex stdlib tests ──────────────────────────────────────────
+
+/// Phase 135: Hex.encode returns lowercase hex; Hex.decode is case-insensitive and rejects invalid input (ENCODE-05, ENCODE-06).
+#[test]
+fn e2e_hex_encode_decode() {
+    let source = read_fixture("hex_encode_decode.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "6869\nhi\nhi\ninvalid hex\n");
+}
+
+/// Phase 135: Hex.encode produces lowercase output — no uppercase letters (ENCODE-05).
+#[test]
+fn e2e_hex_encode_lowercase() {
+    let source = read_fixture("hex_encode_decode.mpl");
+    let output = compile_and_run(&source);
+    let first_line = output.lines().next().unwrap_or("");
+    assert_eq!(first_line, first_line.to_lowercase(), "Hex.encode must produce lowercase output");
+    assert_eq!(first_line, "6869");
+}
