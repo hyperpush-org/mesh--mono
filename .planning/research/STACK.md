@@ -1,303 +1,311 @@
-# Technology Stack
+# Stack Research
 
-**Project:** Mesh ORM Library (v10.0)
-**Researched:** 2026-02-16
-**Confidence:** HIGH (compiler analysis), MEDIUM (DSL design patterns), HIGH (migration tooling)
+**Domain:** Programming language ecosystem — stdlib expansion, HTTP client, testing framework, package registry
+**Researched:** 2026-02-28
+**Confidence:** HIGH (all critical crates verified against docs.rs and Cargo.lock)
 
-## Executive Summary
+---
 
-Building an ORM for Mesh requires a combination of **compiler additions** and **pure Mesh library code**. The key insight from analyzing Ecto, Diesel, and the existing Mesh compiler is that Mesh already has most of the building blocks -- `deriving(Row)`, struct definitions, pipe operator, closures, traits, generics -- but lacks three critical features needed for an expressive ORM:
+## Context: Existing Stack (Do Not Re-Research)
 
-1. **Atom/symbol literals** (`:name`, `:email`) for field references in queries and schema DSL
-2. **Keyword arguments** (`where(name: "Alice", age: 30)`) for ergonomic query builder API
-3. **Extended deriving system** (`deriving(Schema)`) for compile-time generation of schema metadata, relationship accessors, and changeset functions
+The Mesh compiler already depends on these crates that are **directly reusable** for v14.0 features:
 
-No macro system is needed. No new parser grammar for a "schema DSL block" is needed. The ORM can be built using the existing `struct` + `deriving` pattern, with atoms and keyword args as the two new language primitives.
+| Already Present | Version (locked) | Reusable For |
+|-----------------|-----------------|--------------|
+| `sha2` | 0.10.9 | SHA-256/512 — expose via FFI, zero new dep |
+| `hmac` | 0.12.1 | HMAC-SHA256/512 — expose via FFI, zero new dep |
+| `base64` | 0.22.1 | Base64 encode/decode — expose via FFI, zero new dep |
+| `rand` | 0.9 | UUID v4 random source |
+| `rustls` / `ring` | 0.23 / 0.17 | Crypto provider already installed at runtime init |
+| `ureq` | 2.12.1 | HTTP client (upgrade path to 3.x for streaming/pooling) |
+| `tokio` | 1.x | Async runtime for axum-based packages registry backend |
+| `serde` / `serde_json` | 1.x | JSON for registry API |
+| `toml` | 0.8 | mesh.toml manifest parsing |
+| `semver` | 1.x | Package version constraint resolution |
+| `git2` | 0.19 | Git operations in mesh-pkg |
+| `clap` | 4.5 | CLI arg parsing for meshpkg |
 
-## What Exists Today (DO NOT rebuild)
+All crypto stdlib work (SHA-256/512, HMAC, Base64) has **zero new Rust dependencies** — the crates are already compiled as transitive deps.
 
-These Mesh features are validated and ready for ORM use:
+---
 
-| Capability | How ORM Uses It | Status |
-|------------|----------------|--------|
-| `struct` definitions with typed fields | Schema model definitions (struct User do name :: String end) | Shipped |
-| `deriving(Row)` | Basis for `deriving(Schema)` -- same compiler-generated function pattern | Shipped |
-| `deriving(Json)` | Changeset serialization, API integration | Shipped |
-| Pipe operator `\|>` | Query builder chains: `User \|> where(...) \|> Repo.all()` | Shipped |
-| Closures `fn(x) -> expr end` | Dynamic query fragments, custom validations | Shipped |
-| Trailing closures `foo() do \|x\| ... end` | Transaction blocks: `Repo.transaction() do \|conn\| ... end` | Shipped |
-| Trait system with associated types | Queryable, Changeable, Schema traits for type-safe dispatch | Shipped |
-| `From/Into` conversion traits | Type coercion in changesets (string -> int parsing) | Shipped |
-| Result/Option with `?` propagation | Error handling in Repo operations | Shipped |
-| `Pg.execute`, `Pg.query`, parameterized queries | Underlying SQL execution layer | Shipped |
-| Connection pooling with `Pool.open/query_as/execute` | Production database access | Shipped |
-| Transactions `Pg.transaction(conn, fn)` | Transaction support for Repo operations | Shipped |
-| Map type with string keys | Row data representation, changeset params | Shipped |
-| Pattern matching, case expressions | Changeset validation branching | Shipped |
-| Module system with pub visibility | ORM library organization (Repo, Query, Schema, Migration modules) | Shipped |
-| `List.map`, `List.filter`, iterators | Collection operations on query results | Shipped |
+## New Dependencies Required
 
-## Recommended Stack Additions
+### 1. Crypto Stdlib (SHA-256/512, HMAC, UUID)
 
-### 1. Atom Literals (Compiler Addition -- REQUIRED)
+| Library | Version | Add To | Purpose | Why |
+|---------|---------|--------|---------|-----|
+| `uuid` | 1.21 | `mesh-rt` | UUID v4 generation | Standard crate (374M+ downloads), `v4` feature uses `rand` already present; 1.21 is latest stable |
+| `sha2` | 0.10 | `mesh-rt` | SHA-256/512 | **Already present** — just add `mesh_sha256` / `mesh_sha512` extern "C" fns, zero new dep |
+| `hmac` | 0.12 | `mesh-rt` | HMAC-SHA256/512 | **Already present** — already used for PostgreSQL SCRAM auth, zero new dep |
+| `base64` | 0.22 | `mesh-rt` | Base64 encode/decode | **Already present** — used for PostgreSQL auth, zero new dep |
 
-| Property | Detail |
-|----------|--------|
-| Syntax | `:name`, `:email`, `:inserted_at`, `:asc`, `:desc` |
-| Runtime representation | Interned string pointer (like Erlang atoms) or compile-time string constant |
-| Type | New `Atom` type in the type system |
-| Why required | Field references in queries (`where(:name, "Alice")`), ordering direction (`:asc`/`:desc`), association keys (`:user_id`), migration column specification |
-
-**Why atoms and not plain strings:** Strings are runtime values that can be anything. Atoms are compile-time-known identifiers that the compiler can validate against struct field definitions. `where(:naem, "Alice")` can produce a compile error; `where("naem", "Alice")` cannot. Atoms also read better in DSL code -- they look like field references, not arbitrary data.
-
-**Implementation approach:**
-
-Lexer: Add `:` followed by identifier as a new token kind `AtomLiteral`. The `:` is already a `Colon` token, so the lexer needs a contextual rule: when `:` is followed immediately (no space) by an identifier character, lex as `AtomLiteral` instead of `Colon` + `Ident`. This avoids ambiguity with type annotations (`:: Type`) which use `ColonColon`.
-
-Parser: Add `ATOM_LITERAL` to SyntaxKind. Parse as a primary expression (like string/int literals). The AST node carries the atom name as a string.
-
-Type checker: Add `Ty::Atom` or use `Ty::Con(TyCon::new("Atom"))`. For the ORM, atoms don't need to be a full algebraic type -- they're just compile-time string constants with a distinct type. The type checker can optionally validate atoms against known field names when used in ORM contexts.
-
-Codegen: Atoms compile to string constants. At the MIR/LLVM level, an atom is just a pointer to a string literal in the data section. No interning table needed for v10.0 -- that's an optimization for a future version.
-
-**Estimated scope:** ~200 LOC across lexer, parser, type checker, codegen. Small, self-contained change.
-
-### 2. Keyword Arguments (Compiler Addition -- REQUIRED)
-
-| Property | Detail |
-|----------|--------|
-| Syntax | `where(name: "Alice", age: 30)` at call sites |
-| Representation | Desugared to `Map<Atom, Any>` or a struct literal at the call site |
-| Why required | Ergonomic query builder API, changeset `cast` field lists, migration column options |
-
-**Why keyword args and not Map literals:** `where(%{name: "Alice"})` is verbose and ugly. `where(name: "Alice")` is the Ecto/Ruby ergonomic that makes ORM code readable. Keyword arguments at call sites are syntactic sugar that makes the pipe-chain query builder feel natural.
-
-**Implementation approach -- two options:**
-
-**Option A (Recommended): Keyword args as last-position Map sugar.**
-When the parser sees `name: expr` pairs in a function argument list (identifiers followed by `:` then expression), collect them as a single `Map<String, T>` argument. This is exactly how Ruby and Elixir handle keyword arguments.
-
-```
-where(name: "Alice", age: 30)
-# desugars to:
-where(%{"name" => "Alice", "age" => 30})
+**uuid Cargo.toml addition to mesh-rt:**
+```toml
+uuid = { version = "1", features = ["v4"] }
 ```
 
-This requires:
-- Parser: Detect `ident COLON expr` pattern in arg lists, collect into a MAP_LITERAL node as the final argument
-- Type checker: The function signature expects a Map (or a new KeywordList type) as the last parameter
-- Codegen: No change -- it's just a Map
+For hex encoding, do NOT add the `hex` crate. Hex is trivial inline Rust:
+```rust
+bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+```
+Decode is a simple loop over char pairs. Zero dependency for 3 lines of code.
 
-**Option B: Keyword args as ordered list of pairs (Elixir-style).**
-`[name: "Alice", age: 30]` desugars to `[(:name, "Alice"), (:age, 30)]` -- a `List<(Atom, T)>`. This preserves ordering and allows duplicate keys.
+### 2. Date/Time Stdlib
 
-**Recommendation: Option A** (Map sugar) because Mesh already has Map with full codegen support. The `List<(Atom, T)>` approach requires tuple-of-mixed-types which is harder to type-check with HM inference.
+| Library | Version | Add To | Purpose | Why |
+|---------|---------|--------|---------|-----|
+| `chrono` | 0.4.42 | `mesh-rt` | Parse, format, arithmetic, timestamps | 392M+ downloads, UTC-first, strftime-style formatting, serde integration, no soundness caveats in multi-threaded programs (fixed in 0.4.20). Preferred over `jiff` because v14.0 only needs UTC timestamps + duration arithmetic — not DST-aware calendar arithmetic. Preferred over `time 0.3` because time crate has soundness caveats with `UtcOffset::current_local_offset` in multi-threaded programs (and mesh-rt is multi-threaded). |
 
-**Estimated scope:** ~300 LOC in parser (detect pattern in arg lists), ~50 LOC type checker, 0 LOC codegen.
+**Cargo.toml addition to mesh-rt:**
+```toml
+chrono = { version = "0.4", features = ["serde"] }
+```
 
-### 3. Extended Deriving System: `deriving(Schema)` (Compiler Addition -- REQUIRED)
+Do NOT add `chrono-tz`. Mesh doesn't need timezone-aware calendar arithmetic in v14.0. UTC timestamps + duration arithmetic cover the full feature set and chrono-tz adds ~2MB binary bloat.
 
-| Property | Detail |
-|----------|--------|
-| Syntax | `struct User do ... end deriving(Schema, table: "users")` |
-| What it generates | `__schema__/1` metadata function, `changeset/2`, `from_row/1` (already exists from Row), field type map, relationship accessors |
-| Why required | Schema metadata must be accessible at runtime for query building, validation, and relationship loading |
+### 3. Base64/Hex Encoding
 
-**How deriving(Schema) extends the existing pattern:**
+| Library | Version | Add To | Purpose | Why |
+|---------|---------|--------|---------|-----|
+| `base64` | 0.22 | `mesh-rt` | Base64 encode/decode | **Already present** — `general_purpose::STANDARD` engine for standard, `URL_SAFE` engine for URL-safe variant |
+| hex (inline) | n/a | `mesh-rt` | Hex encode/decode | Implement directly in 3-5 lines of Rust — zero dep for trivial functionality |
 
-The existing `deriving(Row)` generates a `from_row` function. `deriving(Json)` generates `to_json`/`from_json`. Following this exact pattern, `deriving(Schema)` generates:
+The base64 Engine API (0.22.x) uses `general_purpose::STANDARD.encode(bytes)` and `general_purpose::STANDARD.decode(b64str)`. This is the stable API post-0.21 migration away from the deprecated top-level `encode`/`decode` functions.
 
-1. **`__table__()` -> String**: Returns the table name (from the `table:` option, or pluralized struct name as default)
-2. **`__fields__()` -> List<(String, String)>`: Returns field names and their SQL types
-3. **`__primary_key__()` -> String**: Returns the primary key field name (default: `"id"`)
-4. **`changeset(struct, params)` -> Changeset<T>**: Casts external params onto the struct with type checking
-5. Relationship metadata functions (generated from relationship declarations -- see below)
+### 4. HTTP Client Improvements (Streaming, Keep-Alive, Builder API)
 
-**Estimated scope:** ~500 LOC in type checker (registration), ~800 LOC in codegen (MIR generation), following the exact pattern of `generate_from_row_struct` and `generate_to_json_struct`.
+| Library | Version | Add To | Purpose | Why |
+|---------|---------|--------|---------|-----|
+| `ureq` | **3.2** | `mesh-rt` | Streaming, connection pooling, builder API | Upgrade from locked 2.12.1. ureq 3.x adds proper `Agent` connection pooling, `Body::into_reader()` for streaming, `RequestBuilder` fluent API with `.header()` / `.timeout_global()`, semver-stable re-exports. Already the HTTP client dep — upgrade not replace. |
 
-### 4. Relationship Declarations (New Struct Annotation Syntax -- Compiler Addition)
+**Cargo.toml change in mesh-rt:**
+```toml
+# Before:
+ureq = "2"
+# After:
+ureq = "3"
+```
 
-| Property | Detail |
-|----------|--------|
-| Syntax | Inside struct body: `belongs_to :user, User` / `has_many :posts, Post` / `has_one :profile, Profile` |
-| Parser change | New node types inside STRUCT_DEF: BELONGS_TO_DECL, HAS_MANY_DECL, HAS_ONE_DECL |
-| What they generate | Foreign key field (for belongs_to), association loader functions, preload metadata |
+**ureq 3.x API mapping to Mesh stdlib additions:**
 
-**Implementation approach:**
+| Mesh Feature | ureq 3.x API |
+|---|---|
+| Connection keep-alive | `Agent::config_builder().build()` — Agent holds a connection pool, shared via `Arc`, reused across requests |
+| Streaming response | `response.body_mut().into_reader()` → `impl Read + 'static` — owned reader that can be sent across actor boundaries |
+| Chunked response | Automatic — ureq transparently decodes `Transfer-Encoding: chunked`; `content_length()` returns `None` for chunked |
+| Builder API | `agent.get(url).header("Authorization", "Bearer x").timeout_global(Duration::from_secs(30)).call()` |
+| Limited reads | `.body_mut().with_config().limit(N).read_to_vec()` — safe downloads without memory exhaustion |
 
-These are NOT new keywords. They are parsed as function-call-like declarations within a struct body when `deriving(Schema)` is present. The parser sees `belongs_to` as an identifier followed by atom and type arguments.
+**Breaking change from 2.x:** `response.into_string()` → `response.body_mut().read_to_string()`. Both existing `mesh_http_get` and `mesh_http_post` in `http/client.rs` need updating.
 
-Actually, to keep it simpler and avoid keyword reservation: **use the `def` keyword pattern** already in the language, or simply make `belongs_to`, `has_many`, `has_one` new keywords. Given the language already has 48 keywords and the ORM is a first-class feature, adding 3 more keywords is justified.
+Do NOT switch to `reqwest`. reqwest requires async/await (Tokio) in the calling code. mesh-rt uses synchronous blocking I/O throughout — actor coroutines, not async/await. Switching would require redesigning all HTTP client callsites and adding Tokio runtime management inside the actor scheduler.
 
-**Recommended: Add `belongs_to`, `has_many`, `has_one` as parser-recognized declarations inside struct bodies.**
+### 5. Testing Framework (meshc test, coverage)
 
-Lexer: Add 3 new keywords.
-Parser: Inside struct body parsing, recognize these as relationship declarations.
-Type checker: Validate relationship targets exist, generate appropriate types.
-Codegen: Generate loader functions and metadata.
+The testing framework is entirely implemented **within the compiler and runtime** — no new Rust crates needed for the test runner or assertion framework. Coverage reporting uses an external tool invoked by `meshc test --coverage`.
 
-**Estimated scope:** ~100 LOC lexer/parser, ~300 LOC type checker, ~400 LOC codegen.
+| Component | Approach | New Dep? |
+|-----------|----------|----------|
+| `*.test.mpl` discovery | Filesystem walk already in compiler pipeline | No |
+| Test runner execution | Compile test files with special harness entry point; capture pass/fail/panic | No |
+| Assertion helpers | `assert`, `assert_eq`, `assert_raises` — Mesh stdlib functions returning `Result<(), String>` | No |
+| Mock actors | Stub actor registrations in mesh-rt using existing spawn/mailbox infrastructure | No |
+| Function stubs | Compiler-level concept: register alternative function bindings for test scope | No |
+| Coverage instrumentation | Add `-C instrument-coverage` LLVM flag during test builds | No |
+| Coverage report | Invoke `llvm-profdata` + `llvm-cov` from `llvm-tools-preview` rustup component | No new dep |
 
-### 5. Multi-line Pipe Chains (Compiler Fix -- STRONGLY RECOMMENDED)
+For running `meshc`'s own Rust test suite with coverage (CI), use `cargo-llvm-cov`. This is a dev tool for the compiler developers, not part of the Mesh language distribution.
 
-| Property | Detail |
-|----------|--------|
-| Current limitation | `\|>` must be on same line as previous expression |
-| Needed | `User \|> where(name: "Alice") \|> limit(10) \|> Repo.all()` across multiple lines |
-| Impact | Without this, every ORM query chain must be on one long line or use parenthesized workaround |
+**Why cargo-llvm-cov over cargo-tarpaulin:**
+- cargo-tarpaulin uses ptrace on Linux (x86_64 only by default) and LLVM on macOS. Mesh targets both.
+- cargo-llvm-cov is cross-platform LLVM instrumentation — same backend on all platforms.
+- cargo-llvm-cov supports proc-macros and doc tests.
+- cargo-llvm-cov is faster because it instruments only necessary crates.
 
-**This is listed as a known limitation in STATE.md.** Fix it for v10.0 because ORM query chains are the primary use case for multi-line pipes.
+For Mesh program coverage specifically (coverage of .mpl programs compiled by meshc): the codegen phase adds LLVM instrumentation (`-C instrument-coverage` equivalent on IR), and `llvm-profdata`/`llvm-cov` process the raw profile data. These come from the `llvm-tools-preview` rustup component, not a new crate.
 
-**Implementation:** In the parser's newline handling, when a line starts with `|>`, treat it as a continuation of the previous expression rather than a new statement. This is a ~50 LOC parser change.
+### 6. Package Registry (meshpkg CLI + Hosted Site)
 
-### 6. Struct Update Syntax (Compiler Addition -- RECOMMENDED)
+**CLI additions to existing `mesh-pkg` crate:**
 
-| Property | Detail |
-|----------|--------|
-| Syntax | `%{user \| name: "Bob", age: 31}` or `User { ...user, name: "Bob" }` |
-| Why needed | Changeset application: `apply_changes(changeset)` returns a new struct with changed fields applied |
-| Current workaround | Manually construct new struct with all fields, which is verbose and error-prone |
+| Library | Version | Already Present | Purpose | Why |
+|---------|---------|----------------|---------|-----|
+| `ureq` | 3.2 | No (mesh-pkg) | HTTP calls to registry API from CLI | Upgrade ureq in mesh-rt covers mesh-rt; mesh-pkg needs its own dep since it doesn't depend on mesh-rt |
+| `sha2` | 0.10 | No (mesh-pkg) | Package checksum verification | mesh-pkg doesn't currently depend on mesh-rt where sha2 is present |
+| `tar` | 0.4 | No | Package tarball creation/extraction | Standard crate for .tar.gz archives; pairs with flate2 |
+| `flate2` | 1 | No | gzip compression for tarballs | Standard gzip; pairs with tar for .tar.gz format |
 
-**Implementation:** Add spread/update syntax to struct literals. When the parser sees `...expr` inside a struct literal, it copies all fields from the source struct and overrides the specified ones.
+**mesh-pkg Cargo.toml additions:**
+```toml
+ureq = "3"
+sha2 = "0.10"
+tar = "0.4"
+flate2 = "1"
+```
 
-**Estimated scope:** ~150 LOC parser, ~200 LOC type checker (verify field compatibility), ~300 LOC codegen.
+**New `mesh-registry` binary (separate crate in workspace):**
 
-## What Does NOT Need Compiler Changes
+The hosted packages site backend is a new Rust binary. It is NOT part of meshc or mesh-pkg — it's a separate server deployed independently.
 
-These ORM components are implementable in **pure Mesh** using existing features:
+| Library | Version | Purpose | Why |
+|---------|---------|---------|-----|
+| `axum` | 0.8.8 | Registry API web framework | tokio-rs maintained, same tokio dep already in workspace, Tower middleware ecosystem, 0.8 released Jan 2025 with stable API. crates.io itself uses axum. |
+| `tokio` | 1 | Async runtime | Already in workspace |
+| `tower` | 0.5 | Rate limiting, auth middleware | axum uses Tower natively — get rate limiting, timeouts, auth for free |
+| `serde` / `serde_json` | 1 | JSON request/response | Already in workspace |
+| `sqlx` | 0.8 | PostgreSQL for package metadata | Async-native, compile-time checked queries, matches axum/tokio stack |
+| `sha2` | 0.10 | Package integrity verification | Registry validates checksums on publish |
+| `tar` | 0.4 | Tarball handling | Inspect/store uploaded packages |
+| `flate2` | 1 | gzip compression | Paired with tar |
+| `uuid` | 1 | Package upload tokens | Random tokens for publish authentication |
+| `chrono` | 0.4 | Timestamps on package versions | Consistent with mesh-rt chrono usage |
 
-| Component | Implementation Approach | Why No Compiler Change |
-|-----------|------------------------|----------------------|
-| Query builder types | Mesh structs with builder methods | Just structs and functions |
-| `Repo.all/insert/update/delete` | Module functions calling `Pool.query_as`/`Pool.execute` | Existing DB primitives |
-| SQL generation from Query struct | String concatenation with parameterized placeholders | Pure string building |
-| Migration file format | Mesh source files with `up()`/`down()` functions | Standard Mesh code |
-| Migration runner | Module that reads migration files, tracks applied versions | Existing FS + DB operations |
-| Changeset validation pipeline | Pipe-chain of validation functions on Changeset struct | Closures + pipes |
-| Preloading/eager loading | Separate queries + Map-based association | Existing Map + List operations |
-| Connection pool management | Already exists via `Pool.open` | Shipped |
-| Transaction wrapping | Already exists via `Pg.transaction` | Shipped |
+**New workspace member Cargo.toml:**
+```toml
+[package]
+name = "mesh-registry"
 
-## Stack Decision Matrix
+[dependencies]
+axum = "0.8"
+tokio = { workspace = true }
+tower = "0.5"
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "macros"] }
+sha2 = "0.10"
+tar = "0.4"
+flate2 = "1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+```
 
-| Component | Compiler Change? | Mesh Library? | Complexity | Priority |
-|-----------|-----------------|---------------|------------|----------|
-| Atom literals | YES | - | Low | P0 (blocks everything) |
-| Keyword arguments | YES | - | Medium | P0 (blocks query builder) |
-| Multi-line pipes | YES (parser fix) | - | Low | P0 (blocks usability) |
-| `deriving(Schema)` | YES | - | High | P1 (core feature) |
-| Relationship declarations | YES | - | Medium | P1 (core feature) |
-| Struct update syntax | YES | - | Medium | P2 (changeset convenience) |
-| Query builder | - | YES | High | P1 |
-| Repo module | - | YES | Medium | P1 |
-| Migration tooling | - | YES | Medium | P2 |
-| Changeset system | - | YES | Medium | P1 |
-| Preloading | - | YES | High | P2 |
+**Workspace Cargo.toml changes:**
+```toml
+# Add to [workspace.members]:
+"compiler/mesh-registry"
+
+# Add to [workspace.dependencies]:
+axum = "0.8"
+```
+
+**Hosted Registry Frontend — extend existing website:**
+
+The packages site is NOT a separate SPA. It extends the existing `website/` VitePress site with new pages.
+
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| VitePress | 1.6.4 | Static pages (browse, search, per-package) | Already deployed for docs site — zero new tooling, zero new deployment |
+| Vue 3 | 3.5.28 | Dynamic package browsing components fetching registry API | Already present |
+| Tailwind CSS v4 | 4.1.18 | Styling | Already present |
+
+The packages site does not need a separate framework. VitePress pages with Vue components fetching the registry API at runtime cover browse/search/detail views. Static pre-rendered pages for SEO, dynamic fetch for real-time version data.
+
+---
+
+## Recommended Stack Summary
+
+### Additions to mesh-rt/Cargo.toml
+
+```toml
+# New additions (everything else already present):
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+# Upgrade (not addition):
+ureq = "3"   # was "2"
+```
+
+### Additions to mesh-pkg/Cargo.toml
+
+```toml
+ureq = "3"
+sha2 = "0.10"
+tar = "0.4"
+flate2 = "1"
+```
+
+### New mesh-registry/Cargo.toml
+
+```toml
+[package]
+name = "mesh-registry"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.8"
+tokio = { workspace = true }
+tower = "0.5"
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "macros"] }
+sha2 = "0.10"
+tar = "0.4"
+flate2 = "1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+```
+
+---
 
 ## Alternatives Considered
 
-| Decision | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Field references | Atom literals (`:name`) | String literals (`"name"`) | No compile-time validation, looks like data not identifiers |
-| Query builder API | Keyword args (`where(name: "x")`) | Map args (`where(%{name: "x"})`) | Verbose, ugly, doesn't match Ecto ergonomics |
-| Schema DSL | Extended `deriving(Schema)` on structs | New `schema` keyword/block | Structs already work; adding a whole new declaration type adds parser complexity for no benefit |
-| Relationship syntax | Keywords in struct body | Annotations/decorators | Mesh has no annotation system; keywords are simpler |
-| Migration format | Mesh source files (.mpl) | SQL files | Mesh files can use the migration DSL for reversibility |
-| Query approach | Query builder + raw SQL escape hatch | Full SQL parser | Parsing SQL is massive scope; query builder handles 95% of cases |
-| Macro system | NOT adding one | Elixir-style compile-time macros | Massive compiler scope creep; `deriving` handles the code generation needs |
-| Runtime reflection | NOT adding | Runtime type introspection | `deriving(Schema)` generates all needed metadata at compile time; no reflection needed |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| `chrono 0.4` | `jiff` (BurntSushi, 2024) | jiff is more correct for DST-aware calendar math but v14.0 only needs UTC timestamps + duration arithmetic. chrono's 392M downloads, mature serde integration, and smaller API surface make it the pragmatic choice. Revisit if timezone features are requested. |
+| `chrono 0.4` | `time 0.3` | time crate has soundness caveats with `UtcOffset::current_local_offset` in multi-threaded programs. mesh-rt is multi-threaded (actor scheduler). |
+| hex inline impl | `hex 0.4` crate | Hex is 3 lines of Rust. `hex::encode` is `bytes.iter().map(|b| format!("{:02x}", b)).collect()`. Adding a crate dependency for this is wasteful. Add the crate only if performance profiling shows hex is a bottleneck. |
+| ureq 3.x upgrade | reqwest 0.12 | reqwest requires async/await (Tokio) in calling code. mesh-rt is synchronous blocking I/O — actor coroutines, not async/await. Switching would require redesigning all HTTP callsites and adding Tokio runtime management in the actor scheduler. |
+| ureq 3.x upgrade | hyper 1.x direct | hyper is too low-level — manual chunked decoding, header parsing, redirect handling, keep-alive management. ureq handles all of this. |
+| axum 0.8 for registry backend | actix-web 4.x | actix-web is ~10-15% faster under extreme load but the registry backend is not performance-critical. axum shares the tokio workspace dep already present, uses Tower middleware, and is maintained by the tokio-rs team. |
+| axum 0.8 for registry backend | Mesh's own HTTP server | Dogfooding is tempting but premature — Mesh's HTTP server is synchronous, lacks axum's middleware ecosystem, and has no async/await integration. Use Mesh's server for user examples only. |
+| VitePress for packages site | Next.js / Nuxt | Project already has VitePress for docs site. Reusing the same toolchain eliminates a new framework, new build pipeline, and new deployment target. |
+| sqlx 0.8 for registry DB | Mesh's own ORM | Mesh ORM uses synchronous PostgreSQL wire protocol. The axum registry backend is async. sqlx is async-native with compile-time checked queries. Migrate to Mesh ORM if/when Mesh gains async support. |
+| local fs for tarball storage (v14.0) | S3 / object_store | Start simple. Design the storage layer against `object_store 0.11`'s trait from day one but use local filesystem for the initial deployment. |
 
-## Version/Compatibility
+---
 
-| Technology | Current Version | Changes for v10.0 |
-|------------|----------------|-------------------|
-| Mesh compiler (meshc) | ~99K LOC Rust | +~2500 LOC for atom, kwargs, schema deriving, relationships, struct update, multi-line pipes |
-| PostgreSQL driver | Shipped v2.0 | No changes -- ORM builds on top |
-| Connection pooling | Shipped v3.0 | No changes |
-| Type checker (HM) | Shipped v1.0-v7.0 | Extended for atom type, keyword arg desugaring, schema validation |
-| Lexer | 96 token kinds | +1 (AtomLiteral), +3 keywords (belongs_to, has_many, has_one) |
-| Parser | ~120 syntax kinds | +5-8 new node kinds (ATOM_LITERAL, BELONGS_TO_DECL, HAS_MANY_DECL, HAS_ONE_DECL, STRUCT_UPDATE) |
+## What NOT to Add
 
-## Resulting ORM API (Target Syntax)
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `hex = "0.4"` crate | Trivial functionality (3 lines of Rust) — no new dep needed | Inline: `bytes.iter().map(\|b\| format!("{:02x}", b)).collect()` |
+| `chrono-tz` | Adds ~2MB binary bloat for IANA timezone DB not needed in v14.0 | Plain `chrono` (UTC timestamps only) |
+| `openssl` as new direct dep | openssl-sys is already present for musl targets (vendored). Adding it directly risks conflicts with ring/rustls TLS stack. | ring + rustls already provide all needed crypto primitives |
+| `reqwest` | async-only, conflicts with synchronous actor model in mesh-rt | ureq 3.x with Agent pooling |
+| `rocket` or `warp` for registry | Not in existing dep tree, worse Tower/middleware integration than axum | axum 0.8 |
+| `diesel` for registry DB | Diesel is synchronous, incompatible with axum async handlers without spawn_blocking wrappers | sqlx (async-native) |
+| Separate npm project for packages site | Creates parallel toolchain to existing website/ stack | Extend existing VitePress site |
+| `cargo-tarpaulin` | Linux-only ptrace backend (x86_64), unreliable on macOS; Mesh CI targets both | cargo-llvm-cov (cross-platform LLVM instrumentation) |
 
-This is what the ORM code looks like with all stack additions in place:
+---
 
-```mesh
-# Schema definition
-struct User do
-  id :: Int
-  name :: String
-  email :: String
-  age :: Int
-  inserted_at :: String
-  updated_at :: String
+## Version Compatibility
 
-  has_many :posts, Post
-  belongs_to :team, Team
-end deriving(Schema, table: "users")
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `ureq 3.2` | `rustls 0.23`, `ring 0.17` | ureq 3.x defaults to rustls with ring provider — exact match with mesh-rt's existing TLS stack. Zero conflict. |
+| `uuid 1.21` | `rand 0.9` | uuid v4 feature uses rand as random source. rand 0.9 already locked in mesh-rt. |
+| `chrono 0.4.42` | `serde 1` | serde feature aligns with workspace serde 1.x. |
+| `axum 0.8.8` | `tokio 1`, `tower 0.5`, `hyper 1` | axum 0.8 requires tokio 1 (workspace dep) and upgraded to hyper 1.x internally. No conflict with mesh-rt since mesh-rt uses ureq (blocking), not hyper directly. |
+| `sqlx 0.8` | `tokio 1` | Async runtime match with workspace tokio dep. |
+| `tar 0.4` | `flate2 1` | Standard pairing for .tar.gz archives. |
 
-# Query builder (pipe chains)
-let users = User
-  |> Query.where(name: "Alice")
-  |> Query.order_by(:inserted_at, :desc)
-  |> Query.limit(10)
-  |> Repo.all(pool)
-
-# Changeset
-let changeset = User.changeset(user, %{name: "Bob", age: 31})
-  |> Changeset.validate_required([:name, :email])
-  |> Changeset.validate_length(:name, min: 2, max: 100)
-
-case Repo.update(pool, changeset) do
-  Ok(updated_user) -> println("Updated: ${updated_user.name}")
-  Err(changeset) -> println("Errors: ${changeset.errors}")
-end
-
-# Migration
-module CreateUsers do
-  pub fn up(conn) do
-    Migration.create_table(conn, "users") do |t|
-      t.string(:name)
-      t.string(:email)
-      t.integer(:age)
-      t.timestamps()
-    end
-
-    Migration.create_index(conn, "users", [:email], unique: true)
-  end
-
-  pub fn down(conn) do
-    Migration.drop_table(conn, "users")
-  end
-end
-```
-
-## Implementation Order
-
-The compiler additions must be built in dependency order:
-
-1. **Atom literals** -- No dependencies. Enables field references everywhere.
-2. **Multi-line pipe chains** -- No dependencies. Parser fix only.
-3. **Keyword arguments** -- Depends on atoms (keywords desugar with atom keys).
-4. **Struct update syntax** -- No dependencies. Standalone parser+codegen feature.
-5. **`deriving(Schema)`** -- Depends on atoms (schema metadata uses atoms for field names).
-6. **Relationship declarations** -- Depends on Schema deriving (extends it).
-
-After compiler additions (phases 1-6), all ORM library code (Query builder, Repo, Changeset, Migration) is pure Mesh.
+---
 
 ## Sources
 
-- [Ecto.Schema documentation](https://hexdocs.pm/ecto/Ecto.Schema.html) -- Schema DSL design, macro-based field/relationship declarations (HIGH confidence)
-- [Ecto.Changeset documentation](https://hexdocs.pm/ecto/Ecto.Changeset.html) -- Changeset pipeline design, validation vs constraints, cast/validate separation (HIGH confidence)
-- [Ecto.Migration documentation](https://hexdocs.pm/ecto_sql/Ecto.Migration.html) -- Migration file format, up/down/change, transaction behavior, schema_migrations tracking (HIGH confidence)
-- [Ecto.Query documentation](https://hexdocs.pm/ecto/Ecto.Query.html) -- Query builder API, binding system, type safety, composability (HIGH confidence)
-- [Diesel ORM](https://diesel.rs/) -- Rust compile-time query validation via type system, table! macro code generation (HIGH confidence)
-- [Anatomy of an Ecto migration](https://fly.io/phoenix-files/anatomy-of-an-ecto-migration/) -- Migration internals, timestamp versioning, deferred execution (MEDIUM confidence)
-- [Elixir School: Ecto Associations](https://elixirschool.com/en/lessons/ecto/associations) -- belongs_to/has_many implementation patterns (MEDIUM confidence)
-- [A Guide to Rust ORMs in 2025](https://www.shuttle.dev/blog/2024/01/16/best-orm-rust) -- Comparison of Diesel vs SeaORM vs SQLx approaches (MEDIUM confidence)
-- Mesh compiler source analysis: mesh-lexer, mesh-parser, mesh-typeck, mesh-codegen (HIGH confidence -- direct code reading)
-- Mesh PROJECT.md v10.0 requirements (HIGH confidence -- direct project specification)
+- [docs.rs/uuid/latest](https://docs.rs/uuid/latest/uuid/) — uuid 1.21.0, v4 feature, rand 0.9 backend confirmed — HIGH confidence
+- [docs.rs/ureq/latest](https://docs.rs/ureq/latest/ureq/) — ureq 3.2.0, Agent pooling, Body streaming API confirmed — HIGH confidence
+- [docs.rs/ureq/latest/ureq/struct.Body.html](https://docs.rs/ureq/latest/ureq/struct.Body.html) — `into_reader()`, `as_reader()`, `with_config().limit()` API — HIGH confidence
+- [crates.io/crates/chrono](https://crates.io/crates/chrono) — chrono 0.4.42, 392M downloads, multi-thread soundness fix in 0.4.20+ — HIGH confidence
+- [tokio.rs/blog/2025-01-01-announcing-axum-0-8-0](https://tokio.rs/blog/2025-01-01-announcing-axum-0-8-0) — axum 0.8.8 latest, Tower integration, tokio-rs maintained — HIGH confidence
+- [github.com/RustCrypto/MACs/tree/master/hmac](https://github.com/RustCrypto/MACs/tree/master/hmac) — hmac 0.12 current stable — HIGH confidence
+- [github.com/taiki-e/cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov) — cross-platform LLVM coverage, supports cargo test, proc-macros, doc tests — HIGH confidence
+- [github.com/rust-lang/crates.io](https://github.com/rust-lang/crates.io) — crates.io uses axum backend — MEDIUM confidence (secondary source)
+- Cargo.lock direct inspection — sha2 0.10.9, hmac 0.12.1, base64 0.22.1, ureq 2.12.1 already locked — HIGH confidence
 
 ---
-*Stack research for: Mesh ORM Library (v10.0)*
-*Researched: 2026-02-16*
+
+*Stack research for: Mesh v14.0 — stdlib crypto/date/encoding, HTTP client, testing framework, package registry*
+*Researched: 2026-02-28*

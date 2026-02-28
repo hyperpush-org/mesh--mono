@@ -1,364 +1,331 @@
-# Domain Pitfalls
+# Pitfalls Research
 
-**Domain:** ORM library for the Mesh programming language -- schema DSL, query builder, relationships, migrations, changesets, targeting PostgreSQL
-**Researched:** 2026-02-16
-**Confidence:** HIGH (Mesh compiler source analysis + Ecto/Diesel/Persistent architecture research + Mesher dogfooding experience)
+**Domain:** Ecosystem expansion for an existing compiled programming language — crypto stdlib, date/time, HTTP client improvements, test framework, package registry
+**Researched:** 2026-02-28
+**Confidence:** HIGH (direct Mesh source analysis + ecosystem research across all five domains)
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites, block progress for days, or produce fundamentally broken ORM behavior.
+Mistakes that cause rewrites, multi-day debugging sessions, or fundamental design lock-in.
 
 ---
 
-### Pitfall 1: Schema DSL Without Macros -- The Ecto Trap
+### Pitfall 1: Duplicating Crypto Dependencies Already in mesh-rt
 
-**What goes wrong:** The developer tries to replicate Ecto's schema DSL syntax:
-```elixir
-schema "users" do
-  field :name, :string
-  field :email, :string
-  field :age, :integer
-  timestamps()
-end
-```
-In Ecto, this works because `schema`, `field`, and `timestamps` are Elixir macros that expand at compile time into struct definitions, type metadata, changeset casting rules, and query builder column references. Without macros, there is no mechanism to transform declarative `field :name, :string` calls into compile-time struct field definitions, type mappings, and codegen hooks.
+**What goes wrong:**
 
-**Why it happens:** Ecto's entire schema system is macro-powered. The `schema` macro defines the Elixir struct, the `field` macro registers field metadata in module attributes, and the `timestamps` macro injects `inserted_at`/`updated_at` fields. Every ORM in a macro-capable language (Ecto, ActiveRecord DSL, Diesel's `table!`) relies on compile-time code transformation. Mesh has no macros, no runtime reflection, and no code-as-data -- the three mechanisms other ORMs depend on.
+The developer adds new crates for crypto operations — e.g., pulling in `sha3`, `aes-gcm`, or `blake3` — without noticing that `sha2`, `hmac`, `ring`, `base64`, and `pbkdf2` are already compiled into `mesh-rt`. The result is two separate crypto ecosystems living inside the same binary: one used by the PG auth/TLS subsystem and one used by the new stdlib module. Version conflicts arise when the ecosystem crates (`sha2 0.10` vs a hypothetical `sha2 0.11`) do not agree, and the binary bloats by 200-400 KB with duplicate crypto codegen.
 
-**Consequences:**
-- Attempting to build a runtime DSL that "configures" schemas at startup produces stringly-typed metadata with no compile-time safety
-- A purely runtime approach cannot generate struct definitions -- structs must be defined at compile time in Mesh
-- Trying to bolt on a "mini macro system" for this one use case adds enormous compiler complexity and creates a second compilation model
+**Why it happens:**
 
-**Prevention:**
-1. **Use `deriving(Schema)` as the single entry point.** Follow the established `deriving(Json)` and `deriving(Row)` pattern -- the compiler already has infrastructure to generate code from struct definitions at MIR lowering time. The struct definition IS the schema:
-   ```
-   struct User do
-     id :: Int
-     name :: String
-     email :: String
-     age :: Option<Int>
-   end deriving(Schema, Json)
-   ```
-   The `deriving(Schema)` generates: table name (pluralized snake_case of struct name), column metadata map, from_row function (subsuming `deriving(Row)`), to_params function (struct to parameter list), and relationship accessor functions.
+The new stdlib developer looks at what is "needed" for the feature (SHA-256, HMAC-SHA256, UUID v4), finds crates, and adds them to `Cargo.toml` without auditing what is already there. `mesh-rt/Cargo.toml` already lists `sha2 = "0.10"`, `hmac = "0.12"`, `ring = "0.17"`, `base64 = "0.22"`, and `rand = "0.9"`. Every v14.0 crypto operation (SHA-256, SHA-512, HMAC, UUID v4, hex encoding) can be implemented using exactly these existing dependencies.
 
-2. **Add schema metadata as compiler-generated constants**, not runtime configuration. The compiler can emit a `__schema__` module-level constant containing table name, column names, column types, and relationship metadata. This is the same approach Diesel uses (generating a Rust module per table) without requiring macros at the Mesh language level -- the compiler itself is the code generator.
+**How to avoid:**
 
-3. **Do NOT attempt to build a runtime schema registry.** Runtime registries require mutable global state (Mesh has no mutable variables), reflection (Mesh has no reflection), and initialization ordering guarantees (Mesh has no static initializers). The compiler is the right place for this.
+Before adding any crate for crypto stdlib, read `compiler/mesh-rt/Cargo.toml` top-to-bottom and map each needed operation to an existing dep:
+- SHA-256 / SHA-512 → `sha2` (already present)
+- HMAC-SHA256 / HMAC-SHA512 → `hmac` + `sha2` (already present)
+- UUID v4 → `rand` (already present) — generate 16 random bytes, set version/variant bits per RFC 4122
+- Base64 encode/decode → `base64 = "0.22"` (already present; replaces `base64ct` used for PG auth)
+- Hex encode → implement inline (8 lines) or use `ring`'s utilities (already present)
+- Constant-time compare → `ring::constant_time` or `hmac::Mac::verify_slice` (already present and already security-reviewed for the cluster auth use case)
 
-**Detection:** If schema definitions require runtime function calls to register metadata, the approach is wrong. Schema information should be fully resolved at compile time.
+Zero new crates needed for the entire crypto stdlib module.
 
-**Phase mapping:** Must be the first phase. Every subsequent ORM feature depends on schema metadata being available at compile time. Getting this wrong means rewriting everything.
+**Warning signs:**
 
-**Compiler additions needed:** New `deriving(Schema)` implementation in `lower_struct_def` following the `deriving(Json)`/`deriving(Row)` pattern. Extend `valid_derives` in `infer.rs` (line 2276). Generate synthetic MIR functions for table name, column metadata, and from_row/to_params conversions.
+Any PR that adds a new crate from the `RustCrypto` org for v14.0 should be challenged — the required functionality is already available. The exception is if a truly new capability is needed (e.g., AES encryption, which is not in any existing dep).
+
+**Phase to address:** Crypto stdlib phase — the very first task is auditing `Cargo.toml` before writing a single line of code.
 
 ---
 
-### Pitfall 2: Query Builder Type Safety -- The String Concatenation Trap
+### Pitfall 2: Exposing Non-Constant-Time Comparison for Secrets
 
-**What goes wrong:** The query builder is implemented as string concatenation:
-```
-fn where(query, column, value) do
-  Query { sql: query.sql <> " WHERE " <> column <> " = $" <> next_param(query), params: List.append(query.params, value) }
-end
-```
-This compiles and runs, but there is zero type safety: `column` is an unchecked string that could be `"name"`, `"nonexistent_column"`, or `"; DROP TABLE users --"`. The query builder becomes a SQL string builder with parameterized values but unvalidated column references.
+**What goes wrong:**
 
-**Why it happens:** Without macros or compile-time code generation, column names cannot be validated against the schema at compile time. Diesel solves this with Rust's type system (each column is a unique type, joins are checked via trait bounds). Ecto solves it with macros (column references in `from u in User, where: u.name == ^name` are validated by the macro). Mesh has neither mechanism available at the language level.
+The crypto stdlib module exposes a `Crypto.compare(a, b)` function that internally uses `==` (which compiles to a short-circuit byte comparison). A user calls it to compare HMAC values or session tokens. The function leaks timing information: it exits earlier when bytes differ near the start, allowing an attacker to reconstruct a valid token one byte at a time via timing measurements.
 
-**Consequences:**
-- Column name typos (`"nme"` instead of `"name"`) produce runtime SQL errors, not compile-time errors
-- SQL injection through column name injection if user input reaches the column parameter
-- Refactoring a column name requires finding every string reference manually -- no compiler assistance
-- The ORM provides no more safety than raw `Pool.query` calls with handwritten SQL
+This is not theoretical. A published security advisory for `curve25519-dalek` showed LLVM re-introducing branches into what was written as bitwise constant-time code. Using `==` directly is worse — it is explicitly a short-circuit comparison with no mitigations at all.
 
-**Prevention:**
-1. **Generate column accessor functions per schema field.** When `deriving(Schema)` processes a struct with field `name :: String`, the compiler generates a function `User.name_col() -> String` that returns `"name"`. Query builder functions accept these column accessor return values. This makes column references function calls, which the compiler can type-check.
+**Why it happens:**
 
-2. **Better: generate column accessor structs or use field name strings from the schema metadata.** The compiler knows all column names at compile time. Generate a `User.__columns__` map or a set of accessor functions. The query builder accepts `Column` values produced by these accessors, not arbitrary strings.
+The developer implements `compare` as a convenience function and does not flag it as a security primitive. String equality in Mesh compiles to `snow_string_eq` which is not constant-time. The function looks correct from a functional perspective — it returns the right answer — but leaks timing.
 
-3. **Separate parameterized values from structural SQL.** Values use `$1, $2` parameterization (already implemented). Column names, table names, and SQL keywords are compile-time constants embedded in the generated SQL string. User input should never flow into the structural parts of the query.
+**How to avoid:**
 
-4. **Accept that Mesh cannot achieve Diesel-level compile-time query validation** without significant type system extensions. The practical goal is: column references are compiler-generated strings (not user input), values are parameterized (no injection), and type mismatches between Mesh types and SQL types are caught by `deriving(Schema)` validation.
+Do NOT expose a generic `Crypto.compare` function. Instead:
 
-**Detection:** If `where()` accepts an arbitrary `String` for the column name, the design is wrong. Column references should come from compiler-generated functions or constants.
+1. For HMAC verification: use `hmac::Mac::verify_slice` from the existing `hmac` dep. This calls `subtle::ConstantTimeEq` internally and is the same code already used for the cluster HMAC-SHA256 cookie auth (v5.0 decision).
+2. For raw digest comparison: call `ring::constant_time::verify_slices_are_equal` (already present).
+3. Document in the Mesh stdlib that `Crypto.hmac_verify` should be used for all secret comparisons. Never suggest using `==` or `assert_eq` for HMAC or token comparison.
 
-**Phase mapping:** Query builder phase. Must be designed after schema metadata generation is working, because column accessors depend on schema information.
+The extern C signature for secret comparison should accept two byte-slice representations and return a Bool via the constant-time path, with no way to call the variable-time path by mistake.
+
+**Warning signs:**
+
+Any implementation that calls Rust's `==` on two `&[u8]` slices containing cryptographic output is wrong. Any test that passes by comparing HMAC output with a string literal using `assert_eq` is exposing a variable-time comparison path.
+
+**Phase to address:** Crypto stdlib phase — design the API surface before implementing anything. The API must make constant-time the only path for secret comparison.
 
 ---
 
-### Pitfall 3: The N+1 Problem Without Lazy Loading -- Preload Design Failure
+### Pitfall 3: Representing Timestamps as Formatted Strings Instead of Unix Epoch Integers
 
-**What goes wrong:** The developer writes code that loads users and then iterates to load each user's posts:
-```
-let users = User |> Repo.all()
-List.map(users, fn(user) do
-  let posts = Post |> where("user_id", user.id) |> Repo.all()
-  {user, posts}
-end)
-```
-This executes N+1 queries (1 for users, N for posts). In ORMs with lazy loading (ActiveRecord, Hibernate), this happens invisibly when accessing `user.posts`. In Mesh, it happens explicitly but is still the natural first approach developers take.
+**What goes wrong:**
 
-**Why it happens:** Mesh has no lazy loading (no mutable variables means no proxy objects that load on access). This is actually a feature -- it prevents invisible N+1 queries. But it means the ORM must provide explicit preloading that is both ergonomic and correct. Ecto's `Repo.preload(users, :posts)` strategy -- issuing one `SELECT * FROM posts WHERE user_id IN (...)` query -- is the right model.
+The date/time stdlib stores timestamps as formatted strings (e.g., `"2026-02-28T12:00:00Z"`) rather than as integer Unix timestamps (seconds or milliseconds since epoch). Arithmetic operations (`add_seconds`, `diff`, duration comparison) then require parsing the string on every call. Sorting dates requires parsing. Comparing timestamps requires parsing. The result is a date/time module that is ergonomic for display but broken for computation.
 
-**Consequences:**
-- Performance degrades linearly with the number of parent records
-- The N+1 pattern is the "natural" code structure (iterate and query), so developers fall into it by default
-- Without preload, developers write manual `WHERE ... IN (...)` queries, losing the ORM abstraction
-- Nested relationships (users -> posts -> comments) compound the problem to N*M+1 queries
+An alternative failure mode: storing timestamps as `Float` (fractional seconds). This loses precision for sub-second durations at the nanosecond level and creates floating-point comparison problems (`1740744000.0 == 1740744000.0` is `true` until it is not due to float rounding).
 
-**Prevention:**
-1. **Implement Ecto-style preloading with separate queries.** `Repo.preload(users, ["posts"])` collects all user IDs, executes a single `SELECT * FROM posts WHERE user_id IN ($1, $2, ...)`, then maps results back to parent records in memory. This turns N+1 into 2 queries.
+**Why it happens:**
 
-2. **Support nested preloading.** `Repo.preload(users, ["posts", "posts.comments"])` loads three total queries regardless of data size. The preloader resolves the dependency order (posts before comments) and batches appropriately.
+ISO 8601 strings are "obviously" what dates look like. PostgreSQL returns timestamps as strings over the text protocol. Mesh has no native integer-typed timestamp. The path of least resistance is to wrap the string representation and call it a "DateTime."
 
-3. **Do NOT implement lazy loading.** Mesh's immutable variables make lazy loading impossible without fundamental language changes. This is correct -- lazy loading is the source of N+1 problems in other ORMs. Explicit preloading is strictly better.
+**How to avoid:**
 
-4. **The string-based relationship name is necessary** because Mesh has no atoms/symbols. `"posts"` as a relationship identifier is the pragmatic choice given Mesh's type system. The compiler can validate these strings against schema relationship metadata at compile time.
+Use two representations, clearly distinguished:
+- `Int` (Unix timestamp in milliseconds) as the canonical internal representation for arithmetic, sorting, and storage
+- `String` (ISO 8601) as the display/serialization representation
 
-5. **Preload must handle the "all values are strings" constraint.** Foreign key values come from `deriving(Row)` as strings. The `IN (...)` clause must use proper `$1::uuid` or `$1::int` casting based on the column type from schema metadata. Getting the cast wrong produces empty result sets or type errors.
+The stdlib functions should be:
+- `Date.now() -> Int` (milliseconds since epoch)
+- `Date.parse(str) -> Result<Int, String>` (string to epoch ms)
+- `Date.format(ts_ms) -> String` (epoch ms to ISO 8601)
+- `Date.add_seconds(ts_ms, seconds) -> Int`
+- `Date.diff_seconds(ts_ms_a, ts_ms_b) -> Int`
 
-**Detection:** Any code pattern that queries inside a `List.map`/`for` loop over records from a previous query is an N+1 problem. The preload API must make the batched alternative as ergonomic as the loop pattern.
+This matches Erlang's `:erlang.system_time(:millisecond)` pattern and avoids the "naive datetime" trap (Python's most infamous date/time mistake). Storing epoch milliseconds means comparisons and arithmetic are integer operations — no parsing, no floating-point, no timezone confusion during storage.
 
-**Phase mapping:** Relationship and preloading phase. Must come after basic query builder and schema definitions.
+**Warning signs:**
+
+If the `DateTime` type is a String alias, arithmetic requires parsing. If it is a `Float`, sub-millisecond comparisons will drift. If the internal representation is opaque and hides its unit (seconds vs. milliseconds), bugs appear when mixing values.
+
+**Phase to address:** Date/time stdlib phase — the representation decision must be made first; every other function depends on it.
 
 ---
 
-### Pitfall 4: deriving(Row) All-Strings Problem Infects the Entire ORM
+### Pitfall 4: Silently Assuming UTC When Timezone Information is Missing
 
-**What goes wrong:** PostgreSQL's text protocol returns all values as strings. `deriving(Row)` maps `Map<String, String>` to struct fields, parsing `String` -> `Int`, `String` -> `Float`, etc. The ORM must handle:
-- Integer primary keys that arrive as `"42"` and need to be stored as `Int` in the struct but sent back as `"42"` in query parameters
-- UUID columns that are strings at every layer
-- Boolean columns arriving as `"t"` or `"f"` (PostgreSQL text format)
-- Timestamp columns arriving as `"2026-02-16 12:00:00+00"` that must remain strings (Mesh has no DateTime type)
-- NULL columns arriving as missing keys in the map
-- JSONB columns arriving as JSON strings that need `from_json()` parsing
+**What goes wrong:**
 
-The ORM must maintain a consistent type coercion layer between Mesh types and PostgreSQL text representations at every boundary: insert (Mesh -> SQL params), select (SQL result -> Mesh struct), where clause values, and join conditions.
+The date/time stdlib accepts strings like `"2026-02-28 12:00:00"` (no timezone) and treats them as UTC. A user in Tokyo passes their local time. The server records it as UTC. The stored value is 9 hours wrong. There is no error, no warning, and no indication the conversion was applied. This class of bug hides for weeks until a date-sensitive feature fails in production in a non-UTC timezone.
 
-**Why it happens:** Mesh uses PostgreSQL's text protocol exclusively. The Extended Query protocol returns all column values as text strings. The binary protocol (which returns typed binary representations) would require significant runtime changes. This is a fundamental architectural constraint, not a bug.
+This is the most common date/time bug in production systems. Python's `datetime.datetime.utcnow()` was deprecated precisely because it silently dropped timezone context. JavaScript's `new Date()` parsing is notorious for this.
 
-**Consequences:**
-- Every field type needs bidirectional coercion: Mesh type <-> String (for SQL params/results)
-- Type mismatches are silent: inserting `"42"` into an INTEGER column works (PostgreSQL casts it), but inserting `"hello"` into an INTEGER column produces a runtime PostgreSQL error, not a Mesh compile error
-- The changeset layer must validate types BEFORE sending to PostgreSQL to catch errors early
-- Foreign key matching in preloads must compare strings correctly (is `"42"` == `"42"`? Yes. Is `"42"` == `42`? Depends on representation.)
+**Why it happens:**
 
-**Prevention:**
-1. **Centralize type coercion in schema metadata.** Each field's schema metadata includes: Mesh type, PostgreSQL column type, to_param function (Mesh value -> SQL string), from_column function (SQL string -> Mesh value). These are generated by `deriving(Schema)`.
+Parsing `"2026-02-28 12:00:00"` succeeds — it is a valid date. The developer does not add a check for missing timezone info because the happy path works. The bug only manifests when a user provides input without explicit UTC marker.
 
-2. **Changeset casting validates and coerces in one step.** `Changeset.cast(user, params, ["name", "age"])` takes string parameters (from HTTP request or DB row), validates they can be parsed to the field's Mesh type, and produces a changeset with typed values. Validation errors are collected, not thrown.
+**How to avoid:**
 
-3. **Query parameter coercion is automatic.** When the query builder produces `WHERE age = $1`, it calls the field's `to_param` function to convert the Mesh `Int` to the SQL string `"42"`. The developer writes `where("age", 42)` and the ORM handles coercion.
+`Date.parse` must return `Err` for any string that does not include explicit timezone offset. Accept only:
+- `"2026-02-28T12:00:00Z"` (UTC)
+- `"2026-02-28T12:00:00+09:00"` (explicit offset)
 
-4. **Do NOT add binary protocol support for the ORM.** This is a massive runtime change that is out of scope. The text protocol works -- it just needs a coercion layer. All existing Mesher code uses text protocol successfully.
+Reject `"2026-02-28 12:00:00"` with an error: "timestamp must include timezone offset (use Z for UTC)". This is strict but correct. Users who need to parse local times must explicitly provide their offset.
 
-**Detection:** If ORM insert/select operations produce PostgreSQL type errors at runtime (e.g., "invalid input syntax for type integer"), the coercion layer has a gap.
+Do not attempt to load the system timezone database for DST handling in v14.0. The scope for v14.0 is: parse UTC/fixed-offset timestamps, format timestamps, do arithmetic. Full IANA timezone database (handling DST transitions, historical offsets, "America/New_York" strings) is a separate, substantial feature that should be deferred.
 
-**Phase mapping:** Schema definition phase (coercion functions) and changeset phase (validation before persistence).
+**Warning signs:**
+
+Any `Date.parse` function that accepts strings without a `+HH:MM` or `Z` suffix without returning an error is broken. Any function that calls `chrono::NaiveDateTime` (or equivalent) without attaching a timezone is accumulating timezone debt.
+
+**Phase to address:** Date/time stdlib phase — must be in the initial API design. Cannot be retrofitted after users start passing timezone-free strings.
 
 ---
 
-### Pitfall 5: Migration File Generation Without String Interpolation for SQL Types
+### Pitfall 5: HTTP Client Blocking I/O Starving Actor Scheduler Threads
 
-**What goes wrong:** The migration system needs to generate SQL DDL statements from schema definitions:
-```sql
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  age INTEGER,
-  inserted_at TIMESTAMP NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP NOT NULL DEFAULT now()
-);
-```
-This requires mapping Mesh types to PostgreSQL DDL types (`String` -> `VARCHAR(255)`, `Int` -> `INTEGER`, `Option<String>` -> `VARCHAR(255)` without `NOT NULL`). The migration generator must produce correct DDL as a Mesh string, but Mesh has no string interpolation for building multi-line strings, no heredocs, and newlines terminate statements.
+**What goes wrong:**
 
-**Why it happens:** Mesh's parser treats newlines as statement terminators. Building a multi-line SQL string requires explicit `<>` concatenation across multiple `let` bindings or very long single lines. There is no `"""..."""` heredoc syntax. The migration file itself must be a valid Mesh source file (or a plain SQL file executed by a migration runner).
+The HTTP client is extended to support connection keep-alive and streaming. A Mesh actor calls `Http.get_streaming(url, callback)`. Under the hood, `ureq` (already in `mesh-rt`) makes a blocking read call that waits for the server to send data. This blocking call runs on one of the M:N scheduler's OS worker threads. That thread is now blocked — it cannot resume other actors. If 8 actors simultaneously make streaming HTTP requests and the scheduler has 8 threads, all 8 threads block and the entire actor system deadlocks: no actor can make progress.
 
-**Consequences:**
-- Migration Mesh code that generates DDL is extremely verbose (one `let` per line of SQL, concatenated)
-- Migration files that are plain SQL are simpler but lose type-safety connection to the schema
-- The "auto-generate migration from schema diff" feature requires comparing current schema metadata to previous schema metadata -- this is a compiler-level feature, not a library feature
+**Why it happens:**
 
-**Prevention:**
-1. **Use plain SQL migration files, not Mesh code.** Migration files should be plain `.sql` files in a `migrations/` directory, not `.mpl` files. The migration runner reads and executes them via `Pool.execute`. This avoids the string-building problem entirely.
+The Mesh scheduler is designed for CPU-bound coroutines with cooperative preemption via reduction checks. Blocking I/O calls bypass the reduction-check yield mechanism entirely. `ureq` is explicitly a blocking I/O library (`ureq` README: "uses blocking I/O... requires an OS thread per concurrent request"). The WS reader thread bridge (v4.0 decision in PROJECT.md) already handled this for WebSockets by using a dedicated OS thread per connection that delivers messages via mailbox. The same architectural pattern must apply to streaming HTTP.
 
-2. **Migration files are numbered and tracked.** `migrations/001_create_users.sql` (up) and `migrations/001_create_users_down.sql` (down). A `schema_migrations` table tracks which have been applied.
+**How to avoid:**
 
-3. **Generate migration SQL from schema diffs as a compiler tool, not a library feature.** The compiler knows the current schema (from `deriving(Schema)` metadata) and can diff it against the database schema (via `information_schema` queries). Output the diff as a SQL file that the developer reviews before applying. This follows the Diesel `diesel print-schema` / Ecto `mix ecto.gen.migration` pattern.
+For streaming HTTP reads, follow the WS reader thread pattern exactly:
 
-4. **Do NOT attempt to auto-apply migrations.** Generated migrations should always be reviewed by the developer. Auto-applying schema changes is dangerous (see Pitfall 6).
+1. Spawn a dedicated OS thread (not a Mesh actor) for the blocking `ureq` read loop.
+2. The OS thread reads chunks from the response body and sends them to the actor's mailbox as messages.
+3. The actor receives chunks via `receive` with a timeout, processing them cooperatively.
+4. When the stream ends (EOF or error), the OS thread sends a sentinel message and exits.
 
-5. **Consider adding a `sql` string literal** to the Mesh lexer/parser for multi-line SQL strings. This is a small compiler addition: `let ddl = sql"CREATE TABLE users (...)"` that allows embedded newlines. Alternatively, support multi-line string literals with a `\` continuation character or triple-quoted strings.
+This isolates the blocking I/O from the scheduler threads. The cost is one OS thread per active streaming request — acceptable for the use cases this serves (batch file downloads, long-running API streaming responses).
 
-**Detection:** If migration code requires more than 5 lines of string concatenation to produce a single DDL statement, the approach needs simplification (plain SQL files or a multi-line string literal).
+For connection keep-alive (non-streaming), the issue is less severe because `ureq` requests complete quickly. However, the connection pool state (the `Agent` struct) must be stored outside the GC heap to survive between requests without being collected. Use an opaque `u64` handle (same pattern as DB connection handles) to refer to a `Box<ureq::Agent>` stored in a global registry or per-actor context.
 
-**Phase mapping:** Migration phase. Should be one of the later phases since it depends on schema metadata being stable.
+**Warning signs:**
 
-**Compiler additions needed:** Either multi-line string literals (`"""..."""` or raw string syntax) or a dedicated migration SQL file reader. Multi-line strings have broader utility beyond just migrations.
+Any benchmark showing request throughput drops to near-zero when actors make concurrent streaming requests. Timer-based tests flaking under load (actors cannot receive timer messages because scheduler threads are blocked).
+
+**Phase to address:** HTTP client improvements phase — before implementing any streaming or keep-alive feature, the threading model must be decided and documented.
 
 ---
 
-### Pitfall 6: Migration Rollback Data Loss
+### Pitfall 6: Chunked Transfer Encoding Parser Missing Zero-Chunk Terminator and Extension Handling
 
-**What goes wrong:** A migration adds a column (`ALTER TABLE users ADD COLUMN bio TEXT`), the application runs for a week and populates the column, then a rollback is needed. The down migration runs `ALTER TABLE users DROP COLUMN bio`, permanently destroying a week of user data. There is no recovery path.
+**What goes wrong:**
 
-Similarly, a migration renames a column from `name` to `full_name`. The up migration works. But the down migration that renames back to `name` succeeds... except the application code was already updated to use `full_name`, so the rollback leaves the app broken because it expects `full_name` but the column is now `name` again.
+The hand-rolled HTTP/1.1 parser in `mesh-rt/src/http/server.rs` correctly handles standard request bodies but does not handle chunked transfer encoding for client responses. When the developer adds chunked response reading to the HTTP client, the parser:
 
-**Why it happens:** SQL DDL operations are not transactional in all cases (PostgreSQL DDL IS transactional, which helps, but data loss from DROP COLUMN is permanent regardless). Down migrations are rarely tested and often written optimistically. The expand-migrate-contract pattern is not followed.
+1. Reads the hex chunk size and data, but fails to handle the empty terminator chunk (`0\r\n\r\n`) — it either reads past the end of the stream or returns truncated data.
+2. Does not skip chunk extensions (the `;name=value` part after the chunk size, specified in RFC 9112 §7.1.1). Real servers send chunk extensions. Encountering a `;` after the chunk size causes the hex parser to fail or produce an incorrect size value.
+3. Does not handle trailers (headers after the final `0\r\n` chunk). Trailers are rare but not parsing them leaves junk bytes in the socket buffer, corrupting the next keep-alive request on the same connection.
 
-**Consequences:**
-- Data loss from DROP COLUMN / DROP TABLE in rollbacks
-- Application crashes after rollback because code expects the new schema
-- Rolling deployments where old and new code run simultaneously against the same database fail when migrations change column names or types
-- Developers stop writing down migrations because they are untested and dangerous, making the migration system incomplete
+**Why it happens:**
 
-**Prevention:**
-1. **Design migrations as forward-only by default.** Down migrations should be optional and marked as potentially destructive. The migration runner should warn when running down migrations.
+The happy path (server sends data chunks, no extensions, clean terminator) works in testing. Edge cases only appear against real-world servers. A CVE (2025-66373) was issued against Akamai's edge servers in 2025 for exactly this: "logic error when an edge server received a request whose chunked body was invalid — the edge did not always terminate or sanitize the request." Duplicate `Transfer-Encoding: chunked` headers (rejected by aiohttp in March 2025) are another real-world edge case.
 
-2. **Follow the expand-migrate-contract pattern:**
-   - **Expand:** Add the new column/table (non-breaking, old code ignores it)
-   - **Migrate:** Deploy new code that uses the new column. Optionally backfill data.
-   - **Contract:** Remove the old column/table only after old code is fully decommissioned.
+**How to avoid:**
 
-   Each step is a separate migration. The "contract" migration is the only one that can lose data, and it runs days/weeks after the expand.
+Follow RFC 9112 §7.1 strictly. The chunk-reading loop must:
 
-3. **Never auto-generate DROP COLUMN in down migrations.** The generated down migration for `ADD COLUMN` should be a comment: `-- DROP COLUMN bio (manual review required: will lose data)`. Force the developer to uncomment it intentionally.
+```
+1. Read chunk-size line: everything before optional ';' is hex size; skip any extensions after ';' up to CRLF
+2. If chunk-size == 0: read and discard optional trailers until empty CRLF line; break
+3. Read exactly chunk-size bytes as chunk-data
+4. Read and discard trailing CRLF after chunk-data
+5. Append chunk-data to body buffer; go to 1
+```
 
-4. **Wrap migrations in transactions.** PostgreSQL supports transactional DDL. If a migration fails partway through, the transaction rolls back and the database is unchanged. The migration runner should wrap each migration file in `BEGIN/COMMIT`.
+Reject (return Err) on:
+- Invalid hex in chunk size
+- Duplicate `Transfer-Encoding: chunked` headers
+- Chunk size exceeding a configurable limit (prevent memory exhaustion)
+- Missing terminator chunk after N bytes (detect hung server)
 
-5. **Track migration state in a `schema_migrations` table** with columns `(version, applied_at, checksum)`. The checksum detects if a migration file was modified after application.
+Write unit tests for: zero-length chunk body, single chunk, multiple chunks, chunk extensions, trailer headers, oversized chunk size, and truncated stream.
 
-**Detection:** Any migration that contains `DROP COLUMN`, `DROP TABLE`, or `ALTER COLUMN ... TYPE` in the up direction should trigger a warning. Any down migration should be carefully reviewed.
+**Warning signs:**
 
-**Phase mapping:** Migration phase.
+Response bodies that are randomly truncated by a few bytes. Keep-alive connections producing garbage on the second request. Tests against `httpbin.org` or `nghttp2.org/httpbin` passing but production servers occasionally returning corrupt data.
+
+**Phase to address:** HTTP client improvements phase — chunk parsing correctness must be verified before keep-alive reuse, because a bad chunk read corrupts the connection state.
 
 ---
 
-### Pitfall 7: Single-Expression Case Arms Break ORM Pattern Matching
+### Pitfall 7: Test Runner Sharing Actor Scheduler State Across Tests
 
-**What goes wrong:** ORM operations return `Result<T, String>` at every layer. Natural error handling requires case matching:
-```
-case Repo.get(User, id) do
-  Ok(user) ->
-    let posts = Repo.preload(user, ["posts"])
-    let json = User.to_json(posts)
-    Http.respond(200, json)
-  Err(msg) ->
-    Http.respond(404, msg)
-end
-```
-This fails in Mesh because case arms are single expressions. The `Ok(user)` arm has three statements (let, let, respond), which the parser rejects.
+**What goes wrong:**
 
-**Why it happens:** Mesh parser requires single-expression case arms. This is a known constraint documented extensively in the Mesher development (decision [88-02]). Every phase of Mesher encountered this and worked around it with helper function extraction.
+The `meshc test` runner spawns a single Mesh process and runs all `*.test.mpl` tests sequentially in it. If test A spawns an actor that handles messages and does not shut it down cleanly, that actor is still running (and registered by name) when test B starts. Test B spawns what it thinks is a fresh actor with the same name, hits the `AlreadyRegistered` error, and the test fails with a confusing error unrelated to the actual assertion being tested. Alternatively, test A's leftover actor receives a message intended for test B's actor, producing a spurious assertion failure in test A several milliseconds after it "passed."
 
-**Consequences:**
-- Every non-trivial ORM result handling requires extracting a helper function
-- Code becomes a patchwork of small helper functions that exist only to satisfy the parser, not for logical decomposition
-- The ORM's ergonomic API is undermined because the calling code is forced into an unnatural structure
-- Deeply nested Results (query -> parse -> validate -> persist) each need their own helper
+This is the Mesh-specific form of the general "shared state between tests" pitfall documented across Jest, ExUnit, and any other concurrent test framework. The actor registry is global mutable state; tests that register named actors without deregistering them are not isolated.
 
-**Prevention:**
-1. **Add multi-expression case arms to the parser.** This is the single highest-impact compiler improvement for ORM ergonomics. Allow case arms to contain a `do...end` block:
-   ```
-   case Repo.get(User, id) do
-     Ok(user) -> do
-       let posts = Repo.preload(user, ["posts"])
-       Http.respond(200, User.to_json(posts))
-     end
-     Err(msg) -> Http.respond(404, msg)
-   end
-   ```
-   This is a parser-level change that does not affect the type system or codegen (the `do...end` block is already supported in other positions).
+**Why it happens:**
 
-2. **If the parser is not extended:** Use the `?` operator aggressively to flatten Result chains:
-   ```
-   fn handle_get_user(id) do
-     let user = Repo.get(User, id)?
-     let user_with_posts = Repo.preload(user, ["posts"])?
-     Ok(Http.respond(200, User.to_json(user_with_posts)))
-   end
-   ```
-   The `?` operator propagates errors automatically, turning multi-step Result handling into a sequence of `let` bindings. This is idiomatic Mesh and avoids the case arm limitation entirely.
+Mesh actors are designed to be long-lived. Test authors write actors for their test setup and forget that the process registry persists for the lifetime of the runtime. There is no automatic cleanup between tests because the runtime has no concept of "test boundaries."
 
-3. **Design ORM APIs to be pipe-friendly.** Instead of returning Results that need case matching, provide functions that accept the happy path and propagate errors:
-   ```
-   let response = User
-     |> Repo.get(id)?
-     |> Repo.preload(["posts"])?
-     |> User.to_json()
-   ```
-   But note: multi-line pipe chains are not supported (Pitfall 8).
+**How to avoid:**
 
-**Detection:** Any ORM usage that requires more than one let binding inside a case arm hits this. Expect it in every handler.
+The test runner must enforce actor isolation per test. Two approaches — choose one:
 
-**Phase mapping:** Should be addressed in the first phase (compiler additions) before building the ORM library itself. If not addressed, every phase will require workarounds.
+**Option A (recommended for v14.0 simplicity):** Each test function runs as a separate root actor, spawned fresh with a clean mailbox. Actor names registered during the test are automatically deregistered when the test actor exits (reuse the existing link/exit-signal infrastructure). The scheduler runs all test actors and collects their results via a dedicated result-channel.
 
-**Compiler additions needed:** Multi-expression case arms (`do...end` block after `->`), or at minimum, `let` chains in case arm position.
+**Option B:** Each test function runs in the same process but the test framework tracks all actors spawned during a test (via a thread-local spawn hook) and force-kills them after the test completes, deregistering names.
+
+Option A is cleaner and reuses existing crash-isolation infrastructure (`catch_unwind` per actor already works). Option B requires hooking the spawn path, which is more invasive.
+
+**Warning signs:**
+
+Test suite passes locally when run in isolation but fails intermittently when all tests run together. Test failures that mention "AlreadyRegistered" or "process not found" when no registration errors should exist.
+
+**Phase to address:** Test framework phase — this must be the first design decision, before implementing any assertion helpers or test discovery.
 
 ---
 
-### Pitfall 8: Single-Line Pipe Chains Make Query Builder Unusable
+### Pitfall 8: Mock Actor Cleanup Leaving Orphan Processes After Test Failure
 
-**What goes wrong:** The ORM's showcase feature is pipe-chain query building:
-```
-let users = User |> where("age", ">", 21) |> order_by("name") |> limit(10) |> preload(["posts"]) |> Repo.all()
-```
-This is a single 100+ character line. The intended readable form:
-```
-User
-|> where("age", ">", 21)
-|> order_by("name")
-|> limit(10)
-|> preload(["posts"])
-|> Repo.all()
-```
-...does not parse because Mesh's parser treats the newline after `User` as a statement terminator, and `|>` at the start of the next line is a syntax error.
+**What goes wrong:**
 
-**Why it happens:** Mesh parser does not support multi-line pipe continuation. This is documented in STATE.md and encountered repeatedly in Mesher development. The parenthesized workaround exists but requires wrapping the entire chain in parentheses.
+The developer creates mock actors for tests: `Mock.spawn_echo_actor()` creates an actor that records received messages. The test calls `Mock.assert_received(pid, expected_msg)` at the end. If the assertion fails (throwing a test failure), the mock actor is never shut down because the cleanup code is after the failing assertion. The mock actor runs indefinitely, consuming a slot in the process table. Over a large test suite with many failures, the leaked mock actors accumulate, eventually exhausting process IDs or memory.
 
-**Consequences:**
-- The ORM's primary ergonomic advantage (pipe-chain queries) is unreadable on single lines
-- Developers fall back to intermediate `let` bindings, making queries verbose:
-  ```
-  let q = where(User, "age", ">", 21)
-  let q = order_by(q, "name")
-  let q = limit(q, 10)
-  let q = preload(q, ["posts"])
-  let users = Repo.all(q)
-  ```
-  This works but loses the declarative pipe-chain style that makes ORMs ergonomic
-- The language's "Elixir-inspired syntax" promise is broken for the exact feature (query building) where pipes shine most
+This is the Mesh-specific form of the "neglecting cleanup" pitfall from Jest and other frameworks.
 
-**Prevention:**
-1. **Add multi-line pipe continuation to the parser.** If a line ends with `|>`, treat the next line as a continuation. Or: if a line starts with `|>`, treat it as a continuation of the previous expression. This is the highest-impact parser change for ORM ergonomics and for the language generally.
+**Why it happens:**
 
-2. **If parser is not extended:** Support parenthesized multi-line pipes. Check if the existing parenthesized workaround works:
-   ```
-   let users = (User
-     |> where("age", ">", 21)
-     |> order_by("name")
-     |> limit(10)
-     |> Repo.all())
-   ```
-   If this works, document it as the standard ORM query pattern. If not, fix parenthesized expressions to suppress newline-as-terminator inside parens.
+Imperative test cleanup (calling `Process.exit(mock_pid)` at the end of the test) is skipped when an assertion panics or returns early. There is no equivalent of Go's `defer` or Python's `with` statement in Mesh to guarantee cleanup.
 
-3. **Design the query builder API for both styles.** Support both pipe chains and method-chaining via dot syntax:
-   ```
-   let q = Query.from(User)
-   let q = q.where("age", ">", 21)
-   let q = q.order_by("name")
-   ```
-   Dot-syntax method calls are already supported in Mesh and work across lines.
+**How to avoid:**
 
-**Detection:** Any query with more than 2 clauses will exceed 80-100 characters on a single line.
+Design the mock API so cleanup is automatic, not manual:
 
-**Phase mapping:** Should be addressed in the first phase (compiler additions). The query builder design depends on whether multi-line pipes are available.
+1. Mock actors are always linked to the test actor (via `Process.link`). When the test actor exits (whether passing or failing via `catch_unwind`), all linked mock actors receive the exit signal and terminate automatically.
+2. Provide a `Mock.with_echo_actor(fn(pid) do ... end)` API where the mock's lifetime is scoped to the closure. The mock is spawned, the closure executes (possibly failing), and the mock is killed when the closure returns — whether normally or via an error.
 
-**Compiler additions needed:** Multi-line pipe continuation in the parser, OR verified parenthesized workaround.
+The supervisor infrastructure already handles this: if a test actor crashes, its linked children (mock actors) also crash. The test runner catches the test actor's exit and records the failure.
+
+**Warning signs:**
+
+Test suite memory consumption grows linearly with the number of test failures. `meshc test` hangs after a failing test because a mock actor is still blocking on `receive`.
+
+**Phase to address:** Test framework phase — design the mock lifecycle to be crash-safe before implementing any mock functionality.
+
+---
+
+### Pitfall 9: LLVM Coverage Instrumentation Incompatible with Mesh's Custom Codegen
+
+**What goes wrong:**
+
+The developer attempts to add coverage reporting to `meshc test` using LLVM's source-based coverage instrumentation (`-fprofile-instr-generate -fcoverage-mapping` in Clang, or `instrument-coverage` in Rust). The coverage data is intended to map back to `.mpl` source files. But Mesh's codegen emits LLVM IR directly (via Inkwell) with no connection to original source positions — there are no `DILocation` debug info metadata nodes attached to most instructions. The coverage tool produces either empty reports or maps coverage to incorrect line numbers in the Rust compiler source, not the `.mpl` user code.
+
+A secondary failure: coverage instrumentation adds counters to every basic block. Mesh's GC uses conservative stack scanning. The counter variables on the stack look like valid pointers and may prevent GC collection of objects whose addresses happen to match counter values (false live roots). This is the same hazard as the "conservative stack scanning may retain some garbage" limitation documented in PROJECT.md, but amplified.
+
+**Why it happens:**
+
+LLVM coverage uses the binary profiling format (`default.profraw`) which requires: (1) instrumented binary run, (2) `llvm-profdata merge`, (3) `llvm-cov report`. This pipeline assumes Clang-compiled code with debug info. Mesh compiles via Inkwell without emitting DWARF debug info or source location metadata by default.
+
+**How to avoid:**
+
+For v14.0, implement coverage at the Mesh source level rather than LLVM IR level:
+
+1. Instrument coverage in the MIR lowering pass: before each statement, emit a call to a coverage counter increment function: `mesh_coverage_record(file_id, line_no, counter_id)`.
+2. The coverage counters are stored in a global array (not on the stack, avoiding the conservative GC issue).
+3. At test exit, dump the counter array to a JSON file: `coverage.json` with `{file: line: count:}` entries.
+4. A post-processing script (or `meshc coverage` command) reads the JSON and generates an HTML report showing which lines were executed.
+
+This approach is simpler than LLVM source-based coverage, works with Mesh's existing codegen, and avoids version mismatch issues (LLVM coverage format is not forwards-compatible between versions — the official docs warn: "newer binaries cannot always be analyzed by older tools").
+
+The LLVM profiling approach can be revisited in a future milestone when Mesh's codegen emits proper DWARF debug info.
+
+**Warning signs:**
+
+Empty coverage reports with `0 functions covered`. `llvm-profdata merge` failing with "Unsupported instrumentation profile format version." Coverage line numbers pointing to `lower.rs` in the Mesh compiler source.
+
+**Phase to address:** Test framework phase — coverage should be the last sub-feature, after the test runner and assertions are working. Start with source-level MIR instrumentation, not LLVM IR instrumentation.
+
+---
+
+### Pitfall 10: Package Registry Allowing Version Overwrites
+
+**What goes wrong:**
+
+The `meshpkg publish` command allows a package author to publish `mylib 1.0.0`, then immediately re-publish `mylib 1.0.0` with different content (a "hotfix" or a "mistake correction"). Any project that previously installed `mylib 1.0.0` now gets different code the next time it runs `meshpkg install` — even though the version number is the same. Builds stop being reproducible. This is the npm "left-pad" failure mode: a maintainer can alter or remove a version that other packages depend on.
+
+**Why it happens:**
+
+The simplest registry API allows PUT/overwrite. It requires deliberate design effort to make publish immutable. New registry implementors often add overwrite as a convenience for "fixing mistakes" without understanding the reproducibility implications.
+
+**How to avoid:**
+
+Make publish-once immutable from day one — this is crates.io's explicit design philosophy: "one of the major goals of crates.io is to act as a permanent archive of crates that does not change over time." The mechanisms:
+
+1. Content-address each version: store packages as `{name}/{version}/{sha256-of-tarball}.tar.gz`. Reject uploads where the SHA-256 differs from a previously stored version.
+2. Yank mechanism (not delete): `meshpkg yank mylib 1.0.0` marks the version as "do not use for new installs" but existing lock files can still resolve it. The package content is never deleted.
+3. No delete endpoint in the registry API. If a package contains a security vulnerability, yank it and publish `1.0.1`.
+4. The `mesh.toml` lock file records exact SHA-256 digests of resolved packages. Install checks the digest against the registry. A tampered registry cannot serve different content to a project with a valid lock file.
+
+**Warning signs:**
+
+A registry API design that has a `PUT /packages/{name}/{version}` endpoint (update semantics). Any "admin override" path that allows content replacement without version bump.
+
+**Phase to address:** Package registry phase — immutability must be in the initial API design document, not retrofitted after the registry is deployed with mutable semantics.
 
 ---
 
@@ -366,454 +333,293 @@ User
 
 ---
 
-### Pitfall 9: No Keyword Arguments -- Verbose Configuration APIs
+### Pitfall 11: UUID v4 Using Non-CSPRNG Randomness
 
-**What goes wrong:** Ecto's ergonomic API relies heavily on keyword arguments:
-```elixir
-Repo.all(User, where: [age: {:>, 21}], order_by: :name, limit: 10)
-has_many :posts, Post, foreign_key: :author_id
+**What goes wrong:**
+
+UUID v4 requires 122 bits of cryptographically secure randomness. If the developer generates it using `rand::thread_rng()` without checking that the underlying PRNG is seeded from a secure source, or (worse) uses `rand::rngs::SmallRng` for "performance," the generated UUIDs are predictable. An attacker who can observe a few UUIDs can reconstruct the PRNG state and predict future UUIDs — enabling ID enumeration, SSRF via predictable resource IDs, or session token forgery.
+
+**Why it happens:**
+
+The `rand` crate (already in `mesh-rt`) has multiple RNG backends. `rand::random::<u128>()` uses `ThreadRng` which IS cryptographically secure. But `rand::rngs::SmallRng` is explicitly documented as "not for security." The performance difference is negligible (a few nanoseconds), but developers sometimes reach for the "fast" option without reading the security implications.
+
+**How to avoid:**
+
+Use `ring::rand::SystemRandom` (already in `mesh-rt`) to generate the 16 random bytes for UUID v4. `ring::rand::SecureRandom::fill` uses the OS CSPRNG (`/dev/urandom` on Linux, `BCryptGenRandom` on Windows). Apply UUID v4 bit-masking per RFC 4122 §4.4 to the result. This is the approach already used in the distributed node clustering code for ephemeral key generation.
+
+Document in the stdlib: "UUIDs generated by `Crypto.uuid_v4()` are cryptographically random and suitable for use as unique identifiers in security-sensitive contexts."
+
+**Warning signs:**
+
+Any UUID implementation that uses `rand::rngs::SmallRng` or any non-OS-seeded PRNG. Any implementation that seeds from `SystemTime` instead of OS randomness.
+
+**Phase to address:** Crypto stdlib phase — UUID is one of the simpler functions but must use the correct PRNG.
+
+---
+
+### Pitfall 12: HTTP Keep-Alive Pool Stored on GC Heap
+
+**What goes wrong:**
+
+The developer stores the `ureq::Agent` (which manages the keep-alive connection pool) as an opaque value in the Mesh runtime. If it is allocated on the GC heap with `mesh_gc_alloc_actor`, the GC's conservative stack scanner may decide the Agent is unreachable during a GC cycle and free it mid-use. The next request using the freed Agent causes a use-after-free, typically presenting as a SIGSEGV or a corrupt HTTP response.
+
+**Why it happens:**
+
+The existing pattern for opaque handles (DB connections, pool handles, regex handles, WebSocket rooms) uses `Box::into_raw` and stores the resulting raw pointer as a `u64` in a global registry or returns it directly as a Mesh `Int`. The GC cannot collect objects referenced only by a `u64` because it does not know the value is a pointer. This is the documented pattern ("Opaque u64 handles are GC-safe" in PROJECT.md decisions), but a developer unfamiliar with this pattern may try to allocate the Agent struct on the GC heap directly, which breaks the contract.
+
+**How to avoid:**
+
+Follow the exact pattern established for DB connections (v2.0) and regex handles (v12.0):
+
+```rust
+// Correct: Box the Agent, leak it, return raw pointer as u64
+let agent = ureq::AgentBuilder::new().build();
+let ptr = Box::into_raw(Box::new(agent)) as u64;
+// Return ptr as a Mesh Int (opaque handle)
+
+// Wrong: allocate on GC heap
+let ptr = mesh_gc_alloc_actor(...) as *mut ureq::Agent; // GC can collect this
 ```
-Mesh has no keyword arguments. Every configuration option must be a positional parameter or a struct/map. Relationship definitions become:
+
+The `u64` handle is passed back to Mesh code and stored in a `let` binding or struct field as `Int`. The GC sees an integer, not a pointer, and does not attempt to collect it. Cleanup requires an explicit `Http.close_client(handle)` call that runs `Box::from_raw` and drops the Agent.
+
+**Warning signs:**
+
+Occasional SIGSEGV on keep-alive requests. Requests that succeed on first call but fail randomly on subsequent calls (GC ran between calls and freed the Agent).
+
+**Phase to address:** HTTP client improvements phase — establish the handle pattern first, before any keep-alive implementation.
+
+---
+
+### Pitfall 13: Date/Time Arithmetic Overflowing Integer Range
+
+**What goes wrong:**
+
+The date/time stdlib uses `Int` (i64 in Mesh's LLVM representation) for Unix timestamps in milliseconds. `Date.add_seconds(ts_ms, seconds)` computes `ts_ms + seconds * 1000`. If `seconds` is user-supplied and large (e.g., a typo: `Date.add_seconds(now, years_to_seconds(10000))`), the multiplication overflows `i64`. In debug builds Rust detects integer overflow, but in release builds (how Mesh compiles) the overflow wraps silently, producing a timestamp in 1970 or far future.
+
+**Why it happens:**
+
+Unchecked integer arithmetic is the default in Rust release builds. LLVM optimizes away overflow checks when compiling without `-C overflow-checks=on`.
+
+**How to avoid:**
+
+Use checked arithmetic for all date/time operations. The extern C function for `Date.add_seconds` should validate inputs before computing:
+
+```rust
+pub extern "C" fn mesh_date_add_ms(ts_ms: i64, delta_ms: i64) -> *mut u8 {
+    match ts_ms.checked_add(delta_ms) {
+        Some(result) => alloc_ok_int(result),
+        None => alloc_err_string("timestamp arithmetic overflow"),
+    }
+}
 ```
-# Positional -- fragile, which param is which?
-has_many("posts", Post, "author_id")
 
-# Map -- verbose but clear
-has_many("posts", Post, %{"foreign_key" => "author_id"})
-```
-Neither is ergonomic. Positional arguments are error-prone when there are many optional parameters. Maps lose type safety (string keys, string values).
+Return `Result<Int, String>` from all arithmetic functions. This forces the Mesh caller to handle the overflow case via `?` operator, making the error visible.
 
-**Why it happens:** Mesh does not support keyword arguments, named parameters, or optional parameters with defaults. All function parameters are positional and required.
+Validate that all returned timestamps are in a reasonable range (e.g., year 1970 to year 2262 for ms timestamps, which fit comfortably in i64).
 
-**Consequences:**
-- Relationship definitions require remembering parameter order (is it `has_many(name, target, fk)` or `has_many(target, name, fk)`?)
-- Configuration-heavy APIs (migration column options, relationship options, query builder options) become walls of positional parameters
-- Default values must be handled by providing overloaded functions (different arities) or by accepting Option types and checking for None
+**Warning signs:**
 
-**Prevention:**
-1. **Use configuration structs instead of keyword arguments.** Define a `HasManyConfig` struct:
-   ```
-   struct HasManyOpts do
-     foreign_key :: Option<String>
-     through :: Option<String>
-   end
-   ```
-   But this is verbose for the common case where defaults suffice.
+Date arithmetic that returns the year 1970, or dates in the distant future (year 30000+). Any date/time function that returns a raw `Int` rather than `Result<Int, String>` for operations that can overflow.
 
-2. **Use convention over configuration.** The ORM infers defaults from naming conventions:
-   - `has_many("posts", Post)` infers foreign key as `user_id` (singular of parent table + `_id`)
-   - `belongs_to("author", User)` infers foreign key as `author_id` on the current table
-   - Only require explicit configuration when conventions do not apply
-
-   This dramatically reduces the need for keyword arguments.
-
-3. **Consider adding keyword arguments to Mesh.** This is a compiler change of moderate scope. Keyword arguments in Mesh could desugar to a Map or struct parameter:
-   ```
-   has_many("posts", Post, foreign_key: "author_id")
-   # desugars to:
-   has_many("posts", Post, %{"foreign_key" => "author_id"})
-   ```
-   This benefits the entire language, not just the ORM.
-
-4. **Use builder pattern for complex configuration.** For migration columns:
-   ```
-   let col = Column.new("name", "string") |> Column.not_null() |> Column.unique()
-   ```
-   Each method returns a modified column definition. This works with Mesh's existing pipe operator.
-
-**Detection:** If any ORM function has more than 4 positional parameters, the API is too hard to use correctly.
-
-**Phase mapping:** API design phase. Should be established before building relationship definitions and migration column specs.
-
-**Compiler additions needed:** Keyword arguments (desugaring to Map or struct) would significantly improve ORM ergonomics. If not added, convention-over-configuration minimizes the need.
+**Phase to address:** Date/time stdlib phase — arithmetic overflow checks should be the default, not an afterthought.
 
 ---
 
-### Pitfall 10: Cross-Module from_json/from_row Resolution Failure
+### Pitfall 14: Test Assertions Using Variable-Time String Comparison for Crypto Output
 
-**What goes wrong:** The Mesh type checker has a known limitation where cross-module `Type.from_json()` resolution fails. This was encountered in Mesher development (Phase 88): `EventPayload.from_json(json)` called from a different module than where `EventPayload` is defined fails with "no trait impl providing from_json."
+**What goes wrong:**
 
-For the ORM, this means: calling `User.from_row(row)` from a different module than where `User` is defined may fail. Since the ORM library and the user's schema definitions are in different modules, this is the default case, not an edge case.
+The test framework includes `assert_eq(a, b)` which calls `snow_string_eq` (variable-time string comparison) on its arguments. A test for the HMAC module writes `assert_eq(Crypto.hmac_sha256(key, msg), expected_mac)`. This works correctly for testing — the assertion passes or fails — but it also means the test itself leaks timing information about the HMAC output. This is a minor issue in a test suite but a major issue if `assert_eq` is ever used in production code to compare tokens.
 
-**Why it happens:** The type checker's trait impl resolution for `from_json`/`from_row` is scoped to the module where the struct is defined. Cross-module resolution requires the impl to be visible in the importing module's context, which does not always happen correctly.
+More immediately: the test framework's `assert_eq` will be used as the example pattern in documentation. If developers see `assert_eq(computed_mac, expected_mac)` in test code, they will replicate it in production code, creating a timing vulnerability.
 
-**Consequences:**
-- ORM operations that hydrate structs from query results fail when called from a different module
-- The workaround (thin wrapper functions in the defining module) defeats the purpose of an ORM library
-- Every schema struct must export explicit wrapper functions for from_row, defeating the `deriving` automation
+**Why it happens:**
 
-**Prevention:**
-1. **Fix cross-module from_row/from_json resolution before building the ORM.** This is not optional -- it is a prerequisite. The ORM's core operation (query result -> struct) must work across module boundaries.
+General-purpose equality assertions cannot be constant-time — they are for testing, not production auth. The problem is that the API surface is the same (`==` in production vs `assert_eq` in tests), so developers do not see a clear distinction between "comparison for testing" and "comparison for security."
 
-2. **The fix is in `infer.rs`:** ensure that `FromRow` and `FromJson` trait impls registered by `deriving(...)` are visible in the importing module's trait resolution context. The existing decision "Trait impls unconditionally exported" (XMOD-05, v1.8) suggests this should work, but the implementation has edge cases.
+**How to avoid:**
 
-3. **Test cross-module from_row early.** Write a two-module test where module A defines `struct User end deriving(Row)` and module B calls `User.from_row(map)`. If this fails, fix it before proceeding.
+Add a note in the stdlib documentation for every crypto output function: "Do not compare outputs using `==` or `assert_eq` in production code. Use `Crypto.hmac_verify` or `Crypto.secure_compare`." In test code, `assert_eq` is fine because correctness checking is the only goal.
 
-**Detection:** Any `Type.from_row()` call in a module that did not define `Type` triggers this. It will be the first thing that fails when testing the ORM.
+In the test framework internals, assert functions should NOT be used for constant-time comparisons — they should explicitly use value equality. The distinction must be documented, not enforced at the API level (since constant-time assertions would be slower than necessary and confusing).
 
-**Phase mapping:** Compiler fixes phase (first phase). Blocking for all subsequent ORM development.
+**Warning signs:**
 
-**Compiler additions needed:** Fix cross-module `FromRow`/`FromJson` trait resolution edge cases in `infer.rs`.
+Documentation examples that show `assert_eq(Crypto.hmac_sha256(...), ...)` without a note that this is test-only.
+
+**Phase to address:** Crypto stdlib phase (documentation) and test framework phase (documentation).
 
 ---
 
-### Pitfall 11: Relationship Metadata Without Runtime Reflection
+### Pitfall 15: Package Registry Search Unavailable Before Content Exists
 
-**What goes wrong:** Relationship definitions like `has_many("posts", Post)` need to be stored as schema metadata and queried at runtime by the preloader. The preloader needs to know: "User has a has_many relationship called 'posts' targeting the Post table with foreign key 'user_id'." In ActiveRecord, this metadata is stored in class instance variables populated by runtime reflection. In Ecto, it is stored in module attributes populated by macros. Mesh has neither.
+**What goes wrong:**
 
-**Why it happens:** Relationship metadata is inherently cross-schema: User's relationship to Post requires knowledge of both schemas. Without runtime reflection, this metadata must be generated at compile time and stored in a form accessible at runtime. But Mesh has no global registry, no module attributes, and no static variables.
+The developer builds the full package registry — publish, install, search API, hosted website — before any real packages exist. The search feature returns empty results for all queries. The "browse packages" page shows nothing. The hosted site looks like a ghost town. When the internal team tries to demo it or write documentation, there is nothing to show. Momentum dies.
 
-**Consequences:**
-- Relationships cannot be "discovered" at runtime -- they must be explicitly passed to every function that needs them
-- The preloader needs relationship metadata to generate the correct SQL, but cannot look it up from the struct type alone
-- Generic preloading (`Repo.preload(records, ["posts"])`) requires a way to go from the string "posts" to the relationship metadata
+**Why it happens:**
 
-**Prevention:**
-1. **Generate relationship metadata as a function on the schema module.** `User.__rel__("posts")` returns a `Relationship` struct containing `{kind: "has_many", target_table: "posts", foreign_key: "user_id", target_module: "Post"}`. This function is generated by `deriving(Schema)` when relationship declarations are present.
+The registry is built in "correct order" (infrastructure before content), but the usability dependency is inverted: the registry only feels useful when packages exist, and packages only get published when there is a registry to publish to.
 
-2. **Relationship declarations are compiler directives, not runtime calls.** They must be part of the struct definition or a companion declaration that the compiler processes:
-   ```
-   struct User do
-     id :: Int
-     name :: String
-   end deriving(Schema)
+**How to avoid:**
 
-   schema User do
-     has_many "posts", Post
-     belongs_to "organization", Organization
-   end
-   ```
-   The `schema User do...end` block is a new compiler construct that associates relationship metadata with the User struct. The compiler generates `User.__rel__` functions from this.
+Publish Mesh's own standard library modules as packages on the registry immediately after the registry is functional:
 
-3. **Pass relationship metadata through the preload call chain.** Instead of runtime lookup, the preloader receives relationship metadata as a parameter. The ORM's `preload` function resolves `"posts"` to relationship metadata at the call site (where the schema is in scope) and passes it down.
+- `mesh/crypto` (the new v14.0 crypto stdlib)
+- `mesh/datetime` (the new date/time module)
+- `mesh/testing` (the test framework helpers)
+- `mesh/http-client` (the improved HTTP client)
 
-4. **Use a schema registry function generated at build time.** The compiler generates a `Schema.lookup(table_name)` function that returns metadata for any schema struct defined with `deriving(Schema)`. This is a switch/case over table name strings, generated at compile time.
+These are real packages with real code, maintained by the Mesh team, that immediately demonstrate the registry working end-to-end. When users visit the packages site, they see known-good packages with actual documentation.
 
-**Detection:** If the preloader cannot determine the foreign key or target table for a relationship without explicit parameters at the call site, the metadata propagation is incomplete.
+This mirrors crates.io's launch: the Rust standard library's component crates (`serde`, `tokio`) were available from early on, demonstrating the registry's value immediately.
 
-**Phase mapping:** Schema and relationship definition phase.
+**Warning signs:**
 
-**Compiler additions needed:** New `schema Struct do...end` block syntax, or extend `deriving(Schema)` to accept relationship declarations inline. Generate `__rel__` metadata functions.
+Registry launch date is set before any packages are planned for initial publication. The hosted site's "Browse Packages" page is designed before at least 4-5 packages are ready to appear there.
+
+**Phase to address:** Package registry phase — include "publish stdlib packages" as an explicit deliverable in the same phase as the registry launch.
 
 ---
 
-### Pitfall 12: Changeset Validation Without Mutable Accumulation
+## Technical Debt Patterns
 
-**What goes wrong:** Ecto changesets accumulate validation errors as they flow through a pipeline:
-```elixir
-changeset
-|> validate_required([:name, :email])
-|> validate_format(:email, ~r/@/)
-|> validate_length(:name, min: 2, max: 100)
-```
-Each validation function receives a changeset, adds errors if validation fails, and returns the changeset. In Ecto, the changeset struct is immutable (Elixir data is immutable), but new structs are created with updated error lists using `%{changeset | errors: new_errors}`.
+Shortcuts that seem reasonable but create long-term problems.
 
-In Mesh, structs are also immutable, but Mesh has no struct update syntax (`%{struct | field: value}`). Creating a new struct with one field changed requires reconstructing the entire struct with all fields spelled out.
-
-**Why it happens:** Mesh has no struct update/copy syntax. To change one field of a 10-field struct, you must write out all 10 fields. For a changeset with fields like `{data, changes, errors, valid, action, params}`, each validation step requires reconstructing the full struct.
-
-**Consequences:**
-- Each validation function must reconstruct the entire changeset struct to add an error
-- Chaining 5 validations means 5 full struct reconstructions, each listing every field
-- The code is extremely verbose and error-prone (forgetting to copy a field produces a compile error, but it is tedious)
-- The pipe-chain validation pattern becomes impractical
-
-**Prevention:**
-1. **Add struct update syntax to Mesh.** Allow `%{changeset | errors: new_errors}` or `Changeset { ...changeset, errors: new_errors }`. This is essential for functional data transformation patterns. The compiler generates code that copies all other fields from the original struct.
-
-2. **If struct update is not added:** Implement changeset as a Map instead of a struct. Maps support `Map.put(changeset, "errors", new_errors)` without reconstructing the entire container. This trades type safety for ergonomics.
-
-3. **Use builder functions that encapsulate the reconstruction.** `Changeset.add_error(changeset, field, message)` internally reconstructs the changeset. The user never writes the full struct literal. The pipeline becomes:
-   ```
-   changeset
-   |> Changeset.validate_required(["name", "email"])
-   |> Changeset.validate_length("name", 2, 100)
-   ```
-   Each function handles the internal struct reconstruction.
-
-4. **Keep the Changeset struct minimal.** Fewer fields = less reconstruction pain. Core fields: `data` (the original struct as a Map), `changes` (Map of changed fields), `errors` (List of error tuples), `valid` (Bool).
-
-**Detection:** If changeset validation functions are more than 10 lines long due to struct reconstruction boilerplate, the approach needs simplification.
-
-**Phase mapping:** Changeset phase. Depends on whether struct update syntax is added to the compiler.
-
-**Compiler additions needed:** Struct update syntax (`{ ...existing, field: new_value }`) is highly recommended. This benefits the entire language, not just changesets.
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Variable-time comparison for secrets | Simpler implementation | Timing attack vulnerability | Never for production auth code |
+| String-based timestamp representation | Easy to debug, PostgreSQL-compatible | Slow arithmetic, silent timezone loss | Only for display/serialization layer |
+| Skipping chunked trailer parsing | Simpler parser | Keep-alive connection corruption on real servers | Never — trailers are in RFC 9112 |
+| Global ureq::Agent (not per-actor) | One connection pool, simpler bookkeeping | All actors share pool limits; one slow actor can block others | Acceptable for v14.0 as a starting point |
+| Test runner in same process as tested code | No IPC overhead | Actor registry leaks between tests, no true isolation | Only if tests explicitly clean up named actors |
+| Allow publish overwrite in registry v1 | Simpler implementation | Breaks reproducibility, cannot be taken back without disruption | Never — immutability must be designed in from the start |
 
 ---
 
-### Pitfall 13: Expression Problem with Query Composition
+## Integration Gotchas
 
-**What goes wrong:** The query builder supports `where`, `order_by`, `limit`, `offset`, `select`, and `join`. A user wants to add a custom query clause (e.g., `where_between` for date ranges, `where_ilike` for case-insensitive matching, `full_text_search`). Because the query is a closed struct with fixed fields, adding new clause types requires modifying the query builder's source code.
+Common mistakes when connecting to external services or internal subsystems.
 
-In Ecto, this is solved with macros -- users can write custom query macros that generate SQL fragments. In Diesel, it is solved with Rust's trait system -- users implement traits on their types to extend the query DSL. Mesh has neither macros nor the trait sophistication to make this work at the user level.
-
-**Consequences:**
-- Every SQL feature not supported by the query builder requires raw SQL escape hatches
-- The raw SQL escape hatch (`Query.raw_where(q, "tsquery @@ to_tsquery($1)", [search])`) bypasses type safety
-- Users cannot extend the query builder without modifying the ORM library source
-- PostgreSQL-specific features (JSONB operators, array operators, full-text search, CTEs) are either unsupported or require raw SQL
-
-**Prevention:**
-1. **Provide a `fragment` function for SQL fragments.** Allow users to inject raw SQL fragments with parameterized values:
-   ```
-   User |> where_fragment("age BETWEEN $1 AND $2", [min_age, max_age])
-   ```
-   This is Ecto's `fragment()` approach. It breaks type safety for the fragment but maintains parameterization for values.
-
-2. **Support common PostgreSQL operations natively.** Build `where_in`, `where_not_null`, `where_is_null`, `where_like`, `order_by_desc`, `group_by`, `having` into the query builder. These cover 90% of real-world query needs.
-
-3. **Accept that the query builder will not cover all SQL.** The escape hatch to raw SQL via `Pool.query` is always available. The ORM should make the common case easy, not make every case possible.
-
-4. **Target PostgreSQL only.** Since Mesh targets only PostgreSQL (no database portability goal), the query builder can use PostgreSQL-specific SQL syntax freely. No need for a database-agnostic abstraction layer.
-
-**Detection:** If more than 20% of queries in the Mesher rewrite require raw SQL escape hatches, the query builder's coverage is insufficient.
-
-**Phase mapping:** Query builder phase. The fragment escape hatch should be available from the first query builder version.
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| `sha2` crate for Mesh SHA-256 | Adding a new `sha2` dep when one already exists in Cargo.toml | Audit `mesh-rt/Cargo.toml` before adding crypto deps; reuse existing |
+| `ring::rand` for UUID | Using `rand::rngs::SmallRng` for speed | Always use `ring::rand::SystemRandom` for security-sensitive randomness |
+| `ureq::Agent` keep-alive pool | Storing Agent in GC heap via `mesh_gc_alloc_actor` | Use `Box::into_raw` opaque u64 handle pattern (same as DB connections) |
+| Actor scheduler + blocking ureq reads | Calling blocking read inside coroutine | Spawn dedicated OS thread for blocking I/O (WS reader pattern from v4.0) |
+| Chunked response bodies | Stopping at last data chunk | Always consume the zero-length terminator chunk (`0\r\n\r\n`) |
+| Test actor registry | Registering named actors without cleanup | Link mock actors to test actor so they die when test exits |
+| Registry publish | No content-addressing | SHA-256 hash every tarball; reject re-upload of same version with different content |
+| Date parsing | Accepting timezone-free strings silently | Return `Err` for any input without explicit `Z` or `+HH:MM` offset |
 
 ---
 
-### Pitfall 14: Map.collect Integer Key Assumption Breaks Query Result Grouping
+## Performance Traps
 
-**What goes wrong:** ORM operations frequently need to group results by string keys (foreign key values for preloading, column values for aggregation). Using `Iter.collect()` to build a `Map<String, List<Record>>` from query results fails silently because `Map.collect` assumes integer keys.
+Patterns that work at small scale but fail as usage grows.
 
-This is the same issue documented in the Mesher v9.0 pitfalls (Pitfall 12 in the original file) but becomes critical for the ORM because:
-- Preloading requires grouping child records by foreign key value (string): `group_by(posts, fn(p) -> p.user_id end)` -> `Map<String, List<Post>>`
-- Aggregation queries need string-keyed result maps
-- The ORM operates on string-keyed data at every layer (text protocol)
-
-**Why it happens:** The `Iter.collect()` codegen path calls `mesh_map_new()` which defaults to `KEY_TYPE_INT`. String keys require `KEY_TYPE_STR` but the collect path does not propagate key type information.
-
-**Consequences:**
-- Preloading breaks silently: child records cannot be matched to parent records because map lookups use integer comparison on string pointer values
-- Aggregation produces maps with duplicate keys (same string at different addresses treated as different keys)
-- This is the ORM's most insidious bug because it produces wrong results without any error
-
-**Prevention:**
-1. **Fix Map.collect to propagate key type.** This should be a compiler fix in the collect codegen path: inspect the key type of the iterator element and pass the correct `KEY_TYPE_STR` or `KEY_TYPE_INT` to `mesh_map_new()`.
-
-2. **If not fixed:** Build the grouping function in the ORM using manual `Map.new()` + `Map.put()` in a `for` loop, which correctly tags the map as string-keyed when the first `Map.put` uses a string key.
-
-3. **Test string-keyed grouping early.** Write a test that groups records by a string foreign key and verifies the grouped map has the correct number of entries. This is the canary test for this bug.
-
-**Detection:** Test: insert 3 records with foreign_key "user_1" and 2 records with "user_2". Group by foreign key. The resulting map should have 2 entries (keys "user_1" and "user_2"), not 5 entries.
-
-**Phase mapping:** Must be fixed before the preloading phase. Preloading is impossible without correct string-keyed maps.
-
-**Compiler additions needed:** Fix `Map.collect` key type propagation in the collect codegen path.
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| One OS thread per streaming HTTP request | 100% CPU on 8-core machine with 8 streams | Use async-friendly HTTP client (reqwest) for high-concurrency streaming in future | At ~8-16 concurrent streaming requests |
+| No connection keep-alive for HTTP client | Each request pays TCP + TLS handshake overhead | Implement ureq::Agent-based connection pooling with opaque u64 handle | At ~50 req/s to the same host |
+| All test files compiled into one binary | `meshc test` build time grows linearly with test count | Parallel compilation per file; cache unchanged test artifacts | At ~200 test files |
+| Registry full-text search via SQL LIKE | `SELECT * FROM packages WHERE name LIKE '%query%'` is a full table scan | Add `tsvector` index for description, use PostgreSQL FTS from the start | At ~1,000 packages |
+| Test runner starts fresh runtime per test file | `meshc test` takes 10 seconds for 50 test files due to 50 runtime initializations | Run all tests in a single runtime, isolating via actor-per-test | At ~50 test files |
 
 ---
 
-### Pitfall 15: Newline-as-Terminator Breaks Relationship Declaration Syntax
+## Security Mistakes
 
-**What goes wrong:** The schema relationship syntax needs a block-style declaration:
-```
-schema User do
-  has_many "posts", Post
-  belongs_to "org", Organization
-end
-```
-But each `has_many`/`belongs_to` line is a function call. If the parser treats newlines as statement terminators, the block body parses each line as an independent statement. The compiler needs to understand that these are declarations within a `schema` block, not standalone function calls.
+Domain-specific security issues beyond general web security.
 
-**Why it happens:** Mesh's parser treats newlines as statement terminators. In a `do...end` block, each line is a separate statement. If `has_many` and `belongs_to` are function calls, they need to return values or have side effects. But schema declarations are metadata, not computations. They need to be processed at compile time, not at runtime.
-
-**Consequences:**
-- If `has_many` is a runtime function, it needs a mutable registry to store the metadata -- impossible in Mesh
-- If `has_many` is a compiler-processed declaration, it needs new parser support
-- The newline terminator means multi-argument declarations that span lines need continuation handling
-
-**Prevention:**
-1. **Handle relationship metadata in `deriving(Schema)` with struct annotations** rather than a separate block:
-   ```
-   struct User do
-     id :: Int
-     name :: String
-     # @has_many "posts", Post
-     # @belongs_to "org", Organization
-   end deriving(Schema)
-   ```
-   Use special comments or a new annotation syntax that the compiler processes during `deriving(Schema)` expansion.
-
-2. **Use a companion function that the compiler recognizes:**
-   ```
-   fn User.__relationships__() do
-     [HasMany("posts", "Post", "user_id"), BelongsTo("org", "Organization", "org_id")]
-   end
-   ```
-   The compiler inlines this function and extracts relationship metadata at compile time. This works with existing Mesh syntax -- no parser changes needed.
-
-3. **Encode relationships in the struct itself using phantom fields or a special derive argument:**
-   ```
-   struct User do
-     id :: Int
-     name :: String
-   end deriving(Schema, has_many("posts", Post), belongs_to("org", Organization))
-   ```
-   Extend the `deriving(...)` syntax to accept arguments. This requires a parser change to the `deriving(...)` clause but is a targeted change.
-
-4. **Simplest approach: separate schema definition module.** A `UserSchema` module contains functions that return relationship metadata. The ORM reads these at compile time via known function name conventions.
-
-**Detection:** If relationship declarations require runtime mutation or dynamic registration, the approach is incompatible with Mesh.
-
-**Phase mapping:** Schema definition phase (first phase).
-
-**Compiler additions needed:** Extended `deriving(...)` syntax with arguments, OR annotation syntax, OR recognized companion function pattern.
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Variable-time HMAC comparison in `Crypto.hmac_verify` | Timing attack allows secret recovery | Use `hmac::Mac::verify_slice` from existing dep (constant-time via `subtle`) |
+| UUID v4 from `SmallRng` or seeded PRNG | Predictable IDs enable enumeration/forgery | Use `ring::rand::SystemRandom` (OS CSPRNG) |
+| Package registry publish without authentication | Anyone can publish to any namespace | Require API token; associate tokens with package namespace ownership at creation time |
+| Registry tarball served without integrity check | Man-in-the-middle can substitute malicious package | SHA-256 content-address storage; `mesh.toml` lock file records digests |
+| Date/time silent UTC assumption | Business logic bugs from timezone confusion | Reject timezone-free timestamp strings in `Date.parse` |
+| Base64 decoding without padding validation | Malformed input causes panic in some decoders | Use `base64::engine::general_purpose::STANDARD.decode` with explicit error handling |
 
 ---
 
-## Minor Pitfalls
+## "Looks Done But Isn't" Checklist
+
+Things that appear complete but are missing critical pieces.
+
+- [ ] **Crypto.sha256:** Appears done — but verify that the output is hex-encoded consistently (lowercase hex, no `0x` prefix, exactly 64 characters). The underlying `sha2` crate returns bytes; encoding to hex string is a separate step that must be tested.
+- [ ] **Crypto.hmac_sha256:** Appears done — but verify that the `hmac_verify` companion function uses constant-time comparison, not `==` on the String output.
+- [ ] **Date.parse:** Appears done — but verify that strings without timezone offset return `Err`, not a silently-wrong UTC value.
+- [ ] **Date.format:** Appears done — but verify that millisecond timestamps are serialized in ISO 8601 with `Z` suffix, not as bare Unix numbers.
+- [ ] **HTTP chunked reading:** Appears done — but verify with a real chunked response that includes chunk extensions (`;name=value` after the size) and trailers. Happy-path tests with clean chunks will pass even with a broken parser.
+- [ ] **HTTP keep-alive:** Appears done — but verify that the `ureq::Agent` survives a GC cycle between requests (store as opaque u64, never on GC heap).
+- [ ] **Test runner isolation:** Appears done — but run two tests that both register the same actor name and verify the second test doesn't fail with "AlreadyRegistered."
+- [ ] **Mock cleanup:** Appears done — but write a test that fails mid-execution and verify no orphan actors remain after the suite completes.
+- [ ] **Coverage reporting:** Appears done — but verify that coverage line numbers map to `.mpl` source files, not to Rust compiler source.
+- [ ] **Package publish once:** Appears done — but attempt to publish the same `name@version` twice with different content and verify the second publish is rejected with an error, not silently accepted or silently ignored.
+- [ ] **Package install with lock file:** Appears done — but verify that `meshpkg install` with an existing lock file uses pinned versions (does not upgrade), and that the installed content matches the recorded SHA-256 digest.
 
 ---
 
-### Pitfall 16: No Atom/Symbol Type for ORM Identifiers
+## Recovery Strategies
 
-**What goes wrong:** Ecto uses atoms extensively for field names, relationship names, and configuration keys: `:name`, `:has_many`, `:foreign_key`. Mesh has no atom type -- strings are used instead. This means every ORM identifier is a string, which is heap-allocated and compared by value (character-by-character) rather than by identity.
+When pitfalls occur despite prevention, how to recover.
 
-**Prevention:**
-1. Accept strings as the identifier type. String comparison in Mesh is efficient for short strings (field names are typically < 20 characters).
-2. Use compile-time string constants where possible. The compiler can intern string literals.
-3. Do not add an atom type for the ORM alone. The cost/benefit ratio is poor for a single use case.
-
-**Phase mapping:** All phases. Not a blocking issue, just a minor ergonomic difference from Ecto.
-
----
-
-### Pitfall 17: Transaction Handling in Immutable Context
-
-**What goes wrong:** ORM insert/update operations within a transaction need to pass the transaction connection through every call:
-```
-Pg.transaction(pool, fn(conn) do
-  let user_id = Repo.insert(conn, user)?
-  let post = Post { user_id: user_id, title: "Hello" }
-  Repo.insert(conn, post)?
-  Ok(user_id)
-end)
-```
-Ecto's `Repo.transaction` uses process dictionary (mutable, actor-local state) to implicitly pass the transaction connection. Mesh has no process dictionary or thread-local storage.
-
-**Prevention:**
-1. **Explicit connection passing is correct for Mesh.** It is more explicit than Ecto's implicit process dictionary approach and prevents the common Ecto bug of accidentally using a non-transactional connection inside a transaction block.
-2. **The existing `Pg.transaction(pool, fn(conn) do ... end)` pattern works.** The ORM's `Repo.transaction` wraps this with ORM-level operations. The callback receives the connection explicitly.
-3. **Ensure all Repo functions accept an optional connection parameter** to enable transaction use. `Repo.insert(changeset)` uses pool checkout; `Repo.insert(changeset, conn)` uses the provided transaction connection.
-
-**Phase mapping:** Repo operations phase.
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Duplicate crypto deps | LOW | Remove new dep, rewire calls to existing dep; no API change if the extern C signatures are compatible |
+| Variable-time comparison already shipped | MEDIUM | Add `Crypto.secure_compare` function; deprecate usage of `==` on crypto output; publish security advisory |
+| Timestamp as String already in use | HIGH | Add conversion functions `Date.from_string_to_ms` and `Date.from_ms_to_string`; deprecate old String-based functions; cannot change existing data without migration |
+| Test registry leaks causing flaky tests | MEDIUM | Add `after_each` cleanup hook to deregister known actor names; or switch to actor-per-test isolation model |
+| Package registry allows overwrites | HIGH | Cannot take back: once a version is overwritten, trust is broken. Must announce "registry reset" with v2.0 API, explain why immutability matters, re-publish all packages. |
+| Chunked parser corruption of keep-alive socket | MEDIUM | Disable keep-alive for affected endpoints as workaround; fix parser per RFC 9112; add regression test for each edge case |
+| LLVM coverage version mismatch | LOW | Fall back to source-level MIR instrumentation (the recommended approach); LLVM-based coverage can be added later when debug info is complete |
 
 ---
 
-### Pitfall 18: UUID Primary Keys vs Integer Primary Keys
+## Pitfall-to-Phase Mapping
 
-**What goes wrong:** Mesher uses UUID primary keys (`gen_random_uuid()`). The ORM assumes integer auto-incrementing primary keys (`SERIAL`). Or vice versa -- the ORM only supports UUIDs and a user wants integer PKs. The primary key type affects: how `Repo.get(User, id)` works, how relationships resolve foreign keys, how the migration generates PK columns, and how INSERT RETURNING parses the returned ID.
+How roadmap phases should address these pitfalls.
 
-**Prevention:**
-1. **Support both UUID and Integer primary keys** via schema metadata. The `id` field's Mesh type determines the PK strategy: `id :: Int` -> `SERIAL PRIMARY KEY`, `id :: String` -> `UUID PRIMARY KEY DEFAULT gen_random_uuid()`.
-2. **Default to UUID** to match Mesher's existing pattern and PostgreSQL best practices for distributed systems.
-3. **The text protocol makes this easier:** both UUID and integer PKs arrive as strings from `deriving(Row)`. The coercion layer handles the difference transparently.
-
-**Phase mapping:** Schema definition phase.
-
----
-
-### Pitfall 19: TyVar Normalization Edge Cases in Generic Query Results
-
-**What goes wrong:** The query builder returns generic results: `Repo.all(query) :: Result<List<T>, String>` where `T` is the schema struct type. Cross-module type inference for generic return types has known edge cases (TyVar normalization). If the type variable `T` is not correctly resolved when `Repo.all` is called from a different module than where the schema is defined, the compiler may produce incorrect LLVM IR or type errors.
-
-**Prevention:**
-1. **Test cross-module generic return types early.** Write a test where module A defines `struct User end deriving(Schema)`, module B calls `Repo.all(User.query())`, and the result is used as `List<User>`.
-2. **If TyVar issues arise:** add explicit return type annotations at the call site:
-   ```
-   let users :: Result<List<User>, String> = Repo.all(query)
-   ```
-3. **Keep Repo functions monomorphic where possible.** Instead of a generic `Repo.all<T>(query) -> Result<List<T>, String>`, generate per-schema functions: `User.all(query) -> Result<List<User>, String>`.
-
-**Detection:** Type errors or LLVM verification failures when using query results across module boundaries.
-
-**Phase mapping:** Query builder phase.
-
----
-
-### Pitfall 20: Repo.get vs Repo.get! Error Handling Convention
-
-**What goes wrong:** In Ecto, `Repo.get(User, 42)` returns `nil` when not found (Option), while `Repo.get!(User, 42)` raises an exception. Mesh has no exceptions -- all errors use `Result<T, E>`. The API convention must be clear:
-- `Repo.get(User, id)` -> `Result<User, String>` where Err means "not found" or "database error"
-- There is no `Repo.get!` equivalent since Mesh has no exceptions
-
-**Prevention:**
-1. **Use `Result<Option<User>, String>`** for get operations: `Ok(Some(user))` = found, `Ok(None)` = not found, `Err(msg)` = database error. This distinguishes "not found" from "database error."
-2. **Provide both `Repo.get` and `Repo.get_by`:** `get` fetches by primary key, `get_by` fetches by arbitrary column. Both return `Result<Option<T>, String>`.
-3. **Do NOT use `panic!`** for "not found" errors. Mesh's let-it-crash philosophy applies to actor supervision, not to expected database query results.
-
-**Phase mapping:** Repo operations phase.
-
----
-
-## Phase-Specific Warnings
-
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| **Compiler additions (first)** | Single-expression case arms, single-line pipes, cross-module from_row | Fix parser/typeck before building ORM (Pitfalls 7, 8, 10) |
-| **Compiler additions (first)** | No struct update syntax | Add `{...struct, field: value}` syntax (Pitfall 12) |
-| **Compiler additions (first)** | Map.collect integer key assumption | Fix collect codegen key type propagation (Pitfall 14) |
-| **Schema definition** | No macros for DSL | Use `deriving(Schema)` compiler-level generation (Pitfall 1) |
-| **Schema definition** | Relationship metadata without reflection | Compiler-generated metadata functions (Pitfall 11) |
-| **Schema definition** | Newline terminators in declarations | Use deriving args or companion functions (Pitfall 15) |
-| **Query builder** | String column names, no type safety | Compiler-generated column accessors (Pitfall 2) |
-| **Query builder** | Pipe chains unreadable | Multi-line pipes or parenthesized workaround (Pitfall 8) |
-| **Query builder** | Expression problem, extensibility | Fragment escape hatch, common operators built-in (Pitfall 13) |
-| **Relationships & preloading** | N+1 queries | Ecto-style separate-query preloading (Pitfall 3) |
-| **Relationships & preloading** | String-keyed grouping broken | Fix Map.collect or manual grouping (Pitfall 14) |
-| **Changeset** | No struct update syntax | Builder functions or struct update syntax (Pitfall 12) |
-| **Changeset** | Text protocol all-strings coercion | Centralized type coercion in schema metadata (Pitfall 4) |
-| **Migrations** | Multi-line SQL strings | Plain SQL files, not Mesh code (Pitfall 5) |
-| **Migrations** | Rollback data loss | Forward-only, expand-migrate-contract (Pitfall 6) |
-| **Repo operations** | No keyword arguments | Convention over configuration (Pitfall 9) |
-| **Repo operations** | Transaction connection passing | Explicit conn parameter (Pitfall 17) |
-| **Cross-module usage** | TyVar normalization for generic results | Test early, explicit annotations (Pitfall 19) |
-
----
-
-## Recommended Compiler Additions (Prioritized)
-
-Based on pitfall analysis, these compiler additions should be implemented BEFORE building the ORM library, in priority order:
-
-| Priority | Addition | Pitfalls Addressed | Scope |
-|----------|----------|-------------------|-------|
-| **P0** | Fix cross-module from_row/from_json resolution | 10 | typeck fix in infer.rs |
-| **P0** | Fix Map.collect string key type propagation | 14 | codegen fix in collect path |
-| **P1** | Multi-expression case arms (`do...end` in case) | 7 | parser change |
-| **P1** | Multi-line pipe continuation | 8 | parser change |
-| **P1** | Struct update syntax (`{...s, field: val}`) | 12 | parser + typeck + codegen |
-| **P2** | `deriving(Schema)` with relationship args | 1, 11, 15 | typeck + MIR lowering |
-| **P2** | Multi-line string literals | 5 | lexer + parser |
-| **P3** | Keyword arguments (optional) | 9 | parser + typeck |
-
-P0 items are bugfixes that block ORM correctness. P1 items are language features that block ORM ergonomics. P2 items enable the ORM-specific compiler features. P3 items are nice-to-have improvements.
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Duplicate crypto deps | Crypto stdlib (first task: `Cargo.toml` audit) | `cargo tree | grep sha2` shows one version |
+| Non-constant-time HMAC comparison | Crypto stdlib (API design) | Security review of `hmac_verify` implementation |
+| Timestamp as String | Date/time stdlib (representation decision) | `Date.now()` returns `Int`, not `String` |
+| Silent UTC assumption | Date/time stdlib (parser) | `Date.parse("2026-02-28 12:00:00")` returns `Err` |
+| Integer overflow in date arithmetic | Date/time stdlib (arithmetic functions) | `Date.add_seconds(max_i64, 1)` returns `Err` |
+| Blocking I/O starvation | HTTP client improvements (threading design) | 16 concurrent streaming actors do not deadlock 8-thread scheduler |
+| Chunked parser edge cases | HTTP client improvements (chunk parser) | Unit tests for: extensions, trailers, zero-length body, oversized chunk |
+| Keep-alive pool on GC heap | HTTP client improvements (handle design) | Agent survives GC cycle; no use-after-free under load |
+| Test actor registry leaks | Test framework (isolation design, first task) | Two tests with same actor name both pass when run sequentially |
+| Mock actor orphans | Test framework (mock API design) | Suite with 10 failing tests leaves 0 orphan actors |
+| LLVM coverage mismatch | Test framework (coverage design) | Coverage report shows `.mpl` line numbers, not Rust line numbers |
+| Registry version overwrite | Package registry (API design) | Second publish of same version returns HTTP 409 Conflict |
+| Empty registry at launch | Package registry (content plan) | Registry launches with at least 4 stdlib packages already published |
+| UUID from weak PRNG | Crypto stdlib (UUID implementation) | UUIDs generated using `ring::rand::SystemRandom` |
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence -- direct Mesh source analysis)
-- `crates/mesh-typeck/src/infer.rs:2276` -- `valid_derives` array, entry point for new derive implementations
-- `crates/mesh-codegen/src/mir/lower.rs:1689-1746` -- `lower_struct_def`, `generate_from_row_struct`, derive dispatch
-- `crates/mesh-codegen/src/mir/lower.rs:3914` -- `generate_from_row_struct` implementation, template for `deriving(Schema)`
-- `.planning/PROJECT.md:235` -- Single-line pipe chain limitation
-- `.planning/PROJECT.md:236` -- Map.collect integer key assumption
-- `.planning/phases/88-ingestion-pipeline/88-02-SUMMARY.md:142-143` -- Cross-module from_json resolution failure documented
-- `.planning/phases/87.1-issues-encountered/87.1-RESEARCH.md:246-248` -- Row struct all-String fields limitation
-- `mesher/storage/queries.mpl` -- 600+ lines of manual Pool.query/Pool.execute demonstrating what the ORM replaces
-- `mesher/types/event.mpl:40-60` -- Event struct with all-String fields for deriving(Row) compatibility
-- `.planning/STATE.md:44-48` -- Known blockers/concerns for ORM development
+- `/Users/sn0w/Documents/dev/mesh/compiler/mesh-rt/Cargo.toml` — existing crypto deps (sha2, hmac, ring, base64, rand) — HIGH confidence, direct source
+- `/Users/sn0w/Documents/dev/mesh/compiler/mesh-rt/src/http/client.rs` — current ureq 2.x blocking I/O pattern — HIGH confidence, direct source
+- `/Users/sn0w/Documents/dev/mesh/compiler/mesh-rt/src/actor/scheduler.rs` — M:N scheduler design, coroutines `!Send`, thread-pinned — HIGH confidence, direct source
+- `/Users/sn0w/Documents/dev/mesh/.planning/PROJECT.md` — v4.0 WS reader thread decision, opaque u64 handle pattern, conservative GC scanning — HIGH confidence, direct source
+- [dalek-cryptography/subtle — constant-time Rust utilities](https://github.com/dalek-cryptography/subtle) — LLVM branch re-introduction risk, best-effort constant-time — MEDIUM confidence
+- [ureq blocking I/O model](https://docs.rs/ureq) — "blocking I/O... one OS thread per concurrent request" — HIGH confidence, official docs
+- [ureq connection pool issue: chunked + compressed response inhibits reuse](https://github.com/algesten/ureq/issues/549) — known keep-alive edge case — MEDIUM confidence
+- [CVE-2025-66373 Akamai chunked body size](https://www.akamai.com/blog/security/cve-2025-66373-http-request-smuggling-chunked-body-size) — real-world chunked parser failure, 2025 — HIGH confidence
+- [aiohttp duplicate Transfer-Encoding bug 2025](https://github.com/aio-libs/aiohttp/issues/10611) — duplicate chunked header edge case — MEDIUM confidence
+- [RFC 9112 §7.1 chunked transfer coding](https://www.rfc-editor.org/rfc/rfc9112#section-7.1) — authoritative spec for chunk extensions and trailers — HIGH confidence
+- [Falsehoods programmers believe about time](https://gist.github.com/timvisee/fcda9bbdff88d45cc9061606b4b923ca) — timezone and timestamp pitfall catalog — MEDIUM confidence
+- [crates.io publishing semantics](https://doc.rust-lang.org/cargo/reference/publishing.html) — immutability and yank design rationale — HIGH confidence
+- [LLVM source-based code coverage](https://clang.llvm.org/docs/SourceBasedCodeCoverage.html) — format version incompatibility, profdata merge requirement — HIGH confidence
+- [Jest mock cleanup pitfalls 2025](https://www.mindfulchase.com/explore/troubleshooting-tips/testing-frameworks/advanced-troubleshooting-in-jest-flaky-tests,-mocks,-and-performance-at-scale.html) — stale mock state, shared global objects — MEDIUM confidence
+- [Dependency hell and SemVer limitations 2025](https://prahladyeri.github.io/blog/2024/11/dependency-hell-revisited.html) — transitive dep drift, publish semantics — MEDIUM confidence
 
-### Secondary (MEDIUM confidence -- ORM ecosystem research, multiple sources agree)
-- [Ecto.Schema documentation](https://hexdocs.pm/ecto/Ecto.Schema.html) -- Macro-based schema DSL architecture
-- [Ecto.Repo preload documentation](https://hexdocs.pm/ecto/Ecto.Repo.html) -- Separate-query preloading strategy
-- [Ecto Associations guide](https://hexdocs.pm/ecto/associations.html) -- Relationship definition patterns
-- [Diesel ORM documentation](https://diesel.rs/) -- Compile-time type-safe query builder via Rust type system
-- [Diesel schema generation](https://docs.rs/diesel) -- table! macro and diesel print-schema approach
-- [Haskell Persistent](https://github.com/yesodweb/persistent) -- Template Haskell for schema DSL generation
-- [Esqueleto type-safe EDSL](https://hackage.haskell.org/package/esqueleto) -- Type-safe SQL query builder on Persistent
-- [William Yao: Type-safe DB libraries comparison](https://williamyaoh.com/posts/2019-12-14-typesafe-db-libraries.html) -- Haskell ORM ecosystem analysis
-- [Drizzle ORM approach](https://betterstack.com/community/guides/scaling-nodejs/drizzle-vs-prisma/) -- Code-first schema without codegen
-- [SQL injection in ORMs](https://snyk.io/blog/sql-injection-orm-vulnerabilities/) -- Column name injection, parameterization gaps
-- [Atlas: Database rollback hard truths](https://atlasgo.io/blog/2024/11/14/the-hard-truth-about-gitops-and-db-rollbacks) -- Forward-only migration philosophy
-- [Database migrations: safe strategies](https://vadimkravcenko.com/shorts/database-migrations/) -- Expand-migrate-contract pattern
-- [Ecto data mapping and validation](https://hexdocs.pm/ecto/data-mapping-and-validation.html) -- Changeset architecture, casting, validation pipeline
+---
+
+*Pitfalls research for: Mesh v14.0 Ecosystem & Standard Library*
+*Researched: 2026-02-28*

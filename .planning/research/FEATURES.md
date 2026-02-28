@@ -1,413 +1,497 @@
-# Feature Landscape: Mesh ORM
+# Feature Research
 
-**Domain:** ORM library for a statically-typed, LLVM-compiled functional language (Mesh) targeting PostgreSQL
-**Researched:** 2026-02-16
-**Confidence:** HIGH for core ORM features (Ecto, ActiveRecord, Prisma, Diesel, SeaORM thoroughly documented). MEDIUM for Mesh-specific DSL design (depends on compiler additions). HIGH for anti-patterns (extensive post-mortems across ecosystems).
-
----
-
-## Existing System Baseline
-
-What Mesh already provides that the ORM builds upon:
-
-- **PostgreSQL driver:** Pure wire protocol, SCRAM-SHA-256 auth, TLS, connection pooling, transactions with panic-safe rollback
-- **`deriving(Row)`:** Generates `from_row` mapping `Map<String, String>` to typed structs (String, Int, Float, Bool, Option)
-- **`deriving(Json)`:** Automatic JSON encode/decode for structs, sum types, nested types, Option, List, Map
-- **`Pool.query` / `Pool.execute`:** Parameterized queries with `$1` placeholders, returns `List<Map<String, String>>`
-- **`Pool.query_as`:** One-step query + struct hydration via `from_row`
-- **`Pg.transaction`:** Panic-safe transactions with automatic commit/rollback via catch_unwind
-- **Pipe operator:** `value |> fn(args)` with pipe-aware type inference
-- **Traits with associated types:** Monomorphization-based static dispatch
-- **Pattern matching:** Exhaustive, with sum types, structs, literals, wildcards, guards
-- **Module system:** File-based with `pub` visibility, qualified imports, cross-module type checking
-- **Iterators:** Lazy pipeline composition (map, filter, take, skip), Collect into List/Map/Set/String
-
-### What Mesh Does NOT Have (Relevant Gaps for ORM)
-
-| Gap | Impact on ORM | Mitigation |
-|-----|--------------|------------|
-| **No keyword arguments** | Cannot write `where(name: "Alice")` -- the most natural ORM syntax | PROJECT.md explicitly lists keyword args as potential compiler addition. **Highest-leverage compiler change.** |
-| **Single-line pipe chains only** | `User |> where(...) |> limit(10) |> Repo.all()` must be on one line | Parser change to support multi-line `|>` continuation. Known limitation in STATE.md. |
-| **No macros** | Schema DSL must be `deriving` variants or new parser syntax, not user-definable macros | Use `deriving(Schema)` or new dedicated syntax (like `schema` block) |
-| **No runtime reflection** | Struct field names/types not queryable at runtime | Compile-time code generation must produce metadata functions |
-| **No atom type** | Cannot use `:name` to reference fields symbolically | Add atom literals to the language, or use strings as field references |
-| **No default function arguments** | Every argument must be provided explicitly | Multi-clause functions with pattern matching as workaround |
-| **No method overloading** | Cannot have `where(field, value)` and `where(map)` at same arity | Multi-clause with pattern matching distinguishes cases |
-| **No struct update syntax** | Cannot write `%{user | name: "Bob"}` to produce a modified copy | Needed for changeset `apply_changes`. Compiler addition. |
-
-### What Mesher Currently Does (the code the ORM must replace)
-
-Analysis of `/Users/sn0w/Documents/dev/snow/mesher/storage/queries.mpl` (627 lines) reveals the pain points:
-
-1. **Manual struct construction from Map:** Every query function manually maps `Map.get(row, "column")` to struct fields. Example: `Organization { id: Map.get(row, "id"), name: Map.get(row, "name"), ... }` -- 6+ fields per struct, repeated for every query function.
-2. **Raw SQL strings everywhere:** 40+ raw SQL query strings, each hand-written with `$1` placeholders. No reuse of WHERE clauses or common patterns.
-3. **Manual type casting:** `parse_event_count(Map.get(row, "event_count"))` -- converting `String.to_int` manually because `Pool.query` returns all strings.
-4. **No validation before persistence:** Data goes straight from API to `Pool.execute` with no changeset/validation layer.
-5. **Schema DDL as imperative code:** `create_schema` function runs 25+ `Pool.execute` calls for CREATE TABLE / CREATE INDEX. No migration versioning.
-6. **Duplicated query patterns:** `if List.length(rows) > 0 do Ok(List.head(rows)) else Err("not found") end` repeated in 15+ functions.
-
-The ORM must eliminate all six of these pain points.
+**Domain:** Programming language ecosystem expansion (stdlib crypto/datetime/encoding + HTTP client + testing + package registry)
+**Researched:** 2026-02-28
+**Confidence:** HIGH
 
 ---
 
-## Table Stakes
+## Context: Mesh v14.0 Feature Scope
 
-Features every ORM user expects. Missing any of these makes the ORM feel incomplete.
+This research covers six feature areas being added in v14.0. Each section maps
+"expected behavior" from comparable ecosystems to concrete decisions for Mesh.
 
-### 1. Schema DSL for Model Definition
-
-The foundation. Users define their data model in code; the ORM uses it for queries, validation, and migrations.
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Schema block defining table name + fields | Every ORM has this. Without it, there is no ORM. | **High** | Requires compiler work: new syntax or deriving macro. Ecto uses `schema "users" do field :name, :string end`. |
-| Field types mapping to PG types | Each field has a Mesh type mapped to a PG type (String->TEXT, Int->INTEGER, Float->DOUBLE PRECISION, Bool->BOOLEAN). | **Med** | Start with types `deriving(Row)` already handles. Add DateTime/UUID later. |
-| Primary key configuration | Default auto-increment `id :: Int` or configurable UUID. | **Low** | Ecto defaults to `{:id, :id, autogenerate: true}`. Match that convention. |
-| `timestamps()` macro/function | Automatic `inserted_at` and `updated_at` fields. Universal across ORMs. | **Low** | Auto-set `inserted_at` on insert, auto-update `updated_at` on update. |
-| Virtual fields (not persisted) | Fields for computed values, not stored in DB. Ecto: `field :full_name, :string, virtual: true`. | **Low** | Exclude from INSERT/UPDATE/SELECT generation. |
-| Schema metadata generation | Query builder and Repo need table name, field names, field types, PK at compile time. Ecto generates `__schema__/1`. | **High** | Bridge between schema definition and query builder. Must be compile-time generated. |
-
-**Cross-ORM comparison:**
-- **Ecto:** `schema "users" do field :name, :string; has_many :posts, Post end` -- macro-based, generates struct + metadata
-- **ActiveRecord:** Schema inferred from database at runtime (no code definition), or `t.string :name` in migrations
-- **Prisma:** `model User { name String }` in `.prisma` schema file, generates typed client
-- **Diesel:** `table!` macro auto-generated from DB schema by `diesel print-schema`
-- **SeaORM:** `#[derive(DeriveEntityModel)]` on Rust struct with attribute annotations
-
-**Recommendation for Mesh:** Follow Ecto. Define schema in Mesh code using a DSL block that generates the struct and metadata. Fits Mesh's `do/end` syntax. Avoids external schema files (Prisma) and database inference (ActiveRecord). Use `deriving(Schema)` or a new `schema` block.
-
-### 2. Query Builder with Pipe Composition
-
-The ORM's primary API. Users construct queries by chaining operations via pipe operator.
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| `where` clause filtering | Most fundamental query operation. Filter records by field conditions. | **High** | Needs keyword args OR positional: `where(:name, "Alice")`. |
-| `select` field selection | Choose columns to return. Default: all schema fields. | **Med** | `User |> select([:name, :email])` using list of field references. |
-| `order_by` sorting | Sort by fields with ASC/DESC. | **Low** | `User |> order_by(:name, :asc)`. |
-| `limit` and `offset` | Pagination building blocks. | **Low** | `User |> limit(10) |> offset(20)`. |
-| `join` for associations | Join related tables. Inner, left joins. | **High** | Complex. Simplified via schema associations: `join(:left, :posts)`. |
-| `group_by` and `having` | Aggregation queries. | **Med** | Needed for dashboard/reporting. |
-| `preload` for eager loading | Load associated records. Prevents N+1. Critical. | **High** | Generates separate query per association. |
-| Query composition | Queries are data structures, composable before execution. | **Med** | `base = User |> where(:active, true); base |> limit(10) |> Repo.all()` |
-| Parameterized (injection-safe) | All values parameterized, never interpolated. | **Low** | Already built into Pool.query. |
-| Raw SQL escape hatch | Drop to raw SQL when the builder cannot express what you need. | **Low** | Pool.query/Pool.execute already exist. |
-
-**How pipe-based query building works (Ecto model):**
-
-Each query function takes a Query struct as first argument (or a Schema module that auto-converts) and returns a new Query struct. The pipe operator threads the query through:
-
-```
-# Pseudocode of how this works in Mesh
-User                          # Schema module -> converts to Query<User>
-  |> where(:name, "Alice")   # Query<User> -> Query<User> with WHERE clause
-  |> where(:active, true)    # Query<User> -> Query<User> with additional WHERE
-  |> order_by(:created_at, :desc)  # adds ORDER BY
-  |> limit(10)               # adds LIMIT
-  |> Repo.all()              # executes: returns List<User>
-```
-
-The Query struct accumulates clauses as data. SQL is generated only when a terminal operation (Repo.all, Repo.one, etc.) is called. This is Ecto's greatest design insight and maps perfectly to Mesh's pipe operator.
-
-**Keyword args are the key unlock.** Without them, conditions must use positional args: `where(:name, :eq, "Alice")` or `where("name", "Alice")`. With keyword args: `where(name: "Alice", active: true)`. The ergonomic difference is enormous.
-
-### 3. Repo Pattern for Database Operations
-
-All database operations go through a central Repo module. No model.save() scattered throughout the code.
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| `Repo.all(query)` | Execute query, return all matching records as `List<Schema>`. | **Med** | Build SQL from Query, execute via Pool.query, hydrate via from_row. |
-| `Repo.one(query)` | Execute query, return exactly one record or error. | **Low** | Repo.all + assert single result. Return `Option<T>` or `Result<T, String>`. |
-| `Repo.get(Schema, id)` | Fetch by primary key. Most common single-record fetch. | **Low** | Sugar for `Schema |> where(:id, id) |> Repo.one()`. |
-| `Repo.get_by(Schema, clauses)` | Fetch by arbitrary conditions. | **Low** | Sugar for `Schema |> where(clauses) |> Repo.one()`. |
-| `Repo.insert(changeset)` | Insert from changeset. Return inserted record with generated fields. | **Med** | Generate INSERT from changeset changes. RETURNING for id/timestamps. |
-| `Repo.update(changeset)` | Update from changeset. Only SET changed fields. | **Med** | Generate UPDATE SET for changed fields only. WHERE id = pk. |
-| `Repo.delete(struct)` | Delete by primary key. | **Low** | `DELETE FROM table WHERE id = $1`. |
-| `Repo.preload(struct, assocs)` | Load associations on already-fetched structs. | **High** | Post-fetch: given a User, query their posts, attach to struct. |
-| `Repo.transaction(fn)` | Atomic multi-operation. Already exists as Pg.transaction. | **Low** | Wrap Repo operations in existing transaction support. |
-
-### 4. Relationships (Associations)
-
-Defining and querying relationships between schemas.
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| `belongs_to` (many-to-one) | Post belongs_to User. Post has `user_id` FK. | **Med** | Adds FK field to schema. Enables preloading parent. |
-| `has_many` (one-to-many) | User has_many Posts. | **Med** | Reverse of belongs_to. `SELECT * FROM posts WHERE user_id = $1`. |
-| `has_one` (one-to-one) | User has_one Profile. | **Low** | Variant of has_many returning `Option<Profile>` not list. |
-| `many_to_many` (join table) | Users have many Roles through `user_roles`. | **High** | JOIN through bridge table. Two-step query or explicit join. |
-| Nested preloading | `User |> preload(posts: :comments)` | **High** | Multiple queries, recursive result stitching. |
-
-**Critical design decision: Explicit preloading only. No lazy loading.** This is the single most important architectural choice. Ecto chose this deliberately and it is universally praised. Lazy loading (ActiveRecord, SQLAlchemy) silently triggers N+1 queries and is the #1 source of ORM performance issues. In a functional language without mutable state, lazy loading is even more problematic -- it requires hidden side effects.
-
-Unloaded associations return a `NotLoaded` marker value. Accessing it produces a clear error: "association :posts not loaded. Use Repo.preload or include in query." This forces developers to be explicit about what data they need.
-
-### 5. Changesets for Validation and Casting
-
-The pipeline between raw external data and the database.
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| `Changeset.cast(struct, params, allowed)` | Filter + type-cast external params to schema types. Prevents mass assignment. | **High** | Takes struct + Map + list of allowed fields. Converts string values to schema types. |
-| `validate_required(cs, fields)` | Ensure fields present and non-empty. Most common validation. | **Low** | Check each field has value in changes. Add error if missing. |
-| `validate_length(cs, field, opts)` | String/list length bounds (min, max). | **Low** | `validate_length(:name, min: 2, max: 100)`. |
-| `validate_format(cs, field, pattern)` | String pattern matching. Email, phone, etc. | **Low** | Mesh string operations or regex if added. |
-| `validate_inclusion(cs, field, values)` | Value in allowed set. For enum-like fields. | **Low** | `validate_inclusion(:role, ["admin", "member"])`. Uses List.contains. |
-| `validate_number(cs, field, opts)` | Numeric bounds. greater_than, less_than. | **Low** | `validate_number(:age, greater_than: 0)`. |
-| Custom validation functions | User-defined validation logic. | **Low** | `fn(changeset) -> changeset` that calls add_error. Pipe-friendly. |
-| `unique_constraint(cs, field)` | Map PG unique violation to changeset error. | **Med** | Catch PG 23505 error, convert to field error. |
-| `foreign_key_constraint(cs, field)` | Map FK violation to changeset error. | **Med** | Catch PG 23503 error, convert to field error. |
-| Change tracking (dirty fields) | Know which fields changed for UPDATE optimization. | **Med** | Changeset stores changes map. Repo.update only SETs changed fields. |
-
-**How the changeset pipeline works:**
-
-```
-# Pseudocode for Mesh ORM changeset workflow
-user
-  |> Changeset.cast(params, [:name, :email, :age])   # filter + type-cast
-  |> Changeset.validate_required([:name, :email])     # check presence
-  |> Changeset.validate_format(:email, "@")           # check format
-  |> Changeset.validate_number(:age, greater_than: 0) # check bounds
-  |> Repo.insert()                                     # persist or return errors
-```
-
-The Changeset struct shape:
-- `data :: T` -- the original struct
-- `changes :: Map<String, String>` -- approved modifications (field name -> new value)
-- `errors :: List<{String, String}>` -- validation failures (field, message)
-- `valid :: Bool` -- overall validity flag
-
-Repo.insert/update check `valid` before executing SQL. If invalid, return `Err(changeset)` with errors attached.
-
-### 6. Migration Tooling
-
-Schema evolution over time. Every production application needs this.
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Migration file generation | Create timestamped files with up/down. | **Med** | `mesh orm.gen.migration CreateUsers` -> `20260216120000_create_users.mpl` |
-| `create_table` DDL helper | DSL for creating tables. | **Med** | `create_table("users") do add(:name, :string, null: false) end` |
-| `alter_table` DDL helper | Add/remove/rename columns. | **Med** | `alter_table("users") do add(:email, :string) end` |
-| `drop_table` helper | Drop tables in down migrations. | **Low** | `drop_table("users")` |
-| `create_index` helper | Create indexes. | **Low** | `create_index("users", [:email], unique: true)` |
-| Migration runner (up/down) | Apply pending, rollback last. | **Med** | `schema_migrations` table tracks applied by version timestamp. |
-| Rollback support | Undo last N migrations. | **Med** | Run down function of last applied migration. |
-
-**Recommendation:** Use explicit `up`/`down` functions (Ecto/Diesel pattern). NOT auto-diff (Prisma pattern) -- schema diffing is extremely complex and dangerous for production. Users write migration logic explicitly. Provide `mesh orm.gen.migration` to scaffold empty files.
+**Key existing-dep fact:** `sha2 = "0.10"`, `hmac = "0.12"`, `base64 = "0.22"`,
+`rand = "0.9"`, `ureq = "2"` are already present in `compiler/mesh-rt/Cargo.toml`.
+Crypto and encoding work is primarily Rust `extern "C"` wrapper code + Mesh-side
+API design, not new dependency acquisition. DateTime is the one area requiring a
+new dep (`chrono = "0.4"`).
 
 ---
 
-## Differentiators
+## Feature Landscape
 
-Features that set the Mesh ORM apart. Not expected, but valuable.
+### Table Stakes (Users Expect These)
+
+Features users assume exist. Missing these = product feels incomplete.
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| `Crypto.sha256(s)` -> hex String | Standard primitive in every lang stdlib; required for HMAC verification, content addressing | LOW | `sha2` crate already in mesh-rt; need `extern "C"` wrapper + Mesh stdlib binding |
+| `Crypto.sha512(s)` -> hex String | Stronger variant; some APIs require it | LOW | Same crate, different digest size |
+| `Crypto.hmac_sha256(key, msg)` -> hex String | API webhook verification, JWT signing, distributed node auth (already used internally) | LOW | `hmac` crate already in mesh-rt; expose as user-callable stdlib |
+| `Crypto.hmac_sha512(key, msg)` -> hex String | Stronger HMAC variant | LOW | Same pattern as hmac_sha256 |
+| `Crypto.secure_compare(a, b)` -> Bool | Timing-safe string comparison; prevents timing attacks on API tokens | LOW | Use `hmac` crate's `verify_slice` which is constant-time; critical for security correctness |
+| `Crypto.uuid4()` -> String | Row IDs, idempotency keys, session tokens; Mesher already uses UUIDs via PG's `gen_random_uuid()` | LOW | `rand` crate already present; format 128-bit random as canonical UUID string |
+| `Base64.encode(s)` -> String | API tokens, file uploads, binary data in JSON payloads | LOW | `base64` crate already present; standard alphabet |
+| `Base64.decode(s)` -> Result<String, String> | Decode JWT headers, HTTP Basic auth, binary blobs | LOW | Returns Result because input may be malformed |
+| `Base64.encode_url(s)` -> String | JWT tokens require URL-safe alphabet; common in web APIs | LOW | URL-safe alphabet replaces `+` with `-` and `/` with `_` |
+| `Base64.decode_url(s)` -> Result<String, String> | Parse JWT tokens | LOW | URL-safe decode |
+| `Hex.encode(s)` -> String | Display hash digests, binary data inspection | LOW | Thin wrapper; lowercase hex string of bytes |
+| `Hex.decode(s)` -> Result<String, String> | Parse hex-encoded keys, digests from external sources | LOW | Validates hex character set |
+| `DateTime.utc_now()` -> DateTime | Current timestamp for created_at, updated_at fields; every web application needs this | MEDIUM | New `chrono = "0.4"` dep; DateTime is an opaque GC-heap handle (same pattern as Regex) |
+| `DateTime.from_iso8601(s)` -> Result<DateTime, String> | Parse timestamps from JSON API bodies, database strings | MEDIUM | Parses RFC 3339 / ISO 8601 extended format |
+| `DateTime.to_iso8601(dt)` -> String | Serialize timestamps to JSON responses | MEDIUM | Produces `"2024-01-15T14:30:00Z"` format |
+| `DateTime.from_unix(Int)` -> DateTime | Convert stored Unix timestamps (database integer columns) to DateTime | LOW | Wrap chrono's `from_timestamp` |
+| `DateTime.to_unix(dt)` -> Int | Store DateTime as integer in database | LOW | Wrap chrono's `timestamp()` |
+| `DateTime.add(dt, Int, unit)` -> DateTime | Compute expiry times, scheduling offsets, TTL calculations | MEDIUM | Units: `:second`, `:minute`, `:hour`, `:day` (avoid month/year — calendar complexity) |
+| `DateTime.diff(dt1, dt2, unit)` -> Int | Compute age, elapsed time, rate limiting windows | MEDIUM | Signed difference; dt1 - dt2 |
+| `DateTime.before?(dt1, dt2)` / `DateTime.after?` -> Bool | Expiry checks, sorting | LOW | Boolean comparisons; complements `compare` |
+| `Http.build(:get/:post/:put/:delete, url)` -> Request | Fluent builder entry point; current `Http.get(url)` / `Http.post(url, body)` are not composable | MEDIUM | Returns a Request value (opaque handle); pipe-compatible |
+| `Http.header(req, k, v)` -> Request | Set custom headers (Authorization, Content-Type, etc.) | LOW | Chainable; returns modified Request |
+| `Http.body(req, s)` -> Request | Set request body for POST/PUT | LOW | Chainable |
+| `Http.timeout(req, ms)` -> Request | Per-request timeout control | LOW | Chainable; maps to ureq timeout |
+| `Http.send(req)` -> Result<Response, String> | Execute the built request | MEDIUM | Response struct: `{ status :: Int, body :: String, headers :: Map<String, String> }` |
+| `meshc test` runner with `*.test.mpl` discovery | Tests must run via compiler CLI; no external test runner dependency | MEDIUM | New subcommand; discovers test files recursively, compiles + runs each, aggregates results |
+| `assert expr` | Fundamental test assertion; halts test with useful message on failure | LOW | ExUnit-style; show expression source, value at failure |
+| `assert_eq a, b` | Equality assertion with diff output | LOW | Show expected vs actual |
+| `assert_ne a, b` | Inequality assertion | LOW | Inversion of assert_eq |
+| `assert_raises fn` | Verify that a function panics or propagates an error | LOW | Catch panic from test function |
+| Test pass/fail output with file + line info | Failure messages must be actionable | MEDIUM | Show `test_file.mpl:42: assertion failed` |
+| `mesh.toml` manifest format | Declare package metadata and dependencies | MEDIUM | `mesh-pkg` crate already exists; extend with standard fields |
+| `meshpkg publish` | Upload package to hosted registry | HIGH | Requires auth token, tarball creation, registry HTTP API |
+| `meshpkg install <name>` | Fetch and install a package | HIGH | Download tarball from registry, extract to project deps directory |
+| `meshpkg search <query>` | Find packages by name/keyword | MEDIUM | Query registry search endpoint, display results |
+| Registry hosted site: browse + search | Public discoverability; without this the registry is unusable | HIGH | List packages by popularity/recency, full-text search |
+| Registry per-package page | Rendered README, version history, install command | HIGH | hex.pm / crates.io standard: README in Markdown, all published versions listed |
+
+### Differentiators (Competitive Advantage)
+
+Features that set the product apart. Not required, but valuable.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Pipe-native query builder** | Designed from the ground up for `|>` composition. More natural than Ecto's binding syntax. | **Low** | Each function takes Query as first arg, returns Query. Natural pipe threading. |
-| **Compile-time field validation** | Catch `:naem` typos at compile time, not runtime. | **Med** | If atoms are compile-time values, check against schema field list during type checking. |
-| **Actor-integrated transactions** | Transaction blocks run with crash isolation via catch_unwind. Already exists. | **Low** | Pg.transaction already does this. ORM wraps it. |
-| **Composable scopes as functions** | Named query fragments: `pub fn active(q) do q |> where(:active, true) end`. | **Low** | Free with pipe composition -- just functions returning Query structs. |
-| **Upsert support (insert_or_update)** | PostgreSQL `ON CONFLICT` clause. Heavily used in Mesher's `upsert_issue`. | **Med** | `Repo.insert(changeset, on_conflict: :replace_all, conflict_target: [:email])`. |
-| **Schemaless changesets** | Validate data without a database-backed schema. Useful for API input validation. | **Med** | Changeset works with any `{data, types}` pair, not just schema structs. |
-| **Schema metadata at compile time** | No runtime reflection overhead. All metadata baked in at compilation. Zero-cost. | **Med** | `deriving(Schema)` generates static functions/constants. |
-| **PostgreSQL-native features** | JSONB queries, array types, CTEs, window functions via raw SQL escape hatch. No multi-DB abstraction tax. | **Low** | PG-only means we can use PG features freely. |
+| HTTP streaming via callback | Process large responses (AI streaming, file downloads) without buffering entire body in memory | MEDIUM | `Http.stream(req, fn chunk -> ... end)`; each chunk delivered to callback; actor-compatible |
+| HTTP client handle (keep-alive reuse) | Avoid per-request TCP+TLS handshake; significant latency improvement for high-frequency API calls | MEDIUM | `Http.client()` -> Client handle; `Http.send_with(client, req)` reuses connections; ureq 2.x has built-in pooling |
+| `describe "..." do ... end` grouping | Organizes large test files by feature; ExUnit and RSpec both have this; improves failure output | LOW | Syntactic grouping only; no new test semantics required |
+| Actor mock via `Test.mock_actor` | In actor model languages, mocking actors (not just functions) is the core concurrency testing need | HIGH | Spawn an actor with a custom message handler; return its PID for use in tests; `Test.mock_actor(fn msg -> ... end)` |
+| `setup do ... end` / `teardown` blocks | Per-test setup/cleanup without manual repetition | LOW | ExUnit `setup` pattern; run before each test in a describe block |
+| `assert_receive pattern, timeout` | Test actor message delivery; critical for verifying actor behavior | MEDIUM | Check the test actor's mailbox for a pattern within timeout ms; key for actor model testing |
+| Test module parallelism (`meshc test --jobs N`) | Faster test suite execution on multi-core; run N test files concurrently | MEDIUM | Fork N compiler processes; aggregate results; tests within a file remain sequential |
+| Package `mesh.lock` lockfile | Reproducible builds; same dependency versions across environments | MEDIUM | Generated automatically by `meshpkg install`; committed to source control |
+| `meshpkg outdated` | List packages with newer versions available | LOW | Query registry API, compare against mesh.lock versions |
+| Package categories (validated list) | Structured discoverability; search by category like crates.io | LOW | Registry defines valid category slugs; max 5 per package |
 
----
+### Anti-Features (Commonly Requested, Often Problematic)
 
-## Anti-Features
+Features that seem good but create problems.
 
-Features to explicitly NOT build. Each has strong reasons.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| **Lazy loading** | #1 ORM anti-pattern. Silently triggers N+1 queries. In a functional language without mutable state, it requires hidden side effects. Ecto deliberately omitted this; universally praised. ActiveRecord/SQLAlchemy lazy loading causes more production perf issues than any other ORM feature. | Explicit preloading only. Unloaded associations return `NotLoaded` marker that errors on access, forcing explicit preload. |
-| **Active Record pattern (model.save)** | Blurs data/DB boundary. Leads to `User.save()` scattered everywhere. Violates separation of concerns. Incompatible with Mesh's functional paradigm (no mutable objects with methods). | Repo pattern: all DB ops through `Repo.insert/update/delete/all`. Models are pure data structs. |
-| **Identity map / session cache** | SQLAlchemy's Session tracks every loaded object. Adds enormous complexity (stale data, cache invalidation). In a functional language with immutable data, an identity map is nonsensical. | Every query returns fresh data. No caching in ORM. Application builds its own cache if needed. |
-| **Unit of Work (batch flush)** | SQLAlchemy auto-tracks changes, flushes in batch. Complex implicit behavior. "Why did my UPDATE run here?" Explicit is better in functional languages. | Explicit operations: Repo.insert inserts immediately. Use Repo.transaction to batch atomically. |
-| **Automatic schema-diff migrations** | Prisma-style auto-generation hides complexity. Column rename vs drop+add ambiguity. Data loss detection is extremely hard. Dangerous for production. | Explicit migration files with up/down. Add `mesh orm.gen.migration` scaffold. Schema-diff as future differentiator. |
-| **Multi-database support** | Supporting MySQL + PG + SQLite makes every feature 3x harder. Prevents PG-specific features (JSONB, arrays, upserts, CTEs, window functions). | PostgreSQL only. Use PG features freely. Matches existing Mesh driver. |
-| **Callback hooks (before_save, after_create)** | ActiveRecord callbacks scatter side effects throughout model lifecycle. Order-dependent, hard to test, surprising. "Why did sending email happen in my unit test?" | No lifecycle callbacks. Explicit function calls in application code. Ecto deliberately omits callbacks. |
-| **Dynamic finders (find_by_name)** | Magic methods generated at runtime. No compile-time safety. Nonsensical in a statically-typed language. | Use `Repo.get_by(User, name: "Alice")` or query builder. |
-| **Polymorphic associations** | Breaks referential integrity. Complex to implement. Different meaning across ORMs. | Use explicit join tables or sum types. |
-| **Full SQL parser** | SQL grammar is enormous. Diminishing returns. | Query builder for 95% of cases. Raw SQL escape hatch for the rest. |
-| **Embedded schemas** | Ecto has these for non-persisted data. Adds complexity for marginal value. | Use regular structs with `deriving(Json)` for non-persisted data. |
-| **Query caching / prepared statements** | Premature optimization. PG already caches query plans. Adds complexity. | Use PG's built-in plan caching. Add prepared statements later if needed. |
-| **Cyclic association loading** | `User -> Posts -> User -> Posts -> ...` infinite traversal. Some ORMs handle with session cache. Creates infinite object graphs. | Preloading is always one-directional and explicitly bounded. Nest explicitly: `preload(posts: :user)`. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Timezone-aware datetime (full tz database) | "Complete" datetime support | IANA tz database is 50+ KB and requires updates; DST ambiguity makes month/year arithmetic lossy; bloats CLI tools | Ship UTC + Unix timestamps. Defer timezone-aware operations to an optional future `DateTime.Tz` module with explicit opt-in |
+| `Crypto.md5()` / `Crypto.sha1()` | Familiar from legacy codebases | MD5 and SHA-1 are cryptographically broken; stdlib inclusion normalizes insecure use; causes false sense of security | Explicitly absent from stdlib. Developers who need MD5 for non-security checksums can note this is intentional. Document why in stdlib docs |
+| Async/Future-based HTTP streaming | "Modern" async API patterns | Mesh explicitly rejects colored functions (async/await); introducing Future types contradicts the actor model philosophy | Callback-based streaming within an actor; `Http.stream` delivers chunks synchronously to a callback; the actor is the unit of concurrency |
+| Test mocking via global function replacement | "Easy" mocking without dependency injection | Global mutation breaks test isolation; parallel test modules would interfere with each other | Behavior-based mocking: define a trait, pass mock implementation as parameter. "Mocks as noun" pattern (Elixir Mox philosophy) |
+| Test parallelism at the individual test level | "Maximum speed" | Tests within a Mesh actor context share the scheduler; parallel tests touching shared state cause flaky failures | Parallelize at module level (`meshc test --jobs N`); tests within a file run sequentially and reliably |
+| Mutable published package versions | "Hotfix a bad release without bumping version" | Breaks reproducible builds; users with lockfiles get different code silently | Use `meshpkg yank <name>@<version>` to mark a version as deprecated (still downloadable for existing lockfiles, blocked for new installs) |
+| Automatic dependency updates | "Stay current automatically" | Pulls in breaking changes without review; security theater without audit | Provide `meshpkg outdated` to surface available updates; updates are always manual and intentional |
+| strftime format strings for DateTime | "Flexible" custom date formatting | strftime format strings are notoriously cryptic (`%Y-%m-%dT%H:%M:%SZ`); hard to read and write; ISO 8601 covers 95% of use cases | Ship `to_iso8601` for standard format. Add `DateTime.format(dt, pattern)` as a v1.x feature once demand is established |
+| SHA-256 of raw bytes input | "Binary hashing" | Mesh has no binary/bytes type; accepting raw bytes would require a new type or unsafe FFI casting | Accept String input; treat as UTF-8 bytes internally; callers who need binary hashing work with hex-encoded strings |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Compiler Additions (parallel track -- enables ergonomic DSL)
-  |
-  +-> Keyword Arguments (enables where(name: "Alice") syntax)
-  |     |
-  |     +-> Query Builder conditions
-  |     +-> Changeset cast field lists
-  |     +-> Migration DSL options
-  |
-  +-> Multi-line Pipe Chains (enables readable query pipelines)
-  |     |
-  |     +-> Query Builder usability
-  |
-  +-> Atom Literals (enables :field_name references)
-  |     |
-  |     +-> Schema field references in queries
-  |     +-> Validation field references
-  |
-  +-> Struct Update Syntax (enables %{user | name: "Bob"})
-        |
-        +-> Changeset apply_changes
+[Crypto.sha256 / sha512]
+    depends on: sha2 crate (already in mesh-rt/Cargo.toml) — no new deps
+    no Mesh feature dependencies
 
-Schema DSL (foundation -- everything depends on this)
-  |
-  +-> Schema Metadata Generation (field names, types, table, PK)
-  |     |
-  |     +-> Query Builder (needs metadata for SQL generation)
-  |     |     |
-  |     |     +-> where, select, order_by, limit, offset
-  |     |     +-> join (needs relationship metadata)
-  |     |     +-> group_by, having
-  |     |
-  |     +-> Changeset System (needs metadata for casting)
-  |     |     |
-  |     |     +-> cast (type conversion)
-  |     |     +-> validate_* functions
-  |     |     +-> constraint error mapping (PG error -> changeset error)
-  |     |
-  |     +-> Repo Operations (needs metadata for SQL generation)
-  |           |
-  |           +-> Repo.insert (changeset + metadata -> INSERT SQL)
-  |           +-> Repo.update (changeset + PK + changes -> UPDATE SQL)
-  |           +-> Repo.delete (PK -> DELETE SQL)
-  |           +-> Repo.all / one / get / get_by (query builder -> SELECT SQL)
-  |
-  +-> Relationship Definitions (belongs_to, has_many, has_one, many_to_many)
-  |     |
-  |     +-> FK Field Generation (belongs_to adds user_id)
-  |     +-> Preload Queries (has_many generates SELECT WHERE fk = $1)
-  |     +-> Join Queries (builder uses relationship metadata)
-  |     +-> Nested Preloading (recursive preload + stitch)
-  |
-  +-> Migration Tooling (parallel, uses schema metadata for future auto-gen)
-        |
-        +-> Migration DSL (create_table, alter_table, create_index)
-        +-> Migration Runner (up/down, schema_migrations tracking)
-        +-> Migration Generation CLI (mesh orm.gen.migration)
+[Crypto.hmac_sha256 / hmac_sha512]
+    depends on: hmac crate (already present)
+    no Mesh feature dependencies
+
+[Crypto.uuid4]
+    depends on: rand crate (already present)
+    no Mesh feature dependencies
+
+[Crypto.secure_compare]
+    depends on: hmac crate (already present)
+    no Mesh feature dependencies
+
+[Base64.encode / decode]
+    depends on: base64 crate (already present)
+    no Mesh feature dependencies
+
+[Hex.encode / decode]
+    depends on: stdlib string formatting
+    no Mesh feature dependencies
+
+[DateTime.* (all)]
+    depends on: chrono = "0.4" (NEW — not yet in Cargo.toml)
+    DateTime is an opaque heap pointer (same pattern as Regex, DB connections)
+    no other Mesh feature depends on DateTime (independent)
+
+[Http.build / header / body / timeout / send]
+    depends on: ureq = "2" (already present)
+    enhances: existing Http.get/Http.post (those remain as convenience wrappers)
+
+[Http.stream]
+    requires: Http.build (need a Request struct to attach streaming to)
+    depends on: ureq 2.x streaming reader (into_reader() API)
+
+[Http.client / send_with (keep-alive)]
+    requires: Http.build (client handle concept flows from builder pattern)
+    depends on: ureq 2.x connection reuse (Client::new().agent() pattern)
+
+[meshc test runner]
+    requires: new meshc subcommand (compiler CLI change)
+    requires: test runtime primitives in mesh-rt (assert panic, result reporting)
+    is prerequisite for: ALL other testing features
+
+[assert / assert_eq / assert_ne / assert_raises]
+    requires: meshc test runner (these are runtime primitives for tests)
+    no dependencies on each other
+
+[describe "..." do ... end]
+    requires: meshc test runner
+    optional: syntactic grouping only; does not require setup blocks
+
+[setup do ... end / teardown]
+    requires: describe blocks (scoped to describe context)
+
+[assert_receive pattern, timeout]
+    requires: meshc test runner
+    requires: actor mailbox access in test context (existing actor API)
+
+[Test.mock_actor]
+    requires: meshc test runner
+    requires: actor spawn API (already exists in mesh-rt)
+    requires: test isolation semantics (each test gets clean actor context)
+
+[meshc test --coverage]
+    requires: meshc test runner
+    requires: LLVM instrumentation pass (significant new compiler work)
+    CAUTION: High implementation risk; consider deferring within v14.0
+
+[mesh.toml manifest]
+    depends on: toml crate (already in mesh-pkg/Cargo.toml)
+    is prerequisite for: meshpkg CLI, hosted registry
+
+[meshpkg publish]
+    requires: mesh.toml manifest (metadata to send)
+    requires: hosted registry HTTP API (publish endpoint)
+    requires: auth token management (meshpkg login)
+
+[meshpkg install <name>]
+    requires: hosted registry HTTP API (download endpoint)
+    requires: mesh.toml manifest (dependency section to update)
+    requires: mesh.lock (lockfile to write)
+
+[meshpkg search <query>]
+    requires: hosted registry HTTP API (search endpoint)
+    can be implemented before install (only needs read API)
+
+[Package registry hosted site]
+    requires: mesh.toml manifest (defines metadata structure)
+    is a separate Mesh web application (not part of compiler)
+    can be built in parallel with CLI after manifest format is decided
 ```
 
-**Key ordering insight:** Compiler additions should come first or in parallel with Schema DSL because they unlock ergonomic syntax for everything downstream. Schema DSL is the next critical foundation -- query builder, changesets, Repo, and relationships all depend on schema metadata. Query builder and changesets are independent of each other but both feed into Repo operations. Relationships and preloading layer on top. Migrations are partially independent.
+### Dependency Notes
+
+- **Crypto requires zero new Rust deps.** `sha2`, `hmac`, `base64`, `rand` are already compiled into `mesh-rt`. Adding user-facing Mesh APIs is purely wrapper code: add `extern "C"` functions, register in typechecker as stdlib functions, no cargo changes needed.
+- **DateTime requires one new dep.** `chrono = "0.4"` must be added to `compiler/mesh-rt/Cargo.toml`. Chrono is the canonical Rust datetime crate (48M+ downloads/month). DateTime values are opaque u64 pointers to chrono structs on the GC heap, following the established pattern for Regex and DB connection handles.
+- **Http builder is a refactor, not a rewrite.** The existing `mesh_http_get` and `mesh_http_post` functions in `http/client.rs` use ureq 2.x already. The builder wraps `ureq::RequestBuilder`. Existing `Http.get` and `Http.post` become thin wrappers over the builder for backward compatibility.
+- **meshc test runner is the single biggest prerequisite.** All 5 other testing features require it. Build the runner first, then layer assertions, describe blocks, actor mocking, and coverage on top.
+- **Package registry hosted site is independent of the compiler.** It is a separate web application (likely written in Mesh itself, similar to how Mesher was built). It does not block CLI or manifest development. Design the manifest format and API contract first.
+- **Coverage reporting has high implementation risk.** LLVM coverage instrumentation (`-fprofile-instr-generate`, `llvm-profdata`, `llvm-cov`) requires accessing LLVM APIs through Inkwell. This is feasible but non-trivial. If it blocks the milestone, defer to v14.1.
 
 ---
 
-## MVP Recommendation
+## MVP Definition
 
-Build in dependency order. Each step unlocks the next.
+### Launch With (v1 — all committed v14.0 requirements)
 
-### Phase 1: Compiler Additions + Schema DSL
-1. **Keyword arguments** -- Highest-leverage compiler change. Unlocks `where(name: "Alice")`.
-2. **Atom literals** -- Enable `:field_name` references for field identification.
-3. **Multi-line pipe chains** -- Already a known limitation. Unlock readable query pipelines.
-4. **Struct update syntax** -- `%{user | name: "Bob"}`. Needed for changeset apply.
-5. **Schema DSL** -- `schema Users, "users" do field :name, String end`. Generates struct + metadata.
+The following are all required per PROJECT.md v14.0 target features.
 
-### Phase 2: Query Builder + Repo Basics
-6. **Query struct + basic clauses** -- where, select, order_by, limit, offset. Pipe-composable.
-7. **Repo.all / Repo.one / Repo.get / Repo.get_by** -- Execute queries against DB.
-8. **Repo.insert / Repo.update / Repo.delete** -- Basic CRUD through Repo.
+**Crypto stdlib:**
+- [x] `Crypto.sha256(s)` -> String (hex) — required for API signature verification
+- [x] `Crypto.sha512(s)` -> String (hex) — stronger hashing
+- [x] `Crypto.hmac_sha256(key, msg)` -> String (hex) — API authentication
+- [x] `Crypto.hmac_sha512(key, msg)` -> String (hex) — stronger HMAC
+- [x] `Crypto.secure_compare(a, b)` -> Bool — constant-time comparison (security requirement)
+- [x] `Crypto.uuid4()` -> String — UUID v4 generation
 
-### Phase 3: Changesets
-9. **Changeset struct + cast** -- Type-safe casting from external params.
-10. **Validation functions** -- validate_required, validate_length, validate_format, validate_inclusion, validate_number.
-11. **Constraint error mapping** -- PG unique/FK violations -> changeset errors.
+**Encoding:**
+- [x] `Base64.encode(s)` -> String — standard base64
+- [x] `Base64.decode(s)` -> Result<String, String> — standard decode
+- [x] `Base64.encode_url(s)` -> String — URL-safe base64
+- [x] `Base64.decode_url(s)` -> Result<String, String> — URL-safe decode
+- [x] `Hex.encode(s)` -> String — hex encoding
+- [x] `Hex.decode(s)` -> Result<String, String> — hex decoding
 
-### Phase 4: Relationships + Preloading
-12. **belongs_to / has_many / has_one** -- Define associations in schema.
-13. **Preloading** -- `Repo.preload(user, :posts)` and `User |> preload(:posts) |> Repo.all()`.
-14. **many_to_many** -- Join table relationships.
-15. **Nested preloading** -- `preload(posts: :comments)`.
+**DateTime:**
+- [x] `DateTime.utc_now()` -> DateTime — current UTC timestamp
+- [x] `DateTime.from_iso8601(s)` -> Result<DateTime, String> — parse ISO 8601
+- [x] `DateTime.to_iso8601(dt)` -> String — format ISO 8601
+- [x] `DateTime.from_unix(Int)` -> DateTime — from Unix timestamp
+- [x] `DateTime.to_unix(dt)` -> Int — to Unix timestamp
+- [x] `DateTime.add(dt, Int, unit)` -> DateTime — arithmetic (second/minute/hour/day)
+- [x] `DateTime.diff(dt1, dt2, unit)` -> Int — time difference
+- [x] `DateTime.before?(dt1, dt2)` / `DateTime.after?(dt1, dt2)` -> Bool — comparisons
 
-### Phase 5: Migration Tooling
-16. **Migration DSL** -- create_table, alter_table, drop_table, create_index.
-17. **Migration runner** -- Apply/rollback, schema_migrations tracking.
-18. **Migration generation CLI** -- `mesh orm.gen.migration CreateUsers`.
+**HTTP client improvements:**
+- [x] `Http.build(method, url)` -> Request — builder entry point
+- [x] `Http.header(req, k, v)` -> Request — add header
+- [x] `Http.body(req, s)` -> Request — set body
+- [x] `Http.timeout(req, ms)` -> Request — set timeout
+- [x] `Http.send(req)` -> Result<Response, String> — execute request
+- [x] `Http.stream(req, fn chunk -> ... end)` -> Result<Unit, String> — streaming
+- [x] `Http.client()` -> Client; `Http.send_with(client, req)` — connection keep-alive/reuse
 
-### Phase 6: Validation (Rewrite Mesher)
-19. **Rewrite Mesher's DB layer** using the ORM. Replace all 627 lines of raw SQL queries + 82 lines of schema DDL.
+**Testing framework:**
+- [x] `meshc test` — discovers `*.test.mpl`, compiles, runs, reports pass/fail
+- [x] `assert expr` — basic boolean assertion
+- [x] `assert_eq a, b` — equality with diff output
+- [x] `assert_ne a, b` — inequality assertion
+- [x] `assert_raises fn` — exception/panic assertion
+- [x] `describe "..." do ... end` — test grouping
+- [x] `Test.mock_actor(fn msg -> ... end)` -> Pid — mock actor for concurrency testing
+- [x] `meshc test --coverage` — coverage reporting
 
-**Defer to post-MVP:**
-- Compile-time query field validation (complex type system work)
-- Schema-diff migration auto-generation (complex DB introspection)
-- Schemaless changesets (nice-to-have)
-- Aggregate functions as first-class query builder ops (use raw SQL)
-- Upsert support (raw SQL for Mesher's upsert_issue initially)
-- Subqueries and CTEs (raw SQL escape hatch)
-- Streaming/cursor queries (LIMIT/OFFSET pagination initially)
+**Package registry:**
+- [x] `mesh.toml` manifest format — name, version, description, license, dependencies
+- [x] `mesh.lock` lockfile — auto-generated, reproducible builds
+- [x] `meshpkg publish` — publish to hosted registry
+- [x] `meshpkg install <name>` — install from registry
+- [x] `meshpkg search <query>` — search registry
+- [x] Hosted packages site — browse, search, per-package page with README + versions
+
+### Add After Validation (v1.x — post v14.0)
+
+- [ ] `DateTime.format(dt, pattern)` with strftime-style format strings — trigger: custom display needs emerge from user feedback
+- [ ] `Crypto.pbkdf2(password, salt, iterations)` — trigger: password hashing use cases appear in user apps
+- [ ] Timezone-aware datetime (`DateTime.shift_zone`) — trigger: user volume requesting it; requires tz database dep
+- [ ] `meshpkg update` / `meshpkg outdated` — trigger: package ecosystem matures enough to have outdated packages
+- [ ] Private/org package namespaces on registry — trigger: enterprise adoption signals
+- [ ] Coverage delta reporting (compare against baseline) — trigger: CI integration demand
+
+### Future Consideration (v2+)
+
+- [ ] Full IANA timezone database embedding — defer: 50+ KB binary size cost; UTC satisfies most use cases
+- [ ] Ed25519 / RSA signing and verification — defer: specialized crypto beyond stdlib scope
+- [ ] Property-based testing / fuzzing integration — defer: significant framework work
+- [ ] Package registry billing / private packages — defer: not a v1 goal
+- [ ] `meshpkg audit` (vulnerability scanning) — defer: requires CVE database integration
 
 ---
 
-## Complexity Summary
+## Feature Prioritization Matrix
 
-| Feature Area | Complexity | Why | Primary Dependencies |
-|--------------|------------|-----|---------------------|
-| Compiler: Keyword Args | **High** | Touches every compiler stage: lexer, parser, typeck, MIR, codegen | All compiler crates |
-| Compiler: Multi-line Pipes | **Med** | Parser change only. Well-understood from Elixir | mesh-parser |
-| Compiler: Atom Literals | **Med** | Lexer + parser + type system. New type `Atom` | mesh-lexer, mesh-parser, mesh-typeck |
-| Compiler: Struct Update | **Med** | Parser + codegen. Must generate correct field copying | mesh-parser, mesh-codegen |
-| Schema DSL | **High** | New syntax or deriving. Must generate struct + metadata at compile time | Parser or deriving, code generation |
-| Query Builder (basic) | **Med** | Struct with SQL generation. Well-understood from Ecto | Schema metadata |
-| Query Builder (joins) | **High** | Relationship metadata, binding management, SQL joins | Schema relationships |
-| Repo Operations | **Med** | SQL generation + Pool.query. Builds on existing infra | Query builder, Pool.query |
-| Changesets | **Med** | Pure data structure + validation functions | Schema metadata for casting |
-| Relationships | **High** | Schema additions, FK conventions, preload generation | Schema DSL |
-| Preloading (basic) | **Med** | Separate queries, stitch results | Relationships |
-| Preloading (nested) | **High** | Recursive planning, multiple queries, nested stitching | Basic preloading |
-| Migration DSL | **Med** | SQL DDL generation from function calls | None (standalone) |
-| Migration Runner | **Med** | Track applied, execute in order, rollback | PostgreSQL |
-| Mesher Rewrite | **High** | 627 lines raw SQL + 82 lines DDL to replace. Real-world validation | All ORM features |
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Crypto stdlib (sha256/hmac/uuid) | HIGH | LOW | P1 |
+| Encoding (base64/hex) | HIGH | LOW | P1 |
+| DateTime (now/parse/format/add/diff) | HIGH | MEDIUM | P1 |
+| `mesh.toml` manifest format | HIGH | LOW | P1 |
+| `meshc test` runner + assertions | HIGH | MEDIUM | P1 |
+| Http builder API | MEDIUM | MEDIUM | P1 |
+| `meshpkg` CLI (publish/install/search) | HIGH | HIGH | P1 |
+| Package hosted site | HIGH | HIGH | P1 |
+| Http streaming | MEDIUM | MEDIUM | P2 |
+| Http keep-alive client handle | LOW | LOW | P2 |
+| `describe` blocks | MEDIUM | LOW | P2 |
+| `assert_receive` for actor testing | HIGH | MEDIUM | P2 |
+| `setup do ... end` | MEDIUM | LOW | P2 |
+| `Test.mock_actor` | MEDIUM | HIGH | P2 |
+| `meshc test --coverage` | MEDIUM | HIGH | P3 |
+
+**Priority key:**
+- P1: Must have for v14.0; blocks the milestone if missing
+- P2: Should have; included in v14.0 once P1 features are done
+- P3: Nice to have; target v14.0 if time permits; defer if coverage implementation is too risky
+
+---
+
+## Comparable Ecosystem Analysis
+
+### Crypto API Conventions
+
+| Language | SHA-256 | HMAC | UUID |
+|----------|---------|------|------|
+| Elixir | `:crypto.hash(:sha256, data)` -> binary; `Base.encode16(h)` for hex | `:crypto.mac(:hmac, :sha256, key, msg)` | `:crypto.strong_rand_bytes(16)` + format |
+| Python | `hashlib.sha256(data.encode()).hexdigest()` | `hmac.new(key, msg, sha256).hexdigest()` | `str(uuid.uuid4())` |
+| Go | `sha256.Sum256([]byte(s))` + `hex.EncodeToString(h[:])` | `hmac.New(sha256.New, key)` | third-party `github.com/google/uuid` |
+| Node.js | `crypto.createHash('sha256').update(s).digest('hex')` | `crypto.createHmac('sha256', key).update(msg).digest('hex')` | `crypto.randomUUID()` |
+| **Mesh** | `Crypto.sha256(s)` -> String | `Crypto.hmac_sha256(key, msg)` -> String | `Crypto.uuid4()` -> String |
+
+**Decision**: Return hex strings directly (not raw bytes). Mesh has no binary/bytes type; hex strings compose naturally with string interpolation and are the format users actually need. Functions like `sha256` are total (cannot fail on String input). `hmac` functions are also total given valid key and message strings.
+
+### DateTime API Conventions
+
+| API | Elixir (DateTime) | Rust (chrono) | Python (datetime) | Mesh (proposed) |
+|-----|-------------------|---------------|-------------------|-----------------|
+| Current UTC | `DateTime.utc_now()` | `Utc::now()` | `datetime.utcnow()` | `DateTime.utc_now()` |
+| ISO 8601 parse | `DateTime.from_iso8601("...")` | `DateTime::parse_from_rfc3339` | `datetime.fromisoformat` | `DateTime.from_iso8601(s)` -> Result<DateTime, String> |
+| ISO 8601 format | `DateTime.to_iso8601(dt)` | `dt.to_rfc3339()` | `dt.isoformat()` | `DateTime.to_iso8601(dt)` -> String |
+| Add time | `DateTime.add(dt, 3600, :second)` | `dt + Duration::hours(1)` | `dt + timedelta(hours=1)` | `DateTime.add(dt, 3600, :second)` |
+| Unix timestamp | `DateTime.to_unix(dt)` | `dt.timestamp()` | `dt.timestamp()` | `DateTime.to_unix(dt)` -> Int |
+| Difference | `DateTime.diff(dt1, dt2, :second)` | `(dt1 - dt2).num_seconds()` | `(dt1 - dt2).total_seconds()` | `DateTime.diff(dt1, dt2, :second)` -> Int |
+| Compare | `DateTime.compare(dt1, dt2)` -> :lt/:eq/:gt | `dt1.cmp(&dt2)` | `dt1 < dt2` | `DateTime.before?(dt1, dt2)` -> Bool |
+
+**Decision**: Follow Elixir DateTime API naming conventions exactly. Mesh already has Elixir-style idioms throughout. `from_iso8601` returns `Result<DateTime, String>` for parse failures — consistent with Mesh error handling patterns. `add` units use atoms (`:second`, `:minute`, `:hour`, `:day`) matching Elixir. Avoid `:month` / `:year` units — calendar arithmetic (DST, variable month lengths, leap years) requires full tz database.
+
+### Base64 / Hex Encoding Conventions
+
+| API | Elixir (Base) | Python (base64) | Node.js | Mesh (proposed) |
+|-----|---------------|-----------------|---------|-----------------|
+| Base64 encode | `Base.encode64(s)` -> String | `base64.b64encode(b).decode()` | `Buffer.from(s).toString('base64')` | `Base64.encode(s)` -> String |
+| Base64 decode | `Base.decode64(s)` -> {:ok, s} or :error | `base64.b64decode(s)` | `Buffer.from(s, 'base64')` | `Base64.decode(s)` -> Result<String, String> |
+| URL-safe encode | `Base.url_encode64(s)` | `base64.urlsafe_b64encode(b).decode()` | custom | `Base64.encode_url(s)` -> String |
+| Hex encode | `Base.encode16(s, case: :lower)` | `s.encode().hex()` | `Buffer.from(s).toString('hex')` | `Hex.encode(s)` -> String |
+| Hex decode | `Base.decode16(s, case: :mixed)` | `bytes.fromhex(s)` | `Buffer.from(s, 'hex')` | `Hex.decode(s)` -> Result<String, String> |
+
+**Decision**: `Base64` and `Hex` as separate modules (not a combined `Encoding` module). Decode always returns `Result<String, String>` because malformed input must be handled. Encode is always total. `Hex.encode` produces lowercase hex (the overwhelming convention for hash digests and cryptographic output).
+
+### HTTP Client Builder Conventions
+
+| API | reqwest (Rust) | Finch (Elixir) | Python requests | Mesh (proposed) |
+|-----|----------------|----------------|-----------------|-----------------|
+| Create request | `client.get(url)` | `Finch.build(:get, url, headers, body)` | `requests.get(url)` | `Http.build(:get, url)` |
+| Add header | `.header(k, v)` | headers in build | `headers={k: v}` | `|> Http.header(k, v)` |
+| Set body | `.body(s)` | body in build | `data=s` | `|> Http.body(s)` |
+| Set timeout | `.timeout(dur)` | `receive_timeout: ms` | `timeout=s` | `|> Http.timeout(ms)` |
+| Execute | `.send().await` | `Finch.request(req, Finch)` | (immediate in requests.get) | `|> Http.send()` |
+| Stream | `.bytes_stream()` | streaming accumulator | `stream=True` iterator | `Http.stream(req, fn chunk -> ... end)` |
+| Keep-alive | `Client` reuse | Finch connection pool | `Session` reuse | `Http.client()` handle; `Http.send_with(client, req)` |
+
+**Decision**: `Http.build(:method, url)` matches Mesh pipe idioms. The `|>` pipe operator makes builder APIs feel native. Return a `Response` struct (not a raw string) from `Http.send()`: `{ status :: Int, body :: String, headers :: Map<String, String> }`. Keep existing `Http.get(url)` and `Http.post(url, body)` as backward-compatible convenience functions — they delegate to the builder internally.
+
+### Testing Framework Conventions
+
+| Concept | ExUnit (Elixir) | EUnit (Erlang) | pytest (Python) | Mesh (proposed) |
+|---------|-----------------|----------------|-----------------|-----------------|
+| File convention | `*_test.exs` in `test/` | `_test()` functions in module | `test_*.py` in any dir | `*.test.mpl` anywhere in project |
+| Runner | `mix test` | `eunit:test(Module)` | `pytest` | `meshc test` |
+| Basic assert | `assert expr` | `?assert(Expr)` | `assert expr` | `assert expr` |
+| Equality | `assert a == b` (or `assert_eq`) | `?assertEqual(A, B)` | `assert a == b` | `assert_eq a, b` |
+| Exception | `assert_raise(Error, fn)` | `?assertException(class, term, expr)` | `pytest.raises(Error)` | `assert_raises fn` |
+| Grouping | `describe "..." do` | test generators | `class TestFoo:` | `describe "..." do ... end` |
+| Setup | `setup do ... end` | `{setup, Setup, Tests}` | `@pytest.fixture` | `setup do ... end` |
+| Actor msg | `assert_receive pattern, timeout` | manual mailbox | n/a | `assert_receive pattern, timeout` |
+| Mock | Mox (behaviour + expect/stub) | `:meck` | `unittest.mock.patch` | `Test.mock_actor(fn msg -> end)` |
+| Module concurrency | `async: true` per module | manual | `pytest-xdist` | `meshc test --jobs N` |
+
+**Key decisions for Mesh testing:**
+
+1. **File discovery**: `*.test.mpl` anywhere in the project directory tree (recursive). This is more flexible than ExUnit's fixed `test/` directory — Mesh projects may colocate tests with source.
+
+2. **Test function identification**: Functions whose names start with `test_` (e.g., `fn test_login_success do ... end`). Tests inside `describe "..." do ... end` blocks inherit the describe name in failure output.
+
+3. **`assert_receive` is critical for actors**: A test actor can receive messages. `assert_receive pattern, 5000` waits up to 5 seconds for a matching message in the test's mailbox. Essential for verifying that other actors sent the expected messages.
+
+4. **Mock actors via spawn**: `Test.mock_actor(fn msg -> ... end)` spawns a new actor with the given message handler and returns its PID. Tests pass this PID to the system under test. No global function replacement needed — the actor model makes mocking compositional.
+
+5. **Coverage reporting** (`--coverage`): Requires LLVM instrumentation. High implementation risk. If this is blocking, defer to a v14.1 phase.
+
+### Package Registry Conventions
+
+| Concept | Hex (Elixir) | Cargo (Rust) | npm (Node.js) | Mesh (proposed) |
+|---------|--------------|--------------|---------------|-----------------|
+| Manifest file | `mix.exs` | `Cargo.toml` | `package.json` | `mesh.toml` |
+| Lockfile | `mix.lock` | `Cargo.lock` | `package-lock.json` | `mesh.lock` |
+| Versioning | SemVer | SemVer (3-part required) | SemVer | SemVer (major.minor.patch required) |
+| Publish | `mix hex.publish` | `cargo publish` | `npm publish` | `meshpkg publish` |
+| Install | `mix deps.get` | `cargo add` + `cargo build` | `npm install` | `meshpkg install <name>` |
+| Search | `mix hex.search` | `cargo search` | `npm search` | `meshpkg search <query>` |
+| Auth | `mix hex.user auth` | `cargo login` | `npm login` | `meshpkg login` |
+| Yank | `mix hex.retire` | `cargo yank` | `npm deprecate` | `meshpkg yank <name>@<ver>` |
+| Registry site | hex.pm | crates.io | npmjs.com | packages.meshlang.dev |
+| Per-package page | README, versions, downloads | README, versions, deps, MSRV | README, weekly downloads, dependents | README, versions, install command, license |
+
+**Decision for `mesh.toml` format** (follows Cargo.toml conventions, which are clean and TOML-native):
+
+```toml
+[package]
+name = "my-package"
+version = "1.0.0"
+description = "One-line summary"
+license = "MIT"
+authors = ["Name <email>"]
+keywords = ["http", "web"]  # max 5, ASCII, alphanumeric
+categories = ["web-programming"]  # validated list, max 5
+
+[dependencies]
+json-utils = "1.2"
+http-client = "~> 2.0"
+```
+
+Version requirements use Cargo-style `"1.2"` (compatible with 1.x.x >= 1.2.0) and Hex-style `"~> 2.0"` (compatible with 2.x.x, not 3.x.x). `mesh.lock` is auto-generated on install/publish and should be committed to source control for applications (but not libraries, matching Cargo convention).
+
+---
+
+## Implementation Complexity Notes
+
+### LOW complexity (thin wrappers over existing Rust deps)
+
+These are primarily `extern "C"` function additions in `mesh-rt` + typechecker
+registration in `mesh-typeck`. No new Rust dependencies. No compiler architecture
+changes. Each represents roughly 50-150 LOC Rust + 20-50 LOC compiler registration.
+
+- `Crypto.sha256 / sha512` — wrap `sha2::Sha256::digest` / `sha2::Sha512::digest`; hex-encode with stdlib format
+- `Crypto.hmac_sha256 / hmac_sha512` — wrap `hmac::Hmac<Sha256>::new` + `finalize`; hex-encode
+- `Crypto.secure_compare` — wrap `hmac::Mac::verify_slice` (constant-time)
+- `Crypto.uuid4` — `rand::random::<u128>()` formatted as UUID v4 string
+- `Base64.encode / encode_url` — wrap `base64::engine::general_purpose::STANDARD.encode`
+- `Base64.decode / decode_url` — wrap decode; return Result
+- `Hex.encode` — `format!("{:02x}", byte)` per byte
+- `Hex.decode` — parse hex pairs; return Result
+- `DateTime.from_unix / to_unix` — wrap `chrono::DateTime::from_timestamp` / `.timestamp()`
+- `DateTime.before? / after?` — boolean comparisons on DateTime handles
+
+### MEDIUM complexity (new dep, or non-trivial API design)
+
+Approximately 300-600 LOC Rust each, plus compiler registration.
+
+- **DateTime full API** — Add `chrono = "0.4"` to `mesh-rt/Cargo.toml`. DateTime is an opaque u64 pointer (GC heap-allocated `DateTime<Utc>` struct). Wrap `utc_now()`, `from_iso8601` (parse_from_rfc3339), `to_iso8601` (to_rfc3339), `add` (with unit dispatch), `diff`. The DateTime opaque pointer pattern follows the Regex and DB connection handle precedents in the codebase.
+- **Http builder API** — Refactor `compiler/mesh-rt/src/http/client.rs`. Add a `MeshRequest` struct (URL, method, headers HashMap, body Option, timeout_ms). Add `extern "C"` functions for build, header, body, timeout. `Http.send` converts MeshRequest to ureq request, executes, returns MeshResponse. ~400 LOC Rust.
+- **Http streaming** — ureq 2.x provides `response.into_reader()` returning an `impl Read`. Read in chunks (e.g., 8KB), call the Mesh callback function pointer with each chunk (following existing callback ABI used in iterators and query results). ~200 LOC Rust.
+- **`meshc test` runner** — New subcommand in `compiler/meshc/src/main.rs`. File discovery (walkdir), compile each `*.test.mpl` with special `--test` flag that injects a `__run_tests()` entry point, execute compiled binary, capture output (pass/fail counts, failure details), aggregate. ~600 LOC Rust across meshc + mesh-rt test runtime.
+- **`mesh.toml` manifest** — Extend `compiler/mesh-pkg/src/lib.rs`. `mesh-pkg` crate already has TOML parsing. Add `[package]` and `[dependencies]` deserialization. ~200 LOC Rust.
+
+### HIGH complexity (significant new systems, cross-cutting concerns)
+
+These require careful design and are the main risk areas for the milestone.
+
+- **`Test.mock_actor`** (~400 LOC Rust + design): Spawning a mock actor is straightforward (existing `mesh_actor_spawn` API). The complexity is test isolation: each test needs a clean actor context, and the mock actor must be cleaned up after the test. Requires a test supervisor structure and careful mailbox semantics. `assert_receive` needs access to the test actor's mailbox.
+
+- **`meshc test --coverage`** (HIGH risk): LLVM coverage instrumentation requires `-fprofile-instr-generate` flags, `llvm-profdata merge`, and `llvm-cov show`. Integrating this through Inkwell and the mesh-codegen pipeline is feasible but non-trivial (~1000 LOC Rust + LLVM API work). Risk: if blocked, defer to v14.1 phase.
+
+- **`meshpkg` CLI** (~1000 LOC Rust): auth token management (`meshpkg login` stores token in `~/.mesh/credentials`), tarball creation from project directory (zip/tar + metadata), HTTP upload to registry API, HTTP download for install, local extraction to `~/.mesh/packages/` or project-local deps directory, version resolution from `mesh.toml` + `mesh.lock`.
+
+- **Package registry hosted site** (open-ended): A separate Mesh web application. Not part of the compiler. Estimate ~1500-2000 LOC Mesh for the site backend + frontend. The site serves package metadata from a database (PostgreSQL via Mesh ORM), renders README from markdown, shows version history. Can be built in parallel with CLI once the API contract is decided. Time-box this: the site must be functional (browse, search, per-package page) but does not need to be feature-complete.
 
 ---
 
 ## Sources
 
-### Ecto (Elixir) -- Primary Reference
-- [Ecto.Schema v3.13.5](https://hexdocs.pm/ecto/Ecto.Schema.html) -- HIGH confidence
-- [Ecto.Query v3.13.5](https://hexdocs.pm/ecto/Ecto.Query.html) -- HIGH confidence
-- [Ecto.Changeset v3.13.5](https://hexdocs.pm/ecto/Ecto.Changeset.html) -- HIGH confidence
-- [Ecto.Repo v3.13.5](https://hexdocs.pm/ecto/Ecto.Repo.html) -- HIGH confidence
-- [Ecto Associations](https://hexdocs.pm/ecto/associations.html) -- HIGH confidence
-- [Preloading Nested Associations (Thoughtbot)](https://thoughtbot.com/blog/preloading-nested-associations-with-ecto) -- MEDIUM confidence
-- [Ecto.Query.preload vs Ecto.Repo.preload](https://appunite.com/blog/ecto-query-preload-vs-ecto-repo-preload) -- MEDIUM confidence
-- [Composing Ecto Queries (AmberBit)](https://www.amberbit.com/blog/2019/4/16/composing-ecto-queries-filters-and-preloads/) -- MEDIUM confidence
-
-### ActiveRecord (Ruby/Rails)
-- [Active Record Query Interface](https://guides.rubyonrails.org/active_record_querying.html) -- HIGH confidence
-- [ActiveRecord::QueryMethods](https://api.rubyonrails.org/classes/ActiveRecord/QueryMethods.html) -- HIGH confidence
-
-### Prisma (TypeScript)
-- [Prisma ORM](https://www.prisma.io/orm) -- HIGH confidence
-- [Drizzle vs Prisma 2026](https://makerkit.dev/blog/tutorials/drizzle-vs-prisma) -- MEDIUM confidence
-
-### Diesel / SeaORM (Rust)
-- [Diesel ORM](https://diesel.rs/) -- HIGH confidence
-- [SeaORM](https://www.sea-ql.org/SeaORM/) -- HIGH confidence
-- [SeaORM 2.0](https://www.sea-ql.org/blog/2025-12-12-sea-orm-2.0/) -- HIGH confidence
-- [Rust ORMs Guide (Shuttle)](https://www.shuttle.dev/blog/2024/01/16/best-orm-rust) -- MEDIUM confidence
-
-### SQLAlchemy (Python)
-- [SQLAlchemy Session Basics](https://docs.sqlalchemy.org/en/20/orm/session_basics.html) -- HIGH confidence
-
-### ORM Anti-Patterns
-- [The Basic Mistake All ORMs Make (Vogten)](https://martijnvogten.github.io/2025/04/16/the-basic-mistake-all-orms-make-and-how-to-fix-it.html) -- MEDIUM confidence
-- [ORM Lazy Loading Anti-Pattern](https://www.mehdi-khalili.com/orm-anti-patterns-part-3-lazy-loading) -- MEDIUM confidence
-- [ORM Framework Anti-Patterns (Lindbakk)](https://lindbakk.com/blog/orm-frameworks-anti-patterns) -- MEDIUM confidence
-
-### Migration Tooling
-- [MikroORM Migrations](https://mikro-orm.io/docs/migrations) -- MEDIUM confidence
-- [Schema Migration Tools 2025](https://www.getgalaxy.io/learn/data-tools/best-database-schema-migration-version-control-tools-2025) -- MEDIUM confidence
+- [ExUnit v1.19.5 documentation](https://hexdocs.pm/ex_unit/ExUnit.html) — file convention, runner, async:true, assert_receive
+- [ExUnit.Assertions v1.19.5](https://hexdocs.pm/ex_unit/ExUnit.Assertions.html) — assert, refute, assert_raise, assert_receive signatures
+- [Elixir DateTime v1.19.5](https://hexdocs.pm/elixir/DateTime.html) — from_iso8601, to_unix, add, diff, compare, before?, after? API — HIGH confidence
+- [chrono Rust crate docs](https://docs.rs/chrono/latest/chrono/) — NaiveDateTime, DateTime<Utc>, parse_from_rfc3339, to_rfc3339, timestamp, num_seconds — HIGH confidence
+- [reqwest ClientBuilder](https://docs.rs/reqwest/latest/reqwest/struct.ClientBuilder.html) — builder pattern, keep-alive (90s idle default), streaming via bytes_stream — HIGH confidence
+- [Hex package manager docs](https://hex.pm/docs/publish) — mix.exs fields, publish flow, hexdocs integration — HIGH confidence
+- [Cargo manifest format](https://doc.rust-lang.org/cargo/reference/manifest.html) — Cargo.toml field design, keywords (max 5), categories (validated slugs) — HIGH confidence
+- [RFC 4648 - Base64/Base16 Data Encodings](https://datatracker.ietf.org/doc/html/rfc4648) — canonical encoding standard, URL-safe variant, test vectors — HIGH confidence
+- [Python hashlib docs](https://docs.python.org/3/library/hashlib.html) — algorithm-named constructor pattern, update/digest/hexdigest API — HIGH confidence
+- [Go crypto/hmac package](https://pkg.go.dev/crypto/hmac) — constant-time comparison via hmac.Equal — HIGH confidence
+- [EUnit documentation](https://www.erlang.org/doc/apps/eunit/chapter.html) — Erlang unit testing conventions, assert macros — HIGH confidence
+- [Elixir School: Mox](https://elixirschool.com/en/lessons/testing/mox) — mocks-as-noun philosophy, behaviour-based mocking pattern — MEDIUM confidence
+- [mesh-rt/Cargo.toml](compiler/mesh-rt/Cargo.toml) — confirmed existing deps (sha2, hmac, base64, rand, ureq); validated zero new deps needed for crypto/encoding — HIGH confidence
+- [mesh-rt/src/http/client.rs](compiler/mesh-rt/src/http/client.rs) — confirmed existing ureq 2.x usage, current `get`/`post` flat functions — HIGH confidence
 
 ---
-*Feature research for: Mesh ORM Library (v10.0)*
-*Researched: 2026-02-16*
+
+*Feature research for: Mesh v14.0 Ecosystem Expansion*
+*Researched: 2026-02-28*

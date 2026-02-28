@@ -1,331 +1,188 @@
 # Project Research Summary
 
-**Project:** Mesh ORM Library (v10.0)
-**Domain:** ORM library for a statically-typed, LLVM-compiled functional language targeting PostgreSQL
-**Researched:** 2026-02-16
+**Project:** Mesh v14.0 — Ecosystem Expansion
+**Domain:** Programming language ecosystem — stdlib crypto/datetime/encoding, HTTP client, testing framework, package registry
+**Researched:** 2026-02-28
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Building an ORM for Mesh requires a hybrid approach: compiler additions to provide language primitives (atoms, keyword arguments, multi-line pipes, deriving(Schema), struct update syntax) combined with pure Mesh library code for the ORM API (Query builder, Repo, Changeset, Migration). The key architectural insight is that Mesh already has most building blocks needed for an ORM — deriving(Row) for struct-to-row mapping, Pool.query for SQL execution, traits for type-safe dispatch, pipe operator for query composition — but lacks the connective tissue to make these primitives feel like an integrated ORM. The missing pieces are language-level: atoms for field references, keyword arguments for ergonomic DSL syntax, and deriving(Schema) for compile-time metadata generation.
+Mesh v14.0 is an ecosystem expansion milestone for an existing compiled programming language. The work spans six parallel domains: crypto/encoding stdlib, datetime stdlib, HTTP client improvements, a testing framework, a package manifest format, and a hosted package registry. The research finding that most shapes execution is that nearly all crypto and encoding work requires zero new Rust dependencies — `sha2`, `hmac`, `base64`, and `rand` are already compiled into `mesh-rt`. The only new runtime dependency is `chrono 0.4` for datetime, plus a `ureq 2 -> 3` upgrade for HTTP streaming. This dramatically de-risks the stdlib work: it is primarily wrapper code following an established three-file pattern (runtime impl + typechecker registration + LLVM extern declaration).
 
-The recommended approach follows Ecto's four-module pattern (Schema, Query, Repo, Changeset) because Mesh's language design maps almost 1:1 to Elixir's functional paradigm. Schema definitions use deriving(Schema) to generate table metadata at compile time. Queries are immutable structs composed via pipe chains, with SQL generation delegated to runtime Rust functions. The Repo module provides stateless database operations that combine Pool.query with schema metadata. Changesets handle validation and type coercion as pure data transformations. Migrations use explicit up/down functions in Mesh files with a forward-only, expand-migrate-contract philosophy.
+The recommended approach is to build in dependency order: encoding and crypto first (zero new deps, validates the three-file pattern), then datetime (one new dep, validates the i64 timestamp design), then HTTP client improvements (isolated to one file), then the test runner (requires assertion helpers in place), and finally the package registry (most complex, but independent of all compiler work). The registry backend (Axum 0.8 + PostgreSQL + sqlx) and the CLI (`meshpkg`) can be developed in parallel with compiler changes once the `mesh.toml` manifest format is finalized. The registry website extends the existing VitePress site — no new framework or deployment target.
 
-The critical risks are: (1) attempting to replicate Ecto's macro-based DSL without macros leads to runtime configuration hell — use deriving(Schema) instead; (2) single-line pipe chains make query building unusable — fix the parser first; (3) string-based column references enable SQL injection — generate column accessors at compile time; (4) N+1 queries without lazy loading — implement Ecto-style explicit preloading; (5) PostgreSQL text protocol returns all-strings — build a centralized type coercion layer in schema metadata. Address these via compiler additions in Phase 1 before building library code.
+The top risk is not dependency complexity but design decisions that cannot be retrofitted: timestamp representation (must be `i64` Unix milliseconds, not strings), constant-time HMAC comparison (must use `hmac::Mac::verify_slice`, not `==`), test actor isolation (must be architected before assertions), and registry immutability (publish-once, no overwrite). Each of these is inexpensive to get right and very expensive to fix after users depend on the wrong behavior. A secondary risk is LLVM coverage instrumentation, which is incompatible with Mesh's current codegen and should use source-level MIR counter injection instead.
 
 ## Key Findings
 
 ### Recommended Stack
 
-Mesh ORM is built as three layers: compiler additions (atoms, keyword args, deriving(Schema), struct update, multi-line pipes), runtime SQL generation functions (mesh-rt/db/orm.rs), and pure Mesh library code (Query, Repo, Changeset, Migration modules). No macro system is needed. No new parser grammar for schema blocks is needed. The ORM leverages existing features — struct definitions, deriving infrastructure, pipe operator, traits, Result/Option types, pattern matching — with targeted compiler additions to unlock ergonomic syntax.
+The overwhelming majority of v14.0 work builds on the existing dependency graph. `sha2 0.10`, `hmac 0.12`, `base64 0.22`, and `rand 0.9` are already locked in `mesh-rt/Cargo.toml`. The only new additions to `mesh-rt` are `chrono 0.4` (datetime) and upgrading `ureq` from `"2"` to `"3"` (HTTP streaming and keep-alive). The registry backend is a new workspace member (`mesh-registry`) using Axum 0.8, sqlx 0.8, and tokio 1 — all of which align with existing workspace dependencies.
 
 **Core technologies:**
-- **Atom literals (`:name`, `:email`)**: Compiler addition for field references in queries and schema DSL — enables compile-time validation of field names
-- **Keyword arguments (`where(name: "Alice")`)**: Compiler addition desugaring to Map literals — unlocks Ecto-style ergonomic query builder API
-- **deriving(Schema)**: Compiler addition generating `__table__()`, `__fields__()`, `__primary_key__()` metadata functions — connects struct definitions to database schema
-- **Multi-line pipe chains**: Parser fix to treat `|>` at line start as continuation — makes query builder readable
-- **Struct update syntax (`%{user | name: "Bob"}`)**: Parser/codegen addition for functional data updates — needed for changeset application
-- **Runtime SQL generation (Rust)**: New mesh-rt/db/orm.rs module with mesh_orm_build_select/insert/update/delete — centralizes parameterized SQL generation
-- **Pure Mesh ORM library**: Query, Repo, Changeset, Migration modules using existing language features — no runtime changes to Pool/Pg driver needed
+- `chrono 0.4` (mesh-rt): DateTime parsing, formatting, and arithmetic — only new runtime dep; 392M downloads, multi-thread safe since 0.4.20
+- `ureq 3.2` (mesh-rt upgrade): Streaming via `Body::into_reader()`, connection pooling via `Agent`, `Body: Send` guarantee needed for actor model
+- `axum 0.8` (mesh-registry): Registry HTTP API — tokio-rs maintained, Tower middleware, same tokio dep already in workspace
+- `sqlx 0.8` (mesh-registry): Async PostgreSQL for package metadata — compile-time checked queries, matches axum/tokio stack
+- `uuid 1.21` (mesh-rt): UUID v4 using `rand 0.9` already present; only new crate added for crypto module
+- `tar 0.4` + `flate2 1` (mesh-pkg, mesh-registry): Package tarball creation and extraction
 
-**Critical ordering**: Atoms first (no dependencies), then multi-line pipes (parser fix), then keyword args (depends on atoms), then struct update (independent), then deriving(Schema) (depends on atoms), then relationship declarations (extends Schema). After compiler additions, all ORM library code is pure Mesh.
-
-**Alternatives rejected**: Runtime schema registry (requires mutable globals), macro system (massive scope creep), SQL parser (diminishing returns), multi-database support (prevents PG-specific features), lazy loading (causes N+1 problems), Active Record pattern (incompatible with functional paradigm).
+**What not to add:** `hex` crate (3 lines inline), `chrono-tz` (~2MB bloat, not needed for v14.0), `reqwest` (async-only, conflicts with synchronous actor model), `diesel` (synchronous, incompatible with axum async handlers).
 
 ### Expected Features
 
-Research identified table stakes (features users expect in any ORM), differentiators (what sets Mesh ORM apart), and anti-features (explicit non-goals based on ORM ecosystem learnings).
+**Must have (table stakes — P1, blocks v14.0):**
+- `Crypto.sha256/sha512/hmac_sha256/hmac_sha512/secure_compare/uuid4` — API authentication, content addressing
+- `Base64.encode/decode/encode_url/decode_url` and `Hex.encode/decode` — wire format, JWT tokens
+- `DateTime.utc_now/from_iso8601/to_iso8601/from_unix/to_unix/add/diff/before?/after?` — timestamps for every web application
+- `Http.build/header/body/timeout/send` builder API — composable HTTP client
+- `meshc test` runner with `assert/assert_eq/assert_ne/assert_raises` — no testing framework means no confidence in code
+- `mesh.toml` manifest and `mesh.lock` lockfile — reproducible builds
+- `meshpkg publish/install/search` CLI and hosted registry site with browse/search/per-package pages
 
-**Must have (table stakes):**
-- **Schema DSL**: Struct + deriving(Schema) generates table name, field metadata, primary key, timestamps
-- **Query builder**: Pipe-composable where/select/order_by/limit/offset/join/group_by/having — returns immutable Query struct
-- **Repo pattern**: Stateless all/one/get/get_by/insert/update/delete operations through central Repo module
-- **Relationships**: belongs_to, has_many, has_one declarations with preload support
-- **Changesets**: cast/validate pipeline with type coercion, validation functions (required/length/format/inclusion/number), constraint error mapping
-- **Migrations**: Timestamped files with up/down functions, schema_migrations tracking, create_table/alter_table/create_index helpers
+**Should have (competitive differentiators — P2):**
+- `Http.stream` callback-based streaming and `Http.client()` keep-alive handle
+- `describe "..." do ... end` grouping, `setup/teardown` blocks, `assert_receive`, `Test.mock_actor`
+- `meshc test --jobs N` parallel test modules
 
-**Should have (competitive):**
-- **Pipe-native query builder**: Designed from ground up for `|>` composition, more natural than Ecto's binding syntax
-- **Compile-time field validation**: Catch `:naem` typos at compile time via atom validation against schema fields
-- **Actor-integrated transactions**: Crash isolation via catch_unwind (already exists in Pg.transaction)
-- **Composable scopes**: Named query fragments as pure functions returning Query structs
-- **Upsert support**: PostgreSQL ON CONFLICT clause (heavily used in Mesher)
-- **Zero-cost metadata**: All schema metadata baked in at compilation, no runtime reflection overhead
-
-**Defer (v2+):**
-- **Compile-time query field validation**: Complex type system work beyond atom checking
-- **Schema-diff migration auto-generation**: Requires DB introspection and schema comparison
-- **Schemaless changesets**: Validate data without database-backed schema
-- **Aggregate functions as first-class ops**: Use raw SQL escape hatch initially
-- **Subqueries and CTEs**: Raw SQL escape hatch covers these
-- **Streaming/cursor queries**: LIMIT/OFFSET pagination initially
-
-**Anti-features (explicit non-goals):**
-- **Lazy loading**: The #1 ORM anti-pattern, causes N+1 queries, requires mutable state
-- **Active Record pattern (model.save)**: Incompatible with functional paradigm
-- **Identity map/session cache**: Complex, causes stale data issues, nonsensical with immutable data
-- **Automatic schema-diff migrations**: Dangerous for production, hides complexity
-- **Multi-database support**: Makes every feature 3x harder, prevents PG-specific features
-- **Callback hooks (before_save)**: Scatter side effects, hard to test, explicitly rejected by Ecto
+**Defer to v14.1/v2+:**
+- `meshc test --coverage` (HIGH implementation risk — LLVM incompatibility with current codegen)
+- `DateTime.format` with strftime patterns, timezone-aware datetime
+- `Crypto.pbkdf2`, Ed25519/RSA signing
+- `meshpkg outdated`, private package namespaces
 
 ### Architecture Approach
 
-The ORM integrates into Mesh's existing three-layer architecture: Layer 1 (Mesh user code — ORM library modules), Layer 2 (Rust compiler — deriving(Schema) code generation), Layer 3 (Rust runtime — SQL generation functions). Zero changes to the existing Pool/Pg driver. The ORM builds SQL strings and parameter lists, then calls Pool.query/Pool.execute unchanged.
+Every new stdlib function follows the established three-file pattern: `mesh-rt/src/<module>.rs` (Rust `extern "C"` implementation), `mesh-typeck/src/builtins.rs` (type signature registration), `mesh-codegen/src/codegen/intrinsics.rs` (LLVM extern declaration). Stateful resources (HTTP keep-alive agent, streaming reader) use the opaque `u64` handle pattern established for DB connections and regex handles. The test runner is a new module within the `meshc` binary crate (following the `migrate.rs` precedent), not a separate library. The package registry is a separate `mesh-registry` workspace member — not part of the compiler.
 
 **Major components:**
-1. **deriving(Schema)** (compiler) — Generates `__table__()`, `__fields__()`, `__primary_key__()` metadata functions from struct definitions following the deriving(Row)/deriving(Json) pattern
-2. **Query builder** (Mesh library) — Immutable Query struct with pipe-composable where/order/limit functions, builds query data structure without executing
-3. **SQL generator** (runtime Rust) — mesh_orm_build_select/insert/update/delete functions in db/orm.rs, converts Query struct to parameterized SQL + params list
-4. **Repo module** (Mesh library) — Stateless functions (all/one/get/insert/update/delete) that combine Query builder + SQL generator + Pool.query
-5. **Changeset module** (Mesh library) — Pure data transformations for casting (Map -> typed struct) and validation (pipe-chain of validation functions)
-6. **Migration system** (Mesh library + CLI) — Migration files as Mesh functions (up/down), migration runner with schema_migrations tracking, meshc migrate subcommand
+1. `mesh-rt/src/crypto.rs`, `date.rs`, `encoding.rs`, `test_support.rs` (NEW) — stdlib runtime implementations as `extern "C"` functions
+2. `meshc/src/test_runner.rs` (NEW) — `*.test.mpl` discovery, compile, execute, aggregate pass/fail
+3. `compiler/meshpkg/` (NEW binary crate) — publish, install, search, login CLI separate from `meshc`
+4. `registry/` (NEW workspace member) — Axum + PostgreSQL HTTP API + tarball storage with SHA-256 content addressing
+5. `website/docs/packages/` (MODIFIED) — Vue components fetching registry API at runtime; extends existing VitePress site
 
-**Key patterns**: Struct-as-Query (immutable composition), pool-first-arg convention (all DB functions take PoolHandle first), Result-error propagation (T!String with ? operator), generated metadata functions (deriving pattern). Anti-patterns to avoid: runtime schema reflection, dynamic return types, SQL string building in Mesh, actor/service for query building.
-
-**Data flow for query execution**: User writes `User |> where("email", v) |> Repo.one(pool)` -> Query builder creates Query struct -> Repo.one calls mesh_orm_build_select(query) -> Runtime Rust builds SQL "SELECT * FROM users WHERE email = $1" -> Pool.query executes -> Returns Map<String, String> -> Caller applies User.from_row(map) for typed result.
+**Key architectural decisions from research:**
+- DateTime is `i64` Unix milliseconds, not an opaque heap handle — avoids new type machinery in typeck/codegen
+- HTTP streaming uses a dedicated OS thread per stream (WS reader pattern from v4.0), NOT blocking inside actor coroutines
+- Each `*.test.mpl` is a complete Mesh program; the runner compiles and executes each independently (no function-level test injection)
+- Registry package versions are immutable from day one; yank marks versions deprecated without deleting content
+- Exact versions only in `mesh.toml` (`"1.2.0"` not `"^1.0"`) — SemVer range solving is deferred
 
 ### Critical Pitfalls
 
-Research identified 20 pitfalls across 3 severity levels. Top 5 critical (cause rewrites or fundamental breakage):
+1. **Blocking HTTP I/O starving actor scheduler threads** — `ureq` streaming reads block OS threads; with 8 threads and 8 concurrent streaming actors the scheduler deadlocks. Prevention: spawn a dedicated OS thread per stream (WS reader pattern), deliver chunks to actor mailbox as messages.
 
-1. **Schema DSL without macros (the Ecto trap)** — Attempting to replicate Ecto's `schema "users" do field :name, :string end` macro-based DSL without macros leads to runtime configuration hell with no compile-time safety. **Prevention**: Use deriving(Schema) as the single entry point, following the established deriving(Json)/deriving(Row) pattern. The struct definition IS the schema. Compiler generates metadata at MIR lowering time.
+2. **Variable-time HMAC comparison** — using `==` on HMAC outputs enables timing attacks on API tokens. Prevention: expose `Crypto.secure_compare` backed by `hmac::Mac::verify_slice` (constant-time via `subtle`); document that `==` must never be used for secret comparison in production.
 
-2. **Query builder type safety (string concatenation trap)** — Implementing the query builder as string concatenation with unchecked column names (`where(query, column, value)` where `column` is arbitrary string) provides zero type safety and enables SQL injection through column name injection. **Prevention**: Generate column accessor functions per schema field. When deriving(Schema) processes `name :: String`, generate `User.name_col() -> String`. Query builder accepts these accessor return values, not arbitrary strings.
+3. **Test actor registry leaks between tests** — leftover named actors from test A cause "AlreadyRegistered" failures in test B. Prevention: each test function runs as a separate root actor; all linked mock actors die when the test actor exits via existing supervisor infrastructure.
 
-3. **N+1 problem without lazy loading (preload design failure)** — The natural code pattern (load users, iterate and query each user's posts) executes N+1 queries. Mesh has no lazy loading (correct decision — prevents invisible N+1), but must provide ergonomic explicit preloading. **Prevention**: Implement Ecto-style preloading with separate queries. `Repo.preload(users, ["posts"])` collects all user IDs, executes single `SELECT * FROM posts WHERE user_id IN (...)`, maps results to parents in memory. Turns N+1 into 2 queries.
+4. **Registry version overwrite** — allowing `meshpkg publish` to overwrite an existing version breaks reproducible builds permanently and cannot be undone without trust damage. Prevention: content-address tarballs by SHA-256; reject re-upload of same version with different content; return HTTP 409 Conflict on duplicate publish.
 
-4. **deriving(Row) all-strings problem infects the entire ORM** — PostgreSQL text protocol returns all values as strings. The ORM must maintain consistent type coercion layer between Mesh types and PostgreSQL text representations at every boundary: insert (Mesh -> SQL params), select (SQL result -> Mesh struct), where clause values, join conditions. **Prevention**: Centralize type coercion in schema metadata. Each field's metadata includes to_param (Mesh value -> SQL string) and from_column (SQL string -> Mesh value) functions generated by deriving(Schema). Changeset casting validates and coerces in one step before persistence.
-
-5. **Single-line pipe chains make query builder unusable** — The ORM's showcase feature (pipe-chain query building) produces 100+ character single lines because Mesh parser treats newline after `User` as statement terminator and `|>` at line start as syntax error. **Prevention**: Add multi-line pipe continuation to parser (if line ends with `|>` or starts with `|>`, treat as continuation). If parser not extended, verify parenthesized workaround works and document as standard pattern.
-
-**Other critical pitfalls**: Migration rollback data loss (use forward-only + expand-migrate-contract pattern), single-expression case arms break ORM Result handling (add multi-expression case arms or use ? operator aggressively), Map.collect integer key assumption breaks preload grouping (fix collect codegen key type propagation).
+5. **LLVM coverage incompatible with Mesh codegen** — Mesh emits LLVM IR without DWARF debug info; `llvm-profdata` produces empty reports or maps coverage to Rust compiler source. Prevention: implement coverage as source-level MIR counter injection dumped to JSON; defer LLVM-based coverage until codegen emits proper debug info.
 
 ## Implications for Roadmap
 
-Based on research, the implementation must follow strict dependency order: compiler additions first (enable ergonomic syntax), then schema metadata (foundation for everything), then query builder + Repo (core API), then changesets (validation layer), then relationships (most complex feature), then migrations (operational tooling), finally Mesher rewrite (validation).
+Based on research, suggested phase structure:
 
-### Phase 1: Compiler Additions (Language Primitives)
-**Rationale:** Every subsequent phase depends on these language features. Attempting to build the ORM without atoms, keyword args, multi-line pipes, and deriving(Schema) leads to verbose, unsafe, unergonomic code. These are prerequisites, not nice-to-haves.
+### Phase 1: Encoding and Crypto Stdlib
+**Rationale:** Zero new Rust dependencies; validates the three-file pattern for all subsequent stdlib work; fastest to ship; crypto primitives (HMAC, UUID) are prerequisites for registry authentication.
+**Delivers:** `Crypto.*` (sha256/sha512/hmac/uuid4/secure_compare), `Base64.*`, `Hex.*` — all as `extern "C"` wrappers over already-compiled crates.
+**Addresses:** All P1 crypto and encoding features from FEATURES.md.
+**Avoids:** Duplicate dep pitfall (audit `Cargo.toml` first); non-constant-time comparison pitfall (design `secure_compare` before any HMAC function); UUID from weak PRNG pitfall (use `ring::rand::SystemRandom`).
 
-**Delivers:**
-- Atom literal syntax (`:name`) with lexer/parser/typeck/codegen support
-- Keyword argument syntax desugaring to Map literals
-- Multi-line pipe chain support (parser fix)
-- Struct update syntax (`%{user | name: "Bob"}`)
-- deriving(Schema) infrastructure (typeck registration, MIR generation)
-- Relationship declaration syntax (belongs_to, has_many, has_one keywords)
+### Phase 2: DateTime Stdlib
+**Rationale:** One new dependency (`chrono 0.4`); independent of all other v14.0 work; the `i64` Unix milliseconds representation decision must be locked before registry or test runner touches timestamps.
+**Delivers:** `DateTime.*` — utc_now, from_iso8601, to_iso8601, from_unix, to_unix, add, diff, before?, after?.
+**Uses:** `chrono 0.4` added to `mesh-rt/Cargo.toml`.
+**Avoids:** String-based timestamp pitfall; silent UTC assumption pitfall (reject timezone-free strings with Err); integer overflow pitfall (use checked arithmetic, return Result from all arithmetic functions).
 
-**Addresses:**
-- Features: Ergonomic schema DSL, pipe-composable query builder syntax
-- Pitfalls: #1 (schema DSL without macros), #2 (string column names), #7 (single-expression case arms), #8 (single-line pipes), #12 (struct update), #15 (relationship declaration syntax)
+### Phase 3: HTTP Client Improvements
+**Rationale:** Isolated to `mesh-rt/src/http/client.rs`; ureq 3 upgrade confined to one file; threading model for streaming must be decided before any streaming implementation begins.
+**Delivers:** `Http.build/header/body/timeout/send` builder API; `Http.stream` (dedicated OS thread per stream); `Http.client()` keep-alive agent handle.
+**Uses:** `ureq 3.2` upgrade; opaque `u64` handle pattern for Agent.
+**Avoids:** Actor scheduler starvation pitfall (OS thread per stream, not blocking in coroutine); keep-alive pool on GC heap pitfall (`Box::into_raw` opaque handle); chunked parser edge cases (RFC 9112 strict: extensions, trailers, zero-chunk terminator).
 
-**Estimated scope:** ~2500 LOC across compiler crates (lexer, parser, typeck, codegen)
+### Phase 4: Testing Framework
+**Rationale:** `meshc test` runner is the prerequisite for all testing features; test isolation architecture must be designed first; assertion helpers must exist in `mesh-rt` before the runner can compile and execute test files.
+**Delivers:** `meshc test` discovery and runner; `assert/assert_eq/assert_ne/assert_raises`; `describe` blocks; `setup/teardown`; `assert_receive`; `Test.mock_actor`. Coverage treated as stretch goal.
+**Addresses:** All P1 and P2 testing features.
+**Avoids:** Test actor registry leak pitfall (actor-per-test isolation); mock actor orphan pitfall (link mocks to test actor for automatic cleanup on exit); LLVM coverage pitfall (use MIR counter injection if coverage is implemented at all in v14.0).
 
-### Phase 2: Schema Metadata + SQL Generation
-**Rationale:** Schema metadata is the foundation. Query builder, Repo, Changeset, and Migrations all depend on knowing table names, field names, field types, and primary keys at compile time.
+### Phase 5: Package Manifest and meshpkg CLI
+**Rationale:** `mesh.toml` manifest format must be finalized before registry API contract can be defined; `meshpkg` CLI depends on mesh-pkg's Registry dep variant; exact-version-only policy avoids SemVer solver complexity.
+**Delivers:** `mesh.toml` manifest with `Dependency::Registry { version }` variant; `mesh.lock` lockfile; `meshpkg publish/install/search/login` CLI binary as new `compiler/meshpkg/` crate.
+**Uses:** `tar 0.4`, `flate2 1`, `sha2 0.10` added to mesh-pkg.
+**Avoids:** SemVer range solver scope creep (exact versions only in v14.0).
 
-**Delivers:**
-- deriving(Schema) generates `__table__()`, `__fields__()`, `__primary_key__()` functions
-- Runtime SQL generation module (mesh-rt/db/orm.rs)
-- mesh_orm_build_select/insert/update/delete functions
-- Parameterized SQL generation with proper $1, $2 placeholders
-- Identifier quoting and type casting
-
-**Uses:**
-- Stack: Atom literals for field references, deriving infrastructure from Phase 1
-- Architecture: Generated metadata functions pattern, runtime SQL generation layer
-
-**Implements:** Schema component, SQL generator component
-
-**Avoids:** Pitfall #1 (runtime schema registration), #4 (type coercion gaps)
-
-### Phase 3: Query Builder + Repo (Core API)
-**Rationale:** These are the user-facing ORM API. Developers write queries and execute them through Repo. Must work before adding complexity like changesets or relationships.
-
-**Delivers:**
-- Query struct with where/select/order_by/limit/offset/join/group_by
-- Pipe-composable query builder functions
-- Repo.all/one/get/get_by/insert_raw/update_raw/delete/count/exists
-- Integration with Pool.query via SQL generator
-- Raw SQL escape hatch (fragment function)
-
-**Addresses:**
-- Features: Query builder (table stakes), Repo pattern (table stakes), composable scopes (differentiator)
-- Pitfalls: #8 (multi-line pipes now available), #13 (expression problem — fragment escape hatch)
-
-**Implements:** Query builder component, Repo module component
-
-### Phase 4: Changesets (Validation Layer)
-**Rationale:** Changesets enhance Repo operations with type-safe validation. Not needed for basic querying, so comes after core Repo is working. Builds on schema metadata for type coercion.
-
-**Delivers:**
-- Changeset struct (data, changes, errors, valid)
-- Changeset.cast for type coercion from Map params
-- Validation functions: required/length/format/inclusion/number
-- Constraint error mapping (PG unique/FK violations -> changeset errors)
-- Repo.insert/update accept Changeset structs
-
-**Addresses:**
-- Features: Changesets (table stakes), type-safe casting (differentiator)
-- Pitfalls: #4 (centralized type coercion), #12 (struct update for error accumulation)
-
-**Implements:** Changeset module component
-
-### Phase 5: Relationships + Preloading
-**Rationale:** Most complex ORM feature. Requires working queries, schema metadata, and Repo operations. Relationships are cross-schema (User -> Post requires both schemas known). Preloading requires correct string-keyed map grouping.
-
-**Delivers:**
-- belongs_to/has_many/has_one metadata declarations
-- Relationship metadata generation in deriving(Schema)
-- Repo.preload_assoc for single association loading
-- Repo.preload for multiple associations (separate queries, not JOINs)
-- Nested preloading support (posts.comments)
-- many_to_many through join table support
-
-**Addresses:**
-- Features: Relationships (table stakes), preloading (table stakes)
-- Pitfalls: #3 (N+1 problem — explicit preloading prevents it), #11 (relationship metadata without reflection), #14 (Map.collect string keys for grouping)
-
-**Implements:** Relationship definitions, preload component
-
-### Phase 6: Migration System
-**Rationale:** Migrations are operationally important but not required for query/data operations. Can be developed in parallel with Phase 5 if resources allow. Uses schema metadata for future auto-generation but starts with manual migration files.
-
-**Delivers:**
-- Migration file format (Mesh functions with up/down)
-- Migration DSL (create_table, alter_table, drop_table, create_index)
-- Migration tracking (_mesh_migrations table)
-- Migration runner (discover, sort, apply pending, rollback)
-- meshc migrate CLI subcommand
-- Migration generation scaffold (meshc migrate generate name)
-
-**Addresses:**
-- Features: Migrations (table stakes)
-- Pitfalls: #5 (multi-line SQL strings — use plain SQL files or multi-line string literals), #6 (rollback data loss — forward-only + expand-migrate-contract)
-
-**Implements:** Migration module component, CLI integration
-
-### Phase 7: Mesher Rewrite (Validation)
-**Rationale:** Rewriting Mesher's entire storage layer validates every ORM feature against a real application. This is the dogfooding phase that exposes API usability issues and missing features.
-
-**Delivers:**
-- 11 type structs converted to deriving(Schema)
-- 627 lines of storage/queries.mpl replaced with ORM calls
-- 82 lines of storage/schema.mpl replaced with migration files
-- All service modules using Repo instead of raw Pool.query
-- All API handlers using typed structs instead of raw Maps
-- Verification that all existing functionality works identically
-
-**Estimated impact:** 627 lines -> ~100-150 lines of ORM calls. More maintainable, type-safe, less SQL duplication.
-
-**Validates:** All features work together in production-like environment. Real-world query patterns (filtering, pagination, aggregation, preloading) are supported.
+### Phase 6: Package Registry Backend and Website
+**Rationale:** Can be developed in parallel with Phase 5 once API contract is defined; registry server is independent of compiler changes; must ship with pre-published stdlib packages to avoid "ghost town" problem at launch.
+**Delivers:** `mesh-registry` Axum server (publish/download/search/auth API); PostgreSQL schema with SHA-256 content addressing; tarball storage with `StorageBackend` trait; VitePress package browse/search/detail pages; at least 4 stdlib packages published at launch.
+**Uses:** `axum 0.8`, `sqlx 0.8`, `tokio 1`, `uuid 1`, `chrono 0.4` in new `mesh-registry` workspace member.
+**Avoids:** Registry version overwrite pitfall (immutable publish, HTTP 409 on duplicate); empty registry at launch (publish stdlib packages as first content); registry SQL full-table-scan (PostgreSQL FTS `tsvector` index from day one).
 
 ### Phase Ordering Rationale
 
-- **Phase 1 first (compiler)**: Language primitives are prerequisites. Building ORM without them produces verbose, unsafe code that needs rewriting when primitives are added later.
-- **Phase 2 second (schema)**: Everything depends on schema metadata. Query builder needs table/field names. Repo needs field types. Changesets need type coercion rules.
-- **Phase 3 third (query + repo)**: Core user-facing API. Must work before adding complexity. Changesets and relationships are enhancements.
-- **Phase 4 fourth (changesets)**: Enhances Repo operations. Independent of relationships. Can be developed in parallel with Phase 5.
-- **Phase 5 fifth (relationships)**: Most complex feature. Depends on everything else working. Preloading requires correct query builder, schema metadata, and Map grouping.
-- **Phase 6 parallel (migrations)**: Partially independent. Can start after Phase 2 (schema metadata) and develop in parallel with Phases 3-5.
-- **Phase 7 final (validation)**: Requires all features complete. Real-world testing phase.
-
-**Dependency chain**: Phase 1 -> Phase 2 -> (Phase 3, Phase 6) -> (Phase 4, Phase 5) -> Phase 7. Phases in parentheses can run in parallel.
+- Phases 1-2 (stdlib) have zero external dependencies and validate the three-file pattern used by all later stdlib additions.
+- Phase 3 (HTTP) is independent but benefits from the pattern being proven; ureq upgrade is confined to one file.
+- Phase 4 (testing) requires assertion helpers in place but is otherwise independent of all other phases.
+- Phase 5 (manifest + CLI) must precede Phase 6 (registry server) because the API contract flows from the manifest format.
+- Phases 5 and 6 are separable: the registry server can be developed in parallel with the CLI once the API contract is defined on paper.
+- The build order from ARCHITECTURE.md (encoding -> crypto -> date -> HTTP -> test assertions -> test runner -> manifest -> meshpkg -> registry -> website) validates this phase structure.
+- All of Phases 1-4 are independent of Phases 5-6 and can run in parallel across teams.
 
 ### Research Flags
 
-**Phases needing deeper research during planning:**
-- **Phase 1 (compiler additions)**: Known parser/typeck patterns but need careful design for keyword args desugaring, atom type representation, deriving(Schema) metadata generation strategy
-- **Phase 5 (relationships + preloading)**: Complex cross-schema metadata, nested preloading with recursive planning, many-to-many through tables
+Phases likely needing deeper research during planning:
+- **Phase 3 (HTTP streaming):** The WS reader thread pattern is documented in PROJECT.md but the exact actor mailbox message format for HTTP chunks and backpressure model need a design spike before implementation begins.
+- **Phase 4 (coverage):** MIR-level counter injection is the recommended approach but has no prior art in the Mesh codebase; needs a prototype before committing to the full feature in v14.0. Strong recommendation: defer coverage to v14.1.
+- **Phase 6 (registry):** Tarball storage abstraction (`StorageBackend` trait for future S3/R2 migration), PostgreSQL full-text search configuration, and API auth token lifecycle all need design docs before coding starts.
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 2 (schema metadata)**: Follows existing deriving(Row)/deriving(Json) pattern exactly
-- **Phase 3 (query builder + repo)**: Well-documented Ecto patterns, straightforward Rust SQL generation
-- **Phase 4 (changesets)**: Pure data transformation, established validation patterns
-- **Phase 6 (migrations)**: Standard migration runner pattern (Rails, Ecto, Diesel all use same approach)
-- **Phase 7 (Mesher rewrite)**: No research needed, direct code translation
+Phases with well-documented patterns (skip research-phase):
+- **Phase 1 (crypto/encoding):** Three-file pattern is fully established; existing `mesh_http_get` and `mesh_regex_compile` are direct implementation templates.
+- **Phase 2 (datetime):** chrono API is mature and well-documented; i64 millisecond representation is a settled design decision from research.
+- **Phase 5 (manifest):** `mesh-pkg` crate already has manifest parsing; adding `Dependency::Registry` variant is a small, well-understood change.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Compiler source directly analyzed, existing deriving infrastructure validated, runtime Rust patterns proven in current codebase |
-| Features | HIGH | Ecto/Diesel/ActiveRecord/Prisma thoroughly documented, Mesher pain points clearly identified (627 LOC queries.mpl) |
-| Architecture | HIGH | Architecture derived from direct codebase analysis of all compiler crates, runtime DB layer, Mesher application code |
-| Pitfalls | HIGH | 20 pitfalls identified from Mesh compiler limitations (single-line pipes, cross-module from_row), ORM ecosystem learnings (N+1, lazy loading, migration rollback), and Mesher development experience |
+| Stack | HIGH | All critical crates verified against docs.rs and Cargo.lock; existing dep reuse confirmed by direct file inspection of mesh-rt/Cargo.toml |
+| Features | HIGH | Based on ExUnit, Hex, Cargo, and Python stdlib conventions; all features mapped to concrete Mesh API signatures with complexity estimates |
+| Architecture | HIGH | Based on direct codebase inspection of mesh-rt, mesh-typeck, mesh-codegen, mesh-pkg, meshc; three-file pattern and opaque handle pattern verified against multiple existing examples |
+| Pitfalls | HIGH | Mix of direct source analysis (scheduler design, existing ureq usage) and verified external CVEs/RFCs (chunked transfer CVE-2025-66373, LLVM coverage format incompatibility) |
 
 **Overall confidence:** HIGH
 
-Research is based on: (1) Direct Mesh compiler source analysis (~99K LOC across crates), (2) Mesher application analysis (627 LOC queries demonstrating pain points), (3) Established ORM patterns (Ecto, Diesel, ActiveRecord with extensive documentation), (4) Known Mesh language limitations documented in STATE.md and PROJECT.md.
-
 ### Gaps to Address
 
-**Compiler additions feasibility**: All proposed additions (atoms, keyword args, multi-line pipes, deriving(Schema), struct update) follow existing patterns in the compiler, but implementation complexity needs validation during Phase 1. Keyword arguments have most uncertainty — desugaring to Map vs special calling convention.
-
-**Cross-module from_row resolution**: Known issue from Mesher Phase 88 that MUST be fixed in Phase 1. If not fixed, ORM is non-functional across module boundaries (which is the default case).
-
-**Map.collect string key assumption**: Known issue from PROJECT.md that breaks preload grouping. Must be fixed in Phase 1 or worked around with manual Map.put loops.
-
-**Relationship metadata propagation**: No runtime reflection means relationship metadata must flow through function calls or be looked up via generated functions. Design approach needs finalization in Phase 2.
-
-**Mesher UUID vs Integer PKs**: Mesher uses UUID primary keys (`gen_random_uuid()`). ORM must support both UUID and Integer PKs based on schema field type. Default to UUID to match Mesher pattern.
-
-**PostgreSQL text protocol coercion edge cases**: Boolean (`t`/`f`), NULL (missing Map key), JSONB (JSON string requiring from_json), timestamps (string without DateTime type). Coercion layer must handle all cases. Test coverage critical.
+- **HTTP streaming backpressure:** OS thread + mailbox model is the right pattern, but the message format for chunk delivery and EOF signaling needs a concrete design decision during Phase 3 planning. No gap in approach — gap in specifics.
+- **Coverage deferral decision:** Research strongly suggests MIR counter injection over LLVM instrumentation, but the scope for v14.0 vs v14.1 should be confirmed at planning time. If test runner takes longer than expected, coverage is the correct cut.
+- **Registry storage abstraction:** Starting with local filesystem is correct, but the `StorageBackend` trait design (interface for future S3/R2 migration) needs a concrete API before Phase 6 coding starts.
+- **`meshpkg login` credential storage:** `~/.mesh/credentials` format and token rotation semantics are not fully specified in research. Low risk but needs a design decision during Phase 5 planning.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-**Mesh compiler/runtime source analysis:**
-- Direct codebase analysis of crates/mesh-lexer, mesh-parser, mesh-typeck, mesh-codegen, mesh-rt
-- crates/mesh-typeck/src/infer.rs:2276 — valid_derives array, deriving infrastructure entry point
-- crates/mesh-codegen/src/mir/lower.rs:1689-1746 — lower_struct_def, deriving code generation patterns
-- crates/mesh-rt/src/db/pool.rs, pg.rs, row.rs — existing database layer
-- mesher/storage/queries.mpl (627 lines) — pain points the ORM eliminates
-- mesher/types/*.mpl — all structs use deriving(Row), deriving(Json)
-
-**Mesh language limitations:**
-- .planning/PROJECT.md:235-236 — single-line pipes, Map.collect integer key assumption
-- .planning/STATE.md:44-48 — known blockers for ORM development
-- .planning/phases/88-02-SUMMARY.md:142-143 — cross-module from_json resolution failure
-- .planning/phases/87.1-RESEARCH.md:246-248 — Row all-String fields limitation
-
-**Ecto (primary reference for architecture):**
-- [Ecto.Schema v3.13.5](https://hexdocs.pm/ecto/Ecto.Schema.html) — macro-based schema DSL, metadata generation
-- [Ecto.Query v3.13.5](https://hexdocs.pm/ecto/Ecto.Query.html) — query builder API, composability, type safety
-- [Ecto.Changeset v3.13.5](https://hexdocs.pm/ecto/Ecto.Changeset.html) — validation pipeline, casting, constraint error mapping
-- [Ecto.Repo v3.13.5](https://hexdocs.pm/ecto/Ecto.Repo.html) — repository pattern, preloading strategy
-- [Ecto Associations](https://hexdocs.pm/ecto/associations.html) — relationship metadata, belongs_to/has_many
+- `compiler/mesh-rt/Cargo.toml` — confirmed sha2/hmac/base64/rand/ureq already present; zero new crypto deps needed
+- `compiler/mesh-rt/src/http/client.rs` — confirmed ureq 2.x blocking I/O, current get/post flat functions
+- `compiler/mesh-pkg/src/manifest.rs` + `resolver.rs` — existing mesh.toml format, DFS resolver, Dependency enum
+- `compiler/meshc/src/main.rs` + `migrate.rs` — subcommand-as-module pattern (test runner template)
+- `compiler/mesh-codegen/src/codegen/intrinsics.rs` — LLVM extern declaration pattern
+- `compiler/mesh-typeck/src/builtins.rs` — type registration pattern for stdlib functions
+- [docs.rs/ureq/latest](https://docs.rs/ureq/latest/ureq/) — ureq 3.2 Agent pooling, Body streaming, Body: Send
+- [docs.rs/chrono/latest](https://docs.rs/chrono/latest/chrono/) — DateTime<Utc>, parse_from_rfc3339, to_rfc3339, timestamp
+- [tokio.rs/blog/2025-01-01-announcing-axum-0-8-0](https://tokio.rs/blog/2025-01-01-announcing-axum-0-8-0) — axum 0.8.8 stable
+- [hexdocs.pm/ex_unit/ExUnit.html](https://hexdocs.pm/ex_unit/ExUnit.html) — file convention, runner, assert_receive API
+- [RFC 9112 §7.1](https://www.rfc-editor.org/rfc/rfc9112#section-7.1) — chunked transfer coding spec (chunk extensions, trailers)
+- [doc.rust-lang.org/cargo/reference/publishing.html](https://doc.rust-lang.org/cargo/reference/publishing.html) — immutability and yank design rationale
 
 ### Secondary (MEDIUM confidence)
-
-**Rust ORMs:**
-- [Diesel ORM](https://diesel.rs/) — compile-time query validation, type-safe query builder
-- [SeaORM](https://www.sea-ql.org/SeaORM/) — derive-based schema, async support
-- [Rust ORMs Guide (Shuttle)](https://www.shuttle.dev/blog/2024/01/16/best-orm-rust) — Diesel vs SeaORM vs SQLx comparison
-
-**ORM patterns and anti-patterns:**
-- [The Basic Mistake All ORMs Make (Vogten)](https://martijnvogten.github.io/2025/04/16/the-basic-mistake-all-orms-make-and-how-to-fix-it.html) — lazy loading critique
-- [ORM Lazy Loading Anti-Pattern](https://www.mehdi-khalili.com/orm-anti-patterns-part-3-lazy-loading) — N+1 problem
-- [ORM Framework Anti-Patterns (Lindbakk)](https://lindbakk.com/blog/orm-frameworks-anti-patterns) — identity map, callbacks
-- [SQL injection in ORMs](https://snyk.io/blog/sql-injection-orm-vulnerabilities/) — column name injection risks
-
-**Migration patterns:**
-- [Ecto.Migration documentation](https://hexdocs.pm/ecto_sql/Ecto.Migration.html) — migration file format, schema_migrations tracking
-- [Atlas: Database rollback hard truths](https://atlasgo.io/blog/2024/11/14/the-hard-truth-about-gitops-and-db-rollbacks) — forward-only migration philosophy
-- [Database migrations: safe strategies](https://vadimkravcenko.com/shorts/database-migrations/) — expand-migrate-contract pattern
-
-**Other ORMs:**
-- [ActiveRecord Query Interface](https://guides.rubyonrails.org/active_record_querying.html) — established patterns, callbacks
-- [Prisma ORM](https://www.prisma.io/orm) — schema-first approach, type generation
-- [SQLAlchemy Session Basics](https://docs.sqlalchemy.org/en/20/orm/session_basics.html) — unit of work, identity map
-
-### Tertiary (LOW confidence, needs validation)
-
-- [Elixir School: Ecto Associations](https://elixirschool.com/en/lessons/ecto/associations) — relationship implementation patterns
-- [Composing Ecto Queries (AmberBit)](https://www.amberbit.com/blog/2019/4/16/composing-ecto-queries-filters-and-preloads/) — query composition patterns
-- [Drizzle vs Prisma 2026](https://makerkit.dev/blog/tutorials/drizzle-vs-prisma) — TypeScript ORM comparison
+- [github.com/rust-lang/crates.io](https://github.com/rust-lang/crates.io) — uses axum backend; permanent archive design philosophy
+- [dalek-cryptography/subtle](https://github.com/dalek-cryptography/subtle) — LLVM branch re-introduction risk in constant-time code
+- [CVE-2025-66373 Akamai](https://www.akamai.com/blog/security/cve-2025-66373-http-request-smuggling-chunked-body-size) — real-world chunked parser failure (2025)
+- [LLVM source-based coverage docs](https://clang.llvm.org/docs/SourceBasedCodeCoverage.html) — format version incompatibility warning
 
 ---
-*Research completed: 2026-02-16*
+*Research completed: 2026-02-28*
 *Ready for roadmap: yes*

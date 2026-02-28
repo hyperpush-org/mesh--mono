@@ -1,961 +1,809 @@
-# Architecture Patterns
+# Architecture Research
 
-**Domain:** ORM library integration into the Mesh programming language
-**Researched:** 2026-02-16
-**Overall confidence:** HIGH (architecture derived from direct codebase analysis of all compiler crates, runtime DB layer, and Mesher application code)
+**Domain:** Programming language ecosystem — stdlib, HTTP client, test runner, package registry
+**Researched:** 2026-02-28
+**Confidence:** HIGH (based on direct codebase inspection + verified external sources)
 
-## Executive Summary
+## Standard Architecture
 
-The Mesh ORM integrates into a compiler/runtime system with well-defined boundaries: a Rust compiler (mesh-lexer through mesh-codegen), a Rust runtime (mesh-rt with PG driver, connection pool, row parsing), and Mesh-level user code (types, queries, services). The ORM's architecture must span all three layers -- new compiler deriving infrastructure, new runtime functions for query execution and SQL generation, and a Mesh-level library providing the user-facing API (Schema, Query, Repo, Changeset, Migration).
-
-The key architectural insight from studying the existing codebase is that Mesh already has all the building blocks for an ORM, but they exist as disconnected primitives. The `deriving(Row)` system maps database rows to structs. `Pool.query` and `Pool.execute` run SQL. Type annotations give struct field metadata at compile time. What the ORM adds is the connective tissue: schema metadata that links struct fields to database columns, a query builder that composes SQL from struct types, a Repo module that combines pool operations with row mapping, and a migration system that generates DDL from schema definitions.
-
-The architecture follows Ecto's four-module pattern (Schema, Repo, Query, Changeset) because Mesh's language primitives map almost 1:1 to Elixir's: pipe-chain composition, functional data transformation, structs with metadata, and explicit separation of data and behavior. This is not coincidence -- Mesh was designed with Elixir's philosophy, so Ecto's patterns are the natural ORM architecture for this language.
-
-## Existing Architecture (What We Are Integrating Into)
-
-### Current Layer Map
+### System Overview
 
 ```
-LAYER 1: Mesh User Code (.mpl files)
-  Types/User.mpl       struct User do ... end deriving(Json, Row)
-  Storage/Queries.mpl   Pool.query(pool, "SELECT ...", [params])
-  Services/User.mpl     service UserService do ... end
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Mesh Compiler Pipeline                          │
+│  mesh-lexer → mesh-parser → mesh-typeck → mesh-codegen(MIR) → LLVM IR  │
+│                                                                          │
+│  builtins.rs           intrinsics.rs          mesh-rt (libmesh_rt.a)    │
+│  [type sigs]    →      [LLVM decls]    →      [extern "C" impls]        │
+└─────────────────────────────────────────────────────────────────────────┘
 
-LAYER 2: Mesh Compiler (Rust, ~99K LOC)
-  mesh-parser       Parses deriving() clauses, struct defs, fn defs
-  mesh-typeck       Registers trait impls for deriving, validates trait names
-  mesh-codegen      Generates MIR functions: FromRow__from_row__User, to_json, etc.
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          mesh-rt Crate Layout                            │
+│                                                                          │
+│  actor/     string.rs    gc.rs     http/          db/         v14 NEW    │
+│  ┌───────┐  ┌────────┐  ┌──────┐  ┌──────────┐  ┌───────┐  ┌────────┐  │
+│  │sched  │  │string  │  │mark- │  │server.rs │  │pg.rs  │  │crypto  │  │
+│  │pcb    │  │concat  │  │sweep │  │client.rs │  │pool.rs│  │date    │  │
+│  │coros. │  │new     │  │alloc │  │router.rs │  │orm.rs │  │encode  │  │
+│  └───────┘  └────────┘  └──────┘  └──────────┘  └───────┘  └────────┘  │
+└──────────────────────────────────────────────────────────────────────────┘
 
-LAYER 3: Mesh Runtime (Rust, mesh-rt crate)
-  db/pool.rs        mesh_pool_query, mesh_pool_execute (auto checkout/checkin)
-  db/pg.rs          Wire protocol v3, SCRAM-SHA-256, TLS
-  db/row.rs         mesh_row_from_row_get, mesh_row_parse_int/float/bool
-  json.rs           mesh_json_encode, mesh_json_decode
+┌──────────────────────────────────────────────────────────────────────────┐
+│                       meshc CLI (v14.0 additions)                        │
+│                                                                          │
+│  build   fmt   repl   lsp   migrate   deps   [NEW: test]                │
+│                                                                          │
+│  Dispatches to: mesh-codegen, mesh-fmt, mesh-repl, mesh-lsp,            │
+│                 mesh-pkg, [NEW: test_runner.rs module in meshc]          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│              meshpkg Binary + Registry Backend (NEW)                     │
+│                                                                          │
+│  meshpkg CLI         Registry Server (Axum + Postgres)                  │
+│  ┌──────────────┐    ┌──────────────────────────────────────┐           │
+│  │ publish      │───▶│ POST /api/packages/{name}/{version}  │           │
+│  │ install      │◀───│ GET  /api/packages/{name}            │           │
+│  │ search       │◀───│ GET  /api/search?q=...               │           │
+│  │ login        │    │ GET  /api/packages/{n}/{v}/download  │           │
+│  └──────────────┘    └──────────────────────────────────────┘           │
+│                                                                          │
+│  mesh.toml + mesh.lock (already in mesh-pkg crate, extended)            │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Current Data Flow (Raw SQL Pattern)
+### Component Responsibilities
+
+| Component | Responsibility | Status |
+|-----------|----------------|--------|
+| `mesh-rt/src/crypto.rs` | SHA-256/512, HMAC-SHA256/SHA512, UUID v4 as `extern "C"` fns | NEW |
+| `mesh-rt/src/date.rs` | Timestamps, parse, format, duration arithmetic as `extern "C"` fns | NEW |
+| `mesh-rt/src/encoding.rs` | Base64 encode/decode, hex encode/decode as `extern "C"` fns | NEW |
+| `mesh-rt/src/http/client.rs` | Streaming HTTP client, keep-alive agent, builder API | MODIFIED |
+| `mesh-codegen/src/codegen/intrinsics.rs` | LLVM extern declarations for all new `mesh_*` symbols | MODIFIED |
+| `mesh-typeck/src/builtins.rs` | Type signatures for `Crypto.*`, `Date.*`, `Encoding.*` | MODIFIED |
+| `meshc/src/main.rs` | Add `Test` variant to `Commands` enum, dispatch to test runner | MODIFIED |
+| `meshc/src/test_runner.rs` | `*.test.mpl` discovery, compile, execute, aggregate results | NEW |
+| `mesh-rt/src/test_support.rs` | `mesh_test_assert`, `mesh_test_assert_eq`, `mesh_test_fail` fns | NEW |
+| `mesh-pkg/src/manifest.rs` | Add `Dependency::Registry` variant with version field | MODIFIED |
+| `mesh-pkg/src/resolver.rs` | Handle Registry variant: fetch tarball from registry URL | MODIFIED |
+| `compiler/meshpkg/` | Standalone binary: publish, install, search, login subcommands | NEW CRATE |
+| `registry/` | Axum + PostgreSQL HTTP API + tarball storage | NEW APP |
+| `website/docs/packages/` | Package browse/search/detail pages in VitePress site | MODIFIED |
+
+---
+
+## Integration Points — New vs. Modified
+
+### 1. Stdlib: Crypto / Date / Encoding
+
+**Where it lives: `mesh-rt` as new modules, NOT new crates.**
+
+All current stdlib (strings, collections, http, db, actor) lives in `mesh-rt/src/`. The crypto deps `sha2`, `hmac`, `md-5`, `base64`, `ring` are already compiled into `mesh-rt/Cargo.toml`. Adding new `extern "C"` functions to `mesh-rt` costs zero additional build time for existing dependencies and follows the established pattern exactly.
+
+**New modules in `mesh-rt/src/`:**
 
 ```
-Mesh code:                Pool.query(pool, sql_string, params_list)
-                               |
-Compiler resolves to:     mesh_pool_query(pool_handle, sql_ptr, params_ptr)
-                               |
-Runtime (pool.rs):        checkout conn -> mesh_pg_query -> checkin conn
-                               |
-Runtime (pg.rs):          Send Query message -> Parse DataRow -> Build Map<String, String>
-                               |
-Returns to Mesh:          List<Map<String, String>>  (raw row maps)
-                               |
-Mesh code:                Manual struct construction from Map.get(row, "field")
+mesh-rt/src/
+├── crypto.rs     (NEW) — SHA-256, SHA-512, HMAC-SHA256/SHA512, UUID v4
+├── date.rs       (NEW) — DateTime as i64 ms, parse/format/arithmetic
+├── encoding.rs   (NEW) — base64 encode/decode, hex encode/decode
 ```
 
-### Current Struct-to-Row Mapping (deriving(Row))
+**Dependency additions to `mesh-rt/Cargo.toml`:**
+
+| Dep | Version | For | Status |
+|-----|---------|-----|--------|
+| `sha2` | 0.10 | SHA-256/512 | Already present |
+| `hmac` | 0.12 | HMAC | Already present |
+| `base64` | 0.22 | base64 encode/decode | Already present (used as `base64ct` alias) |
+| `ring` | 0.17 | UUID random bytes | Already present |
+| `rand` | 0.9 | UUID v4 random bytes | Already present |
+| `hex` | 0.4 | hex encode/decode | NEW — or implement inline (~10 lines) |
+| `chrono` | 0.4 | date/time parsing and formatting | NEW |
+
+**The three-file pattern — mandatory for every new stdlib function:**
+
+Every new Mesh stdlib function requires exactly three files to change: the runtime implementation, the type checker registration, and the LLVM codegen declaration. This is the established pattern for all existing stdlib (verified by inspecting `mesh_http_get`, `mesh_regex_compile`, `mesh_iter_map`, etc.).
 
 ```
-Mesh code:                Pool.query_as(pool, sql, params, User.from_row)
-                               |
-Compiler generates:       FromRow__from_row__User function at compile time
-                               |
-Generated function:       For each field: mesh_row_from_row_get(row, "field_name")
-                          Then: parse to correct type (String passthrough, Int/Float/Bool parse)
-                          Then: Construct struct literal with all fields
-                               |
-Runtime (row.rs):         mesh_row_from_row_get extracts from Map, parse functions convert
-                               |
-Returns to Mesh:          Result<User, String> (typed struct or error)
+mesh-rt/src/crypto.rs          → implements  mesh_crypto_sha256(data: *const MeshString) -> *mut MeshString
+mesh-typeck/src/builtins.rs    → registers   Crypto.sha256 :: (String) -> String
+mesh-codegen/intrinsics.rs     → declares    LLVM extern fn mesh_crypto_sha256(ptr) -> ptr
 ```
 
-### Current Pain Points (What the ORM Solves)
+**ABI design for crypto functions (HIGH confidence):**
 
-1. **Manual SQL strings everywhere**: 627 lines of queries.mpl with hand-written SQL
-2. **Manual struct construction**: Every query function manually maps Map fields to struct fields
-3. **No schema-query coupling**: Struct fields and SQL column lists are maintained separately
-4. **No relationship support**: JOINs are hand-written, no eager loading
-5. **No migration system**: Schema DDL is imperative `CREATE TABLE IF NOT EXISTS` in Mesh code
-6. **No validation layer**: Input validation is scattered across handlers
-7. **No query composition**: Each query is a monolithic SQL string, not composable
+```rust
+// mesh-rt/src/crypto.rs
 
-## Recommended Architecture
+#[no_mangle]
+pub extern "C" fn mesh_crypto_sha256(s: *const MeshString) -> *mut MeshString {
+    use sha2::{Sha256, Digest};
+    let input = unsafe { (*s).as_str() };
+    let hash = format!("{:x}", Sha256::digest(input.as_bytes()));
+    unsafe { mesh_string_new(hash.as_ptr(), hash.len() as u64) }
+}
 
-### ORM Layer Map
+#[no_mangle]
+pub extern "C" fn mesh_crypto_sha512(s: *const MeshString) -> *mut MeshString { ... }
 
-```
-LAYER 1: Mesh User Code (.mpl files) -- ORM Library
-  Orm/Schema.mpl        Schema definition functions, field/belongs_to/has_many metadata
-  Orm/Query.mpl         Query builder: where, order_by, limit, select, join, preload
-  Orm/Repo.mpl          Database operations: all, get, get_by, insert, update, delete
-  Orm/Changeset.mpl     Validation, casting, constraint checking
-  Orm/Migration.mpl     Migration runner, schema diffing, DDL generation
+#[no_mangle]
+pub extern "C" fn mesh_crypto_hmac_sha256(
+    key: *const MeshString,
+    data: *const MeshString,
+) -> *mut MeshString { ... }
 
-LAYER 2: Mesh Compiler (Rust additions)
-  mesh-typeck           New deriving trait: deriving(Schema) -- registers table/column metadata
-  mesh-codegen          Generate schema metadata functions: __schema_table__, __schema_fields__,
-                        __schema_field_type__, __schema_associations__, etc.
-
-LAYER 3: Mesh Runtime (Rust additions)
-  db/orm.rs             mesh_orm_build_select, mesh_orm_build_insert, mesh_orm_build_update,
-                        mesh_orm_build_delete, mesh_orm_build_where -- SQL generation from
-                        metadata structs. Returns parameterized SQL + params list.
+#[no_mangle]
+pub extern "C" fn mesh_crypto_uuid_v4() -> *mut MeshString {
+    // Uses rand (already in Cargo.toml) to generate 16 random bytes
+    // Formats as lowercase UUID string: "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+}
 ```
 
-### System Diagram
+**ABI design for date functions:**
 
-```
-                     USER CODE (Mesher services)
-                     ==========================
-                          |
-           User |> Query.where("email", email)
-                |> Query.limit(1)
-                |> Repo.one(pool)
-                          |
-                     ORM LIBRARY (Mesh .mpl files)
-                     ============================
-                          |
-          +---------+-----+------+-----------+
-          |         |            |           |
-      Schema    Query       Changeset    Repo
-      Module    Builder     Module       Module
-          |         |            |           |
-          |    Builds query  Validates   Executes
-          |    struct with   changes     query via
-          |    clauses       before      Pool layer
-          |         |        persist         |
-          |         +--------+--+           |
-          |                  |              |
-          |           SQL Generation        |
-          |           (Runtime Rust)        |
-          |                  |              |
-          +---> Schema       +----> Pool.query / Pool.execute
-                Metadata              |
-                (Compiler-            |
-                 generated)    Existing PG Driver
-                                      |
-                                 PostgreSQL
+`DateTime` should NOT be an opaque heap handle. The simpler, more ergonomic design: represent all timestamps as `i64` milliseconds since Unix epoch. This avoids introducing a new opaque type (which would require new type machinery in mesh-typeck and mesh-codegen) and is consistent with how JavaScript, Java, and Python expose epoch-based timestamps.
+
+```rust
+// mesh-rt/src/date.rs
+
+#[no_mangle]
+pub extern "C" fn mesh_date_now() -> i64
+    // returns Unix ms as Mesh Int
+
+#[no_mangle]
+pub extern "C" fn mesh_date_parse(s: *const MeshString) -> *mut u8
+    // Returns Result<Int, String> — parses ISO 8601 string → Unix ms
+
+#[no_mangle]
+pub extern "C" fn mesh_date_format(ts_ms: i64, fmt: *const MeshString) -> *mut MeshString
+    // Formats Unix ms as string using format specifier
+
+#[no_mangle]
+pub extern "C" fn mesh_date_add_ms(ts_ms: i64, delta_ms: i64) -> i64
+    // Returns ts_ms + delta_ms (trivial arithmetic, but named for clarity)
+
+#[no_mangle]
+pub extern "C" fn mesh_date_diff_ms(a_ms: i64, b_ms: i64) -> i64
+    // Returns a_ms - b_ms
 ```
 
-### Component Boundaries
+Mesh API surface: `Date.now() -> Int`, `Date.parse(s) -> Int!String`, `Date.format(ts, fmt) -> String`, `Date.add(ts, delta) -> Int`, `Date.diff(a, b) -> Int`.
 
-| Component | Responsibility | Language | Communicates With |
-|-----------|---------------|----------|-------------------|
-| `Orm.Schema` | Define table name, fields, types, associations, constraints | Mesh | Compiler (via deriving), Query, Repo, Migration |
-| `Orm.Query` | Build composable query structs with where/order/limit/join/preload clauses | Mesh | Repo (passes query struct), Schema (reads metadata) |
-| `Orm.Repo` | Execute queries against database, hydrate results to structs | Mesh | Pool (existing), Query (receives query structs), Schema (row mapping) |
-| `Orm.Changeset` | Validate and cast data before persistence, track changes | Mesh | Repo (changesets passed to insert/update), Schema (field types) |
-| `Orm.Migration` | Generate and execute DDL, track migration state | Mesh + Runtime | Pool (executes DDL), Schema (reads definitions) |
-| `deriving(Schema)` | Generate compile-time metadata functions from struct definition | Rust (compiler) | Schema module (metadata consumed at runtime) |
-| `db/orm.rs` | Build parameterized SQL from query metadata structs | Rust (runtime) | Repo module (called via FFI), PG driver (SQL execution) |
+---
 
-## Detailed Component Design
+### 2. HTTP Client: Streaming / Keep-Alive / Builder API
 
-### 1. Schema Definition (deriving(Schema))
+**Where it lives: `mesh-rt/src/http/client.rs` — MODIFY existing file.**
 
-**Where it lives:** New compiler deriving trait + Mesh-level Schema module
+**Current state (verified):** `mesh_http_get(url)` and `mesh_http_post(url, body)` use `ureq = "2"`. Both call `response.into_string()` which buffers the entire body. No streaming, no keep-alive, no custom headers.
 
-**Design decision:** Schema metadata is generated at compile time via `deriving(Schema)` rather than defined via runtime DSL macros. This is because Mesh has no macro system, but has a proven deriving infrastructure that already generates `from_row`, `to_json`, and `from_json` functions from struct field metadata.
+**ureq v2 vs v3 decision:**
 
-**What `deriving(Schema)` generates:**
+The project uses `ureq = "2"`. ureq v3 has a breaking API change: `Response` is replaced by `http::Response<Body>`, and `body_mut().as_reader()` replaces `into_reader()`. The key improvements in v3 relevant to v14.0:
 
-```
-# User code writes:
-pub struct User do
-  id :: String
-  email :: String
-  display_name :: String
-  created_at :: String
-end deriving(Json, Row, Schema)
+- `Body: Send` — streaming body readable on another thread (important for actor model)
+- `Body::with_config().limit(n)` — explicit size limits for safety
+- Standard `http` crate types — consistent with broader Rust HTTP ecosystem
 
-# Compiler generates these functions (accessible as User.__schema_table__(), etc.):
+**Recommendation: upgrade to `ureq = "3"` when implementing streaming.** The API change is confined entirely to `client.rs` (one file). The upgrade provides the `Body: Send` guarantee needed for streaming in the actor model.
 
-fn __schema_table__() -> String = "users"
+**Streaming architecture — opaque handle pattern:**
 
-fn __schema_fields__() -> List<String> = ["id", "email", "display_name", "created_at"]
+HTTP streams are stateful resources. They follow the same opaque `u64` handle pattern used by DB connections, pools, and regex (verified in codebase):
 
-fn __schema_field_type__(field :: String) -> String
-  # Returns "string", "int", "float", "bool", "option_string", etc.
+```rust
+// mesh-rt/src/http/client.rs
 
-fn __schema_primary_key__() -> String = "id"
-```
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::io::Read;
 
-**Table name convention:** Struct name lowercased + pluralized (User -> users, ApiKey -> api_keys). Overridable via a separate function or annotation approach if needed.
+static STREAMS: Mutex<HashMap<u64, Box<dyn Read + Send>>> = Mutex::new(HashMap::new());
+static NEXT_STREAM_ID: std::sync::atomic::AtomicU64 = ...;
 
-**Why compile-time metadata, not runtime DSL:**
-- Mesh has no macro/metaprogramming system -- cannot generate code at compile time from DSL blocks
-- The deriving system already processes struct fields and generates functions per field
-- Compile-time metadata means the compiler can validate schema consistency (field types match DB types)
-- Generated metadata functions are regular Mesh functions, callable from any module
+#[no_mangle]
+pub extern "C" fn mesh_http_stream_get(url: *const MeshString) -> *mut u8 {
+    // ureq v3: response.into_parts().1.into_reader() — Body: Send
+    // Stores Box<dyn Read + Send> in STREAMS map, returns Result<handle_u64, error_string>
+}
 
-**Compiler changes required:**
-1. `mesh-typeck/src/infer.rs`: Add `"Schema"` to `valid_derives` array (currently `["Eq", "Ord", "Display", "Debug", "Hash", "Json", "Row"]`)
-2. `mesh-typeck/src/infer.rs`: Register Schema trait impl for the type
-3. `mesh-codegen/src/mir/lower.rs`: Add `generate_schema_metadata_struct()` method alongside existing `generate_from_row_struct()`, `generate_to_json_struct()`, etc.
-4. Generated MIR functions return string constants and list literals -- no new MIR node types needed
+#[no_mangle]
+pub extern "C" fn mesh_http_read_chunk(handle: u64, max_bytes: i64) -> *mut u8 {
+    // Reads up to max_bytes from stored stream
+    // Returns Result<Option<String>, String>
+    // Option::None signals EOF (0 bytes read)
+}
 
-**Association metadata:** Relationship information (belongs_to, has_many) needs a separate mechanism because struct fields alone do not encode relationship semantics. Two options:
-
-**Option A -- Companion metadata functions (RECOMMENDED):**
-```
-# Written alongside the struct definition
-pub struct Post do
-  id :: String
-  user_id :: String
-  title :: String
-  body :: String
-end deriving(Json, Row, Schema)
-
-# Separate metadata registration using module-level functions
-pub fn __belongs_to__() -> List<Map<String, String>> = [
-  %{"name" => "user", "module" => "User", "foreign_key" => "user_id"}
-]
-
-pub fn __has_many__() -> List<Map<String, String>> = [
-  %{"name" => "comments", "module" => "Comment", "foreign_key" => "post_id"}
-]
+#[no_mangle]
+pub extern "C" fn mesh_http_close_stream(handle: u64) -> () {
+    // Removes stream from STREAMS map, drops the reader (closes TCP conn)
+}
 ```
 
-**Option B -- Convention functions in a Schema module:**
-```
-# In a dedicated schema module
-module PostSchema do
-  pub fn table() = "posts"
-  pub fn belongs_to() = [("user", "User", "user_id")]
-  pub fn has_many() = [("comments", "Comment", "post_id")]
-end
-```
+**Actor model integration for streaming (HIGH confidence):**
 
-Option A is recommended because it keeps metadata co-located with the struct and leverages the existing module system. The ORM library functions can look up these metadata functions by name convention.
+Actor I/O is already blocking — PG queries, HTTP server I/O, and WebSocket sends all block inside actors. Blocking `mesh_http_read_chunk()` is the same model. The actor calls `HTTP.read_chunk(stream, 4096)` in a loop; each call blocks briefly until data arrives. This is Pattern A (simple, recommended).
 
-### 2. Query Builder (Orm.Query)
+Pattern B (spawn a reader actor to push chunks) is unnecessarily complex for pull-based streaming. The existing WebSocket reader thread exists because WS frames arrive asynchronously and must be pushed. HTTP streaming is pull-based.
 
-**Where it lives:** Pure Mesh library code (Orm/Query.mpl)
+**Keep-alive — ureq Agent:**
 
-**Design decision:** The query builder uses structs + pipe functions, not a service/actor pattern. Queries are pure data -- they should be immutable values that can be composed, stored, and passed around. Building a query does not perform I/O; only Repo functions execute queries.
+ureq v2/v3 both have an `Agent` type that maintains a connection pool with keep-alive. The agent is stored as a leaked `Box<ureq::Agent>` behind a `u64` handle, same pattern as DB pools:
 
-**Query struct:**
-
-```
-pub struct Query do
-  source :: String           # Table name ("users")
-  select_fields :: List<String>  # ["id", "email"] or [] for all
-  where_clauses :: List<String>  # Serialized where conditions
-  where_params :: List<String>   # Parameter values
-  order_fields :: List<String>   # ["created_at DESC", "name ASC"]
-  limit_val :: Int               # 0 = no limit
-  offset_val :: Int              # 0 = no offset
-  join_clauses :: List<String>   # Serialized join specs
-  preload_assocs :: List<String> # Association names to preload
-  group_fields :: List<String>   # GROUP BY fields
-end deriving(Json)
-```
-
-**Pipe-chain API:**
-
-```
-# Start from a schema type name
-User
-  |> Query.from()
-  |> Query.where("email", "=", email)
-  |> Query.where("status", "=", "active")
-  |> Query.order_by("created_at", "desc")
-  |> Query.limit(10)
-  |> Query.select(["id", "email", "display_name"])
-  |> Repo.all(pool)
-```
-
-**How Query.from() works:**
-
-`Query.from()` does not need the actual struct type at runtime. It needs the table name. Two approaches:
-
-**Approach A -- String-based (simpler, recommended for Phase 1):**
-```
-pub fn from(table :: String) -> Query do
-  Query { source: table, select_fields: [], ... }
-end
-
-# Usage: Query.from("users") |> ...
-```
-
-**Approach B -- Schema-aware (requires metadata function lookup):**
-```
-# The query builder calls __schema_table__() on the module
-# This requires the ORM to resolve module names to metadata functions
-# Deferred to Phase 2 -- requires compiler support for function-as-value from module name
-```
-
-**SQL generation:** The Query struct is converted to parameterized SQL by a runtime Rust function. This is in the runtime (not the Mesh library) because:
-1. String manipulation for SQL building is performance-sensitive
-2. Proper parameter placeholder numbering ($1, $2, $3...) is mechanical
-3. SQL injection prevention (escaping identifiers) is best done in Rust
-4. The runtime already handles SQL string manipulation in pg.rs
-
-**Runtime function signature:**
 ```rust
 #[no_mangle]
-pub extern "C" fn mesh_orm_build_select(query_ptr: *mut u8) -> *mut u8
-// Takes serialized Query struct, returns MeshResult<(sql_string, params_list), error>
+pub extern "C" fn mesh_http_build_client(/* config params */) -> u64 {
+    // Creates ureq::AgentBuilder, stores Box<Agent> as opaque u64 handle
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_http_client_get(client: u64, url: *const MeshString) -> *mut u8 {
+    // Uses stored Agent to make GET request with connection reuse
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_http_client_post(
+    client: u64,
+    url: *const MeshString,
+    body: *const MeshString
+) -> *mut u8 { ... }
 ```
 
-**Alternative considered -- pure Mesh SQL generation:**
-Building SQL via string concatenation in Mesh is possible (the existing codebase does it extensively in queries.mpl). However, it leads to the exact code duplication the ORM is meant to eliminate. The runtime approach centralizes SQL generation logic in one place.
+**Fluent builder API:**
 
-### 3. Repo Module (Orm.Repo)
-
-**Where it lives:** Mesh library code (Orm/Repo.mpl), calling into runtime functions
-
-**Design:** Stateless module with functions that take a pool handle and a query/changeset. Does not hold state. This matches Mesher's existing pattern where all query functions take `pool :: PoolHandle` as the first argument.
-
-**Core operations:**
+Rather than a mutable builder object (which would require another opaque handle), use function composition with a `RequestConfig` struct passed by value:
 
 ```
-# Read operations
-pub fn all(pool :: PoolHandle, query :: Query) -> List<Map<String, String>>!String
-pub fn one(pool :: PoolHandle, query :: Query) -> Map<String, String>!String
-pub fn get(pool :: PoolHandle, table :: String, id :: String) -> Map<String, String>!String
-pub fn get_by(pool :: PoolHandle, table :: String, field :: String, value :: String) -> Map<String, String>!String
-
-# Write operations (take changesets)
-pub fn insert(pool :: PoolHandle, changeset :: Changeset) -> Map<String, String>!String
-pub fn update(pool :: PoolHandle, changeset :: Changeset) -> Map<String, String>!String
-pub fn delete(pool :: PoolHandle, table :: String, id :: String) -> Int!String
-
-# Aggregate operations
-pub fn count(pool :: PoolHandle, query :: Query) -> Int!String
-pub fn exists(pool :: PoolHandle, query :: Query) -> Bool!String
+# Mesh API:
+let response = HTTP.new_request(:post, url)
+  |> HTTP.set_header("Authorization", "Bearer " <> token)
+  |> HTTP.set_header("Content-Type", "application/json")
+  |> HTTP.set_timeout(5000)
+  |> HTTP.set_body(json_body)
+  |> HTTP.send()
 ```
 
-**Return type decision:** Repo functions return `Map<String, String>` (raw row) rather than typed structs. This is because Mesh does not have dynamic dispatch or trait objects -- the Repo cannot call a generic `from_row` function for an arbitrary type T. The caller converts the Map to a struct using the existing deriving(Row) `from_row` function:
+This maps to a `MeshRequestConfig` struct in the runtime (header list + timeout + body), passed by pointer. No opaque handle needed — the struct is stack-allocated in the Mesh caller and passed to `mesh_http_send`.
 
-```
-# Pattern for typed queries:
-let row = Repo.get(pool, "users", user_id)?
-let user = User.from_row(row)?
+---
 
-# Or the existing Pool.query_as pattern continues to work for custom queries
-```
+### 3. Testing Framework: `meshc test` Runner
 
-**Future optimization:** A `Repo.all_as(pool, query, User.from_row)` function could take the from_row callback directly, similar to the existing `Pool.query_as` pattern. This avoids the intermediate `List<Map<String, String>>` allocation.
+**Where it lives: New `test_runner.rs` module in the `meshc` binary crate.**
 
-**Data flow for Repo.all:**
+The `migrate` subcommand is already implemented as `meshc/src/migrate.rs` — a module within the binary crate, not a separate library. The test runner follows the same pattern. It uses the existing `build()` function from `meshc/src/main.rs` and needs no new library crate.
 
-```
-1. Repo.all(pool, query)
-2.   -> mesh_orm_build_select(query)          [Runtime: build SQL + params]
-3.   -> Returns (sql_string, params_list)
-4.   -> Pool.query(pool, sql_string, params)  [Existing pool infrastructure]
-5.   -> Returns List<Map<String, String>>     [Existing PG driver]
-6. Caller: List.map(rows, fn(row) do User.from_row(row) end)
-```
+**New Commands variant in `meshc/src/main.rs`:**
 
-### 4. Changeset Module (Orm.Changeset)
+```rust
+Test {
+    /// Project directory (default: current directory)
+    #[arg(default_value = ".")]
+    dir: PathBuf,
 
-**Where it lives:** Pure Mesh library code (Orm/Changeset.mpl)
+    /// Run only tests whose filename matches this pattern
+    #[arg(long)]
+    filter: Option<String>,
 
-**Design:** A Changeset is a struct that wraps pending changes with validation state. It does not touch the database -- it is pure data transformation until passed to Repo.insert/Repo.update.
-
-```
-pub struct Changeset do
-  table :: String                    # Target table
-  fields :: Map<String, String>      # Field values to write
-  changes :: Map<String, String>     # Only the changed fields (for updates)
-  errors :: List<Map<String, String>>  # Validation errors: [{"field": "email", "message": "required"}]
-  valid :: Bool                      # Quick check: are there errors?
-  action :: String                   # "insert" or "update"
-  primary_key_value :: String        # For updates: the ID of the row being updated
-end deriving(Json)
+    /// Keep compiled test binaries after running
+    #[arg(long)]
+    keep_artifacts: bool,
+}
 ```
 
-**Changeset API:**
+**File discovery:**
 
-```
-# Create a changeset for insert
-pub fn cast(table :: String, params :: Map<String, String>, allowed :: List<String>) -> Changeset
-
-# Validations (return new Changeset with errors appended if invalid)
-pub fn validate_required(changeset :: Changeset, fields :: List<String>) -> Changeset
-pub fn validate_length(changeset :: Changeset, field :: String, min :: Int, max :: Int) -> Changeset
-pub fn validate_format(changeset :: Changeset, field :: String, pattern :: String) -> Changeset
-pub fn validate_inclusion(changeset :: Changeset, field :: String, values :: List<String>) -> Changeset
-
-# For updates: create changeset from existing data + new params
-pub fn cast_update(table :: String, existing :: Map<String, String>, params :: Map<String, String>, allowed :: List<String>) -> Changeset
+```rust
+// meshc/src/test_runner.rs
+fn discover_test_files(dir: &Path, filter: Option<&str>) -> Vec<PathBuf> {
+    // Reuses collect_mesh_files_recursive from main.rs
+    // Filters: file.extension() == "mpl" AND file.stem() ends with ".test"
+    // i.e., matches *.test.mpl
+    // Applies optional name filter substring match
+}
 ```
 
-**Usage pattern:**
+**Execution model — test file = complete Mesh program:**
+
+Each `*.test.mpl` is a complete Mesh program with a `main` function that calls test functions in sequence. If any assertion fails, `mesh_panic()` causes a non-zero exit. The test runner compiles and executes each file independently:
 
 ```
-let changeset = Changeset.cast("users", params, ["email", "display_name", "password"])
-  |> Changeset.validate_required(["email", "display_name", "password"])
-  |> Changeset.validate_length("password", 8, 128)
-  |> Changeset.validate_length("display_name", 1, 100)
-
-if changeset.valid do
-  Repo.insert(pool, changeset)
-else
-  Err(to_json(changeset.errors))
-end
+meshc test ./my-project
+    ↓
+discover all *.test.mpl files in project dir
+    ↓
+for each test_file:
+    tmpdir = mktemp
+    build(test_file_parent_dir, opt=0, output=Some(tmpdir/test_binary))
+        (reuses existing build() pipeline — same parse/typecheck/codegen)
+    ↓
+    result = Command::new(tmpdir/test_binary).status()
+    collect: (file_name, exit_code, elapsed)
+    ↓
+aggregate: count pass/fail
+print summary: "5 passed, 1 failed"
+exit(if any_failed { 1 } else { 0 })
 ```
 
-### 5. Migration System (Orm.Migration)
+**Why not function-level test discovery (like `cargo test`):**
 
-**Where it lives:** Mesh library code + CLI integration
+The more sophisticated approach — parse test files, discover `test_` prefix functions, generate a runner `main` — requires the test runner to generate new Mesh source code and compile it. This duplicates parser/typechecker functionality and adds significant complexity. The "test file is a program" model is simpler, matches Go's original `_test.go` approach, and can be delivered in v14.0. Function-level discovery can be added in a future milestone.
 
-**Design decision:** Migrations are Mesh functions (not separate SQL files) that call DDL helper functions. This keeps everything in the Mesh ecosystem and allows type checking of migration code.
+**Assertion helpers — three-file pattern:**
 
-**Migration structure:**
+```rust
+// mesh-rt/src/test_support.rs
 
-```
-# migrations/20260216_create_users.mpl
-pub fn up(pool :: PoolHandle) -> Int!String do
-  Migration.create_table(pool, "users", [
-    Migration.column("id", "uuid", ["primary_key", "default gen_random_uuid()"]),
-    Migration.column("email", "text", ["not_null", "unique"]),
-    Migration.column("display_name", "text", ["not_null"]),
-    Migration.column("password_hash", "text", ["not_null"]),
-    Migration.column("created_at", "timestamptz", ["not_null", "default now()"])
-  ])?
-  Migration.create_index(pool, "users", ["email"], ["unique"])?
-  Ok(0)
-end
+#[no_mangle]
+pub extern "C" fn mesh_test_assert(condition: i8, msg: *const MeshString) {
+    if condition == 0 {
+        // Print "assertion failed: <msg>" then call mesh_panic()
+    }
+}
 
-pub fn down(pool :: PoolHandle) -> Int!String do
-  Migration.drop_table(pool, "users")?
-  Ok(0)
-end
-```
+#[no_mangle]
+pub extern "C" fn mesh_test_assert_eq(
+    a: *const MeshString,
+    b: *const MeshString,
+    label: *const MeshString,
+) {
+    // String equality check; panic with "expected X, got Y" if not equal
+}
 
-**Migration tracking:** A `_mesh_migrations` table stores applied migration names + timestamps. The migration runner:
-1. Reads all migration modules from a `migrations/` directory
-2. Queries `_mesh_migrations` for already-applied migrations
-3. Runs unapplied migrations in filename order within a transaction
-4. Records each successful migration in `_mesh_migrations`
-
-**CLI integration:** `meshc migrate` (or `mesh migrate`) command that:
-1. Discovers migration files in the project
-2. Connects to the database
-3. Runs pending migrations
-
-This requires a new subcommand in the `meshc` binary. The existing `meshc` main.rs already handles `build` and `fmt` subcommands.
-
-**Alternative considered -- SQL migration files:**
-Plain .sql files are simpler but lose Mesh type checking and cannot use Mesh functions. Since migrations are run infrequently and debuggability matters more than raw performance, keeping them as Mesh code is worth the extra compilation step.
-
-### 6. Relationship and Preloading
-
-**Where it lives:** Orm.Query (preload specification) + Orm.Repo (preload execution)
-
-**Design:** Relationships are metadata-driven. The ORM reads relationship metadata from companion functions (see Schema section) and generates appropriate JOINs or separate queries.
-
-**Preload strategy -- Separate queries (not JOINs):**
-
-```
-# Load a user with their posts and each post's comments:
-let user = Repo.get(pool, "users", user_id)?
-let posts = Query.from("posts")
-  |> Query.where("user_id", "=", user_id)
-  |> Repo.all(pool)?
-# For each post, load comments:
-let posts_with_comments = List.map(posts, fn(post) do
-  let comments = Query.from("comments")
-    |> Query.where("post_id", "=", Map.get(post, "id"))
-    |> Repo.all(pool)?
-  Map.put(post, "_comments", to_json(comments))
-end)
+#[no_mangle]
+pub extern "C" fn mesh_test_fail(msg: *const MeshString) {
+    // Unconditional panic with message
+}
 ```
 
-**Why separate queries, not JOINs for preloading:**
-1. Mesh does not have dynamic struct extension -- cannot add a `posts` field to a User struct at runtime
-2. Separate queries avoid the M*N row explosion from JOINing multiple has_many associations
-3. Ecto uses the same strategy (separate queries per association by default)
-4. Simpler to implement, easier to debug, more predictable performance
+Mesh surface: `Test.assert(bool)`, `Test.assert_eq(a, b)`, `Test.fail(msg)`.
 
-**Preload API (Phase 2):**
+`assert_raises` (run closure, assert it panics) is more complex — defer to a later phase or implement via `catch_unwind` in the runtime (already used for actor crash isolation).
 
-```
-# Automatic preloading via Repo helper
-let user = Repo.get(pool, "users", user_id)?
-let user_with_posts = Repo.preload(pool, user, "User", ["posts"])?
-# Returns a Map with "_posts" key containing the loaded association
+**Mock actors:**
 
-# Nested preloading
-let user_with_all = Repo.preload(pool, user, "User", ["posts.comments", "org_memberships"])?
-```
+In the actor model, "mocking" means replacing a named registered process with a test double. The pattern is documentable without new language features:
 
-**Data representation for loaded associations:**
-
-Since Mesh structs are statically typed and cannot have dynamic fields, preloaded associations are stored as JSON string values in a wrapper Map or as separate variables. The recommended pattern:
-
-```
-# Instead of trying to attach posts to a User struct,
-# return a tuple or map with both:
-let user = Repo.get(pool, "users", user_id)?
-let posts = Repo.preload_assoc(pool, "User", "posts", user_id)?
-# user :: Map<String, String>, posts :: List<Map<String, String>>
-```
-
-### 7. Connection to Existing Pool/Pg Layer
-
-**Zero changes to the existing pool and PG driver.** The ORM builds SQL strings and parameter lists, then calls the same `Pool.query` and `Pool.execute` functions that Mesher already uses.
-
-```
-ORM:          mesh_orm_build_select(query_struct) -> (sql, params)
-Existing:     Pool.query(pool, sql, params)       -> List<Map<String, String>>
-Existing:     Pool.execute(pool, sql, params)      -> Int
-Existing:     Pool.query_as(pool, sql, params, from_row_fn) -> List<Struct>
-```
-
-The only runtime addition is `db/orm.rs` for SQL generation. It does not touch `db/pool.rs` or `db/pg.rs`.
-
-## Data Flow Diagrams
-
-### Query Execution Flow (Read)
-
-```
-Mesh User Code                    ORM Library                  Runtime (Rust)              PostgreSQL
-=============                    ===========                  ==============              ==========
-
-User
-  |> Query.from("users")         Creates Query struct
-  |> Query.where("email", v)     Appends to where_clauses
-  |> Query.limit(1)              Sets limit_val
-  |> Repo.one(pool)              --->
-                                 mesh_orm_build_select(query) -->
-                                                                  Builds SQL:
-                                                                  "SELECT * FROM users
-                                                                   WHERE email = $1
-                                                                   LIMIT 1"
-                                                                  Returns (sql, ["alice@..."])
-                                 <---
-                                 Pool.query(pool, sql, params) -->
-                                                                  mesh_pool_query -->
-                                                                  checkout -> pg_query -> checkin
-                                                                                          Execute SQL
-                                                                                          <-- DataRows
-                                                                  <-- List<Map<String,String>>
-                                 <---
-                                 Return first row or Err
-<--- Map<String, String>
-User.from_row(row)?
-<--- User struct
-```
-
-### Insert Flow (Write)
-
-```
-Mesh User Code                    ORM Library                  Runtime (Rust)              PostgreSQL
-=============                    ===========                  ==============              ==========
-
-Changeset.cast("users",
-  params, allowed)               Creates Changeset struct
-  |> validate_required(...)      Validates fields
-  |> validate_length(...)        Appends errors if invalid
-
-Repo.insert(pool, changeset) --> Check changeset.valid
-                                 If invalid: return Err(errors)
-                                 mesh_orm_build_insert(cs) ------>
-                                                                  Builds SQL:
-                                                                  "INSERT INTO users
-                                                                   (email, display_name, ...)
-                                                                   VALUES ($1, $2, ...)
-                                                                   RETURNING *"
-                                                                  Returns (sql, params)
-                                 <---
-                                 Pool.query(pool, sql, params) -->
-                                                                  Execute INSERT
-                                                                  <-- RETURNING row
-                                 <---
-                                 Return inserted row Map
-<--- Map<String, String>
-```
-
-## Patterns to Follow
-
-### Pattern 1: Struct-as-Query (Immutable Query Composition)
-
-**What:** Queries are immutable struct values. Each pipe operation returns a new Query with the modification applied. This is the established Mesh pattern (see HTTP.router() pipe chain in main.mpl).
-
-**When:** All query building.
-
-**Example:**
-```
-# Each operation returns a new Query, not mutating the original
-let base_query = Query.from("issues")
-  |> Query.where("project_id", "=", project_id)
-
-# Reuse base for different views
-let unresolved = base_query |> Query.where("status", "=", "unresolved")
-let resolved = base_query |> Query.where("status", "=", "resolved")
-```
-
-### Pattern 2: Pool-First-Arg Convention
-
-**What:** All functions that touch the database take `pool :: PoolHandle` as the first argument. This is the universal convention in all 627 lines of Mesher's queries.mpl and all service modules.
-
-**When:** Any Repo function.
-
-**Example:**
-```
-# Consistent with existing codebase
-pub fn all(pool :: PoolHandle, query :: Query) -> List<Map<String, String>>!String
-pub fn get(pool :: PoolHandle, table :: String, id :: String) -> Map<String, String>!String
-```
-
-### Pattern 3: Result-Error Propagation
-
-**What:** All fallible operations return `T!String` (Result<T, String>) and are composable with the `?` operator. This is the established pattern throughout Mesher.
-
-**When:** Any operation that can fail.
-
-**Example:**
-```
-pub fn get_user_with_posts(pool :: PoolHandle, user_id :: String) -> Map<String, String>!String do
-  let user = Repo.get(pool, "users", user_id)?
-  let posts = Query.from("posts")
-    |> Query.where("user_id", "=", user_id)
-    |> Repo.all(pool)?
-  # Combine...
-  Ok(user)
-end
-```
-
-### Pattern 4: Generated Metadata Functions (deriving Pattern)
-
-**What:** Compile-time code generation produces named functions with predictable mangled names. The ORM follows the exact same pattern as `deriving(Json)` (generates `to_json__User`, `from_json__User`) and `deriving(Row)` (generates `FromRow__from_row__User`).
-
-**When:** Schema metadata generation.
-
-**Example:**
-```
-# deriving(Schema) on struct User generates:
-# Schema__table__User() -> "users"
-# Schema__fields__User() -> ["id", "email", "display_name", "created_at"]
-# Schema__primary_key__User() -> "id"
-```
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Runtime Schema Reflection
-
-**What:** Discovering struct field names at runtime by introspecting memory layout or using dynamic lookups.
-
-**Why bad:** Mesh has no runtime reflection. All type information is erased during compilation. The GC does not store type metadata. Attempting runtime reflection would require a parallel type metadata system.
-
-**Instead:** Generate all metadata at compile time via deriving(Schema).
-
-### Anti-Pattern 2: Dynamic Return Types
-
-**What:** A generic `Repo.all<T>()` that returns `List<T>` for any schema type T.
-
-**Why bad:** Mesh uses monomorphization, not dynamic dispatch. There are no trait objects. The generic version would need to be monomorphized for every schema type, which requires the compiler to see the concrete type at every call site. This works for simple generics but breaks down for a Repo module that needs to work with any schema.
-
-**Instead:** Return `List<Map<String, String>>` from Repo functions and let callers apply their specific `from_row` function. This matches how the existing `Pool.query` works.
-
-### Anti-Pattern 3: SQL String Building in Mesh
-
-**What:** Building SQL by concatenating strings in Mesh code (e.g., `"SELECT " <> fields <> " FROM " <> table <> " WHERE " <> conditions`).
-
-**Why bad:** This is exactly what queries.mpl does today, producing 627 lines of brittle, repetitive code. It is error-prone (missing spaces, wrong parameter numbering), hard to compose, and impossible to validate.
-
-**Instead:** Build SQL in the Rust runtime from structured Query data. One place to handle SQL generation correctly.
-
-### Anti-Pattern 4: Actor/Service for Query Building
-
-**What:** Making the query builder a stateful service (like OrgService, ProjectService) that accumulates query state via message passing.
-
-**Why bad:** Query building is a pure computation. It does not need concurrency, state management, or fault tolerance. Making it a service adds latency (message passing), complexity (service lifecycle), and breaks composition (cannot pass query values across pipe chains).
-
-**Instead:** Use plain structs and pure functions. Queries are values, not processes.
-
-## New vs. Modified Components
-
-### New Components
-
-| Component | Type | Location | Purpose |
-|-----------|------|----------|---------|
-| `Orm/Schema.mpl` | Mesh library | Mesher or separate ORM package | Schema helper functions (from, field metadata lookup) |
-| `Orm/Query.mpl` | Mesh library | Mesher or separate ORM package | Query builder struct + pipe functions |
-| `Orm/Repo.mpl` | Mesh library | Mesher or separate ORM package | Database operation wrappers |
-| `Orm/Changeset.mpl` | Mesh library | Mesher or separate ORM package | Validation and casting |
-| `Orm/Migration.mpl` | Mesh library | Mesher or separate ORM package | Migration DDL helpers and runner |
-| `db/orm.rs` | Rust runtime | `crates/mesh-rt/src/db/` | SQL generation from query structs |
-| `generate_schema_metadata_struct()` | Rust compiler | `crates/mesh-codegen/src/mir/lower.rs` | MIR generation for schema metadata |
-
-### Modified Components
-
-| Component | Change | Risk |
-|-----------|--------|------|
-| `mesh-typeck/src/infer.rs` | Add "Schema" to valid_derives, register trait impl | LOW -- follows exact pattern of "Json" and "Row" |
-| `mesh-codegen/src/mir/lower.rs` | Add schema metadata generation alongside existing deriving code | LOW -- isolated addition to existing deriving switch |
-| `mesh-codegen/src/mir/lower.rs` | Register new runtime functions (mesh_orm_*) in known_functions | LOW -- additive only |
-| `mesh-rt/src/db/mod.rs` | Add `pub mod orm;` | LOW -- new module, no existing code changed |
-| `meshc/src/main.rs` | Add `migrate` subcommand | LOW -- additive CLI path |
-
-### Unchanged Components
-
-| Component | Why Unchanged |
-|-----------|---------------|
-| `mesh-lexer` | No new tokens needed |
-| `mesh-parser` | No new grammar -- deriving(Schema) uses existing deriving clause syntax |
-| `mesh-rt/src/db/pg.rs` | ORM builds SQL, PG driver executes it -- no changes needed |
-| `mesh-rt/src/db/pool.rs` | ORM calls Pool.query/Pool.execute as-is |
-| `mesh-rt/src/db/row.rs` | Row parsing works unchanged -- deriving(Row) continues to work |
-
-## Build Order (Implementation Phases)
-
-The build order is driven by dependencies: each phase must have its prerequisites complete before starting.
-
-### Phase 1: Schema Metadata (Foundation)
-
-**Prerequisites:** None (builds on existing deriving infrastructure)
-
-**What:** Add `deriving(Schema)` to the compiler. When a struct has `deriving(Schema)`, generate metadata functions that return the table name, field list, field types, and primary key.
-
-**Deliverables:**
-1. Add "Schema" to valid_derives in mesh-typeck
-2. Implement `generate_schema_metadata_struct()` in mesh-codegen
-3. Register generated functions in known_functions
-4. E2E test: struct with deriving(Schema) produces callable metadata functions
-
-**Why first:** Everything else in the ORM depends on schema metadata. The Query builder needs table names. The Repo needs field lists. The Migration system needs field types. Without this, all ORM library code would hardcode strings.
-
-### Phase 2: SQL Generation Runtime
-
-**Prerequisites:** Phase 1 (needs to know what Query struct looks like)
-
-**What:** Implement `db/orm.rs` in the Mesh runtime with functions to build parameterized SQL from structured input. Functions: `mesh_orm_build_select`, `mesh_orm_build_insert`, `mesh_orm_build_update`, `mesh_orm_build_delete`.
-
-**Deliverables:**
-1. New `crates/mesh-rt/src/db/orm.rs` module
-2. SQL generation for SELECT with WHERE, ORDER BY, LIMIT, OFFSET, GROUP BY
-3. SQL generation for INSERT with RETURNING
-4. SQL generation for UPDATE with WHERE and RETURNING
-5. SQL generation for DELETE with WHERE
-6. Parameter numbering ($1, $2, ...) and identifier quoting
-7. Rust unit tests for all SQL generation paths
-
-**Why second:** The Repo module needs to call these functions. Building them first allows Repo development to proceed with a working SQL backend.
-
-### Phase 3: Query Builder + Repo (Core API)
-
-**Prerequisites:** Phase 1 (schema metadata), Phase 2 (SQL generation)
-
-**What:** Implement the Mesh-level ORM library: Query struct, pipe-chain builder functions, and Repo module with all CRUD operations.
-
-**Deliverables:**
-1. `Orm/Query.mpl` -- Query struct + from/where/order_by/limit/offset/select/group_by
-2. `Orm/Repo.mpl` -- all/one/get/get_by/insert_raw/update_raw/delete/count/exists
-3. Integration test: build query, execute via Repo, verify results
-4. Mesher smoke test: rewrite one simple query (e.g., get_org) to use ORM
-
-**Why third:** This is the core user-facing API. It requires both schema metadata (Phase 1) and SQL generation (Phase 2) to function.
-
-### Phase 4: Changesets (Validation Layer)
-
-**Prerequisites:** Phase 3 (Repo for insert/update)
-
-**What:** Implement the Changeset module for validating and casting data before persistence. Connect Repo.insert/Repo.update to accept changesets.
-
-**Deliverables:**
-1. `Orm/Changeset.mpl` -- cast, validate_required, validate_length, validate_format, validate_inclusion
-2. Repo.insert and Repo.update accept Changeset structs
-3. Validation error propagation (changeset.valid check)
-4. Integration test: invalid changeset returns errors, valid changeset inserts
-
-**Why fourth:** Changesets enhance Repo operations. They are not needed for basic querying, so they can come after the core Repo is working.
-
-### Phase 5: Relationships and Preloading
-
-**Prerequisites:** Phase 3 (Query + Repo), Phase 1 (Schema metadata for associations)
-
-**What:** Implement relationship metadata, association queries, and preloading.
-
-**Deliverables:**
-1. Convention for declaring belongs_to/has_many/has_one metadata
-2. `Repo.preload_assoc` for loading a single association
-3. `Repo.preload` for loading multiple associations on a result
-4. Nested preloading support (posts.comments)
-5. Many-to-many through join table support
-
-**Why fifth:** Relationships are the most complex ORM feature and depend on everything else working correctly. They require working queries, schema metadata, and Repo operations.
-
-### Phase 6: Migration System
-
-**Prerequisites:** Phase 2 (SQL generation for DDL), Phase 1 (Schema metadata)
-
-**What:** Implement migration infrastructure: DDL helper functions, migration tracking table, migration runner, and CLI integration.
-
-**Deliverables:**
-1. `Orm/Migration.mpl` -- create_table, drop_table, add_column, remove_column, create_index, etc.
-2. Migration tracking (_mesh_migrations table)
-3. Migration runner (discover, sort, run pending)
-4. `meshc migrate` CLI subcommand
-5. `meshc migrate rollback` for down migrations
-6. Migration generation: `meshc migrate generate create_users`
-
-**Why sixth:** Migrations are operationally important but not required for query/data operations. They can be developed in parallel with Phase 5 if resources allow.
-
-### Phase 7: Mesher Rewrite (Validation)
-
-**Prerequisites:** All of Phases 1-6
-
-**What:** Rewrite Mesher's entire storage layer to use the ORM. This validates every ORM feature against a real application.
-
-**Deliverables:**
-1. Convert all 11 type structs to use deriving(Schema)
-2. Replace storage/queries.mpl (627 lines) with ORM query calls
-3. Replace storage/schema.mpl (82 lines) with migration files
-4. Replace storage/writer.mpl with ORM insert
-5. Update all service modules to use Repo instead of raw queries
-6. Update all API handlers that use raw Map results
-7. Verify all existing functionality works identically
-
-**Estimated reduction:** 627 lines of queries.mpl -> ~100-150 lines of ORM calls. 82 lines of schema.mpl -> ~150 lines of migration files (more structured, but declarative).
-
-## Mesher DB Layer Refactoring Plan
-
-### Current Structure (Before ORM)
-
-```
-mesher/
-  types/
-    user.mpl          pub struct User ... end deriving(Json, Row)
-    project.mpl       pub struct Organization, Project, ApiKey ... end deriving(Json, Row)
-    event.mpl         pub struct Event, EventPayload, StackFrame ... end deriving(Json, Row)
-    issue.mpl         pub struct Issue ... end deriving(Json, Row)
-    alert.mpl         pub struct AlertRule, Alert ... end deriving(Json, Row)
-  storage/
-    schema.mpl        82 lines: create_schema(), create_partition(), create_partitions_ahead()
-    queries.mpl       627 lines: 50+ functions with raw SQL strings
-    writer.mpl        21 lines: insert_event() with raw SQL
-  services/
-    org.mpl           OrgService delegates to Storage.Queries
-    project.mpl       ProjectService delegates to Storage.Queries
-    user.mpl          UserService delegates to Storage.Queries
-    event_processor   EventProcessor uses Storage.Queries
-    writer.mpl        StorageWriter batches and calls Storage.Writer
-    retention.mpl     RetentionCleaner calls Storage.Queries
-```
-
-### Target Structure (After ORM)
-
-```
-mesher/
-  types/
-    user.mpl          pub struct User ... end deriving(Json, Row, Schema)   # ADD Schema
-    project.mpl       pub struct Organization, Project, ApiKey ... end deriving(Json, Row, Schema)
-    event.mpl         pub struct Event ... end deriving(Json, Row, Schema)
-    issue.mpl         pub struct Issue ... end deriving(Json, Row, Schema)
-    alert.mpl         pub struct AlertRule, Alert ... end deriving(Json, Row, Schema)
-  orm/                # NEW: ORM library
-    schema.mpl        Schema helper functions
-    query.mpl         Query struct + builder functions
-    repo.mpl          Database operations
-    changeset.mpl     Validation
-    migration.mpl     Migration helpers
-  migrations/         # NEW: Migration files
-    001_create_organizations.mpl
-    002_create_users.mpl
-    003_create_org_memberships.mpl
-    004_create_sessions.mpl
-    005_create_projects.mpl
-    006_create_api_keys.mpl
-    007_create_issues.mpl
-    008_create_events.mpl
-    009_create_alert_rules.mpl
-    010_create_alerts.mpl
-    011_add_retention_settings.mpl
-  storage/
-    queries.mpl       REMOVED (replaced by ORM calls in services)
-    schema.mpl        REMOVED (replaced by migrations)
-    writer.mpl        SIMPLIFIED (uses Repo.insert instead of raw SQL)
-  services/
-    org.mpl           Uses Repo.get/Repo.all instead of Storage.Queries
-    project.mpl       Uses Repo.get/Repo.all instead of Storage.Queries
-    user.mpl          Uses Repo.get/Changeset/Repo.insert
-    ...
-```
-
-### Specific Refactoring Examples
-
-**Before (raw SQL):**
-```
-pub fn get_org(pool :: PoolHandle, id :: String) -> Organization!String do
-  let rows = Pool.query(pool, "SELECT id::text, name, slug, created_at::text FROM organizations WHERE id = $1::uuid", [id])?
-  if List.length(rows) > 0 do
-    let row = List.head(rows)
-    Ok(Organization { id: Map.get(row, "id"), name: Map.get(row, "name"), slug: Map.get(row, "slug"), created_at: Map.get(row, "created_at") })
-  else
-    Err("not found")
+```mesh
+# In test file: start a mock actor, register under expected name
+let mock_pid = spawn do
+  receive do
+    {:get_user, id, reply_pid} -> send(reply_pid, {:ok, test_user})
   end
 end
+Process.register(mock_pid, :user_service)
+# Run code under test — it calls named :user_service
+# Assert on results
 ```
 
-**After (ORM):**
-```
-pub fn get_org(pool :: PoolHandle, id :: String) -> Organization!String do
-  let row = Repo.get(pool, "organizations", id)?
-  Organization.from_row(row)
-end
-```
+This requires no new framework features — it's a usage pattern. Document it in the testing guide.
 
-**Before (complex filtered query):**
-```
-pub fn list_issues_filtered(pool :: PoolHandle, project_id :: String, status :: String, level :: String, assigned_to :: String, cursor :: String, cursor_id :: String, limit_str :: String) -> List<Map<String, String>>!String do
-  if String.length(cursor) > 0 do
-    let sql = "SELECT id::text, project_id::text, fingerprint, title, level, status, event_count::text, first_seen::text, last_seen::text, COALESCE(assigned_to::text, '') as assigned_to FROM issues WHERE project_id = $1::uuid AND ($2 = '' OR status = $2) AND ($3 = '' OR level = $3) AND ($4 = '' OR assigned_to = $4::uuid) AND (last_seen, id) < ($5::timestamptz, $6::uuid) ORDER BY last_seen DESC, id DESC LIMIT $7::int"
-    Pool.query(pool, sql, [project_id, status, level, assigned_to, cursor, cursor_id, limit_str])
-  else
-    # ... 6 more lines
-  end
-end
-```
+**Coverage reporting:**
 
-**After (ORM):**
-```
-pub fn list_issues_filtered(pool :: PoolHandle, project_id :: String, status :: String, level :: String, assigned_to :: String, cursor :: String, cursor_id :: String, limit_str :: String) -> List<Map<String, String>>!String do
-  let query = Query.from("issues")
-    |> Query.where("project_id", "=", project_id)
-    |> Query.where_if(status != "", "status", "=", status)
-    |> Query.where_if(level != "", "level", "=", level)
-    |> Query.where_if(assigned_to != "", "assigned_to", "=", assigned_to)
-    |> Query.where_if(cursor != "", "(last_seen, id) <", "", cursor <> "," <> cursor_id)
-    |> Query.order_by("last_seen", "desc")
-    |> Query.order_by("id", "desc")
-    |> Query.limit_str(limit_str)
-  Repo.all(pool, query)
-end
+LLVM's coverage instrumentation requires adding `-fprofile-instr-generate -fcoverage-mapping` flags to the LLVM compilation step and running `llvm-profdata merge` + `llvm-cov report` on the resulting data. This is implementable but requires changes to `mesh-codegen/src/link.rs` and a post-execution step in the test runner. Mark as stretch goal for v14.0; defer if time is limited.
+
+---
+
+### 4. Package Registry: mesh.toml, meshpkg CLI, Hosted Backend
+
+**mesh.toml current state (HIGH confidence from codebase inspection):**
+
+The `mesh-pkg` crate already has:
+- `Manifest` struct: `package` (name/version/description/authors) + `dependencies: BTreeMap<String, Dependency>`
+- `Dependency` enum: `Git { git, rev, branch, tag }` and `Path { path }`
+- `Lockfile` with `LockedPackage { name, source, revision }`
+- DFS resolver with diamond detection and cycle detection
+- git2-based clone/fetch for Git dependencies
+
+v14.0 adds a `Registry` variant to `Dependency`:
+
+```rust
+// mesh-pkg/src/manifest.rs — MODIFIED
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum Dependency {
+    Git { git: String, rev: Option<String>, branch: Option<String>, tag: Option<String> },
+    Path { path: String },
+    Registry { version: String },  // NEW — uses default registry or package-level override
+}
 ```
 
-### Queries That May Remain as Raw SQL
+Full `mesh.toml` format with registry dep:
 
-Some Mesher queries are too complex or PostgreSQL-specific for a general ORM:
+```toml
+[package]
+name = "my-app"
+version = "1.0.0"
+description = "An example Mesh application"
+authors = ["Alice <alice@example.com>"]
 
-1. **Event partitioning** (`create_partition`, `create_partitions_ahead`): Uses dynamic DDL with date arithmetic. Keep as raw SQL.
-2. **Spike detection** (`check_volume_spikes`): Complex correlated subquery with interval arithmetic. Keep as raw SQL.
-3. **Extract event fields** (`extract_event_fields`): Server-side JSONB extraction with CASE expressions. Keep as raw SQL.
-4. **Insert event** (`insert_event`): Uses `SELECT ... FROM (SELECT $4::jsonb) AS sub` for JSONB extraction. Consider ORM insert for simple version, keep raw for JSONB.
+[dependencies]
+# Registry dependency (NEW for v14.0)
+crypto-utils = { version = "1.2.0" }
 
-The ORM provides a `Repo.raw_query` escape hatch for these:
+# Existing forms unchanged
+local-lib    = { path = "../local-lib" }
+github-lib   = { git = "https://github.com/example/lib.git", tag = "v2.0" }
 ```
-pub fn raw_query(pool :: PoolHandle, sql :: String, params :: List<String>) -> List<Map<String, String>>!String do
-  Pool.query(pool, sql, params)
-end
+
+**IMPORTANT: Exact versions only (no SemVer ranges).** Version ranges require a SemVer SAT solver — a multi-week project. Require exact versions (`"1.2.0"`) in v14.0. The lockfile already provides reproducibility. Ranges can be a future milestone feature.
+
+**meshpkg binary — new crate at `compiler/meshpkg/`:**
+
+```
+compiler/
+└── meshpkg/
+    ├── Cargo.toml         — depends on mesh-pkg, reqwest/ureq for HTTP, tar, flate2
+    └── src/
+        └── main.rs        — publish, install, search, login, logout subcommands
 ```
 
-## Scalability Considerations
+This is a *separate binary from `meshc`*. Rationale: `meshc` is the compiler (build, test, format, migrate). `meshpkg` is the ecosystem tool (publish, install, search). Separation mirrors Go's `go` vs. package tools and keeps each binary focused.
 
-| Concern | At Mesher Scale (~10 tables) | At 50 Tables | At 200+ Tables |
-|---------|-------------------------------|--------------|----------------|
-| Schema metadata | Negligible compile time | Negligible | May add ~1s to compile |
-| Query building | Struct allocation per query | Same -- structs are cheap | Same |
-| SQL generation | <1ms per query in runtime | Same | Same |
-| Migration management | Linear scan of files | Same (migrations run once) | Index on tracking table |
-| Preloading N+1 | Separate query per assoc | Batched IN queries | Batched IN queries |
+**meshpkg commands:**
+
+```
+meshpkg publish             Pack mesh.toml + src/ into .tar.gz, upload to registry
+meshpkg install [pkg@ver]   Download tarball, unpack to .mesh/deps/<pkg>/
+meshpkg search <query>      Query registry search API, print results table
+meshpkg login               Store API token to ~/.mesh/credentials
+meshpkg logout              Remove stored token
+meshpkg list                List installed packages from mesh.lock
+```
+
+**Package format:**
+
+A Mesh package is a `.tar.gz` tarball containing:
+- `mesh.toml` at root
+- `*.mpl` source files (preserving directory structure)
+- `README.md` (optional)
+- No compiled artifacts, no `.mesh/` directory
+
+Content-addressed by SHA-256 of the tarball. Registry identifies packages as `{name}@{version}`.
+
+**Registry server stack (MEDIUM confidence — verified via web search):**
+
+The registry is a separate HTTP service. It does NOT need to be a Mesh application (and using Mesh would be premature/risky for critical infrastructure). Recommended stack:
+
+| Layer | Technology | Why |
+|-------|------------|-----|
+| HTTP framework | Axum 0.7 | Thin over hyper, Tower middleware, rustls-compatible, proven in 2025 ecosystem |
+| Database | PostgreSQL | Already the production DB for Mesher; familiar wire protocol; already in use |
+| ORM | sea-orm 1.x or sqlx | Standard Axum ecosystem; sea-orm 1.x stable; sqlx is simpler if schema is small |
+| Auth | API key (HMAC-SHA256) | ring is already a dependency in mesh-rt; simple bearer token model |
+| Tarball storage | Local filesystem to start | `/data/packages/{name}/{version}.tar.gz`; abstract behind `StorageBackend` trait for future S3/R2 |
+| TLS | rustls (already in codebase) | Consistent with rest of Mesh infrastructure |
+
+**Registry API surface (minimal v14.0):**
+
+```
+GET  /api/packages                       → paginated package list
+GET  /api/packages/{name}                → package metadata + all versions
+GET  /api/packages/{name}/{version}      → specific version: metadata + README
+GET  /api/packages/{name}/{version}/download  → tarball download
+POST /api/packages/{name}/{version}      → publish (requires Bearer token)
+GET  /api/search?q={query}&page={n}      → search by name/description
+POST /api/auth/token                     → exchange credentials for API token
+```
+
+**Registry database schema (minimal):**
+
+```sql
+CREATE TABLE packages (
+    name       TEXT NOT NULL,
+    version    TEXT NOT NULL,
+    description TEXT,
+    authors    TEXT[],
+    published_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    checksum   TEXT NOT NULL,     -- SHA-256 of tarball
+    tarball_path TEXT NOT NULL,   -- filesystem path
+    readme     TEXT,
+    PRIMARY KEY (name, version)
+);
+
+CREATE TABLE api_tokens (
+    id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    token_hash TEXT NOT NULL,    -- HMAC-SHA256 of token
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+**Registry website integration:**
+
+The existing VitePress website at `website/` gets new pages under `website/docs/packages/`:
+
+```
+/packages                  → browse all packages (client-side fetch from registry API)
+/packages/{name}           → package detail: README, versions, install snippet
+/search?q=...              → search results
+```
+
+These pages can be client-side rendered (Vue components fetching from the registry API) to avoid requiring the registry to be running at VitePress build time. This is simpler for v14.0.
+
+---
+
+## Recommended File Structure Changes
+
+```
+compiler/
+├── mesh-rt/src/
+│   ├── crypto.rs          (NEW) — SHA-256/512, HMAC, UUID, exported as mesh_crypto_*
+│   ├── date.rs            (NEW) — Date/time operations, exported as mesh_date_*
+│   ├── encoding.rs        (NEW) — base64/hex, exported as mesh_encoding_*
+│   ├── test_support.rs    (NEW) — Test.assert/assert_eq/fail, exported as mesh_test_*
+│   ├── http/
+│   │   └── client.rs      (MODIFIED) — streaming, keep-alive, builder API; ureq → v3
+│   └── lib.rs             (MODIFIED) — pub mod crypto; date; encoding; test_support; re-exports
+├── mesh-typeck/src/
+│   └── builtins.rs        (MODIFIED) — Crypto.*, Date.*, Encoding.*, Test.* type sigs
+├── mesh-codegen/src/codegen/
+│   └── intrinsics.rs      (MODIFIED) — LLVM extern decls for all new mesh_* symbols
+├── mesh-pkg/src/
+│   ├── manifest.rs        (MODIFIED) — add Dependency::Registry { version } variant
+│   └── resolver.rs        (MODIFIED) — handle Registry variant: fetch tarball from registry URL
+│   └── publish.rs         (NEW) — pack tarball, upload to registry
+├── meshc/src/
+│   ├── main.rs            (MODIFIED) — add Commands::Test variant
+│   └── test_runner.rs     (NEW) — *.test.mpl discovery, compile, execute, report
+└── meshpkg/               (NEW binary crate)
+    ├── Cargo.toml
+    └── src/
+        └── main.rs        — publish, install, search, login, logout
+
+registry/                  (NEW — top-level, outside compiler/)
+├── Cargo.toml             — axum, sea-orm or sqlx, tokio, serde, ring, tar, flate2
+└── src/
+    ├── main.rs
+    ├── routes/
+    │   ├── packages.rs
+    │   ├── search.rs
+    │   └── auth.rs
+    ├── storage.rs         — StorageBackend trait + FilesystemStorage impl
+    └── db.rs
+
+website/docs/
+└── packages/              (NEW) — browse, search, detail pages (Vue + client-side fetch)
+```
+
+---
+
+## Architectural Patterns
+
+### Pattern 1: Three-File Stdlib Expansion
+
+**What:** Every new Mesh stdlib function requires changes to exactly three files: `mesh-rt/src/<module>.rs` (implementation), `mesh-typeck/src/builtins.rs` (type signature registration), `mesh-codegen/src/codegen/intrinsics.rs` (LLVM extern declaration).
+
+**When to use:** All new `Crypto.*`, `Date.*`, `Encoding.*`, `Test.*`, HTTP client functions. Non-negotiable — this is how every existing stdlib function works.
+
+**Trade-offs:** Repetitive but enforces consistency. Missing any one of the three causes either a compile-time type error (typeck missing) or a linker error (rt missing). The pattern makes additions predictable and reviewable.
+
+**Example (adding `Crypto.sha256`):**
+
+```rust
+// File 1: mesh-rt/src/crypto.rs
+#[no_mangle]
+pub extern "C" fn mesh_crypto_sha256(s: *const MeshString) -> *mut MeshString {
+    use sha2::{Sha256, Digest};
+    let input = unsafe { (*s).as_str() };
+    let hash = format!("{:x}", Sha256::digest(input.as_bytes()));
+    unsafe { mesh_string_new(hash.as_ptr(), hash.len() as u64) }
+}
+```
+
+```rust
+// File 2: mesh-typeck/src/builtins.rs (inside register_builtins)
+env.define("crypto_sha256", Scheme::simple(
+    Ty::fun(vec![Ty::string()], Ty::string())
+));
+```
+
+```rust
+// File 3: mesh-codegen/src/codegen/intrinsics.rs (inside declare_intrinsics)
+module.add_function(
+    "mesh_crypto_sha256",
+    ptr_type.fn_type(&[ptr_type.into()], false),
+    Some(inkwell::module::Linkage::External),
+);
+```
+
+### Pattern 2: Opaque Handle for Stateful Resources
+
+**What:** Stateful resources (DB connections, pools, streams, regexes) are stored behind a `Box<T>` leaked into a `u64` handle. The handle is opaque from Mesh's perspective (`u64` → `Int` in the type system). Operations take the handle as first argument.
+
+**When to use:** HTTP streaming (stream handle), HTTP keep-alive client (agent handle). NOT for date/time (use `i64` directly).
+
+**Trade-offs:** Simple to implement, GC-safe. Downside: no type safety at Mesh level. All DB connections and pools use this pattern — it is battle-tested in the codebase.
+
+### Pattern 3: Subcommand as Module in meshc
+
+**What:** New `meshc` subcommands are implemented as `src/subcommand_name.rs` modules within the `meshc` binary crate. Not as separate library crates.
+
+**When to use:** `meshc test`, and any future subcommands.
+
+**Trade-offs:** Simple. The test runner is ~200-400 lines, does not need its own crate. The `migrate.rs` module in `meshc` is the established model.
+
+---
+
+## Data Flow
+
+### `meshc test` Execution Flow
+
+```
+meshc test ./my-project
+    ↓
+test_runner::discover_test_files(dir, filter)
+    walks dir recursively, collects *.test.mpl paths
+    ↓
+for each test_file in discovered:
+    tmpdir = tempfile::TempDir::new()
+    build(test_file_parent_dir, opt=0, output=Some(tmpdir.path().join("test_bin")))
+        → same build() function used by meshc build
+        → parse → typecheck → MIR → LLVM → native binary
+    ↓
+    let output = Command::new(tmpdir/test_bin).output()
+    result = TestResult { file, exit_code, stdout, stderr, duration }
+    ↓
+print_test_summary(results):
+    "test/user.test.mpl ... ok"
+    "test/auth.test.mpl ... FAILED (exit 1)"
+    stdout/stderr of failed tests
+    "5 passed, 1 failed" / exit(1) if any failed
+```
+
+### Crypto/Encoding Call Flow
+
+```
+Mesh source:  Crypto.sha256(my_string)
+    ↓
+mesh-typeck:  resolves "crypto_sha256" → Ty::Fun([String], String)
+    ↓
+mesh-codegen MIR:  lower to Call { callee: "mesh_crypto_sha256", args: [string_val] }
+    ↓
+mesh-codegen LLVM: call ptr @mesh_crypto_sha256(ptr %str)
+    ↓
+runtime:  mesh_crypto_sha256() in mesh-rt/src/crypto.rs
+    sha2::Sha256::digest(input_bytes)
+    hex-encode → mesh_string_new(hex_bytes, len) → GC-managed MeshString ptr
+    ↓
+return value to Mesh caller
+```
+
+### Package Publish Flow
+
+```
+meshpkg publish (in project root with mesh.toml)
+    ↓
+read + validate mesh.toml
+    ↓
+pack: tar::Builder → gzip → .tar.gz
+    include: mesh.toml, **/*.mpl, README.md
+    exclude: .mesh/, compiled binaries
+    ↓
+sha256 = sha2::Sha256::digest(tarball_bytes)
+    ↓
+read ~/.mesh/credentials → API token
+    ↓
+POST /api/packages/{name}/{version}
+    Content-Type: multipart/form-data
+    Authorization: Bearer {token}
+    body: { tarball, checksum, metadata }
+    ↓
+registry server:
+    verify token
+    check version not already published (immutable)
+    parse + validate mesh.toml from tarball
+    write tarball to /data/packages/{name}/{version}.tar.gz
+    insert packages row
+    ↓
+200 OK: "Published {name}@{version}"
+```
+
+---
+
+## Suggested Build Order
+
+Dependencies drive the order. Items with no dependencies on each other can be built in parallel.
+
+| Step | Feature | Depends On | Rationale |
+|------|---------|------------|-----------|
+| 1 | Encoding stdlib (base64, hex) | Nothing | Simplest, validates three-file pattern |
+| 2 | Crypto stdlib (SHA/HMAC/UUID) | Step 1 pattern | Deps already present |
+| 3 | Date stdlib (timestamps, format) | Nothing | Needs chrono dep added |
+| 4 | HTTP streaming (ureq v3 upgrade) | Nothing | Isolated to client.rs |
+| 5 | HTTP keep-alive + builder API | Step 4 | Builds on streaming infrastructure |
+| 6 | Test assertion helpers (Test.assert etc) | Nothing | Three-file pattern |
+| 7 | `meshc test` runner | Step 6 | Needs assertion helpers in rt |
+| 8 | mesh.toml Registry dep variant | Nothing | Extends manifest.rs/resolver.rs |
+| 9 | meshpkg CLI binary | Step 8 | Needs mesh-pkg registry support |
+| 10 | Registry server (Axum + PG) | Step 8 API contract | Independent of compiler changes |
+| 11 | Registry website pages | Step 10 | Needs registry API |
+
+**Parallelization:** Steps 1-5 (stdlib + HTTP) are independent of steps 6-7 (test runner). Steps 8-11 (registry) are independent of all compiler/runtime work and can be built in parallel by a separate effort.
+
+---
+
+## Anti-Patterns
+
+### Anti-Pattern 1: New Crates for Stdlib Modules
+
+**What people do:** Create `mesh-crypto`, `mesh-date`, `mesh-encoding` as separate Rust crates.
+
+**Why it's wrong:** All stdlib compiles into `libmesh_rt.a` which is statically linked into every Mesh binary. Separate crates either (a) get merged into `libmesh_rt.a` via re-exports anyway — adding build complexity with no benefit — or (b) become separate static libs, requiring linker changes in `mesh-codegen/src/link.rs`. Neither is justified for the scale of these additions.
+
+**Do this instead:** Add modules directly to `mesh-rt/src/` and `pub mod` them from `lib.rs`. This is identical to how `regex.rs`, `json.rs`, `iter.rs` were added in prior milestones.
+
+### Anti-Pattern 2: Streaming via Dedicated OS Thread per Request
+
+**What people do:** Spawn an OS thread for each HTTP stream (analogous to WebSocket's reader thread).
+
+**Why it's wrong:** WebSocket's reader thread exists because WS frames arrive asynchronously and must be pushed into the actor mailbox. HTTP streaming is pull-based — the actor requests chunks when ready. Spawning OS threads for pull-based streaming adds unnecessary complexity and overhead.
+
+**Do this instead:** Blocking `mesh_http_read_chunk()` called directly inside the actor. Accepted pattern since DB queries, HTTP server I/O, and WS sends already block inside actors.
+
+### Anti-Pattern 3: Test Files Without a `main` Function
+
+**What people do:** Design test files as collections of annotated functions without an entry point, requiring the runner to generate a main.
+
+**Why it's wrong:** Generating a main requires the test runner to parse Mesh syntax, extract function names, synthesize new Mesh code, and compile the generated code. This is significant complexity duplicating parser/typechecker work.
+
+**Do this instead:** Each `*.test.mpl` is a complete Mesh program with a `main` that calls test functions. The runner compiles and executes — nothing more. This is the established model for Go test files before `testing.T` was mature.
+
+### Anti-Pattern 4: SemVer Range Resolution in registry deps
+
+**What people do:** Allow `"^1.0"` or `">=2.0"` in mesh.toml registry dependencies.
+
+**Why it's wrong:** SemVer constraint solving (similar to Cargo's resolver) is a multi-week project. Cargo's own resolver took years to stabilize. For v14.0, this is out of scope.
+
+**Do this instead:** Require exact versions: `version = "1.2.0"`. The lockfile already guarantees reproducibility. Add ranges in a future milestone.
+
+### Anti-Pattern 5: DateTime as Opaque Handle
+
+**What people do:** Represent `DateTime` as an opaque heap-allocated struct behind a `u64` handle.
+
+**Why it's wrong:** Requires new type machinery in mesh-typeck (new opaque `DateTime` type), new codegen handling, and forces users to interact with a resource that has no GC collection (requires explicit `Date.free(dt)` or leaks). Timestamps are naturally numeric values.
+
+**Do this instead:** Represent timestamps as `i64` Unix milliseconds. Arithmetic is trivial (`Date.add(ts, delta) -> Int`), formatting is a string operation, and no new type machinery is needed. JavaScript, Go, and Python's standard libraries all use this pattern.
+
+---
+
+## Integration Points Summary
+
+| Feature | Files Modified | Files Added | New Rust Deps |
+|---------|---------------|-------------|---------------|
+| Encoding stdlib | `mesh-rt/lib.rs`, `builtins.rs`, `intrinsics.rs` | `mesh-rt/src/encoding.rs` | `hex = "0.4"` (optional) |
+| Crypto stdlib | `mesh-rt/lib.rs`, `builtins.rs`, `intrinsics.rs` | `mesh-rt/src/crypto.rs` | none (sha2/hmac/ring/rand already present) |
+| Date stdlib | `mesh-rt/lib.rs`, `builtins.rs`, `intrinsics.rs`, `mesh-rt/Cargo.toml` | `mesh-rt/src/date.rs` | `chrono = "0.4"` |
+| HTTP streaming | `mesh-rt/http/client.rs`, `mesh-rt/Cargo.toml`, `builtins.rs`, `intrinsics.rs` | — | ureq upgrade `"2"` → `"3"` |
+| HTTP keep-alive + builder | `mesh-rt/http/client.rs`, `builtins.rs`, `intrinsics.rs` | — | (same ureq upgrade) |
+| Test assertions | `mesh-rt/lib.rs`, `builtins.rs`, `intrinsics.rs` | `mesh-rt/src/test_support.rs` | — |
+| `meshc test` runner | `meshc/src/main.rs` | `meshc/src/test_runner.rs` | — |
+| mesh.toml Registry variant | `mesh-pkg/src/manifest.rs`, `mesh-pkg/src/resolver.rs` | `mesh-pkg/src/publish.rs` | reqwest or ureq (for HTTP downloads) |
+| meshpkg CLI | — | `compiler/meshpkg/` (new binary crate) | (inherits from mesh-pkg) |
+| Registry server | — | `registry/` (new workspace member) | axum 0.7, sea-orm 1.x, tokio, serde_json, ring, tar, flate2 |
+| Registry website | — | `website/docs/packages/` (Vue pages) | — |
+
+---
 
 ## Sources
 
-- Direct codebase analysis of all files in `/Users/sn0w/Documents/dev/snow/crates/` and `/Users/sn0w/Documents/dev/snow/mesher/`
-- [Ecto documentation (v3.13.5)](https://hexdocs.pm/ecto/Ecto.html) -- four-module architecture reference
-- [Ecto.Schema documentation](https://hexdocs.pm/ecto/Ecto.Schema.html) -- schema design patterns
-- [Ecto/Elixir database operations guide](https://oneuptime.com/blog/post/2026-01-26-elixir-ecto-database/view) -- practical Ecto patterns
-- [ORMs vs Query Builders comparison](https://neon.com/blog/orms-vs-query-builders-for-your-typescript-application) -- architectural tradeoffs
-- [Prisma Data Guide: SQL vs ORMs vs Query Builders](https://www.prisma.io/dataguide/types/relational/comparing-sql-query-builders-and-orms) -- approach comparison
+- Codebase: `compiler/mesh-rt/src/lib.rs` — all stdlib modules and re-exports (direct inspection)
+- Codebase: `compiler/mesh-rt/Cargo.toml` — confirmed sha2/hmac/md-5/base64/ring already present
+- Codebase: `compiler/mesh-rt/src/http/client.rs` — current mesh_http_get/post implementation using ureq 2
+- Codebase: `compiler/mesh-codegen/src/codegen/intrinsics.rs` — LLVM extern declaration pattern
+- Codebase: `compiler/mesh-typeck/src/builtins.rs` — type registration pattern for stdlib functions
+- Codebase: `compiler/meshc/src/main.rs` + `migrate.rs` — subcommand-as-module pattern
+- Codebase: `compiler/mesh-pkg/src/manifest.rs` + `resolver.rs` — existing mesh.toml format and resolver
+- [ureq 2.x Response docs](https://docs.rs/ureq/2.3.0/ureq/struct.Response.html) — `into_reader()` for streaming
+- [ureq 3.x Body docs](https://docs.rs/ureq/latest/ureq/struct.Body.html) — `body_mut().as_reader()`, `Body: Send`
+- [ureq CHANGELOG](https://docs.rs/crate/ureq/latest/source/CHANGELOG.md) — v2→v3 API changes confirmed
+- [axum crates.io](https://crates.io/crates/axum) — registry server web framework
+- [sea-orm GitHub](https://github.com/SeaQL/sea-orm) — async ORM for registry server (1.x stable)
+
+---
+
+*Architecture research for: Mesh v14.0 Ecosystem (stdlib, HTTP client, testing, package registry)*
+*Researched: 2026-02-28*
