@@ -29,7 +29,9 @@ rand = "0.9"
 # Phase 119: Regular expression support
 regex = "1"
 # Phase 136: DateTime stdlib
-chrono = { version = "0.4", features = ["clock"] }
+# Note: clock feature is NOT used — it requires iana-time-zone + CoreFoundation framework
+# on macOS in static library builds. utc_now() uses std::time::SystemTime instead.
+chrono = { version = "0.4", default-features = false, features = ["std", "alloc"] }
 # Phase 55: TLS for PostgreSQL connections
 # All three crates are already compiled as transitive deps of ureq 2.12.
 # Adding them as direct deps costs zero additional compile time.

@@ -361,16 +361,18 @@ pub fn register_builtins(
     env.insert("datetime_to_unix_secs".into(),
         Scheme::mono(Ty::fun(vec![dt_t.clone()], Ty::int())));
     // DateTime.add(dt, n, unit) -> DateTime
+    // The unit parameter uses Atom type (e.g. :day, :hour) — Atom resolves to String at MIR level.
+    let atom_t = Ty::Con(TyCon::new("Atom"));
     env.insert("datetime_add".into(),
-        Scheme::mono(Ty::fun(vec![dt_t.clone(), Ty::int(), Ty::string()], dt_t.clone())));
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), Ty::int(), atom_t.clone()], dt_t.clone())));
     // DateTime.diff(dt1, dt2, unit) -> Float  (NOT Int — fractional precision)
     env.insert("datetime_diff".into(),
-        Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone(), Ty::string()], Ty::float())));
-    // DateTime.before?(dt1, dt2) -> Bool
-    env.insert("datetime_before?".into(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone(), atom_t], Ty::float())));
+    // DateTime.is_before(dt1, dt2) -> Bool
+    env.insert("datetime_is_before".into(),
         Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone()], Ty::bool())));
-    // DateTime.after?(dt1, dt2) -> Bool
-    env.insert("datetime_after?".into(),
+    // DateTime.is_after(dt1, dt2) -> Bool
+    env.insert("datetime_is_after".into(),
         Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone()], Ty::bool())));
 
     // ── Standard library: Collection types (Phase 8) ─────────────────

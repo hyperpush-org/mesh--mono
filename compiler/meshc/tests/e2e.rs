@@ -5591,3 +5591,62 @@ fn e2e_hex_encode_lowercase() {
     assert_eq!(first_line, first_line.to_lowercase(), "Hex.encode must produce lowercase output");
     assert_eq!(first_line, "6869");
 }
+
+// ── Phase 136: DateTime stdlib tests ─────────────────────────────────────────
+
+/// Phase 136: DateTime.utc_now() returns a plausible UTC timestamp (DTIME-01).
+/// Verifies the current time is after Nov 2023 epoch.
+#[test]
+fn e2e_datetime_utc_now() {
+    let source = read_fixture("datetime_utc_now.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "true\n");
+}
+
+/// Phase 136: DateTime.from_iso8601 / to_iso8601 round-trip with UTC normalization (DTIME-02, DTIME-03).
+/// Verifies: UTC input round-trips, +05:30 offset normalizes to UTC, naive string returns Err.
+#[test]
+fn e2e_datetime_iso8601_roundtrip() {
+    let source = read_fixture("datetime_iso8601_roundtrip.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(
+        output,
+        "2024-01-15T10:30:00.000Z\n2024-01-15T05:00:00.000Z\ninvalid ISO 8601 datetime\n"
+    );
+}
+
+/// Phase 136: DateTime.from_unix_ms / to_unix_ms round-trip (DTIME-04, DTIME-05).
+/// Uses known epoch 1705312200000 ms = 2024-01-15T09:50:00.000Z
+#[test]
+fn e2e_datetime_unix_ms() {
+    let source = read_fixture("datetime_unix_ms.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "1705312200000\n2024-01-15T09:50:00.000Z\n");
+}
+
+/// Phase 136: DateTime.from_unix_secs / to_unix_secs round-trip (DTIME-04, DTIME-05).
+/// Uses known epoch 1705312200 secs = 2024-01-15T09:50:00Z
+#[test]
+fn e2e_datetime_unix_secs() {
+    let source = read_fixture("datetime_unix_secs.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "1705312200\n");
+}
+
+/// Phase 136: DateTime.add and DateTime.diff arithmetic (DTIME-06, DTIME-07).
+/// Verifies: add 7 days returns 7.0 diff, add -1 hour returns 1.0 diff.
+/// Note: Rust's f64.to_string() prints whole-number floats without decimal (7.0 -> "7").
+#[test]
+fn e2e_datetime_add_diff() {
+    let source = read_fixture("datetime_add_diff.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "7\n1\n");
+}
+
+/// Phase 136: DateTime.is_before and DateTime.is_after comparisons (DTIME-08).
+#[test]
+fn e2e_datetime_compare() {
+    let source = read_fixture("datetime_compare.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "true\nfalse\nfalse\ntrue\n");
+}

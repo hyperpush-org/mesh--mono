@@ -161,10 +161,7 @@ impl<'ctx> CodeGen<'ctx> {
             if let Some(&existing_alloca) = self.locals.get(name) {
                 let val = self.navigate_access_path(scrutinee_alloca, scrutinee_ty, path)?;
                 let llvm_ty = self.llvm_type(ty);
-                let val = if matches!(ty, MirType::Struct(_) | MirType::SumType(_))
-                    && val.is_pointer_value()
-                    && !llvm_ty.is_pointer_type()
-                {
+                let val = if should_deref_boxed_payload(ty, &val, &llvm_ty) {
                     self.builder
                         .build_load(llvm_ty, val.into_pointer_value(), "deref_struct")
                         .map_err(|e| e.to_string())?
@@ -179,13 +176,12 @@ impl<'ctx> CodeGen<'ctx> {
             let val = self.navigate_access_path(scrutinee_alloca, scrutinee_ty, path)?;
             let llvm_ty = self.llvm_type(ty);
 
-            // When the binding type is a Struct or SumType but the extracted value is a pointer
-            // (e.g., from a generic Result<Struct, String> or Result<SumType, String>
-            // where Ok's payload is Ptr), dereference the pointer to load the actual value.
-            let val = if matches!(ty, MirType::Struct(_) | MirType::SumType(_))
-                && val.is_pointer_value()
-                && !llvm_ty.is_pointer_type()
-            {
+            // When the binding type is a Struct, SumType, or opaque i64 handle (e.g., DateTime,
+            // SqliteConn — MirType::Int) but the extracted value is a pointer, dereference the
+            // pointer to load the actual value. This covers:
+            // - Result<Struct, String> where Ok's payload is heap-allocated (Ptr)
+            // - Result<DateTime, String> where Ok's i64 payload is boxed via alloc_result
+            let val = if should_deref_boxed_payload(ty, &val, &llvm_ty) {
                 self.builder
                     .build_load(llvm_ty, val.into_pointer_value(), "deref_struct")
                     .map_err(|e| e.to_string())?
@@ -913,4 +909,30 @@ impl<'ctx> CodeGen<'ctx> {
             }
         }
     }
+}
+
+/// Returns true if a case arm binding value needs to be dereferenced.
+///
+/// This covers two cases:
+/// 1. Struct/SumType bindings from generic `Result<Struct, String>` where the
+///    Ok payload is a heap pointer (Ptr) but the target type is a struct.
+/// 2. Opaque i64 handle types (DateTime, SqliteConn, etc.) lowered as
+///    `MirType::Int` where the Ok payload is boxed via `alloc_result` as
+///    `Box::into_raw(Box::new(i64))`. The extracted value is a Ptr to the i64;
+///    we must dereference it to get the actual i64.
+///
+/// The guard conditions: the value IS a pointer, but the binding's LLVM type
+/// is NOT a pointer, meaning a load is needed to get the true value.
+fn should_deref_boxed_payload(
+    ty: &MirType,
+    val: &inkwell::values::BasicValueEnum<'_>,
+    llvm_ty: &inkwell::types::BasicTypeEnum<'_>,
+) -> bool {
+    if !val.is_pointer_value() || llvm_ty.is_pointer_type() {
+        return false;
+    }
+    matches!(
+        ty,
+        MirType::Struct(_) | MirType::SumType(_) | MirType::Int | MirType::Float | MirType::Bool
+    )
 }

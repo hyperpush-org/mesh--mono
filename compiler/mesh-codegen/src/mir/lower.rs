@@ -10914,8 +10914,8 @@ fn map_builtin_name(name: &str) -> String {
         "datetime_to_unix_secs"   => "mesh_datetime_to_unix_secs".to_string(),
         "datetime_add"            => "mesh_datetime_add".to_string(),
         "datetime_diff"           => "mesh_datetime_diff".to_string(),
-        "datetime_before?"        => "mesh_datetime_before".to_string(),
-        "datetime_after?"         => "mesh_datetime_after".to_string(),
+        "datetime_is_before"      => "mesh_datetime_before".to_string(),
+        "datetime_is_after"       => "mesh_datetime_after".to_string(),
         // Bare name for compile (from Regex import compile)
         "compile" => "mesh_regex_compile".to_string(),
         // Names that have already been resolved via from-import and lowered

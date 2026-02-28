@@ -79,6 +79,9 @@ fn resolve_con(con: &TyCon, registry: &TypeRegistry) -> MirType {
         "PgConn" => MirType::Int,
         // PoolHandle is an opaque u64 handle, lowered to Int for GC safety (same as PgConn/SqliteConn).
         "PoolHandle" => MirType::Int,
+        // DateTime is an i64 Unix milliseconds value at the ABI level (Phase 136).
+        // Must be lowered to Int to avoid LLVM opaque struct allocation errors.
+        "DateTime" => MirType::Int,
         // Collection types, Json, HTTP types, and iterator handles are opaque pointers at LLVM level.
         "List" | "Map" | "Set" | "Range" | "Queue" | "Tuple" | "Json"
         | "Router" | "Request" | "Response"

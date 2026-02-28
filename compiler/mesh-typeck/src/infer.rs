@@ -433,13 +433,15 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
         Scheme::mono(Ty::fun(vec![Ty::int()], Ty::result(dt_t.clone(), Ty::string()))));
     datetime_mod.insert("to_unix_secs".to_string(),
         Scheme::mono(Ty::fun(vec![dt_t.clone()], Ty::int())));
+    // The unit parameter uses Atom type (e.g. :day, :hour) — Atom resolves to String at MIR level.
+    let atom_t = Ty::Con(TyCon::new("Atom"));
     datetime_mod.insert("add".to_string(),
-        Scheme::mono(Ty::fun(vec![dt_t.clone(), Ty::int(), Ty::string()], dt_t.clone())));
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), Ty::int(), atom_t.clone()], dt_t.clone())));
     datetime_mod.insert("diff".to_string(),
-        Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone(), Ty::string()], Ty::float())));
-    datetime_mod.insert("before?".to_string(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone(), atom_t], Ty::float())));
+    datetime_mod.insert("is_before".to_string(),
         Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone()], Ty::bool())));
-    datetime_mod.insert("after?".to_string(),
+    datetime_mod.insert("is_after".to_string(),
         Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone()], Ty::bool())));
 
     modules.insert("DateTime".to_string(), datetime_mod);
