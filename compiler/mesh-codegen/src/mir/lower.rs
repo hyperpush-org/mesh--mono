@@ -860,6 +860,40 @@ impl<'a> Lowerer<'a> {
         // Hex: String -> Ptr/Result (decode)
         self.known_functions.insert("mesh_hex_decode".to_string(),
             MirType::FnPtr(vec![MirType::String], Box::new(MirType::Ptr)));
+        // DateTime functions (Phase 136)
+        // utc_now() -> DateTime (i64)
+        self.known_functions.insert("mesh_datetime_utc_now".to_string(),
+            MirType::FnPtr(vec![], Box::new(MirType::Int)));
+        // from_iso8601(s: String) -> Result (Ptr)
+        self.known_functions.insert("mesh_datetime_from_iso8601".to_string(),
+            MirType::FnPtr(vec![MirType::String], Box::new(MirType::Ptr)));
+        // to_iso8601(dt: i64) -> String
+        self.known_functions.insert("mesh_datetime_to_iso8601".to_string(),
+            MirType::FnPtr(vec![MirType::Int], Box::new(MirType::String)));
+        // from_unix_ms(ms: i64) -> Result (Ptr)
+        self.known_functions.insert("mesh_datetime_from_unix_ms".to_string(),
+            MirType::FnPtr(vec![MirType::Int], Box::new(MirType::Ptr)));
+        // to_unix_ms(dt: i64) -> Int
+        self.known_functions.insert("mesh_datetime_to_unix_ms".to_string(),
+            MirType::FnPtr(vec![MirType::Int], Box::new(MirType::Int)));
+        // from_unix_secs(s: i64) -> Result (Ptr)
+        self.known_functions.insert("mesh_datetime_from_unix_secs".to_string(),
+            MirType::FnPtr(vec![MirType::Int], Box::new(MirType::Ptr)));
+        // to_unix_secs(dt: i64) -> Int
+        self.known_functions.insert("mesh_datetime_to_unix_secs".to_string(),
+            MirType::FnPtr(vec![MirType::Int], Box::new(MirType::Int)));
+        // add(dt: i64, n: i64, unit: String) -> DateTime (i64)
+        self.known_functions.insert("mesh_datetime_add".to_string(),
+            MirType::FnPtr(vec![MirType::Int, MirType::Int, MirType::String], Box::new(MirType::Int)));
+        // diff(dt1: i64, dt2: i64, unit: String) -> Float  (CRITICAL: Float, not Int)
+        self.known_functions.insert("mesh_datetime_diff".to_string(),
+            MirType::FnPtr(vec![MirType::Int, MirType::Int, MirType::String], Box::new(MirType::Float)));
+        // before(dt1: i64, dt2: i64) -> Bool (i8)
+        self.known_functions.insert("mesh_datetime_before".to_string(),
+            MirType::FnPtr(vec![MirType::Int, MirType::Int], Box::new(MirType::Bool)));
+        // after(dt1: i64, dt2: i64) -> Bool (i8)
+        self.known_functions.insert("mesh_datetime_after".to_string(),
+            MirType::FnPtr(vec![MirType::Int, MirType::Int], Box::new(MirType::Bool)));
         // ── Collection functions (Phase 8 Plan 02) ─────────────────────
         // List
         self.known_functions.insert("mesh_list_new".to_string(), MirType::FnPtr(vec![], Box::new(MirType::Ptr)));
@@ -10806,6 +10840,7 @@ const STDLIB_MODULES: &[&str] = &[
     "Crypto",  // Phase 135
     "Base64",  // Phase 135
     "Hex",     // Phase 135
+    "DateTime",  // Phase 136
 ];
 
 /// Map Mesh builtin function names to their runtime equivalents.
@@ -10869,6 +10904,18 @@ fn map_builtin_name(name: &str) -> String {
         // Hex functions (Phase 135)
         "hex_encode"            => "mesh_hex_encode".to_string(),
         "hex_decode"            => "mesh_hex_decode".to_string(),
+        // DateTime functions (Phase 136)
+        "datetime_utc_now"        => "mesh_datetime_utc_now".to_string(),
+        "datetime_from_iso8601"   => "mesh_datetime_from_iso8601".to_string(),
+        "datetime_to_iso8601"     => "mesh_datetime_to_iso8601".to_string(),
+        "datetime_from_unix_ms"   => "mesh_datetime_from_unix_ms".to_string(),
+        "datetime_to_unix_ms"     => "mesh_datetime_to_unix_ms".to_string(),
+        "datetime_from_unix_secs" => "mesh_datetime_from_unix_secs".to_string(),
+        "datetime_to_unix_secs"   => "mesh_datetime_to_unix_secs".to_string(),
+        "datetime_add"            => "mesh_datetime_add".to_string(),
+        "datetime_diff"           => "mesh_datetime_diff".to_string(),
+        "datetime_before?"        => "mesh_datetime_before".to_string(),
+        "datetime_after?"         => "mesh_datetime_after".to_string(),
         // Bare name for compile (from Regex import compile)
         "compile" => "mesh_regex_compile".to_string(),
         // Names that have already been resolved via from-import and lowered

@@ -415,6 +415,35 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
     );
     modules.insert("Hex".to_string(), hex_mod);
 
+    // ── DateTime module (Phase 136) ───────────────────────────────────────
+    let dt_t = Ty::Con(TyCon::new("DateTime"));
+    let mut datetime_mod = HashMap::new();
+
+    datetime_mod.insert("utc_now".to_string(),
+        Scheme::mono(Ty::fun(vec![], dt_t.clone())));
+    datetime_mod.insert("from_iso8601".to_string(),
+        Scheme::mono(Ty::fun(vec![Ty::string()], Ty::result(dt_t.clone(), Ty::string()))));
+    datetime_mod.insert("to_iso8601".to_string(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone()], Ty::string())));
+    datetime_mod.insert("from_unix_ms".to_string(),
+        Scheme::mono(Ty::fun(vec![Ty::int()], Ty::result(dt_t.clone(), Ty::string()))));
+    datetime_mod.insert("to_unix_ms".to_string(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone()], Ty::int())));
+    datetime_mod.insert("from_unix_secs".to_string(),
+        Scheme::mono(Ty::fun(vec![Ty::int()], Ty::result(dt_t.clone(), Ty::string()))));
+    datetime_mod.insert("to_unix_secs".to_string(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone()], Ty::int())));
+    datetime_mod.insert("add".to_string(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), Ty::int(), Ty::string()], dt_t.clone())));
+    datetime_mod.insert("diff".to_string(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone(), Ty::string()], Ty::float())));
+    datetime_mod.insert("before?".to_string(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone()], Ty::bool())));
+    datetime_mod.insert("after?".to_string(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone()], Ty::bool())));
+
+    modules.insert("DateTime".to_string(), datetime_mod);
+
     // ── File module ─────────────────────────────────────────────────
     let mut file_mod = HashMap::new();
     file_mod.insert(
@@ -1567,6 +1596,7 @@ const STDLIB_MODULE_NAMES: &[&str] = &[
     "Crypto",  // Phase 135
     "Base64",  // Phase 135
     "Hex",     // Phase 135
+    "DateTime",  // Phase 136
 ];
 
 /// Check if a name is a known stdlib module.

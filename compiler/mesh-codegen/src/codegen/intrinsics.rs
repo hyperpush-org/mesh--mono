@@ -330,6 +330,52 @@ pub fn declare_intrinsics<'ctx>(module: &Module<'ctx>) {
     let hex_dec_ty = ptr_type.fn_type(&[ptr_type.into()], false);
     module.add_function("mesh_hex_decode", hex_dec_ty, Some(inkwell::module::Linkage::External));
 
+    // ── DateTime functions (Phase 136) ───────────────────────────────────────
+
+    // mesh_datetime_utc_now() -> i64
+    let utc_now_ty = i64_type.fn_type(&[], false);
+    module.add_function("mesh_datetime_utc_now", utc_now_ty, Some(inkwell::module::Linkage::External));
+
+    // mesh_datetime_from_iso8601(s: ptr) -> ptr (MeshResult)
+    let from_iso_ty = ptr_type.fn_type(&[ptr_type.into()], false);
+    module.add_function("mesh_datetime_from_iso8601", from_iso_ty, Some(inkwell::module::Linkage::External));
+
+    // mesh_datetime_to_iso8601(ms: i64) -> ptr (MeshString)
+    let to_iso_ty = ptr_type.fn_type(&[i64_type.into()], false);
+    module.add_function("mesh_datetime_to_iso8601", to_iso_ty, Some(inkwell::module::Linkage::External));
+
+    // mesh_datetime_from_unix_ms(ms: i64) -> ptr (MeshResult)
+    let from_unix_ms_ty = ptr_type.fn_type(&[i64_type.into()], false);
+    module.add_function("mesh_datetime_from_unix_ms", from_unix_ms_ty, Some(inkwell::module::Linkage::External));
+
+    // mesh_datetime_to_unix_ms(ms: i64) -> i64
+    let to_unix_ms_ty = i64_type.fn_type(&[i64_type.into()], false);
+    module.add_function("mesh_datetime_to_unix_ms", to_unix_ms_ty, Some(inkwell::module::Linkage::External));
+
+    // mesh_datetime_from_unix_secs(secs: i64) -> ptr (MeshResult)
+    let from_unix_secs_ty = ptr_type.fn_type(&[i64_type.into()], false);
+    module.add_function("mesh_datetime_from_unix_secs", from_unix_secs_ty, Some(inkwell::module::Linkage::External));
+
+    // mesh_datetime_to_unix_secs(ms: i64) -> i64
+    let to_unix_secs_ty = i64_type.fn_type(&[i64_type.into()], false);
+    module.add_function("mesh_datetime_to_unix_secs", to_unix_secs_ty, Some(inkwell::module::Linkage::External));
+
+    // mesh_datetime_add(dt_ms: i64, n: i64, unit: ptr) -> i64
+    let add_ty = i64_type.fn_type(&[i64_type.into(), i64_type.into(), ptr_type.into()], false);
+    module.add_function("mesh_datetime_add", add_ty, Some(inkwell::module::Linkage::External));
+
+    // mesh_datetime_diff(dt1_ms: i64, dt2_ms: i64, unit: ptr) -> f64  (Float, not i64!)
+    let diff_ty = f64_type.fn_type(&[i64_type.into(), i64_type.into(), ptr_type.into()], false);
+    module.add_function("mesh_datetime_diff", diff_ty, Some(inkwell::module::Linkage::External));
+
+    // mesh_datetime_before(dt1_ms: i64, dt2_ms: i64) -> i8 (Bool)
+    let before_ty = i8_type.fn_type(&[i64_type.into(), i64_type.into()], false);
+    module.add_function("mesh_datetime_before", before_ty, Some(inkwell::module::Linkage::External));
+
+    // mesh_datetime_after(dt1_ms: i64, dt2_ms: i64) -> i8 (Bool)
+    let after_ty = i8_type.fn_type(&[i64_type.into(), i64_type.into()], false);
+    module.add_function("mesh_datetime_after", after_ty, Some(inkwell::module::Linkage::External));
+
     // ── Standard library: Collection functions (Phase 8 Plan 02) ──────────
 
     // List functions

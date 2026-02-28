@@ -332,6 +332,47 @@ pub fn register_builtins(
     env.insert("hex_decode".into(),
         Scheme::mono(Ty::fun(vec![Ty::string()], Ty::result(Ty::string(), Ty::string()))));
 
+    // ── Standard library: DateTime functions (Phase 136) ─────────────────────
+
+    let dt_t = Ty::Con(TyCon::new("DateTime"));
+
+    // DateTime type constructor itself (so `DateTime` resolves as a type name)
+    env.insert("DateTime".into(), Scheme::mono(dt_t.clone()));
+
+    // DateTime.utc_now() -> DateTime
+    env.insert("datetime_utc_now".into(),
+        Scheme::mono(Ty::fun(vec![], dt_t.clone())));
+    // DateTime.from_iso8601(s) -> Result<DateTime, String>
+    env.insert("datetime_from_iso8601".into(),
+        Scheme::mono(Ty::fun(vec![Ty::string()], Ty::result(dt_t.clone(), Ty::string()))));
+    // DateTime.to_iso8601(dt) -> String
+    env.insert("datetime_to_iso8601".into(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone()], Ty::string())));
+    // DateTime.from_unix_ms(ms) -> Result<DateTime, String>
+    env.insert("datetime_from_unix_ms".into(),
+        Scheme::mono(Ty::fun(vec![Ty::int()], Ty::result(dt_t.clone(), Ty::string()))));
+    // DateTime.to_unix_ms(dt) -> Int
+    env.insert("datetime_to_unix_ms".into(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone()], Ty::int())));
+    // DateTime.from_unix_secs(s) -> Result<DateTime, String>
+    env.insert("datetime_from_unix_secs".into(),
+        Scheme::mono(Ty::fun(vec![Ty::int()], Ty::result(dt_t.clone(), Ty::string()))));
+    // DateTime.to_unix_secs(dt) -> Int
+    env.insert("datetime_to_unix_secs".into(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone()], Ty::int())));
+    // DateTime.add(dt, n, unit) -> DateTime
+    env.insert("datetime_add".into(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), Ty::int(), Ty::string()], dt_t.clone())));
+    // DateTime.diff(dt1, dt2, unit) -> Float  (NOT Int — fractional precision)
+    env.insert("datetime_diff".into(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone(), Ty::string()], Ty::float())));
+    // DateTime.before?(dt1, dt2) -> Bool
+    env.insert("datetime_before?".into(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone()], Ty::bool())));
+    // DateTime.after?(dt1, dt2) -> Bool
+    env.insert("datetime_after?".into(),
+        Scheme::mono(Ty::fun(vec![dt_t.clone(), dt_t.clone()], Ty::bool())));
+
     // ── Standard library: Collection types (Phase 8) ─────────────────
 
     // Type constructors for collection types (bare names).
