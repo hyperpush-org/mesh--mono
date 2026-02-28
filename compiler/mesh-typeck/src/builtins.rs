@@ -378,11 +378,13 @@ pub fn register_builtins(
     // ── Standard library: Http client builder API (Phase 137) ─────────────────
     let http_req_t = Ty::int();   // MeshRequest opaque handle is u64 -> Int ABI
     let http_resp_t = Ty::Con(TyCon::new("HttpResponse"));
+    // Atom type for HTTP method (e.g. :get, :post) — lowered to String ABI at MIR level.
+    let http_atom_t = Ty::Con(TyCon::new("Atom"));
 
     // Http.build(:method_atom, url) -> Request (Int handle)
-    // Atom is lowered to String ABI at the codegen level.
+    // First arg is Atom (e.g. :get, :post) — Atom resolves to String at MIR level.
     env.insert("http_build".into(), Scheme::mono(Ty::fun(
-        vec![Ty::string(), Ty::string()],
+        vec![http_atom_t, Ty::string()],
         http_req_t.clone()
     )));
     // Http.header(req, key, val) -> Request

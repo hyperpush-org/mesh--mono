@@ -5650,3 +5650,12 @@ fn e2e_datetime_compare() {
     let output = compile_and_run(&source);
     assert_eq!(output, "true\nfalse\nfalse\ntrue\n");
 }
+
+/// Phase 137: Http.build/header/timeout fluent builder compiles (HTTP-01, HTTP-02, HTTP-04).
+/// Compile-only — no network access needed. The program builds a request and prints "built".
+#[test]
+fn e2e_http_builder_compiles() {
+    let source = read_fixture("http_client_builder.mpl");
+    let output = compile_and_run(&source);
+    assert_eq!(output, "built\n");
+}

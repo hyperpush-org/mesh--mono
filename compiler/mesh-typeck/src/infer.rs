@@ -449,10 +449,14 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
     // ── Http client module (Phase 137) ───────────────────────────────────────
     let http_req_t = Ty::int();   // opaque handle — u64 ABI as Int
     let http_resp_t = Ty::Con(TyCon::new("HttpResponse"));
+    // Atom type for HTTP method (e.g. :get, :post) — lowered to String at MIR level.
+    let http_method_atom_t = Ty::Con(TyCon::new("Atom"));
     let mut http_client_mod = HashMap::new();
 
+    // Http.build(:method, url) -> Request
+    // First arg is Atom — atoms are lowered to String at MIR/codegen level.
     http_client_mod.insert("build".to_string(),
-        Scheme::mono(Ty::fun(vec![Ty::string(), Ty::string()], http_req_t.clone())));
+        Scheme::mono(Ty::fun(vec![http_method_atom_t, Ty::string()], http_req_t.clone())));
     http_client_mod.insert("header".to_string(),
         Scheme::mono(Ty::fun(vec![http_req_t.clone(), Ty::string(), Ty::string()], http_req_t.clone())));
     http_client_mod.insert("body".to_string(),
