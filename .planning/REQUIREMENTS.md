@@ -48,10 +48,10 @@
 ### Testing Framework (TEST)
 
 - [x] **TEST-01**: User can run all `*.test.mpl` files in a project via `meshc test` with a pass/fail summary per test function
-- [ ] **TEST-02**: User can assert a boolean expression in a test via `assert expr` with failure output showing the expression source and value
-- [ ] **TEST-03**: User can assert equality in a test via `assert_eq a, b` with expected vs actual output on failure
-- [ ] **TEST-04**: User can assert inequality in a test via `assert_ne a, b` with a descriptive failure message
-- [ ] **TEST-05**: User can assert that a function raises an error via `assert_raises fn`
+- [x] **TEST-02**: User can assert a boolean expression in a test via `assert expr` with failure output showing the expression source and value
+- [x] **TEST-03**: User can assert equality in a test via `assert_eq a, b` with expected vs actual output on failure
+- [x] **TEST-04**: User can assert inequality in a test via `assert_ne a, b` with a descriptive failure message
+- [x] **TEST-05**: User can assert that a function raises an error via `assert_raises fn`
 - [ ] **TEST-06**: User can group related tests via `describe "..." do ... end` blocks with the group name shown in failure output
 - [ ] **TEST-07**: User can define shared setup and teardown for a describe block via `setup do ... end` and `teardown do ... end`
 - [ ] **TEST-08**: User can spawn a mock actor in a test via `Test.mock_actor(fn msg -> ... end)` returning a Pid for concurrency testing
@@ -142,10 +142,10 @@ Which phases cover which requirements.
 | HTTP-06 | Phase 137 | Complete |
 | HTTP-07 | Phase 137 | Complete |
 | TEST-01 | Phase 138 | Complete |
-| TEST-02 | Phase 138 | Pending |
-| TEST-03 | Phase 138 | Pending |
-| TEST-04 | Phase 138 | Pending |
-| TEST-05 | Phase 138 | Pending |
+| TEST-02 | Phase 138 | Complete |
+| TEST-03 | Phase 138 | Complete |
+| TEST-04 | Phase 138 | Complete |
+| TEST-05 | Phase 138 | Complete |
 | TEST-06 | Phase 138 | Pending |
 | TEST-07 | Phase 138 | Pending |
 | TEST-08 | Phase 138 | Pending |

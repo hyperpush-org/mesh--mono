@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Ecosystem & Standard Library
 status: unknown
-last_updated: "2026-02-28T19:57:54.061Z"
+last_updated: "2026-02-28T21:21:35.925Z"
 progress:
-  total_phases: 125
+  total_phases: 126
   completed_phases: 125
-  total_plans: 325
-  completed_plans: 325
+  total_plans: 328
+  completed_plans: 327
 ---
 
 # Project State
@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 ## Current Position
 
 Phase: 138 of 140 (Testing Framework) — IN PROGRESS
-Plan: 1 of 3 in current phase — COMPLETE
-Status: Plan 01 complete, ready for Plan 02
-Last activity: 2026-02-28 — Phase 138 Plan 01 complete: meshc test subcommand, test_runner.rs with *.test.mpl discovery, compile-to-temp-binary execution, ANSI summary output, --coverage stub
+Plan: 2 of 3 in current phase — COMPLETE
+Status: Plan 02 complete, ready for Plan 03
+Last activity: 2026-02-28 — Phase 138 Plan 02 complete: 9 mesh_test_* extern C runtime functions (begin, pass, fail_msg, assert, assert_eq, assert_ne, assert_raises, summary, cleanup_actors) with FAIL_MESSAGES accumulation, Failures: reprint section, catch_unwind assert_raises — wired through all 5 compiler registration points
 
-Progress: [██████░░░░] 46%  (6/13 plans)
+Progress: [███████░░░] 54%  (7/13 plans)
 
 ## Performance Metrics
 
@@ -43,7 +43,7 @@ Progress: [██████░░░░] 46%  (6/13 plans)
 | 135. Encoding & Crypto Stdlib | 2 | Complete |
 | 136. DateTime Stdlib | 2 | Complete |
 | 137. HTTP Client Improvements | 2 | Complete |
-| 138. Testing Framework | 3 | In progress (1/3) |
+| 138. Testing Framework | 3 | In progress (2/3) |
 | 139. Package Manifest & meshpkg CLI | 2 | Not started |
 | 140. Package Registry Backend & Website | 2 | Not started |
 
@@ -85,6 +85,9 @@ Recent decisions affecting current work:
 - [Phase 137 Plan 02]: Multi-statement closure bodies need 'fn param do ... end' syntax, not arrow form 'fn param -> ...'
 - [Phase 138 Plan 01]: test_runner copies each *.test.mpl to temp dir as main.mpl to reuse existing build() entry-point lookup without modification
 - [Phase 138 Plan 01]: TestSummary.passed is public API (future plans will read it); suppress dead_code lint with #[allow(dead_code)] on struct
+- [Phase 138]: Test module registered with empty HashMap in stdlib_modules() — mock_actor signature deferred to Plan 03
+- [Phase 138]: assert_* helpers call fail_with() then panic!() to unwind — Plan 03 harness wraps each test body in catch_unwind
+- [Phase 138]: FAIL_MESSAGES thread_local accumulates failure entries; mesh_test_summary reprints them in Failures: section before count line
 
 ### Pending Todos
 
@@ -99,5 +102,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed 138-01-PLAN.md — meshc test CLI infrastructure (test_runner.rs, Commands::Test); ready for Phase 138 Plan 02
+Stopped at: Completed 138-02-PLAN.md — mesh_test_* runtime functions + 5-point compiler wiring; ready for Phase 138 Plan 03
 Resume file: None
