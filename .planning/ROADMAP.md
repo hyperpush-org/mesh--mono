@@ -342,3 +342,14 @@ Plans:
 - [ ] 132-01-PLAN.md — Lexer keyword + parser grammar + AST node + type inference (JsonExpr as String)
 - [ ] 132-02-PLAN.md — MIR lowering to mesh_json_* calls + 5 E2E test fixtures
 - [ ] 132-03-PLAN.md — Mesher migration (all .mpl files) + documentation update
+
+### Phase 133: Ensure the vscode extension is updated with changes from milestones 10, 11, 12, 13
+
+**Goal:** VSCode extension v0.3.0 with grammar and LSP completions reflecting all syntax additions from milestones 10-13 — slot pipe operators, regex literals, atom literals, json keyword, nil constant, type alias and json snippets
+**Requirements**: none
+**Depends on:** Phase 132
+**Plans:** 2 plans
+
+Plans:
+- [ ] 133-01-PLAN.md — Grammar + LSP: json keyword, nil constant, atom literals, regex literals, slot pipe, new snippets
+- [ ] 133-02-PLAN.md — Version bump to 0.3.0, CHANGELOG update, VSIX package build
