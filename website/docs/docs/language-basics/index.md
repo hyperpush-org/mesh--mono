@@ -82,7 +82,7 @@ fn main() do
 end
 ```
 
-Heredocs are useful for JSON templates, SQL queries, and any multiline content where backslash escaping would be cumbersome.
+Heredocs are useful for SQL queries and any multiline string content where backslash escaping would be cumbersome. For JSON objects, prefer `json { }` literals instead (see [JSON Literals](#json-literals)).
 
 ### Type Inference
 
@@ -674,6 +674,55 @@ end
 ```
 
 Note that `Map.put` returns a new map -- all collections in Mesh are immutable.
+
+## JSON Literals
+
+Use `json { }` to construct JSON objects without manual string escaping or interpolation:
+
+```mesh
+# Simple object literal
+let response = json { status: "ok", count: 42 }
+# response is a String: {"status":"ok","count":42}
+
+# Multi-line (same result)
+let event = json {
+  issue_id: issue_id,
+  severity: "high"
+}
+```
+
+Keys are bare identifiers (no quotes needed). Values are any Mesh expression — the type determines how they are serialized:
+
+| Mesh type | JSON output |
+|-----------|-------------|
+| `String`  | `"quoted string"` |
+| `Int`     | `42` (unquoted number) |
+| `Float`   | `3.14` (unquoted) |
+| `Bool`    | `true` / `false` |
+| `nil`     | `null` |
+| `Option<T>` | `null` (None) or the value (Some) |
+| `List<T>` | JSON array |
+| Struct with `deriving(Json)` | nested JSON object |
+
+Nested `json { }` values embed raw — no double-encoding:
+
+```mesh
+let inner = json { code: 200 }
+let outer = json { result: inner, ok: true }
+# outer is: {"result":{"code":200},"ok":true}
+```
+
+The result of `json { }` auto-coerces to `String` and can be passed anywhere a `String` is expected — for example, directly to `HTTP.response` or `Ws.broadcast`:
+
+```mesh
+HTTP.response(200, json { status: "ok", affected: n })
+HTTP.response(401, json { error: "unauthorized" })
+Ws.broadcast(room, json { id: record_id })
+```
+
+This replaces heredoc JSON templates (`"""{"key":"#{val}"}"""`) and manual string concatenation (`"{\"key\":\"" <> val <> "\"}"`) with readable, type-safe object literals.
+
+> **Note:** Keys must be bare identifiers. Reserved keywords (`type`, `fn`, `let`, etc.) cannot be used as keys directly — use heredoc strings for JSON objects with keyword-named fields.
 
 ## Type Aliases
 

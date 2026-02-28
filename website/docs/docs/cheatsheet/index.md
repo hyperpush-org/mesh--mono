@@ -44,8 +44,14 @@ println("Hello, ${name}!")
 
 # Heredoc strings (multiline, no escaping needed)
 let body = """
-  {"id": #{id}, "name": "#{name}"}
+  SELECT * FROM events WHERE id = #{id}
   """
+
+# JSON object literals (prefer over heredoc JSON templates)
+let resp = json { status: "ok", count: n }          # {"status":"ok","count":42}
+let err  = json { error: reason }                    # {"error":"not found"}
+let nest = json { result: json { code: 200 } }       # {"result":{"code":200}}
+HTTP.response(200, json { status: "ok", id: id })   # use directly as String
 
 # Regex literals
 let rx = ~r/\d+/
