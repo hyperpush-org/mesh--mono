@@ -26,7 +26,7 @@ impl Token {
 /// identifiers, and special tokens.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum TokenKind {
-    // ── Keywords (48) ──────────────────────────────────────────────────
+    // ── Keywords (49) ──────────────────────────────────────────────────
     Actor,
     After,
     Alias,
@@ -46,6 +46,8 @@ pub enum TokenKind {
     Impl,
     Import,
     Interface,
+    /// The `json` keyword.
+    JsonKw,
     In,
     Let,
     Link,
@@ -219,6 +221,7 @@ pub fn keyword_from_str(s: &str) -> Option<TokenKind> {
         "impl" => Some(TokenKind::Impl),
         "import" => Some(TokenKind::Import),
         "interface" => Some(TokenKind::Interface),
+        "json" => Some(TokenKind::JsonKw),
         "in" => Some(TokenKind::In),
         "let" => Some(TokenKind::Let),
         "link" => Some(TokenKind::Link),
@@ -278,6 +281,7 @@ mod tests {
             ("impl", TokenKind::Impl),
             ("import", TokenKind::Import),
             ("interface", TokenKind::Interface),
+            ("json", TokenKind::JsonKw),
             ("in", TokenKind::In),
             ("let", TokenKind::Let),
             ("link", TokenKind::Link),
@@ -317,8 +321,8 @@ mod tests {
             );
         }
 
-        // Verify we tested all 48 keywords
-        assert_eq!(keywords.len(), 48, "must test all 48 keywords");
+        // Verify we tested all 49 keywords
+        assert_eq!(keywords.len(), 49, "must test all 49 keywords");
     }
 
     #[test]
@@ -341,10 +345,10 @@ mod tests {
     #[test]
     fn token_kind_variant_count() {
         // Count variants by checking that all categories are covered.
-        // Keywords: 48, Operators: 25 (added SlotPipe(u32)), Delimiters: 6, Punctuation: 5,
-        // Literals: 9 (added RegexLiteral(String, String)), Identifiers/comments: 4, Special: 2 = 99 total
+        // Keywords: 49 (added JsonKw), Operators: 25 (added SlotPipe(u32)), Delimiters: 6, Punctuation: 5,
+        // Literals: 9 (added RegexLiteral(String, String)), Identifiers/comments: 4, Special: 2 = 100 total
         // This test documents the expected count.
-        let keywords = 48u32;
+        let keywords = 49u32; // Added JsonKw
         let operators = 25; // Added SlotPipe(u32)
         let delimiters = 6;
         let punctuation = 5;
@@ -352,6 +356,6 @@ mod tests {
         let ident_comments = 4;
         let special = 2;
         let total = keywords + operators + delimiters + punctuation + literals + ident_comments + special;
-        assert_eq!(total, 99, "TokenKind should have 99 variants");
+        assert_eq!(total, 100, "TokenKind should have 100 variants");
     }
 }

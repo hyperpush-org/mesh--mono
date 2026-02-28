@@ -20,7 +20,7 @@ pub enum SyntaxKind {
     /// Wrapper for tokens/nodes that couldn't be parsed.
     ERROR_NODE = 1,
 
-    // ── Keywords (48) ──────────────────────────────────────────────────
+    // ── Keywords (49) ──────────────────────────────────────────────────
     ACTOR_KW,
     AFTER_KW,
     ALIAS_KW,
@@ -40,6 +40,7 @@ pub enum SyntaxKind {
     IMPL_KW,
     IMPORT_KW,
     INTERFACE_KW,
+    JSON_KW,
     IN_KW,
     LET_KW,
     LINK_KW,
@@ -200,6 +201,10 @@ pub enum SyntaxKind {
     ATOM_EXPR,
     /// Regex literal expression: `~r/pattern/flags`.
     REGEX_EXPR,
+    /// Json object literal expression: `json { key: expr, ... }`
+    JSON_EXPR,
+    /// Single field in a json literal: `key: value`
+    JSON_FIELD,
     /// Name in a definition position.
     NAME,
     /// Name reference (identifier used as expression).
@@ -396,6 +401,7 @@ impl From<TokenKind> for SyntaxKind {
             TokenKind::Impl => SyntaxKind::IMPL_KW,
             TokenKind::Import => SyntaxKind::IMPORT_KW,
             TokenKind::Interface => SyntaxKind::INTERFACE_KW,
+            TokenKind::JsonKw => SyntaxKind::JSON_KW,
             TokenKind::In => SyntaxKind::IN_KW,
             TokenKind::Let => SyntaxKind::LET_KW,
             TokenKind::Link => SyntaxKind::LINK_KW,
@@ -514,6 +520,7 @@ mod tests {
             TokenKind::Impl,
             TokenKind::Import,
             TokenKind::Interface,
+            TokenKind::JsonKw,
             TokenKind::In,
             TokenKind::Let,
             TokenKind::Link,
@@ -602,7 +609,7 @@ mod tests {
             TokenKind::Error,
         ];
 
-        assert_eq!(all_kinds.len(), 99, "must test all 99 TokenKind variants");
+        assert_eq!(all_kinds.len(), 100, "must test all 100 TokenKind variants");
 
         for kind in all_kinds {
             let _syntax_kind: SyntaxKind = kind.into();
@@ -631,7 +638,7 @@ mod tests {
 
     #[test]
     fn syntax_kind_has_enough_variants() {
-        // 2 sentinels + 90 token kinds + 1 WHITESPACE + 56 node kinds
+        // 2 sentinels + 91 token kinds + 1 WHITESPACE + 58 node kinds
         // Verify we have at least the expected count of composite node kinds.
         let node_kinds = [
             SyntaxKind::SOURCE_FILE,
@@ -661,6 +668,9 @@ mod tests {
             SyntaxKind::CLOSURE_EXPR,
             SyntaxKind::LITERAL,
             SyntaxKind::ATOM_EXPR,
+            SyntaxKind::REGEX_EXPR,
+            SyntaxKind::JSON_EXPR,
+            SyntaxKind::JSON_FIELD,
             SyntaxKind::NAME,
             SyntaxKind::NAME_REF,
             SyntaxKind::PATH,
@@ -739,8 +749,8 @@ mod tests {
             SyntaxKind::SECONDS_LIMIT,
         ];
         assert!(
-            node_kinds.len() >= 88,
-            "expected at least 88 composite node kinds, got {}",
+            node_kinds.len() >= 90,
+            "expected at least 90 composite node kinds, got {}",
             node_kinds.len()
         );
     }
