@@ -33,7 +33,7 @@
 - [x] **DTIME-05**: User can convert a DateTime to a Unix timestamp Int via `DateTime.to_unix(dt)`
 - [x] **DTIME-06**: User can add a duration to a DateTime via `DateTime.add(dt, n, unit)` with units :second/:minute/:hour/:day
 - [x] **DTIME-07**: User can compute the signed difference between two DateTimes via `DateTime.diff(dt1, dt2, unit)` returning Int
-- [x] **DTIME-08**: User can compare two DateTimes via `DateTime.before?(dt1, dt2)` and `DateTime.after?(dt1, dt2)` returning Bool
+- [x] **DTIME-08**: User can compare two DateTimes via `DateTime.is_before(dt1, dt2)` and `DateTime.is_after(dt1, dt2)` returning Bool
 
 ### HTTP Client (HTTP)
 
