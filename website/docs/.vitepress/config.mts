@@ -68,6 +68,10 @@ export default defineConfig({
   },
 
   themeConfig: {
+    nav: [
+      { text: 'Docs', link: '/docs/' },
+      { text: 'Packages', link: '/packages/' },
+    ],
     search: { provider: 'local' },
     editLink: {
       pattern: 'https://github.com/snowdamiz/mesh-lang/edit/main/website/docs/:path',
