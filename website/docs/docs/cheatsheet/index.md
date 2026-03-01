@@ -380,3 +380,95 @@ let n = length("test")
 | List concat | `++` |
 | Error propagation | `?` |
 | Range | `..` |
+
+## Testing
+
+```mesh
+# File: my_module.test.mpl
+# Run with: meshc test .
+
+test("basic assertions") do
+  assert(1 + 1 == 2)
+  assert_eq(10, 5 + 5)
+  assert_ne(3, 4)
+  assert_raises fn() do
+    panic("boom")
+  end
+end
+
+describe("grouped tests") do
+  setup do
+    assert(true)   # runs before each test
+  end
+
+  teardown do
+    assert(true)   # runs after each test
+  end
+
+  test("inner test") do
+    assert(true)
+  end
+end
+
+test("actor messaging") do
+  let me = self()
+  send(me, 42)
+  assert_receive 42, 500   # pattern, timeout_ms
+end
+
+# Mock actor for concurrency tests
+let mock = Test.mock_actor(fn msg do
+  # handle msg
+  "ok"   # return "ok" to continue, "stop" to terminate
+end)
+```
+
+| Assertion | Description |
+|-----------|-------------|
+| `assert expr` | Fail if expr is false |
+| `assert_eq a, b` | Fail if a != b |
+| `assert_ne a, b` | Fail if a == b |
+| `assert_raises fn` | Fail if fn does not raise |
+| `assert_receive pat, ms` | Fail if not received within timeout |
+
+See [Testing](/docs/testing/) for full guide.
+
+## Standard Library
+
+```mesh
+# Crypto
+let h256 = Crypto.sha256("hello")
+let h512 = Crypto.sha512("hello")
+let mac = Crypto.hmac_sha256("key", "msg")
+let ok = Crypto.secure_compare("a", "a")   # Bool, constant-time
+let id = Crypto.uuid4()                    # UUID v4 string
+
+# Encoding
+let b64 = Base64.encode("hello")
+case Base64.decode(b64) do
+  Ok(s) -> println(s)
+  Err(e) -> println(e)
+end
+let url = Base64.encode_url("hello")
+
+let hex = Hex.encode("hi")   # "6869"
+case Hex.decode(hex) do
+  Ok(s) -> println(s)
+  Err(e) -> println(e)
+end
+
+# DateTime
+let dt = DateTime.utc_now()
+let iso = DateTime.to_iso8601(dt)
+let ms = DateTime.to_unix_ms(dt)
+case DateTime.from_iso8601("2024-01-15T10:30:00Z") do
+  Ok(dt2) ->
+    let next = DateTime.add(dt2, 7, :day)
+    let diff = DateTime.diff(next, dt2, :day)   # Float
+    let before = DateTime.is_before(dt2, next)  # Bool
+    let after = DateTime.is_after(next, dt2)    # Bool
+  Err(e) -> println(e)
+end
+```
+
+See [Standard Library](/docs/stdlib/) for full reference.
