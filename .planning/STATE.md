@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Ecosystem & Standard Library
 status: unknown
-last_updated: "2026-03-01T17:28:11.725Z"
+last_updated: "2026-03-01T17:28:43.369Z"
 progress:
   total_phases: 131
   completed_phases: 130
   total_plans: 346
-  completed_plans: 344
+  completed_plans: 345
 ---
 
 # Project State
@@ -18,14 +18,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Expressive, readable concurrency -- writing concurrent programs should feel as natural and clean as writing sequential code, with the safety net of supervision and fault tolerance built into the language.
-**Current focus:** v14.0 Phase 142 — Update Docs Page with Changes/Additions from v14 (all 3 plans complete)
+**Current focus:** v14.0 Phase 143 — Deploy everything including new stuff from v14 (3/4 plans complete)
 
 ## Current Position
 
-Phase: 142 of 143 (Update Docs Page with Changes/Additions from v14) — All 3 plans complete
-Plan: 3 of 3 in current phase — Complete
-Status: Phase 142 complete — Mesh agent skill files updated for v14; SKILL.md ecosystem overview expanded to 8 items; Http v14 builder API section added to http SKILL.md
-Last activity: 2026-03-01 — Phase 142 Plan 03 complete: Http.build/send/stream/client/send_with documented with 4 code examples; skills/testing entry correctly omitted
+Phase: 143 of 143 (Deploy everything including new stuff from v14) — 3 of 4 plans complete
+Plan: 3 of 4 in current phase — Complete
+Status: Phase 143 Plan 03 complete — meshpkg CI build job (4 Unix targets, no LLVM) and install.sh install_binary() helper distributing meshpkg alongside meshc
+Last activity: 2026-03-01 — Phase 143 Plan 03 complete: release.yml build-meshpkg job added; install.sh refactored with install_binary() helper for both meshc and meshpkg
 
 Progress: [██████████] 99%  (13/13 plans)
 
@@ -55,7 +55,9 @@ Progress: [██████████] 99%  (13/13 plans)
 | Phase 142 P02 | 2 | 3 tasks | 3 files |
 | Phase 142 P03 | 2 | 2 tasks | 2 files |
 | Phase 143 P02 | 2 | 2 tasks | 12 files |
+| Phase 143 P03 | 2 | 2 tasks | 2 files |
 | Phase 143-deploy-everything-including-new-stuff-from-v14 P01 | 1 | 2 tasks | 5 files |
+| Phase 143 P03 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -137,6 +139,8 @@ Recent decisions affecting current work:
 - [Phase 143]: vite.config.js required in SvelteKit projects — vite build needs sveltekit() plugin registered
 - [Phase 143]: with_secure(true) correct for Fly.io — TLS terminates at edge proxy, HTTPS-only session cookies work correctly for production
 - [Phase 143]: cargo-chef multi-stage Dockerfile used for registry — dependency layer caching reduces rebuild times; binary target is mesh-registry
+- [Phase 143]: build-meshpkg is a separate CI job (not a matrix entry in build) to avoid 15+ min LLVM cost per runner for a pure-Rust binary
+- [Phase 143]: install_binary() helper in install.sh centralizes download/verify/install logic for any mesh toolchain binary by name
 
 ### Roadmap Evolution
 
@@ -157,5 +161,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 142-02-PLAN.md — tooling page meshc test + meshpkg docs; web page Http v14 fluent builder docs; cheatsheet Testing + stdlib sections
+Stopped at: Completed 143-03-PLAN.md — meshpkg CI build job and install.sh distribution with install_binary() helper
 Resume file: None
