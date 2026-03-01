@@ -417,4 +417,17 @@ Plans:
 **Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 144-01-PLAN.md — Create deploy-services.yml (parallel Fly.io deploys + health checks) + add tag trigger to deploy.yml
+- [x] 144-01-PLAN.md — Create deploy-services.yml (parallel Fly.io deploys + health checks) + add tag trigger to deploy.yml
+
+### Phase 145: Completely redesign the mesh packages page. It is extremely bare and simple. It should be production grade and look good and fit the theme of the landing page
+
+**Goal:** packages.meshlang.dev is redesigned to production-grade quality — Tailwind CSS v4 + OKLCH design system matching the landing page, Inter + JetBrains Mono fonts, sticky navbar with dark mode toggle, hero section + responsive 3-column package grid on the home page, two-column README prose + metadata sidebar on detail pages, styled search results, and all 3 API data bugs fixed
+**Requirements**: none specified
+**Depends on:** Phase 144
+**Plans:** 4 plans
+
+Plans:
+- [ ] 145-01-PLAN.md — Tailwind v4 + OKLCH design system foundation + API bug fixes (search param, versions endpoint in registry)
+- [ ] 145-02-PLAN.md — Redesign +layout.svelte (sticky navbar + dark mode + footer) + +page.svelte (hero + package grid)
+- [ ] 145-03-PLAN.md — Redesign package detail page (README prose + copy button + sidebar) + search results page
+- [ ] 145-04-PLAN.md — Build verification + human visual approval checkpoint
