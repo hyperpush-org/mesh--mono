@@ -13,6 +13,11 @@ members = [
     "compiler/mesh-repl",
     "compiler/meshpkg",
 ]
+# registry/ is excluded from the main workspace to avoid a libsqlite3-sys conflict:
+# mesh-rt uses libsqlite3-sys 0.36 (bundled) while sqlx-sqlite requires 0.28.x.
+# Both crates define links = "sqlite3", which Cargo does not allow in the same dep graph.
+# registry/Cargo.toml declares its own [workspace] root to be resolved independently.
+exclude = ["registry"]
 resolver = "2"
 
 [workspace.dependencies]

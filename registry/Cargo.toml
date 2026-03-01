@@ -1,0 +1,56 @@
+[workspace]
+members = ["." ]
+resolver = "2"
+
+[workspace.dependencies]
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "chrono", "migrate", "macros"] }
+aws-config = "1"
+aws-sdk-s3 = "1"
+aws-credential-types = "1"
+oauth2 = "4"
+tower-sessions = "0.14"
+tower-sessions-sqlx-store = { version = "0.15", features = ["postgres"] }
+argon2 = "0.5"
+uuid = { version = "1", features = ["v4"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenvy = "0.15"
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+
+[package]
+name = "mesh-registry"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "mesh-registry"
+path = "src/main.rs"
+
+[dependencies]
+axum = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+sqlx = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+aws-credential-types = { workspace = true }
+oauth2 = { workspace = true }
+tower-sessions = { workspace = true }
+tower-sessions-sqlx-store = { workspace = true }
+argon2 = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+dotenvy = { workspace = true }
+tokio-util = { workspace = true }
