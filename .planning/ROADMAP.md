@@ -367,5 +367,5 @@ Plans:
 | 136. DateTime Stdlib | 2/2 | Complete    | 2026-02-28 |
 | 137. HTTP Client Improvements | 2/2 | Complete    | 2026-02-28 |
 | 138. Testing Framework | 5/5 | Complete    | 2026-02-28 |
-| 139. Package Manifest & meshpkg CLI | 2/2 | Complete   | 2026-03-01 |
+| 139. Package Manifest & meshpkg CLI | 2/2 | Complete    | 2026-03-01 |
 | 140. Package Registry Backend & Website | 0/2 | Not started | - |
