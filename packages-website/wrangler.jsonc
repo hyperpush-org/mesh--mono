@@ -1,0 +1,6 @@
+{
+  "name": "mesh-packages",
+  "pages_build_output_dir": ".svelte-kit/cloudflare",
+  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_date": "2026-01-01"
+}
