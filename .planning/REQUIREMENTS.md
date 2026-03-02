@@ -48,25 +48,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SLUG-01 | — | Pending |
-| SLUG-02 | — | Pending |
-| SLUG-03 | — | Pending |
-| SLUG-04 | — | Pending |
-| SLUG-05 | — | Pending |
-| DIST-01 | — | Pending |
-| DIST-02 | — | Pending |
-| DIST-03 | — | Pending |
-| DIST-04 | — | Pending |
-| INTG-01 | — | Pending |
-| INTG-02 | — | Pending |
-| INTG-03 | — | Pending |
-| INTG-04 | — | Pending |
+| SLUG-01 | Phase 146 | Pending |
+| SLUG-02 | Phase 146 | Pending |
+| SLUG-03 | Phase 146 | Pending |
+| SLUG-04 | Phase 146 | Pending |
+| SLUG-05 | Phase 146 | Pending |
+| DIST-01 | Phase 147 | Pending |
+| DIST-02 | Phase 147 | Pending |
+| DIST-03 | Phase 147 | Pending |
+| DIST-04 | Phase 147 | Pending |
+| INTG-01 | Phase 148 | Pending |
+| INTG-02 | Phase 148 | Pending |
+| INTG-03 | Phase 148 | Pending |
+| INTG-04 | Phase 148 | Pending |
 
 **Coverage:**
 - v15 requirements: 13 total
-- Mapped to phases: 0
-- Unmapped: 13 ⚠️
+- Mapped to phases: 13
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-01*
-*Last updated: 2026-03-01 after initial definition*
+*Last updated: 2026-03-01 after roadmap creation (traceability filled)*

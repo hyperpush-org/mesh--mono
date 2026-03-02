@@ -26,6 +26,7 @@
 - [x] **v12.0 Language Ergonomics & Open Source Readiness** - Phases 116-125 (shipped 2026-02-27)
 - [x] **v13.0 Language Completeness** - Phases 126-134 (shipped 2026-02-28)
 - [x] **v14.0 Ecosystem & Standard Library** - Phases 135-145 (shipped 2026-03-01)
+- [ ] **v15.0 Package Dogfood** - Phases 146-148 (in progress)
 
 ## Phases
 
@@ -264,6 +265,58 @@ See milestones/v14.0-ROADMAP.md for full phase details.
 
 </details>
 
+### v15.0 Package Dogfood (In Progress)
+
+**Milestone Goal:** Validate the end-to-end package manager workflow by building, publishing, and consuming a real Mesh package (`mesh-slug`) in production.
+
+- [ ] **Phase 146: Slug Library** - Build the mesh-slug Mesh package with full API and meshc test coverage
+- [ ] **Phase 147: Publish and Verify** - Publish mesh-slug to the registry and confirm discoverability and installability
+- [ ] **Phase 148: Mesher Integration** - Integrate mesh-slug into Mesher as a real registry-installed dependency
+
+## Phase Details
+
+### Phase 146: Slug Library
+**Goal**: Users can call a complete, tested `Slug.*` API in Mesh to generate URL-safe slugs
+**Depends on**: Nothing new (meshc test and meshpkg CLI already exist from v14.0)
+**Requirements**: SLUG-01, SLUG-02, SLUG-03, SLUG-04, SLUG-05
+**Success Criteria** (what must be TRUE):
+  1. `Slug.slugify("Hello World!")` returns `"hello-world"` (lowercase, separator-normalized)
+  2. `Slug.slugify("Hello World!", "_")` returns `"hello_world"` (custom separator honored)
+  3. `Slug.truncate("hello-world-foo", 11)` returns `"hello-world"` (cuts at last separator boundary)
+  4. `Slug.is_valid("hello-world")` returns `true`; `Slug.is_valid("Hello World!")` returns `false`
+  5. `meshc test` runs the mesh-slug test suite and all tests pass (normal cases + edge cases: empty string, all-special input, long string)
+**Plans**: TBD
+
+### Phase 147: Publish and Verify
+**Goal**: mesh-slug is live on the Mesh package registry and any project can install it
+**Depends on**: Phase 146
+**Requirements**: DIST-01, DIST-02, DIST-03, DIST-04
+**Success Criteria** (what must be TRUE):
+  1. mesh-slug has a valid `mesh.toml` with name, version, and description; `meshpkg publish` succeeds without error
+  2. Searching for "slug" on packages.meshlang.dev shows the mesh-slug package listing
+  3. Running `meshpkg install mesh-slug` in a fresh project directory downloads and installs the package successfully
+  4. The installed package can be imported and called from a simple Mesh program without compiler errors
+**Plans**: TBD
+
+### Phase 148: Mesher Integration
+**Goal**: Mesher uses mesh-slug from the registry as a real dependency, proving the full package workflow end-to-end
+**Depends on**: Phase 147
+**Requirements**: INTG-01, INTG-02, INTG-03, INTG-04
+**Success Criteria** (what must be TRUE):
+  1. Mesher's `mesh.toml` lists `mesh-slug` as a dependency with the published version string
+  2. `meshpkg install` in the mesher/ directory installs mesh-slug without error
+  3. Mesher uses `Slug.slugify` for project slug generation in at least one real code path (replacing any existing ad-hoc logic or adding new slug behavior)
+  4. Mesher compiles with zero errors and all existing HTTP API endpoints return expected responses
+**Plans**: TBD
+
 ## Progress
 
 **Total: 24 milestones shipped, 145 phases, 394 plans across completed milestones.**
+
+**v15.0 Progress:**
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 146. Slug Library | 0/TBD | Not started | - |
+| 147. Publish and Verify | 0/TBD | Not started | - |
+| 148. Mesher Integration | 0/TBD | Not started | - |
