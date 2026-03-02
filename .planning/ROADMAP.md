@@ -300,7 +300,12 @@ Plans:
   2. Searching for "slug" on packages.meshlang.dev shows the mesh-slug package listing
   3. Running `meshpkg install mesh-slug` in a fresh project directory downloads and installs the package successfully
   4. The installed package can be imported and called from a simple Mesh program without compiler errors
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 147-01-PLAN.md — Fix meshpkg tarball packing and meshc installed package discovery
+- [ ] 147-02-PLAN.md — Authenticate, update package name, publish to registry, verify search
+- [ ] 147-03-PLAN.md — Install in consumer project, compile, run, final verification
 
 ### Phase 148: Mesher Integration
 **Goal**: Mesher uses mesh-slug from the registry as a real dependency, proving the full package workflow end-to-end
