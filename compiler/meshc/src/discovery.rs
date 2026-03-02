@@ -220,6 +220,35 @@ pub fn build_project(project_root: &Path) -> Result<ProjectData, String> {
         module_parses.push(parse);
     }
 
+    // Phase 1b: Discover installed package modules from .mesh/packages/*/.
+    let packages_dir = project_root.join(".mesh").join("packages");
+    if packages_dir.exists() {
+        for entry in std::fs::read_dir(&packages_dir)
+            .map_err(|e| format!("Failed to read .mesh/packages: {}", e))?
+        {
+            let entry = entry.map_err(|e| format!("Failed to read packages entry: {}", e))?;
+            let pkg_dir = entry.path();
+            if !pkg_dir.is_dir() {
+                continue;
+            }
+
+            let pkg_files = discover_mesh_files(&pkg_dir)?;
+            for relative_path in &pkg_files {
+                let name = match path_to_module_name(relative_path) {
+                    Some(n) => n,
+                    None => continue, // skip main.mpl
+                };
+                let full_path = pkg_dir.join(relative_path);
+                let source = std::fs::read_to_string(&full_path)
+                    .map_err(|e| format!("Failed to read '{}': {}", full_path.display(), e))?;
+                let parse = mesh_parser::parse(&source);
+                let _id = graph.add_module(name, relative_path.clone(), false);
+                module_sources.push(source);
+                module_parses.push(parse);
+            }
+        }
+    }
+
     // Phase 2: Build dependency edges from import declarations.
     for id_val in 0..graph.module_count() {
         let id = ModuleId(id_val as u32);
