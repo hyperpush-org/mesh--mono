@@ -569,3 +569,26 @@
 
 ---
 
+
+## v15.0 Package Dogfood (Shipped: 2026-03-02)
+
+**Delivered:** Built, published, and consumed a real Mesh package (mesh-slug) end-to-end — validating the full package manager workflow from library authorship through registry publish to production integration in Mesher.
+
+**Phases completed:** 146-148 (3 phases, 7 plans)
+
+**Key accomplishments:**
+- Built mesh-slug library: slugify, slugify_with_sep, truncate, is_valid — 26 tests pass via `meshc test`
+- Fixed meshpkg tarball packing (root-level .mpl files) and extended discovery.rs for scoped two-level package layout
+- Published `snowdamiz/mesh-slug@1.0.0` to live registry (api.packages.meshlang.dev); searchable on packages.meshlang.dev
+- E2E verified: consumer project installs, imports Slug.slugify, compiles, executes printing "hello-world"
+- Integrated mesh-slug into Mesher: `insert_org` auto-generates org slugs via `Slug.slugify(name)` when no slug provided
+- Mesher compiles with zero errors against registry-installed package (24MB binary)
+
+**Stats:**
+- 55 files changed, +4,239 / -295 lines
+- 3 phases, 7 plans
+- 1 day (2026-03-01 → 2026-03-02)
+- 13/13 requirements satisfied
+
+---
+

@@ -2,23 +2,17 @@
 
 ## What This Is
 
-Mesh is a programming language that combines Elixir/Ruby-style expressive syntax with static Hindley-Milner type inference and BEAM-style concurrency (actors, supervision trees, fault tolerance), compiled via LLVM to native single-binary executables. The compiler is written in Rust. v1.0-v1.9 built a complete language: compiler pipeline, actor runtime, trait system, module system, loops, stdlib, and developer tooling. v2.0 added database drivers and JSON serde. v3.0 made Mesh production-ready: TLS, connection pooling, transactions, deriving(Row). v4.0 added WebSocket support with actor-per-connection model. v5.0 added distributed actors with location-transparent PIDs and TLS-encrypted node clustering. v6.0 added a documentation website. v7.0 added a comprehensive trait ecosystem (iterators, From/Into, numeric traits, Collect). v8.0 made Mesh installable with one-command install scripts, VS Code extension, and LSP. v9.0 shipped Mesher, a production error-monitoring backend (~4,441 lines of Mesh). v10.0 added a full ORM. v11.0 expanded the ORM with comprehensive query builder capabilities and rewrote all Mesher data queries. v12.0 added language ergonomics: slot pipe operator (`|N>`), string interpolation (`#{expr}`), heredoc strings, regex literals, typed env var stdlib, Mesh agent skill, repository reorganization, and published performance benchmarks (29,108 req/s — within 4% of Go). v13.0 completed the language's expressiveness: multi-line pipe continuation, type aliases (cross-module), TryFrom/TryInto traits, Map.collect string keys, native `json { }` object literals, VS Code extension v0.3.0, and full documentation. v14.0 shipped a complete ecosystem: Crypto/Encoding/DateTime stdlib, HTTP client fluent builder API with streaming and keep-alive, `meshc test` testing framework with mock actors, meshpkg CLI + hosted package registry (Fly.io + Cloudflare R2), dogfooded in Mesher, automated CI/CD on tag push, and a production-grade redesign of packages.meshlang.dev with Tailwind CSS v4 + OKLCH. ~132,524 total LOC across 24 milestones. Zero known compiler correctness issues.
+Mesh is a programming language that combines Elixir/Ruby-style expressive syntax with static Hindley-Milner type inference and BEAM-style concurrency (actors, supervision trees, fault tolerance), compiled via LLVM to native single-binary executables. The compiler is written in Rust. v1.0-v1.9 built a complete language: compiler pipeline, actor runtime, trait system, module system, loops, stdlib, and developer tooling. v2.0 added database drivers and JSON serde. v3.0 made Mesh production-ready: TLS, connection pooling, transactions, deriving(Row). v4.0 added WebSocket support with actor-per-connection model. v5.0 added distributed actors with location-transparent PIDs and TLS-encrypted node clustering. v6.0 added a documentation website. v7.0 added a comprehensive trait ecosystem (iterators, From/Into, numeric traits, Collect). v8.0 made Mesh installable with one-command install scripts, VS Code extension, and LSP. v9.0 shipped Mesher, a production error-monitoring backend (~4,441 lines of Mesh). v10.0 added a full ORM. v11.0 expanded the ORM with comprehensive query builder capabilities and rewrote all Mesher data queries. v12.0 added language ergonomics: slot pipe operator (`|N>`), string interpolation (`#{expr}`), heredoc strings, regex literals, typed env var stdlib, Mesh agent skill, repository reorganization, and published performance benchmarks (29,108 req/s — within 4% of Go). v13.0 completed the language's expressiveness: multi-line pipe continuation, type aliases (cross-module), TryFrom/TryInto traits, Map.collect string keys, native `json { }` object literals, VS Code extension v0.3.0, and full documentation. v14.0 shipped a complete ecosystem: Crypto/Encoding/DateTime stdlib, HTTP client fluent builder API with streaming and keep-alive, `meshc test` testing framework with mock actors, meshpkg CLI + hosted package registry (Fly.io + Cloudflare R2), dogfooded in Mesher, automated CI/CD on tag push, and a production-grade redesign of packages.meshlang.dev with Tailwind CSS v4 + OKLCH. v15.0 validated the end-to-end package manager workflow: built, published, and consumed a real Mesh package (`mesh-slug`) in production, integrating it into Mesher for slug auto-generation. ~132,524+ total LOC across 25 milestones. Zero known compiler correctness issues.
 
-## Current Milestone: v15.0 Package Dogfood
+## Current Milestone: Planning Next
 
-**Goal:** Validate the end-to-end package manager workflow by building, publishing, and consuming a real Mesh package in production.
-
-**Target features:**
-- `mesh-slug` library: pure-Mesh slug/URL-safe identifier generation
-- Published to packages.meshlang.dev registry via `meshpkg publish`
-- Consumed in Mesher via `meshpkg install` + import
-- Test coverage for the package itself via `meshc test`
+v15.0 shipped 2026-03-02. Planning next milestone.
 
 ## Current State
 
-Shipped v14.0 Ecosystem & Standard Library (2026-03-01). 24 milestones complete, 145 phases, 394 plans.
+Shipped v15.0 Package Dogfood (2026-03-02). 25 milestones complete, 148 phases, 401 plans.
 
-**Latest milestone (v14.0):** Crypto/Encoding/DateTime stdlib (SHA-256/512, HMAC, UUID v4, Base64, Hex, 11 DateTime functions), HTTP fluent builder API with OS-thread streaming + keep-alive, `meshc test` testing framework (assert/describe/mock actors/assert_receive), meshpkg CLI + Package Registry on Fly.io/Cloudflare R2 with GitHub OAuth, Mesher dogfooded (Crypto.uuid4 + mesh.toml + unit tests), automated CI/CD on tag push with post-deploy health checks, packages.meshlang.dev redesigned with Tailwind CSS v4 + OKLCH. 47/47 requirements satisfied. 219 files, +36,828 lines.
+**Latest milestone (v15.0):** Built `mesh-slug` pure-Mesh library (4 functions, 26 tests). Fixed meshpkg tarball + discovery.rs scoped package layout. Published `snowdamiz/mesh-slug@1.0.0` to live registry. E2E verified install+use with consumer project. Integrated into Mesher: `insert_org` auto-generates org slugs via `Slug.slugify`. 13/13 requirements satisfied. 55 files, +4,239 lines.
 
 ## Core Value
 
@@ -220,10 +214,13 @@ Expressive, readable concurrency -- writing concurrent programs should feel as n
 - ✓ Hosted packages site: browse, search, per-package README + version history; redesigned with Tailwind CSS v4 + OKLCH — v14.0
 - ✓ Mesher dogfooded: Crypto.uuid4() replaces pgcrypto, mesh.toml package manifest, unit tests via meshc test — v14.0
 - ✓ CI/CD: tag push auto-deploys registry + packages site to Fly.io + docs to GitHub Pages with health checks — v14.0
+- ✓ Slug library: `Slug.slugify`, `Slug.slugify_with_sep`, `Slug.truncate`, `Slug.is_valid` with 26 `meshc test` tests — v15.0
+- ✓ Package distribution: `mesh.toml` manifest, `meshpkg publish`, registry discoverability, `meshpkg install` — v15.0
+- ✓ End-to-end package workflow: real package (`mesh-slug`) published, installed, imported, and used in Mesher production code — v15.0
 
 ### Active
 
-<!-- v15.0 requirements — see .planning/REQUIREMENTS.md (defined via /gsd:new-milestone) -->
+<!-- Next milestone requirements — defined via /gsd:new-milestone -->
 
 ### Out of Scope
 
@@ -251,20 +248,20 @@ Expressive, readable concurrency -- writing concurrent programs should feel as n
 
 ## Context
 
-Shipped v14.0 with ~132,524 total LOC (Rust + Mesh + website source).
+Shipped v15.0 with ~132,524+ total LOC (Rust + Mesh + website source).
 Tech stack: Rust compiler, LLVM 21 (Inkwell 0.8), corosensei coroutines, rowan CST, ariadne diagnostics.
 ORM/DB: mesh-orm crate (schema DSL, repo, query builder, changesets, relationships, migrations), libsqlite3-sys (bundled), PostgreSQL pure wire protocol.
 Website: VitePress, Vue 3, Tailwind CSS v4, shadcn-vue, Shiki syntax highlighting.
 Packages site: SvelteKit + adapter-node + Tailwind CSS v4 + OKLCH design system, deployed to Fly.io.
 Registry: Axum 0.8, SQLx (runtime queries), Postgres, Cloudflare R2 (S3-compatible), GitHub OAuth, argon2 token hashing, tsvector FTS.
 Crates (under compiler/): mesh-lexer, mesh-parser, mesh-typeck, mesh-mir, mesh-codegen, mesh-rt, mesh-fmt, mesh-repl, mesh-pkg, mesh-lsp, mesh-orm, meshc.
-New in v14.0: ureq 3 (HTTP client), chrono 0.4 (DateTime stdlib), uuid crate (UUID v4), registry/ (standalone workspace: axum, sqlx, tower-sessions, axum-login, flate2+tar, sha2).
+New in v15.0: mesh-slug/ (first published Mesh package), mesher now a registry consumer (mesh.toml + mesh.lock + .mesh/packages/), scoped package install layout ({owner}/{name}@{version}/).
 Distribution: GitHub Actions CI (6 targets), install scripts (POSIX + PowerShell), VS Code Marketplace + Open VSX (v0.3.0). Tag push auto-deploys all services.
-Repository structure: compiler/ (Rust crates), mesher/ (production app + frontend), website/ (docs site), packages-website/ (SvelteKit packages site), registry/ (Axum registry backend), tools/ (install scripts, CI helpers, VS Code extension), skill/ (AI agent skills), benchmarks/ (perf comparison servers).
-Mesher (~4,441 lines of Mesh): production error-monitoring backend; uses Crypto.uuid4() for token generation; declared as Mesh package via mesh.toml; has unit tests via meshc test.
+Repository structure: compiler/ (Rust crates), mesher/ (production app + frontend), website/ (docs site), packages-website/ (SvelteKit packages site), registry/ (Axum registry backend), tools/ (install scripts, CI helpers, VS Code extension), skill/ (AI agent skills), benchmarks/ (perf comparison servers), mesh-slug/ (published Mesh package).
+Mesher (~4,441+ lines of Mesh): production error-monitoring backend; uses Crypto.uuid4() for token generation; declared as Mesh package via mesh.toml; uses mesh-slug for org slug auto-generation; has unit tests via meshc test.
 Benchmarks: Mesh 29,108 req/s (isolated /text), Go 30,306, Rust 46,244, Elixir 12,441. Methodology in benchmarks/.
 
-Zero known critical bugs. Zero known compiler correctness issues. All 24 milestones shipped.
+Zero known critical bugs. Zero known compiler correctness issues. All 25 milestones shipped.
 
 Known limitations: None.
 
@@ -460,6 +457,10 @@ Tech debt (minor, pre-existing):
 | cancel-in-progress: false on deploy-fly CI | Never cancel mid-flight Fly.io deploy (leaves app in broken state) | ✓ Good -- v14.0, safe CI |
 | meshc test project_dir walks upward to find nearest main.mpl | CWD-based approach copied entire workspace to temp build dir | ✓ Good -- v14.0, correct project detection |
 | meshpkg credentials stored as TOML at ~/.mesh/credentials | Consistent with ~/.mesh/bin install location from v8.0 | ✓ Good -- v14.0, familiar convention |
+| slugify_with_sep/2 naming for two-arg slug variant | ModuleExports.functions is FxHashMap<String, Scheme> keyed by name only; arity overloading unsupported across module boundaries | ✓ Good -- v15.0, clear naming convention |
+| Scoped packages use two-level install layout ({owner}/{name}@{version}/) | Mirrors GitHub namespace; discovery.rs Phase 1b walks two levels | ✓ Good -- v15.0, consistent with registry owner model |
+| Default registry is https://api.packages.meshlang.dev | registry.meshlang.dev is Vercel frontend (404s); api. subdomain is Axum backend | ✓ Good -- v15.0, documented to prevent confusion |
+| Empty-string sentinel for optional slug in insert_org | Caller passes "" to request auto-generation; preserves explicit-slug behavior; no overloading needed | ✓ Good -- v15.0, simple API without function overloading |
 
 ---
-*Last updated: 2026-03-01 after v14.0 milestone; v15.0 started*
+*Last updated: 2026-03-02 after v15.0 milestone*
