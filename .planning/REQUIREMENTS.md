@@ -11,7 +11,7 @@ Build, publish, and consume a real Mesh package (mesh-slug) to validate the end-
 ### Slug Library
 
 - [x] **SLUG-01**: User can call `Slug.slugify(str)` to convert any string to a URL-safe slug (lowercase, non-alphanumeric chars replaced with separator, consecutive separators collapsed, leading/trailing separators stripped)
-- [x] **SLUG-02**: User can call `Slug.slugify(str, sep)` with a custom separator string
+- [x] **SLUG-02**: User can call `Slug.slugify_with_sep(str, sep)` with a custom separator string (note: Mesh does not support arity overloading across module boundaries, so this function is named `slugify_with_sep` rather than `slugify/2`)
 - [x] **SLUG-03**: User can call `Slug.truncate(slug, max)` to truncate a slug to at most max characters, cutting at the last separator boundary
 - [x] **SLUG-04**: User can call `Slug.is_valid(slug)` to check if a string is already a valid slug (returns Bool)
 - [x] **SLUG-05**: mesh-slug has unit tests via `meshc test` covering normal cases and edge cases (empty string, all-special-char input, long strings)
