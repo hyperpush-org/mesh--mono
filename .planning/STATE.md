@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Package Dogfood
 status: unknown
-last_updated: "2026-03-02T02:32:45.557Z"
+last_updated: "2026-03-02T04:20:18.929Z"
 progress:
-  total_phases: 123
+  total_phases: 124
   completed_phases: 123
-  total_plans: 321
-  completed_plans: 321
+  total_plans: 324
+  completed_plans: 322
 ---
 
 # Project State
@@ -18,14 +18,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Expressive, readable concurrency -- writing concurrent programs should feel as natural and clean as writing sequential code, with the safety net of supervision and fault tolerance built into the language.
-**Current focus:** v15.0 Package Dogfood — Phase 146 complete, Phase 147 (publish) next
+**Current focus:** v15.0 Package Dogfood — Phase 147 Plan 01 complete, Plan 02 (publish) next
 
 ## Current Position
 
-Phase: 146 of 148 (Slug Library) — COMPLETE
-Plan: 2 of 2 complete in phase 146
-Status: Phase 146 complete — Phase 147 (publish mesh-slug to registry) is next
-Last activity: 2026-03-02 — Phase 146 Plan 02 complete (TDD implementation, 26 tests passing)
+Phase: 147 of 148 (Publish and Verify)
+Plan: 1 of 3 complete in phase 147
+Status: Phase 147 Plan 01 complete — Plan 02 (update mesh.toml namespace + publish to registry) is next
+Last activity: 2026-03-02 — meshpkg tarball fixed; meshc installed package discovery added; DIST-01/DIST-04 complete
 
 Progress: [██░░░░░░░░] 20% (v15.0)
 
@@ -41,6 +41,7 @@ Progress: [██░░░░░░░░] 20% (v15.0)
 |-------|------|----------|-------|-------|
 | 146-slug-library | 01 | 3min | 3 | 3 |
 | 146-slug-library | 02 | 6min | 2 | 2 |
+| 147-publish-and-verify | 01 | 12min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -61,6 +62,7 @@ Recent decisions affecting current work:
 - [146-02]: Mutual recursion between top-level functions not supported in Mesh (single-pass typechecker)
 - [146-02]: Lambda type annotations: fn(p) -> expr end (no type annotation on args, no do..end block)
 - [146-02]: split/filter-empty/join is the idiomatic Mesh pattern for slug normalization
+- [Phase 147-01]: Root-level .mpl files added to meshpkg tarball before src/ block; installed packages discovered from .mesh/packages/*/ in meshc build_project()
 
 ### Pending Todos
 
@@ -79,5 +81,5 @@ None for v15.0.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Phase 146 Plan 02 complete — Phase 147 (publish mesh-slug to registry) ready
+Stopped at: Completed 147-01-PLAN.md — meshpkg tarball fix and meshc installed package discovery ready; Plan 02 next
 Resume file: None
