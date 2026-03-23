@@ -17,55 +17,55 @@ service JobWorkerState do
   fn init(poll_ms :: Int, started_at :: String) -> WorkerState do
     WorkerState { poll_ms : poll_ms, started_at : started_at, last_tick_at : started_at, last_status : "starting", last_job_id : "", last_error : "", processed_jobs : 0, failed_jobs : 0 }
   end
-
+  
   call GetPollMs() :: Int do|state|
     (state, state.poll_ms)
   end
-
+  
   call GetStartedAt() :: String do|state|
     (state, state.started_at)
   end
-
+  
   call GetLastTickAt() :: String do|state|
     (state, state.last_tick_at)
   end
-
+  
   call GetLastStatus() :: String do|state|
     (state, state.last_status)
   end
-
+  
   call GetLastJobId() :: String do|state|
     (state, state.last_job_id)
   end
-
+  
   call GetLastError() :: String do|state|
     (state, state.last_error)
   end
-
+  
   call GetProcessedJobs() :: Int do|state|
     (state, state.processed_jobs)
   end
-
+  
   call GetFailedJobs() :: Int do|state|
     (state, state.failed_jobs)
   end
-
+  
   cast NoteTick(ts :: String) do|state|
     WorkerState { poll_ms : state.poll_ms, started_at : state.started_at, last_tick_at : ts, last_status : state.last_status, last_job_id : state.last_job_id, last_error : state.last_error, processed_jobs : state.processed_jobs, failed_jobs : state.failed_jobs }
   end
-
+  
   cast NoteIdle(ts :: String) do|state|
     WorkerState { poll_ms : state.poll_ms, started_at : state.started_at, last_tick_at : ts, last_status : "idle", last_job_id : state.last_job_id, last_error : "", processed_jobs : state.processed_jobs, failed_jobs : state.failed_jobs }
   end
-
+  
   cast NoteClaimed(ts :: String, job_id :: String) do|state|
     WorkerState { poll_ms : state.poll_ms, started_at : state.started_at, last_tick_at : ts, last_status : "processing", last_job_id : job_id, last_error : "", processed_jobs : state.processed_jobs, failed_jobs : state.failed_jobs }
   end
-
+  
   cast NoteProcessed(ts :: String, job_id :: String) do|state|
     WorkerState { poll_ms : state.poll_ms, started_at : state.started_at, last_tick_at : ts, last_status : "processed", last_job_id : job_id, last_error : "", processed_jobs : state.processed_jobs + 1, failed_jobs : state.failed_jobs }
   end
-
+  
   cast NoteFailed(ts :: String, job_id :: String, error_message :: String) do|state|
     WorkerState { poll_ms : state.poll_ms, started_at : state.started_at, last_tick_at : ts, last_status : "failed", last_job_id : job_id, last_error : error_message, processed_jobs : state.processed_jobs, failed_jobs : state.failed_jobs + 1 }
   end
@@ -125,7 +125,10 @@ fn note_processed(worker_state, job :: Job) do
   log_worker_processed(job)
 end
 
-fn mark_failed_after_processing(pool :: PoolHandle, worker_state, job :: Job, error_message :: String) do
+fn mark_failed_after_processing(pool :: PoolHandle,
+worker_state,
+job :: Job,
+error_message :: String) do
   let failed_result = mark_job_failed(pool, job.id, error_message)
   case failed_result do
     Ok( failed_job) -> note_failed(worker_state, failed_job.id, error_message)
@@ -176,7 +179,9 @@ end
 
 actor job_worker(pool :: PoolHandle, worker_state, poll_ms :: Int) do
   Timer.sleep(poll_ms)
+  
   process_next_job(pool, worker_state)
+  
   job_worker(pool, worker_state, poll_ms)
 end
 

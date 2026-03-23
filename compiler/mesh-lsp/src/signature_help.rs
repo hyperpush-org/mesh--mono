@@ -356,7 +356,7 @@ mod tests {
 
     /// Helper: compute signature help for source at the given position.
     fn sig_help_at(source: &str, line: u32, character: u32) -> Option<SignatureHelp> {
-        let analysis = crate::analysis::analyze_document("file:///test.mpl", source);
+        let analysis = crate::analysis::analyze_document("file:///test.mpl", source, &[]);
         let position = Position { line, character };
         compute_signature_help(source, &analysis, &position)
     }

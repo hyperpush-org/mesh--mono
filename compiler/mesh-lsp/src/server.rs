@@ -52,7 +52,13 @@ impl MeshBackend {
     /// Analyze a document and publish diagnostics.
     async fn analyze_and_publish(&self, uri: Url, source: String) {
         let uri_str = uri.to_string();
-        let result = analysis::analyze_document(&uri_str, &source);
+        let open_documents = {
+            let docs = self.documents.lock().unwrap();
+            docs.iter()
+                .map(|(doc_uri, state)| (doc_uri.clone(), state.source.clone()))
+                .collect::<Vec<_>>()
+        };
+        let result = analysis::analyze_document(&uri_str, &source, &open_documents);
         let diagnostics = result.diagnostics.clone();
 
         // Store document state for hover queries.

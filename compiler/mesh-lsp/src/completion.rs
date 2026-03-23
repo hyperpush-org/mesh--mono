@@ -390,7 +390,7 @@ mod tests {
 
     /// Helper: compute completions for source at the given position.
     fn completions_at(source: &str, line: u32, character: u32) -> Vec<CompletionItem> {
-        let analysis = crate::analysis::analyze_document("file:///test.mpl", source);
+        let analysis = crate::analysis::analyze_document("file:///test.mpl", source, &[]);
         let position = Position { line, character };
         compute_completions(source, &analysis, &position)
     }

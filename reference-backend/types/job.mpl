@@ -1,10 +1,13 @@
 # Shared job row and lifecycle types for the reference backend.
 
 # Database-backed job statuses move through pending -> processing -> processed/failed.
-pub type JobStatus = String
+
+pubtype JobStatus = String
 
 # Job row shape exposed across storage, worker, and HTTP modules.
+
 # Keep fields as strings because Repo rows arrive through the text protocol.
+
 pub struct Job do
   id :: String
   status :: JobStatus
