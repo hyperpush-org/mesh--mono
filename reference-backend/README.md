@@ -46,6 +46,32 @@ cargo build -p mesh-rt
 cargo run -p meshc -- build reference-backend
 ```
 
+### Run the backend Mesh tests from the project root
+
+```bash
+cargo run -p meshc -- test reference-backend
+```
+
+### Run only the backend test directory
+
+```bash
+cargo run -p meshc -- test reference-backend/tests
+```
+
+### Run one backend Mesh test file
+
+```bash
+cargo run -p meshc -- test reference-backend/tests/config.test.mpl
+```
+
+### Coverage contract
+
+```bash
+cargo run -p meshc -- test --coverage reference-backend
+```
+
+`--coverage` is not implemented yet for `meshc test`; the command exits non-zero with an explicit unsupported message instead of pretending coverage succeeded.
+
 ### Check the explicit missing-env failure
 
 ```bash

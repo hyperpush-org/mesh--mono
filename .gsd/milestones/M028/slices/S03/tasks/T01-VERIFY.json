@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T01",
+  "unitId": "M028/S03/T01",
+  "timestamp": 1774291677957,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "cargo test -p meshc --test e2e_fmt -- --nocapture",
+      "exitCode": 0,
+      "durationMs": 5341,
+      "verdict": "pass"
+    }
+  ]
+}

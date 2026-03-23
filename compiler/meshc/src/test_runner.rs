@@ -40,49 +40,99 @@ pub struct TestSummary {
     pub failed: usize,
 }
 
-/// Run tests in the given project directory.
+fn resolve_target_path(target: &Path) -> Result<PathBuf, String> {
+    let abs = if target.is_absolute() {
+        target.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(|e| format!("Failed to read current directory: {}", e))?
+            .join(target)
+    };
+
+    if abs.exists() {
+        Ok(abs)
+    } else {
+        Err(format!("Test target '{}' does not exist", abs.display()))
+    }
+}
+
+fn find_project_dir_for_target(target: &Path) -> Option<PathBuf> {
+    let mut dir = if target.is_dir() {
+        target.to_path_buf()
+    } else {
+        target.parent()?.to_path_buf()
+    };
+
+    loop {
+        if dir.join("main.mpl").exists() {
+            return Some(dir);
+        }
+        match dir.parent() {
+            Some(parent) => dir = parent.to_path_buf(),
+            None => return None,
+        }
+    }
+}
+
+fn resolve_project_dir(target: Option<&Path>) -> Result<PathBuf, String> {
+    let cwd = std::env::current_dir().map_err(|e| format!("Failed to read current directory: {}", e))?;
+
+    match target {
+        Some(target) => {
+            let abs = resolve_target_path(target)?;
+            if abs.is_dir() {
+                Ok(find_project_dir_for_target(&abs).unwrap_or(abs))
+            } else {
+                Ok(find_project_dir_for_target(&abs).unwrap_or(cwd))
+            }
+        }
+        None => Ok(cwd),
+    }
+}
+
+fn resolve_test_files(target: Option<&Path>) -> Result<Vec<PathBuf>, String> {
+    match target {
+        Some(target) => {
+            let abs = resolve_target_path(target)?;
+            if abs.is_dir() {
+                discover_test_files(&abs)
+            } else if abs
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(|name| name.ends_with(".test.mpl"))
+                .unwrap_or(false)
+            {
+                Ok(vec![abs])
+            } else {
+                Err(format!(
+                    "'{}' is not a directory or a *.test.mpl file",
+                    abs.display()
+                ))
+            }
+        }
+        None => {
+            let cwd = std::env::current_dir()
+                .map_err(|e| format!("Failed to read current directory: {}", e))?;
+            discover_test_files(&cwd)
+        }
+    }
+}
+
+/// Run tests from the current project, a project root, a test directory, or a specific test file.
 ///
-/// - `filter_file`: if Some, run only that specific *.test.mpl file.
+/// - `target`: optional project root, directory, or specific `*.test.mpl` file.
 /// - `quiet`: compact output (dots instead of per-file names).
-/// - `coverage`: stub flag — prints message and exits cleanly without running tests.
-pub fn run_tests(
-    project_dir: &Path,
-    filter_file: Option<&Path>,
-    quiet: bool,
-    coverage: bool,
-) -> Result<TestSummary, String> {
-    // --coverage stub: accepted, prints message, exits cleanly
+/// - `coverage`: currently unsupported and returns an explicit error.
+pub fn run_tests(target: Option<&Path>, quiet: bool, coverage: bool) -> Result<TestSummary, String> {
     if coverage {
-        println!("Coverage reporting coming soon");
-        return Ok(TestSummary {
-            passed: 0,
-            failed: 0,
-        });
+        return Err(
+            "coverage reporting is not implemented for `meshc test`; run the command without --coverage"
+                .to_string(),
+        );
     }
 
-    // Discover test files
-    let test_files = if let Some(specific) = filter_file {
-        // Single file mode: resolve relative to cwd
-        let abs = if specific.is_absolute() {
-            specific.to_path_buf()
-        } else {
-            std::env::current_dir().unwrap_or_default().join(specific)
-        };
-        if !abs.exists() {
-            return Err(format!("Test file '{}' does not exist", abs.display()));
-        }
-        if !abs
-            .file_name()
-            .and_then(|n| n.to_str())
-            .map(|n| n.ends_with(".test.mpl"))
-            .unwrap_or(false)
-        {
-            return Err(format!("'{}' is not a *.test.mpl file", abs.display()));
-        }
-        vec![abs]
-    } else {
-        discover_test_files(project_dir)?
-    };
+    let project_dir = resolve_project_dir(target)?;
+    let test_files = resolve_test_files(target)?;
 
     if test_files.is_empty() {
         println!("No *.test.mpl files found.");
@@ -98,7 +148,7 @@ pub fn run_tests(
 
     for test_file in &test_files {
         let rel = test_file
-            .strip_prefix(project_dir)
+            .strip_prefix(&project_dir)
             .unwrap_or(test_file.as_path());
         let label = rel.display().to_string();
 
@@ -117,7 +167,7 @@ pub fn run_tests(
         // The test file is compiled as main.mpl; all other .mpl sources (excluding *.test.mpl
         // and the project's own main.mpl) are copied relative to their position in the project.
         // This enables `from Ingestion.Fingerprint import ...` to resolve at compile time.
-        copy_project_sources_to_tmp(project_dir, tmp_dir.path());
+        copy_project_sources_to_tmp(&project_dir, tmp_dir.path());
 
         let main_path = tmp_dir.path().join("main.mpl");
         std::fs::write(&main_path, &preprocessed)

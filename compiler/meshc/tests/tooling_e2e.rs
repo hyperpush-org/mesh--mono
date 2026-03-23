@@ -10,6 +10,16 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+/// Locate the repository root from the meshc package manifest directory.
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("meshc crate should live under compiler/")
+        .parent()
+        .expect("workspace root should be above compiler/")
+        .to_path_buf()
+}
+
 /// Locate the meshc binary built by cargo.
 fn meshc_bin() -> PathBuf {
     // CARGO_BIN_EXE_meshc is set by cargo when running integration tests
@@ -192,6 +202,98 @@ fn test_fmt_idempotent() {
         check.status.success(),
         "fmt --check disagrees after formatting: {}",
         String::from_utf8_lossy(&check.stderr)
+    );
+}
+
+// ── Test runner ──────────────────────────────────────────────────────
+
+#[test]
+fn test_test_runs_tests_directory_target() {
+    let dir = tempfile::tempdir().unwrap();
+    let project = dir.path().join("proj");
+    let tests_dir = project.join("tests");
+
+    std::fs::create_dir_all(&tests_dir).unwrap();
+    std::fs::write(project.join("main.mpl"), "fn main() do\n  println(\"app\")\nend\n").unwrap();
+    std::fs::write(project.join("math.mpl"), "pub fn answer() -> Int do\n  42\nend\n").unwrap();
+    std::fs::write(
+        tests_dir.join("math.test.mpl"),
+        "from Math import answer\n\ntest(\"directory target runs project tests\") do\n  assert(answer() == 42)\nend\n",
+    )
+    .unwrap();
+
+    let output = Command::new(meshc_bin())
+        .args(["test", tests_dir.to_str().unwrap()])
+        .output()
+        .expect("failed to run meshc test on tests directory");
+
+    assert!(
+        output.status.success(),
+        "meshc test <tests-dir> failed:\nstdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("1 passed"),
+        "expected a passing file-level summary for directory-target execution, got:\n{}",
+        stdout
+    );
+}
+
+#[test]
+fn test_test_reference_backend_project_directory_succeeds() {
+    let root = repo_root();
+
+    let output = Command::new(meshc_bin())
+        .current_dir(&root)
+        .args(["test", "reference-backend"])
+        .output()
+        .expect("failed to run meshc test reference-backend");
+
+    assert!(
+        output.status.success(),
+        "meshc test reference-backend failed:\nstdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("1 passed"),
+        "expected reference-backend project-dir run to execute one passing test file, got:\n{}",
+        stdout
+    );
+}
+
+#[test]
+fn test_test_coverage_reports_unsupported_contract() {
+    let root = repo_root();
+
+    let output = Command::new(meshc_bin())
+        .current_dir(&root)
+        .args(["test", "--coverage", "reference-backend"])
+        .output()
+        .expect("failed to run meshc test --coverage reference-backend");
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "expected unsupported coverage contract to exit 1, got stdout: {} stderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("coverage reporting is not implemented for `meshc test`; run the command without --coverage"),
+        "expected honest unsupported coverage message, got:\n{}",
+        stderr
+    );
+    assert!(
+        !String::from_utf8_lossy(&output.stdout).contains("Coverage reporting coming soon"),
+        "coverage command should no longer claim success with a placeholder"
     );
 }
 

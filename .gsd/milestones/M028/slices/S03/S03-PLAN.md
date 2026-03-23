@@ -49,7 +49,7 @@
   - Do: Reproduce the overflow against the real backend file, fix the flat-width/group-fit logic so `Hardline`/overflow cases choose broken rendering instead of panicking, add formatter regressions anchored to the backend reproducer or a reduced equivalent, and keep the shared `mesh_fmt::format_source(...)` path safe for later LSP transport proof.
   - Verify: `cargo test -p mesh-fmt -- --nocapture && cargo test -p meshc --test e2e_fmt -- --nocapture && cargo run -p meshc -- fmt --check reference-backend`
   - Done when: formatting the reference backend no longer panics, the fix is protected by automated regressions, and a future formatter/LSP change would fail mechanically before reintroducing the overflow.
-- [ ] **T02: Make `meshc test` truthful for `reference-backend` and coverage reporting** `est:2h`
+- [x] **T02: Make `meshc test` truthful for `reference-backend` and coverage reporting** `est:2h`
   - Why: The documented daily workflow (`meshc test .` / project-dir invocation) is false today, `reference-backend/` has no Mesh-native tests, and `--coverage` still exits green with a placeholder message.
   - Files: `compiler/meshc/src/main.rs`, `compiler/meshc/src/test_runner.rs`, `compiler/meshc/tests/tooling_e2e.rs`, `reference-backend/tests/config.test.mpl`, `reference-backend/README.md`
   - Do: Teach `meshc test` to accept a project/directory target without regressing specific-file mode, add at least one backend-native Mesh test under `reference-backend/tests/`, replace the green `--coverage` stub with an explicit honest contract, extend tooling e2e coverage for directory invocation + backend test execution + coverage behavior, and update the backend README to the verified workflow.

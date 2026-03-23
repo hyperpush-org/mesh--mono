@@ -6,7 +6,7 @@
 //! - `meshc init <name>` - Initialize a new Mesh project
 //! - `meshc deps [dir]` - Resolve and fetch dependencies
 //! - `meshc fmt <path>` - Format Mesh source files in-place
-//! - `meshc test [path]` - Run *.test.mpl files in the project directory
+//! - `meshc test [path]` - Run *.test.mpl files from a project root, tests directory, or specific test file
 //! - `meshc migrate [up|down|status|generate]` - Database migration management
 //! - `meshc repl` - Start an interactive REPL with LLVM JIT
 //! - `meshc lsp` - Start the LSP server (communicates via stdin/stdout)
@@ -104,16 +104,16 @@ enum Commands {
     Repl,
     /// Start the LSP server (communicates via stdin/stdout)
     Lsp,
-    /// Run test files (*.test.mpl) in a project directory
+    /// Run test files (*.test.mpl) from a project root, tests directory, or specific test file
     Test {
-        /// Path to a specific test file (optional; runs all *.test.mpl if omitted)
+        /// Path to a Mesh project, test directory, or specific *.test.mpl file (default: current directory)
         path: Option<PathBuf>,
 
         /// Show dots instead of test names (compact output)
         #[arg(long)]
         quiet: bool,
 
-        /// Accept --coverage flag (stub: prints message, exits cleanly)
+        /// Request coverage reporting (currently unsupported; exits with an error)
         #[arg(long)]
         coverage: bool,
     },
@@ -141,30 +141,6 @@ enum MigrateAction {
         /// Migration name (e.g., "create_users")
         name: String,
     },
-}
-
-/// Walk up from a test file path to find the nearest ancestor directory containing `main.mpl`.
-/// Returns None if no such directory is found.
-fn find_project_dir_for_test(test_path: &Path) -> Option<PathBuf> {
-    let abs = if test_path.is_absolute() {
-        test_path.to_path_buf()
-    } else {
-        std::env::current_dir().ok()?.join(test_path)
-    };
-    let mut dir = if abs.is_dir() {
-        abs.clone()
-    } else {
-        abs.parent()?.to_path_buf()
-    };
-    loop {
-        if dir.join("main.mpl").exists() {
-            return Some(dir);
-        }
-        match dir.parent() {
-            Some(parent) => dir = parent.to_path_buf(),
-            None => return None,
-        }
-    }
 }
 
 fn main() {
@@ -265,30 +241,17 @@ fn main() {
             path,
             quiet,
             coverage,
-        } => {
-            // Derive the project root from the test file path (walk up to find main.mpl),
-            // falling back to CWD. This prevents copy_project_sources_to_tmp from
-            // copying the entire repo when running from a multi-project workspace.
-            let project_dir = if let Some(ref p) = path {
-                find_project_dir_for_test(p).unwrap_or_else(|| {
-                    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-                })
-            } else {
-                std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-            };
-            let filter_file = path.as_deref();
-            match test_runner::run_tests(&project_dir, filter_file, quiet, coverage) {
-                Ok(summary) => {
-                    if summary.failed > 0 {
-                        process::exit(1);
-                    }
-                }
-                Err(e) => {
-                    eprintln!("error: {}", e);
+        } => match test_runner::run_tests(path.as_deref(), quiet, coverage) {
+            Ok(summary) => {
+                if summary.failed > 0 {
                     process::exit(1);
                 }
             }
-        }
+            Err(e) => {
+                eprintln!("error: {}", e);
+                process::exit(1);
+            }
+        },
         Commands::Migrate { action, dir } => {
             let action = action.unwrap_or(MigrateAction::Up);
             let result = match action {
