@@ -86,6 +86,14 @@ unsafe fn create_connection(url: &str) -> Result<u64, String> {
     }
 }
 
+fn box_u64_payload(value: u64) -> *mut u8 {
+    Box::into_raw(Box::new(value)) as *mut u8
+}
+
+unsafe fn unbox_u64_payload(ptr: *mut u8) -> u64 {
+    *(ptr as *const u64)
+}
+
 /// Perform a health check on a connection by sending SELECT 1.
 /// Returns true if healthy, false if dead.
 unsafe fn health_check(handle: u64) -> bool {
@@ -155,7 +163,7 @@ pub extern "C" fn mesh_pool_open(
         });
 
         let handle = Box::into_raw(pool) as u64;
-        alloc_result(0, handle as *mut u8) as *mut u8
+        alloc_result(0, box_u64_payload(handle)) as *mut u8
     }
 }
 
@@ -190,7 +198,7 @@ pub extern "C" fn mesh_pool_checkout(pool_handle: u64) -> *mut u8 {
                 // Health check: validate connection before returning
                 if health_check(conn.handle) {
                     inner.active_count += 1;
-                    return alloc_result(0, conn.handle as *mut u8) as *mut u8;
+                    return alloc_result(0, box_u64_payload(conn.handle)) as *mut u8;
                 } else {
                     // Connection is dead -- close it and try next
                     mesh_pg_close(conn.handle);
@@ -210,7 +218,7 @@ pub extern "C" fn mesh_pool_checkout(pool_handle: u64) -> *mut u8 {
 
                 match create_connection(&url) {
                     Ok(handle) => {
-                        return alloc_result(0, handle as *mut u8) as *mut u8;
+                        return alloc_result(0, box_u64_payload(handle)) as *mut u8;
                     }
                     Err(e) => {
                         // Undo the reservation
@@ -302,7 +310,7 @@ pub extern "C" fn mesh_pool_query(
         if r.tag != 0 {
             return checkout_result; // propagate checkout error
         }
-        let conn_handle = r.value as u64;
+        let conn_handle = unbox_u64_payload(r.value);
 
         // Use
         let query_result = mesh_pg_query(conn_handle, sql, params);
@@ -333,7 +341,7 @@ pub extern "C" fn mesh_pool_execute(
         if r.tag != 0 {
             return checkout_result; // propagate checkout error
         }
-        let conn_handle = r.value as u64;
+        let conn_handle = unbox_u64_payload(r.value);
 
         // Use
         let exec_result = mesh_pg_execute(conn_handle, sql, params);
@@ -368,7 +376,7 @@ pub extern "C" fn mesh_pool_query_as(
         if r.tag != 0 {
             return checkout_result; // propagate checkout error
         }
-        let conn_handle = r.value as u64;
+        let conn_handle = unbox_u64_payload(r.value);
 
         // Use
         let query_result = mesh_pg_query_as(conn_handle, sql, params, from_row_fn);
@@ -435,7 +443,7 @@ mod tests {
         let open_result = mesh_pool_open(url, 1, 2, 5000);
         let open = unsafe { &*(open_result as *const MeshResult) };
         assert_eq!(open.tag, 0, "pool open should succeed");
-        let pool = open.value as u64;
+        let pool = unsafe { unbox_u64_payload(open.value) };
 
         let create_sql = mk_str(
             b"CREATE TEMP TABLE IF NOT EXISTS mesh_pool_smoke (id INTEGER PRIMARY KEY, name TEXT)",
@@ -452,7 +460,7 @@ mod tests {
         let insert_result = mesh_pool_execute(pool, insert_sql, insert_params);
         let insert = unsafe { &*(insert_result as *const MeshResult) };
         assert_eq!(insert.tag, 0, "pool insert should succeed");
-        assert_eq!(insert.value as i64, 1, "pool insert should affect one row");
+        assert_eq!(unsafe { *(insert.value as *const i64) }, 1, "pool insert should affect one row");
 
         mesh_pool_close(pool);
     }

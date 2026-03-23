@@ -83,19 +83,19 @@ These are the authoritative repo-level proofs for the package:
 ### Build-only proof
 
 ```bash
-cargo test -p meshc e2e_reference_backend_builds --test e2e_reference_backend -- --nocapture
+cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_builds -- --nocapture
 ```
 
 ### Non-empty `DATABASE_URL` startup regression proof
 
 ```bash
-DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo test -p meshc e2e_reference_backend_runtime_starts --test e2e_reference_backend -- --ignored --nocapture
+DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_runtime_starts -- --ignored --nocapture
 ```
 
 ### Postgres smoke proof
 
 ```bash
-DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo test -p meshc e2e_reference_backend_postgres_smoke --test e2e_reference_backend -- --ignored --nocapture
+DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_postgres_smoke -- --ignored --nocapture
 ```
 
 The ignored smoke proof runs the real migration commands and then delegates to `reference-backend/scripts/smoke.sh`, so the Rust e2e target and the package-local smoke script stay on the same contract.

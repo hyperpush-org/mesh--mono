@@ -51,7 +51,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Canonical Backend Golden Path** `risk:high` `depends:[]`
+- [x] **S01: Canonical Backend Golden Path** `risk:high` `depends:[]`
   > After this: Mesh has one concrete reference backend with API + DB + migrations + background jobs, so the milestone stops arguing in abstractions and has a real proof target.
 
 - [ ] **S02: Runtime Correctness on the Golden Path** `risk:high` `depends:[S01]`

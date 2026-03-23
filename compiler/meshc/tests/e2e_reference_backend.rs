@@ -1,7 +1,9 @@
+use std::fs::{self, File};
 use std::io::{Read as _, Write as _};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -85,17 +87,46 @@ fn assert_reference_backend_migration_succeeds(database_url: &str, command: &str
     );
 }
 
-fn spawn_reference_backend(database_url: &str) -> Child {
+struct SpawnedReferenceBackend {
+    child: Child,
+    stdout_path: PathBuf,
+    stderr_path: PathBuf,
+}
+
+fn reference_backend_log_paths() -> (PathBuf, PathBuf) {
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock before unix epoch")
+        .as_nanos();
+    let base = std::env::temp_dir();
+    let stdout_path = base.join(format!("reference-backend-{stamp}-stdout.log"));
+    let stderr_path = base.join(format!("reference-backend-{stamp}-stderr.log"));
+    (stdout_path, stderr_path)
+}
+
+fn spawn_reference_backend(database_url: &str) -> SpawnedReferenceBackend {
     let binary = reference_backend_binary();
-    Command::new(&binary)
+    let (stdout_path, stderr_path) = reference_backend_log_paths();
+    let stdout_file = File::create(&stdout_path)
+        .unwrap_or_else(|e| panic!("failed to create {}: {}", stdout_path.display(), e));
+    let stderr_file = File::create(&stderr_path)
+        .unwrap_or_else(|e| panic!("failed to create {}: {}", stderr_path.display(), e));
+
+    let child = Command::new(&binary)
         .current_dir(repo_root())
         .env("DATABASE_URL", database_url)
         .env("PORT", "18080")
         .env("JOB_POLL_MS", "1000")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stdout(Stdio::from(stdout_file))
+        .stderr(Stdio::from(stderr_file))
         .spawn()
-        .unwrap_or_else(|e| panic!("failed to spawn {}: {}", binary.display(), e))
+        .unwrap_or_else(|e| panic!("failed to spawn {}: {}", binary.display(), e));
+
+    SpawnedReferenceBackend {
+        child,
+        stdout_path,
+        stderr_path,
+    }
 }
 
 fn send_http_request(method: &str, path: &str, body: Option<&str>) -> std::io::Result<String> {
@@ -134,13 +165,30 @@ fn wait_for_reference_backend() -> String {
     panic!("reference-backend never became reachable on :18080");
 }
 
-fn stop_reference_backend(mut child: Child) -> (String, String, String) {
-    let _ = child.kill();
-    let output = child
-        .wait_with_output()
-        .expect("failed to collect reference-backend output");
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+fn stop_reference_backend(mut spawned: SpawnedReferenceBackend) -> (String, String, String) {
+    let _ = Command::new("kill")
+        .args(["-TERM", &spawned.child.id().to_string()])
+        .status();
+    std::thread::sleep(std::time::Duration::from_millis(250));
+    if spawned
+        .child
+        .try_wait()
+        .expect("failed to probe reference-backend exit status")
+        .is_none()
+    {
+        let _ = spawned.child.kill();
+    }
+    spawned
+        .child
+        .wait()
+        .expect("failed to collect reference-backend exit status");
+
+    let stdout = fs::read_to_string(&spawned.stdout_path)
+        .unwrap_or_else(|e| panic!("failed to read {}: {}", spawned.stdout_path.display(), e));
+    let stderr = fs::read_to_string(&spawned.stderr_path)
+        .unwrap_or_else(|e| panic!("failed to read {}: {}", spawned.stderr_path.display(), e));
+    let _ = fs::remove_file(&spawned.stdout_path);
+    let _ = fs::remove_file(&spawned.stderr_path);
     let combined = format!("{stdout}{stderr}");
     (stdout, stderr, combined)
 }

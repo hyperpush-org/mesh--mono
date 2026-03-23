@@ -2,41 +2,9 @@
 
 This file is the explicit capability and coverage contract for the project.
 
-Use it to track what is actively in scope, what has been validated by completed work, what is intentionally deferred, and what is explicitly out of scope.
-
-Guidelines:
-- Keep requirements capability-oriented, not a giant feature wishlist.
-- Requirements should be atomic, testable, and stated in plain language.
-- Every **Active** requirement should be mapped to a slice, deferred, blocked with reason, or moved out of scope.
-- Each requirement should have one accountable primary owner and may have supporting slices.
-- Research may suggest requirements, but research does not silently make them binding.
-- Validation means the requirement was actually proven by completed work and verification, not just discussed.
-
 ## Active
 
-### R001 — Production baseline is explicit and mechanically verifiable
-- Class: launchability
-- Status: active
-- Description: Mesh has an explicit definition of what “production ready language needs to have” means for this repo, and that baseline can be checked through concrete proof rather than vague claims.
-- Why it matters: Without a baseline contract, the work turns into an endless feature list and nobody can tell whether Mesh actually became more trustworthy.
-- Source: inferred
-- Primary owning slice: M028/S01
-- Supporting slices: M028/S06
-- Validation: mapped
-- Notes: M028 should define the baseline and prove it through one canonical backend path, not through abstract promises.
-
-### R002 — Canonical backend path works end-to-end: API + DB + migrations + background jobs
-- Class: core-capability
-- Status: active
-- Description: Mesh can power a real backend shape with an HTTP API, persistent database state, migrations, and background jobs in one coherent flow.
-- Why it matters: This is the first serious proof target for trusting Mesh for a real production app backend in any capacity.
-- Source: user
-- Primary owning slice: M028/S01
-- Supporting slices: M028/S02, M028/S04, M028/S05, M028/S06
-- Validation: mapped
-- Notes: This is the first deep proof shape before the project expands to other backend forms.
-
-### R003 — HTTP, DB, and migration runtime path is trustworthy under automated verification
+### R003 — The runtime path behind the canonical backend flow is exercised by automated verification strongly enough that the path is not just “implemented,” but trusted.
 - Class: quality-attribute
 - Status: active
 - Description: The runtime path behind the canonical backend flow is exercised by automated verification strongly enough that the path is not just “implemented,” but trusted.
@@ -47,7 +15,7 @@ Guidelines:
 - Validation: mapped
 - Notes: Ignored/manual proof paths should be reduced where they block trust on the golden path.
 
-### R004 — Supervised jobs and services isolate failures and recover predictably
+### R004 — Mesh concurrency and supervision are proven under crash, restart, and failure-reporting scenarios instead of only being advertised as features.
 - Class: quality-attribute
 - Status: active
 - Description: Mesh concurrency and supervision are proven under crash, restart, and failure-reporting scenarios instead of only being advertised as features.
@@ -58,7 +26,7 @@ Guidelines:
 - Validation: mapped
 - Notes: Recovery behavior must be explicit, observable, and tied to the reference backend.
 
-### R005 — Native build and deployment feel boring and reliable
+### R005 — Mesh’s native-binary workflow is proven through a deployment path that feels closer to shipping a Go app than to assembling a fragile language stack.
 - Class: launchability
 - Status: active
 - Description: Mesh’s native-binary workflow is proven through a deployment path that feels closer to shipping a Go app than to assembling a fragile language stack.
@@ -69,7 +37,7 @@ Guidelines:
 - Validation: mapped
 - Notes: The milestone does not need every deployment target, but it does need one honest boring path.
 
-### R006 — Daily-driver tooling is credible for backend work
+### R006 — Diagnostics, formatter, LSP, tests, and the coverage story are credible enough that a backend engineer can use Mesh daily without fighting the toolchain.
 - Class: quality-attribute
 - Status: active
 - Description: Diagnostics, formatter, LSP, tests, and the coverage story are credible enough that a backend engineer can use Mesh daily without fighting the toolchain.
@@ -80,7 +48,7 @@ Guidelines:
 - Validation: mapped
 - Notes: The toolchain should be judged against the real reference backend, not only tiny fixtures.
 
-### R007 — Package and dependency workflow is reproducible and credible for shipping backend apps
+### R007 — Mesh projects have a believable dependency/package workflow for building and shipping backend applications with reproducible inputs.
 - Class: launchability
 - Status: active
 - Description: Mesh projects have a believable dependency/package workflow for building and shipping backend applications with reproducible inputs.
@@ -91,7 +59,7 @@ Guidelines:
 - Validation: mapped
 - Notes: This sits after the M028 trust baseline but is already part of the capability contract.
 
-### R008 — Docs and examples prove real backend use honestly
+### R008 — Mesh documentation and examples show a production-style backend path and do not rely mainly on toy examples to make the language look ready.
 - Class: launchability
 - Status: active
 - Description: Mesh documentation and examples show a production-style backend path and do not rely mainly on toy examples to make the language look ready.
@@ -102,7 +70,7 @@ Guidelines:
 - Validation: mapped
 - Notes: The docs surface should become part of the proof, not an afterthought.
 
-### R009 — Mesh is dogfooded through a real reference backend
+### R009 — Mesh proves itself through a real reference backend that exercises the language as a backend platform instead of proving subsystems only in isolation.
 - Class: differentiator
 - Status: active
 - Description: Mesh proves itself through a real reference backend that exercises the language as a backend platform instead of proving subsystems only in isolation.
@@ -113,7 +81,7 @@ Guidelines:
 - Validation: mapped
 - Notes: The reference backend may be a focused app or a narrowed dogfooded app, but it must be real and end-to-end.
 
-### R010 — Mesh’s first wins over Elixir are measurable in deployment simplicity, performance, and DX
+### R010 — The project can point to specific ways Mesh is easier to deploy, measurably fast, and nicer for backend development rather than vaguely claiming it is “better than Elixir.”
 - Class: differentiator
 - Status: active
 - Description: The project can point to specific ways Mesh is easier to deploy, measurably fast, and nicer for backend development rather than vaguely claiming it is “better than Elixir.”
@@ -124,7 +92,7 @@ Guidelines:
 - Validation: mapped
 - Notes: M028 establishes the baseline proof needed before these comparisons are sharpened further.
 
-### R011 — Backend ergonomics improve from real backend pressure, not hypothetical language design
+### R011 — New language/runtime work after M028 should come from real backend friction discovered while using Mesh for actual backend code.
 - Class: differentiator
 - Status: active
 - Description: New language/runtime work after M028 should come from real backend friction discovered while using Mesh for actual backend code.
@@ -135,7 +103,7 @@ Guidelines:
 - Validation: mapped
 - Notes: This is the guardrail against speculative feature churn.
 
-### R012 — Backend breadth expands after the golden path to cover long-running services, realtime, and distributed systems credibly
+### R012 — After the canonical API + DB + migrations + jobs path is proven, Mesh continues toward the broader backend space the user wants: long-running supervised services, realtime systems, and distributed backends.
 - Class: core-capability
 - Status: active
 - Description: After the canonical API + DB + migrations + jobs path is proven, Mesh continues toward the broader backend space the user wants: long-running supervised services, realtime systems, and distributed backends.
@@ -146,13 +114,55 @@ Guidelines:
 - Validation: mapped
 - Notes: This remains in scope for the project, but it follows the first credibility milestone.
 
+### R013 — A blocking Mesh language/runtime/tooling limitation is not worked around indefinitely; it is fixed in Mesh and then used in this app.
+- Class: constraint
+- Status: active
+- Description: A blocking Mesh language/runtime/tooling limitation is not worked around indefinitely; it is fixed in Mesh and then used in this app.
+- Why it matters: This app is also a Mesh dogfooding vehicle.
+- Source: user
+- Primary owning slice: M023/S01
+- Supporting slices: M027/S01 (provisional)
+- Validation: mapped
+- Notes: User instruction was explicit: stop and fix the language if a real limitation blocks the app.
+
+### R014 — The first product loop focuses on existing creator tokens joining the fund before adding token-launch convenience.
+- Class: constraint
+- Status: active
+- Description: The first product loop focuses on existing creator tokens joining the fund before adding token-launch convenience.
+- Why it matters: This reduces first-proof complexity while still proving the real product thesis.
+- Source: inferred
+- Primary owning slice: M023/S02
+- Supporting slices: M023/S06
+- Validation: mapped
+- Notes: Launch-through-app remains desirable if Bags support proves smooth enough later.
+
 ## Validated
 
-_None yet._
+### R001 — Mesh has an explicit definition of what “production ready language needs to have” means for this repo, and that baseline can be checked through concrete proof rather than vague claims.
+- Class: launchability
+- Status: validated
+- Description: Mesh has an explicit definition of what “production ready language needs to have” means for this repo, and that baseline can be checked through concrete proof rather than vague claims.
+- Why it matters: Without a baseline contract, the work turns into an endless feature list and nobody can tell whether Mesh actually became more trustworthy.
+- Source: inferred
+- Primary owning slice: M028/S01
+- Supporting slices: M028/S06
+- Validation: Validated by M028/S01 through the shipped `reference-backend/` package, canonical startup contract (`DATABASE_URL`, `PORT`, `JOB_POLL_MS`), package README/.env example, compiler e2e proof (`e2e_reference_backend_builds`, `e2e_reference_backend_runtime_starts`, `e2e_reference_backend_postgres_smoke`), migration status/up commands, and the package-local smoke path proving the baseline with concrete commands instead of abstract claims.
+- Notes: S01 established the repo’s first concrete backend trust baseline around one auditable API + DB + migrations + jobs workflow.
+
+### R002 — Mesh can power a real backend shape with an HTTP API, persistent database state, migrations, and background jobs in one coherent flow.
+- Class: core-capability
+- Status: validated
+- Description: Mesh can power a real backend shape with an HTTP API, persistent database state, migrations, and background jobs in one coherent flow.
+- Why it matters: This is the first serious proof target for trusting Mesh for a real production app backend in any capacity.
+- Source: user
+- Primary owning slice: M028/S01
+- Supporting slices: M028/S02, M028/S04, M028/S05, M028/S06
+- Validation: Validated by M028/S01 through live end-to-end verification of `reference-backend/`: compiler/runtime build, explicit missing-env failure, Postgres-backed startup, migration status and apply, `GET /health`, `POST /jobs`, `GET /jobs/:id`, timer-driven worker transition from `pending` to `processed`, package-local `reference-backend/scripts/smoke.sh`, and compiler-facing ignored smoke coverage in `e2e_reference_backend_postgres_smoke`.
+- Notes: S01 closed the first real backend proof path by wiring API, DB, migrations, and background jobs into one auditable package and by fixing Mesh runtime issues instead of leaving them as app-level workarounds.
 
 ## Deferred
 
-### R020 — First-class debugger, profiler, and tracing experience competitive with mature ecosystems
+### R020 — Mesh eventually offers a stronger debugger/profiler/trace surface suitable for deeper production diagnostics.
 - Class: operability
 - Status: deferred
 - Description: Mesh eventually offers a stronger debugger/profiler/trace surface suitable for deeper production diagnostics.
@@ -163,7 +173,7 @@ _None yet._
 - Validation: unmapped
 - Notes: Deferred until the canonical backend path and boring deploy story are proven.
 
-### R021 — Full package ecosystem polish beyond baseline trust
+### R021 — Registry, publishing flow, package trust, and ecosystem polish rise from “credible enough” to “mature ecosystem experience.”
 - Class: admin/support
 - Status: deferred
 - Description: Registry, publishing flow, package trust, and ecosystem polish rise from “credible enough” to “mature ecosystem experience.”
@@ -174,9 +184,20 @@ _None yet._
 - Validation: unmapped
 - Notes: The baseline package flow is active scope; broad ecosystem polish is later.
 
+### R022 — Operators get richer admin controls, manual retries, and deeper operational tooling.
+- Class: operability
+- Status: deferred
+- Description: Operators get richer admin controls, manual retries, and deeper operational tooling.
+- Why it matters: It helps long-term operability once the core loop is proven.
+- Source: inferred
+- Primary owning slice: M027/S02 (provisional)
+- Supporting slices: none
+- Validation: unmapped
+- Notes: Day-one requirement is visible failure, not a full operator cockpit.
+
 ## Out of Scope
 
-### R030 — Frontend-first language positioning
+### R030 — The project is not being planned primarily as a frontend-first language effort.
 - Class: anti-feature
 - Status: out-of-scope
 - Description: The project is not being planned primarily as a frontend-first language effort.
@@ -187,7 +208,7 @@ _None yet._
 - Validation: n/a
 - Notes: Mesh remains general-purpose, but planning and proof are backend-led.
 
-### R031 — Chasing new language features ahead of backend trust
+### R031 — M028 should not become a broad syntax/features sprint before the backend trust baseline is proven.
 - Class: anti-feature
 - Status: out-of-scope
 - Description: M028 should not become a broad syntax/features sprint before the backend trust baseline is proven.
@@ -198,7 +219,7 @@ _None yet._
 - Validation: n/a
 - Notes: Feature expansion belongs after the hardening milestone unless a blocker is found on the golden path.
 
-### R032 — Claiming production readiness without a real deployable proof path
+### R032 — The project will not call Mesh production-ready based only on feature lists, benchmarks, or toy examples.
 - Class: constraint
 - Status: out-of-scope
 - Description: The project will not call Mesh production-ready based only on feature lists, benchmarks, or toy examples.
@@ -209,31 +230,46 @@ _None yet._
 - Validation: n/a
 - Notes: Honest proof is a non-negotiable scope boundary.
 
+### R033 — This build does not treat a native mobile app as a first-class deliverable.
+- Class: constraint
+- Status: out-of-scope
+- Description: This build does not treat a native mobile app as a first-class deliverable.
+- Why it matters: It keeps attention on the web product and Mesh backend.
+- Source: inferred
+- Primary owning slice: none
+- Supporting slices: none
+- Validation: n/a
+- Notes: Web is the primary surface for the planned milestones.
+
 ## Traceability
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
 |---|---|---|---|---|---|
-| R001 | launchability | active | M028/S01 | M028/S06 | mapped |
-| R002 | core-capability | active | M028/S01 | M028/S02, M028/S04, M028/S05, M028/S06 | mapped |
+| R001 | launchability | validated | M028/S01 | M028/S06 | Validated by M028/S01 through the shipped `reference-backend/` package, canonical startup contract (`DATABASE_URL`, `PORT`, `JOB_POLL_MS`), package README/.env example, compiler e2e proof (`e2e_reference_backend_builds`, `e2e_reference_backend_runtime_starts`, `e2e_reference_backend_postgres_smoke`), migration status/up commands, and the package-local smoke path proving the baseline with concrete commands instead of abstract claims. |
+| R002 | core-capability | validated | M028/S01 | M028/S02, M028/S04, M028/S05, M028/S06 | Validated by M028/S01 through live end-to-end verification of `reference-backend/`: compiler/runtime build, explicit missing-env failure, Postgres-backed startup, migration status and apply, `GET /health`, `POST /jobs`, `GET /jobs/:id`, timer-driven worker transition from `pending` to `processed`, package-local `reference-backend/scripts/smoke.sh`, and compiler-facing ignored smoke coverage in `e2e_reference_backend_postgres_smoke`. |
 | R003 | quality-attribute | active | M028/S02 | M028/S06 | mapped |
 | R004 | quality-attribute | active | M028/S05 | M028/S02, M028/S06 | mapped |
 | R005 | launchability | active | M028/S04 | M028/S06 | mapped |
-| R006 | quality-attribute | active | M028/S03 | M030/S01, M030/S02 (prov.) | mapped |
-| R007 | launchability | active | M030/S01 (prov.) | M030/S02 (prov.) | mapped |
+| R006 | quality-attribute | active | M028/S03 | M030/S01 (provisional), M030/S02 (provisional) | mapped |
+| R007 | launchability | active | M030/S01 (provisional) | M030/S02 (provisional) | mapped |
 | R008 | launchability | active | M028/S06 | M028/S01, M028/S03, M028/S04, M028/S05 | mapped |
 | R009 | differentiator | active | M028/S06 | M028/S01, M028/S02, M028/S05 | mapped |
-| R010 | differentiator | active | M029/S01 (prov.) | M028/S04, M028/S06, M029/S02 (prov.) | mapped |
-| R011 | differentiator | active | M029/S02 (prov.) | M029/S03 (prov.) | mapped |
-| R012 | core-capability | active | M031/S01 (prov.) | M031/S02 (prov.), M031/S03 (prov.) | mapped |
+| R010 | differentiator | active | M029/S01 (provisional) | M028/S04, M028/S06, M029/S02 (provisional) | mapped |
+| R011 | differentiator | active | M029/S02 (provisional) | M029/S03 (provisional) | mapped |
+| R012 | core-capability | active | M031/S01 (provisional) | M031/S02 (provisional), M031/S03 (provisional) | mapped |
+| R013 | constraint | active | M023/S01 | M027/S01 (provisional) | mapped |
+| R014 | constraint | active | M023/S02 | M023/S06 | mapped |
 | R020 | operability | deferred | none | none | unmapped |
 | R021 | admin/support | deferred | none | none | unmapped |
+| R022 | operability | deferred | M027/S02 (provisional) | none | unmapped |
 | R030 | anti-feature | out-of-scope | none | none | n/a |
 | R031 | anti-feature | out-of-scope | none | none | n/a |
 | R032 | constraint | out-of-scope | none | none | n/a |
+| R033 | constraint | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
 - Active requirements: 12
 - Mapped to slices: 12
-- Validated: 0
+- Validated: 2 (R001, R002)
 - Unmapped active requirements: 0

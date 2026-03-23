@@ -8,6 +8,7 @@
 //! by the per-actor GC heap (falling back to the global arena outside actor
 //! context).
 
+use std::io::Write;
 use std::ptr;
 
 use crate::gc::mesh_gc_alloc_actor;
@@ -148,6 +149,7 @@ pub extern "C" fn mesh_print(s: *const MeshString) {
     unsafe {
         let text = (*s).as_str();
         print!("{}", text);
+        let _ = std::io::stdout().flush();
     }
 }
 
@@ -157,6 +159,7 @@ pub extern "C" fn mesh_println(s: *const MeshString) {
     unsafe {
         let text = (*s).as_str();
         println!("{}", text);
+        let _ = std::io::stdout().flush();
     }
 }
 
@@ -340,7 +343,10 @@ pub extern "C" fn mesh_string_to_int(s: *const MeshString) -> *mut u8 {
     unsafe {
         let text = (*s).as_str().trim();
         match text.parse::<i64>() {
-            Ok(val) => alloc_option(0, val as u64 as *mut u8) as *mut u8,
+            Ok(val) => {
+                let boxed = Box::into_raw(Box::new(val)) as *mut u8;
+                alloc_option(0, boxed) as *mut u8
+            }
             Err(_) => alloc_option(1, std::ptr::null_mut()) as *mut u8,
         }
     }
@@ -356,7 +362,10 @@ pub extern "C" fn mesh_string_to_float(s: *const MeshString) -> *mut u8 {
     unsafe {
         let text = (*s).as_str().trim();
         match text.parse::<f64>() {
-            Ok(val) => alloc_option(0, f64::to_bits(val) as *mut u8) as *mut u8,
+            Ok(val) => {
+                let boxed = Box::into_raw(Box::new(f64::to_bits(val))) as *mut u8;
+                alloc_option(0, boxed) as *mut u8
+            }
             Err(_) => alloc_option(1, std::ptr::null_mut()) as *mut u8,
         }
     }

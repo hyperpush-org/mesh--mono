@@ -1004,7 +1004,8 @@ pub extern "C" fn mesh_pg_execute(
         if let Some(msg) = error_msg {
             err_result(&msg)
         } else {
-            alloc_result(0, rows_affected as *mut u8) as *mut u8
+            let boxed = Box::into_raw(Box::new(rows_affected)) as *mut u8;
+            alloc_result(0, boxed) as *mut u8
         }
     }
 }

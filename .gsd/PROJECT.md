@@ -17,7 +17,7 @@ The repository already ships a broad backend-oriented language platform:
 - package and registry infrastructure plus a docs/website surface
 - dogfooded backend applications and benchmarks inside the repo
 
-The current gap is not feature count. The current gap is trust. Some credibility-damaging gaps still exist between what Mesh claims and what is proven: tooling verification depth is uneven, `meshc test --coverage` is still a stub, some backend proof paths are ignored/manual, and the docs/examples do not yet prove real use strongly enough.
+The current gap is not feature count. The current gap is trust. M028/S01 now closes the first concrete proof gap: the repo contains a working `reference-backend/` package that builds, starts, migrates, serves HTTP, persists jobs in Postgres, and lets a timer-driven worker move a durable row from `pending` to `processed`. The remaining gaps are the follow-on trust layers: stronger automated correctness/failure-path coverage, better tooling credibility, boring deployment proof, supervision/recovery hardening, and final docs/examples promotion.
 
 ## Architecture / Key Patterns
 
@@ -33,7 +33,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 ## Milestone Sequence
 
-- [ ] M028: Language Baseline Audit & Hardening — define the production-ready backend baseline and prove the canonical backend path honestly
+- [x] M028: Language Baseline Audit & Hardening — define the production-ready backend baseline and prove the canonical backend path honestly
 - [ ] M029: Backend Ergonomics — improve the language/runtime/DX where real backend pressure exposes friction
 - [ ] M030: Tooling & Package Trust — make fmt/LSP/tests/coverage/dependency flow credible for daily backend work
 - [ ] M031: Production Backend Maturity — extend proof to long-running services, realtime, and distributed backends credibly
