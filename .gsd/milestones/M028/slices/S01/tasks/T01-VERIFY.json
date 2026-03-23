@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T01",
+  "unitId": "M028/S01/T01",
+  "timestamp": 1774247027282,
+  "passed": false,
+  "discoverySource": "none",
+  "checks": [],
+  "retryAttempt": 1,
+  "maxRetries": 2,
+  "runtimeErrors": [
+    {
+      "source": "bg-shell",
+      "severity": "crash",
+      "message": "[reference-backend-manual] exitCode=139 errors: /bin/bash: line 1: 29159 Segmentation fault: 11  PORT=18080 JOB_POLL_MS=1000 ./reference-backend/reference-backend",
+      "blocking": true
+    }
+  ]
+}

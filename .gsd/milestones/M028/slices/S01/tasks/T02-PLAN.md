@@ -1,60 +1,59 @@
 ---
 estimated_steps: 5
-estimated_files: 6
+estimated_files: 4
 skills_used:
   - debug-like-expert
   - test
-  - lint
+  - review
 ---
 
-# T02: Add migration-managed jobs persistence and DB-backed API endpoints
+# T02: Repair the non-empty `DATABASE_URL` startup path and land regression proof
 
 **Slice:** S01 — Canonical Backend Golden Path
 **Milestone:** M028
 
 ## Description
 
-Turn the package skeleton into a real API + DB + migrations proof path. The reference backend should stay intentionally small: one durable `jobs` record shape shared by migrations, storage helpers, and HTTP handlers. Use Postgres, not SQLite, because `meshc migrate` is Postgres-only. Keep the schema and responses inspectable for later slices: a job should expose `id`, `status`, `attempts`, `last_error`, timestamps, and payload. Use raw SQL only where the migration DSL cannot express what is needed.
+T01 proved the package builds, but it also exposed the real blocker for the slice: the compiled reference backend crashes when startup reaches a non-empty `DATABASE_URL` path. Before layering on migrations, DB-backed handlers, or a worker, make startup trustworthy. Reproduce the failure with the smallest live path, replace the crash-prone startup parsing/wiring with the safest working pattern available in-repo, and turn the fix into a regression test instead of leaving it as a one-off debugger note.
 
 ## Steps
 
-1. Add a real migration file under `reference-backend/migrations/` that creates the `jobs` table and any minimal indexes needed for the pending-work scan.
-2. Define a shared job shape in `reference-backend/types/job.mpl` so storage and API modules agree on field names and response semantics.
-3. Implement create/read storage helpers in `reference-backend/storage/jobs.mpl` for inserting a pending job and loading a job by id.
-4. Implement `POST /jobs` and `GET /jobs/:id` in `reference-backend/api/jobs.mpl`, returning stable JSON that reflects the durable row state.
-5. Wire the new handlers into the router/startup path from T01 without reintroducing inline connection strings or route duplication.
+1. Reproduce the crash on the smallest DB-backed startup path and narrow whether the failure comes from package-local startup code or a lower-level generated/runtime path.
+2. Refactor `reference-backend/main.mpl` and `reference-backend/config.mpl` so `DATABASE_URL`, `PORT`, and `JOB_POLL_MS` use a safe startup flow that preserves clear missing-config failures.
+3. Keep `GET /health` as the first live proof target and ensure the runtime reaches it with a real Postgres-backed startup instead of crashing before bind.
+4. Extend `compiler/meshc/tests/e2e_reference_backend.rs` with an ignored runtime-start regression test for the non-empty `DATABASE_URL` path.
+5. Confirm the missing-env path still reports `DATABASE_URL` explicitly and does not regress into a silent or generic startup failure.
 
 ## Must-Haves
 
-- [ ] `meshc migrate status reference-backend` discovers the new migration file.
-- [ ] `meshc migrate up reference-backend` can create the `jobs` table on Postgres.
-- [ ] `POST /jobs` persists a new row with `pending` status and returns a stable id.
-- [ ] `GET /jobs/:id` reads the durable row back through the same package-local storage layer.
+- [ ] A non-empty `DATABASE_URL` no longer triggers `EXC_BAD_ACCESS` during startup.
+- [ ] Real Postgres-backed startup reaches `/health`.
+- [ ] The missing-env path still fails explicitly on `DATABASE_URL`.
+- [ ] The crash has a mechanical regression test in the compiler-facing e2e target.
 
 ## Verification
 
-- `DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo run -p meshc -- migrate status reference-backend && DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo run -p meshc -- migrate up reference-backend`
-- `cargo build -p mesh-rt && cargo run -p meshc -- build reference-backend`
+- `cargo build -p mesh-rt && cargo test -p meshc e2e_reference_backend_builds --test e2e_reference_backend -- --nocapture`
+- `env -u DATABASE_URL PORT=18080 JOB_POLL_MS=500 ./reference-backend/reference-backend 2>&1 | rg "DATABASE_URL"`
+- `DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo test -p meshc e2e_reference_backend_runtime_starts --test e2e_reference_backend -- --ignored --nocapture`
 
 ## Observability Impact
 
-- Signals added/changed: migration status output, API-visible job state, and storage-layer error propagation
-- How a future agent inspects this: `meshc migrate status reference-backend`, `GET /jobs/:id`, and direct inspection of the `jobs` table
-- Failure state exposed: missing/pending migration state and insert/read failures stop being invisible
+- Signals added/changed: startup log lines now distinguish config failure, DB-connect failure, and successful HTTP bind without crashing
+- How a future agent inspects this: `GET /health`, the missing-env command, and `e2e_reference_backend_runtime_starts`
+- Failure state exposed: non-empty startup regressions stop hiding as raw segfaults and become reproducible test failures
 
 ## Inputs
 
-- `reference-backend/main.mpl` — startup composition from T01 that will receive DB/API wiring
-- `reference-backend/config.mpl` — env contract supplying the Postgres connection string
-- `reference-backend/api/router.mpl` — route assembly to extend with job endpoints
-- `mesher/migrations/20260216120000_create_initial_schema.mpl` — real migration donor pattern for Mesh + Postgres
-- `compiler/meshc/src/migrate.rs` — authoritative migration discovery and execution contract
+- `reference-backend/main.mpl` — current startup entrypoint and crash site neighborhood
+- `reference-backend/config.mpl` — env contract surface introduced in T01
+- `reference-backend/api/health.mpl` — first runtime proof surface that should come alive once startup is safe
+- `compiler/meshc/tests/e2e_reference_backend.rs` — seeded build-only proof file that should gain runtime regression coverage
+- `mesher/main.mpl` — donor for safer startup ordering and env handling patterns
 
 ## Expected Output
 
-- `reference-backend/migrations/20260323010000_create_jobs.mpl` — migration-managed Postgres schema for the canonical job lifecycle
-- `reference-backend/types/job.mpl` — shared job record shape used by storage and HTTP
-- `reference-backend/storage/jobs.mpl` — create/read persistence helpers for the `jobs` table
-- `reference-backend/api/jobs.mpl` — `POST /jobs` and `GET /jobs/:id` handlers
-- `reference-backend/api/router.mpl` — router updated to expose the new endpoints
-- `reference-backend/main.mpl` — startup composition updated for migration-era storage/API wiring
+- `reference-backend/main.mpl` — startup flow hardened so non-empty env config no longer crashes
+- `reference-backend/config.mpl` — startup-contract helpers aligned with the safe runtime path
+- `reference-backend/api/health.mpl` — health proof surface confirmed against the live startup path
+- `compiler/meshc/tests/e2e_reference_backend.rs` — explicit runtime-start regression coverage for the blocker

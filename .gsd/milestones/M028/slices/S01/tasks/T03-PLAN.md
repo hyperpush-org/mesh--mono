@@ -4,58 +4,57 @@ estimated_files: 6
 skills_used:
   - debug-like-expert
   - test
-  - review
+  - lint
 ---
 
-# T03: Wire the timer-driven worker and a package-local smoke path
+# T03: Add migration-managed jobs persistence and DB-backed API endpoints
 
 **Slice:** S01 — Canonical Backend Golden Path
 **Milestone:** M028
 
 ## Description
 
-Add the missing background-job part of the golden path. Do not use `Job.async` as the canonical pattern here; the repo’s stronger donor is Mesher’s timer-recursive actors (`Timer.sleep` + recursive call). The worker should periodically find pending jobs, mark them processed, and surface enough diagnostics that a future agent can tell whether the worker is healthy or stalled. This task also adds the package-local smoke path that exercises startup, API creation, and background processing together.
+Once the runtime-start blocker is fixed, turn the package skeleton into a real API + DB + migrations proof path. The reference backend should stay intentionally small: one durable `jobs` record shape shared by migrations, storage helpers, and HTTP handlers. Use Postgres, not SQLite, because `meshc migrate` is Postgres-only. Keep the schema and responses inspectable for later slices: a job should expose `id`, `status`, `attempts`, `last_error`, timestamps, and payload.
 
 ## Steps
 
-1. Add a timer-recursive worker module in `reference-backend/jobs/worker.mpl` that wakes on `JOB_POLL_MS`, queries pending jobs, and processes them in a repeatable loop.
-2. Extend `reference-backend/storage/jobs.mpl` with the minimal claim/update operations the worker needs, including `attempts`, `processed_at`, and `last_error` updates.
-3. Update `reference-backend/api/jobs.mpl` and `reference-backend/api/health.mpl` so the API exposes worker-relevant state instead of hiding it behind logs only.
-4. Wire worker startup into `reference-backend/main.mpl` after pool creation and before `HTTP.serve`, following Mesher’s startup order.
-5. Add `reference-backend/scripts/smoke.sh` that starts the binary, waits for `/health`, posts a job, polls `GET /jobs/:id`, and exits nonzero if processing never completes.
+1. Add a real migration file under `reference-backend/migrations/` that creates the `jobs` table and any minimal indexes needed for the pending-work scan.
+2. Define a shared job shape in `reference-backend/types/job.mpl` so storage and API modules agree on field names and response semantics.
+3. Implement create/read storage helpers in `reference-backend/storage/jobs.mpl` for inserting a pending job and loading a job by id.
+4. Implement `POST /jobs` and `GET /jobs/:id` in `reference-backend/api/jobs.mpl`, returning stable JSON that reflects the durable row state.
+5. Wire the new handlers into the router/startup path without reintroducing inline connection strings or duplicating startup contract logic.
 
 ## Must-Haves
 
-- [ ] The reference backend starts a long-running timer-driven worker as part of normal startup.
-- [ ] Pending jobs transition to `processed` without manual DB intervention.
-- [ ] Job responses expose enough state to debug a stuck or failed background run.
-- [ ] The package-local smoke script fails loudly on startup, API, or worker regressions.
+- [ ] `meshc migrate status reference-backend` discovers the new migration file.
+- [ ] `meshc migrate up reference-backend` can create the `jobs` table on Postgres.
+- [ ] `POST /jobs` persists a new row with `pending` status and returns a stable id.
+- [ ] `GET /jobs/:id` reads the durable row back through the same package-local storage layer.
 
 ## Verification
 
-- `DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} PORT=18080 JOB_POLL_MS=500 bash reference-backend/scripts/smoke.sh`
-- After the script runs, `curl -sf http://127.0.0.1:18080/jobs/<id>` or an equivalent helper check should show `processed` state with updated timestamps.
+- `DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo run -p meshc -- migrate status reference-backend && DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo run -p meshc -- migrate up reference-backend`
+- `cargo build -p mesh-rt && DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo test -p meshc e2e_reference_backend_runtime_starts --test e2e_reference_backend -- --ignored --nocapture`
 
 ## Observability Impact
 
-- Signals added/changed: worker tick/process logs plus per-job `status`, `attempts`, `last_error`, and `processed_at`
-- How a future agent inspects this: `GET /health`, `GET /jobs/:id`, script output from `reference-backend/scripts/smoke.sh`, and the `jobs` table
-- Failure state exposed: stalled worker loops, repeated attempts, and last processing error become observable
+- Signals added/changed: migration status output, API-visible job state, and storage-layer error propagation
+- How a future agent inspects this: `meshc migrate status reference-backend`, `GET /jobs/:id`, and direct inspection of the `jobs` table
+- Failure state exposed: missing/pending migration state and insert/read failures stop being invisible
 
 ## Inputs
 
-- `reference-backend/main.mpl` — startup composition that must gain the long-running worker
-- `reference-backend/api/health.mpl` — health surface to extend with worker readiness/state
-- `reference-backend/api/jobs.mpl` — job response layer that should expose processed state
-- `reference-backend/storage/jobs.mpl` — persistence layer to extend for claim/update operations
-- `mesher/ingestion/pipeline.mpl` — donor for timer-recursive actors and startup ordering
-- `mesher/services/writer.mpl` — donor for the `flush_ticker` timer pattern that avoids `Timer.send_after`
+- `reference-backend/main.mpl` — startup composition from T02 that now safely reaches the live DB-backed path
+- `reference-backend/config.mpl` — env contract supplying the Postgres connection string
+- `reference-backend/api/router.mpl` — route assembly to extend with job endpoints
+- `mesher/migrations/20260216120000_create_initial_schema.mpl` — real migration donor pattern for Mesh + Postgres
+- `compiler/meshc/src/migrate.rs` — authoritative migration discovery and execution contract
 
 ## Expected Output
 
-- `reference-backend/jobs/worker.mpl` — timer-recursive background worker for pending jobs
-- `reference-backend/storage/jobs.mpl` — claim/update storage helpers for worker-driven transitions
-- `reference-backend/api/health.mpl` — health output extended with worker-aware readiness/state
-- `reference-backend/api/jobs.mpl` — job responses extended with processing diagnostics
-- `reference-backend/main.mpl` — startup wiring that launches the worker before serving HTTP
-- `reference-backend/scripts/smoke.sh` — package-local end-to-end smoke verifier for the golden path
+- `reference-backend/migrations/20260323010000_create_jobs.mpl` — migration-managed Postgres schema for the canonical job lifecycle
+- `reference-backend/types/job.mpl` — shared job record shape used by storage and HTTP
+- `reference-backend/storage/jobs.mpl` — create/read persistence helpers for the `jobs` table
+- `reference-backend/api/jobs.mpl` — `POST /jobs` and `GET /jobs/:id` handlers
+- `reference-backend/api/router.mpl` — router updated to expose the new endpoints
+- `reference-backend/main.mpl` — startup composition updated for migration-era storage/API wiring
