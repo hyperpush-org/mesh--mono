@@ -23,6 +23,7 @@
 - `tmp_dir="$(mktemp -d)" && bash reference-backend/scripts/stage-deploy.sh "$tmp_dir" && test -x "$tmp_dir/reference-backend" && test -f "$tmp_dir/reference-backend.up.sql" && test -x "$tmp_dir/deploy-smoke.sh"`
 - `cargo test -p meshc e2e_self_contained_binary -- --nocapture`
 - `DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_deploy_artifact_smoke -- --ignored --nocapture`
+- `tmp_dir="$(mktemp -d)" && if bash reference-backend/scripts/apply-deploy-migrations.sh "$tmp_dir/missing-reference-backend.up.sql" >"$tmp_dir/apply-missing.log" 2>&1; then echo "expected apply-deploy-migrations.sh to fail for a missing artifact" >&2; exit 1; else rg -n "\[deploy-apply\] missing deploy SQL artifact" "$tmp_dir/apply-missing.log"; fi`
 - `rg -n "Boring native deployment|stage-deploy\.sh|apply-deploy-migrations\.sh|deploy-smoke\.sh|runtime host" reference-backend/README.md && rg -n "^DATABASE_URL=|^PORT=|^JOB_POLL_MS=" reference-backend/.env.example`
 
 ## Observability / Diagnostics
@@ -40,7 +41,7 @@
 
 ## Tasks
 
-- [ ] **T01: Stage a deploy bundle and boring migration path** `est:2h`
+- [x] **T01: Stage a deploy bundle and boring migration path** `est:2h`
   - Why: The binary already runs outside the repo root, but deployment is not boring until schema apply stops depending on `meshc migrate` on the runtime side and the staged artifact shape is explicit.
   - Files: `reference-backend/migrations/20260323010000_create_jobs.mpl`, `reference-backend/scripts/smoke.sh`, `reference-backend/deploy/reference-backend.up.sql`, `reference-backend/scripts/stage-deploy.sh`, `reference-backend/scripts/apply-deploy-migrations.sh`, `reference-backend/scripts/deploy-smoke.sh`
   - Do: Keep the Mesh migration file canonical for dev/CI, add a deploy-time SQL artifact derived from it for the boring deployment path, create scripts to stage a temp-dir bundle and apply the deploy SQL through `psql` without `meshc`, and add a probe-only smoke script that exercises an already-staged or already-running binary instead of rebuilding locally.

@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -448,6 +449,27 @@ fn run_reference_backend_smoke_script(
         .expect("failed to invoke reference-backend/scripts/smoke.sh")
 }
 
+fn run_reference_backend_stage_deploy_script(bundle_dir: &Path) -> Output {
+    let root = repo_root();
+    Command::new("bash")
+        .current_dir(&root)
+        .arg("reference-backend/scripts/stage-deploy.sh")
+        .arg(bundle_dir)
+        .output()
+        .expect("failed to invoke reference-backend/scripts/stage-deploy.sh")
+}
+
+fn assert_is_executable(path: &Path) {
+    let metadata = fs::metadata(path)
+        .unwrap_or_else(|e| panic!("failed to stat {}: {}", path.display(), e));
+    assert!(metadata.is_file(), "expected file at {}", path.display());
+    assert!(
+        metadata.permissions().mode() & 0o111 != 0,
+        "expected executable permissions at {}",
+        path.display()
+    );
+}
+
 fn assert_reference_backend_postgres_smoke(database_url: &str) {
     let config = reference_backend_test_config(500);
     assert_reference_backend_migration_succeeds(database_url, "status");
@@ -478,22 +500,27 @@ fn assert_reference_backend_postgres_smoke(database_url: &str) {
         combined
     );
     assert!(
-        combined.contains("[smoke] health ready:"),
-        "expected smoke health step, got:\n{}",
+        combined.contains("[smoke] probing running instance via deploy-smoke.sh"),
+        "expected smoke handoff step, got:\n{}",
         combined
     );
     assert!(
-        combined.contains("[smoke] created job:"),
-        "expected smoke create step, got:\n{}",
+        combined.contains("[deploy-smoke] health ready body="),
+        "expected deploy smoke health step, got:\n{}",
         combined
     );
     assert!(
-        combined.contains("[smoke] processed job after attempts="),
-        "expected smoke processed step, got:\n{}",
+        combined.contains("[deploy-smoke] created job body="),
+        "expected deploy smoke create step, got:\n{}",
         combined
     );
     assert!(
-        combined.contains(r#"\"status\":\"processed\""#),
+        combined.contains("[deploy-smoke] processed job id="),
+        "expected deploy smoke processed step, got:\n{}",
+        combined
+    );
+    assert!(
+        combined.contains("\"status\":\"processed\""),
         "expected processed job payload in smoke output, got:\n{}",
         combined
     );
@@ -873,6 +900,34 @@ fn e2e_reference_backend_builds() {
         "compiled reference-backend binary not found at {}",
         binary.display()
     );
+}
+
+#[test]
+fn e2e_reference_backend_stage_deploy_bundle() {
+    let bundle = tempfile::tempdir().expect("failed to create temp bundle dir");
+    let output = run_reference_backend_stage_deploy_script(bundle.path());
+    let combined = command_output_text(&output);
+
+    assert_command_success(&output, "reference-backend/scripts/stage-deploy.sh");
+    assert!(
+        combined.contains("[stage-deploy] staged layout"),
+        "expected staged layout output, got:\n{}",
+        combined
+    );
+    assert!(
+        combined.contains("[stage-deploy] bundle ready dir="),
+        "expected bundle ready output, got:\n{}",
+        combined
+    );
+
+    assert_is_executable(&bundle.path().join("reference-backend"));
+    assert!(
+        bundle.path().join("reference-backend.up.sql").is_file(),
+        "expected staged deploy SQL artifact at {}",
+        bundle.path().join("reference-backend.up.sql").display()
+    );
+    assert_is_executable(&bundle.path().join("apply-deploy-migrations.sh"));
+    assert_is_executable(&bundle.path().join("deploy-smoke.sh"));
 }
 
 #[test]

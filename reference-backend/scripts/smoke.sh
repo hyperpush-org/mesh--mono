@@ -4,10 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PORT="${PORT:-18080}"
 JOB_POLL_MS="${JOB_POLL_MS:-500}"
-BASE_URL="http://127.0.0.1:${PORT}"
+BASE_URL="${BASE_URL:-http://127.0.0.1:${PORT}}"
 LOG_FILE="$(mktemp -t reference-backend-smoke.XXXXXX.log)"
 SERVER_PID=""
-LAST_RESPONSE=""
 
 : "${DATABASE_URL:?set DATABASE_URL}"
 
@@ -26,26 +25,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-json_field() {
-  local field="$1"
-  python3 -c '
-import json
-import sys
-
-field = sys.argv[1]
-data = json.load(sys.stdin)
-value = data.get(field)
-if value is None:
-    sys.exit(1)
-if isinstance(value, (dict, list)):
-    print(json.dumps(value, separators=(",", ":")))
-else:
-    print(value)
-' "$field"
-}
-
 if [[ "$(psql "$DATABASE_URL" -Atqc "SELECT to_regclass('public.jobs') IS NOT NULL")" != "t" ]]; then
-  echo "[smoke] jobs table is missing; run: cargo run -p meshc -- migrate reference-backend up" >&2
+  echo "[smoke] jobs table is missing; run either: cargo run -p meshc -- migrate reference-backend up OR bash reference-backend/scripts/apply-deploy-migrations.sh reference-backend/deploy/reference-backend.up.sql" >&2
   exit 1
 fi
 
@@ -62,42 +43,5 @@ echo "[smoke] starting reference-backend on :$PORT"
 ) &
 SERVER_PID=$!
 
-for attempt in $(seq 1 80); do
-  if health_response="$(curl -fsS "$BASE_URL/health" 2>/dev/null)"; then
-    echo "[smoke] health ready: $health_response"
-    break
-  fi
-  sleep 0.25
-  if [[ "$attempt" == "80" ]]; then
-    echo "[smoke] reference-backend never became healthy on $BASE_URL" >&2
-    exit 1
-  fi
-done
-
-create_response="$(curl -fsS -X POST "$BASE_URL/jobs" -H 'content-type: application/json' -d '{"kind":"demo","attempt":1,"source":"smoke"}')"
-echo "[smoke] created job: $create_response"
-JOB_ID="$(printf '%s' "$create_response" | json_field id)"
-
-for attempt in $(seq 1 80); do
-  LAST_RESPONSE="$(curl -fsS "$BASE_URL/jobs/$JOB_ID")"
-  job_status="$(printf '%s' "$LAST_RESPONSE" | json_field status)"
-  processed_at="$(printf '%s' "$LAST_RESPONSE" | python3 -c '
-import json
-import sys
-
-value = json.load(sys.stdin).get("processed_at")
-print("" if value is None else value)
-')"
-  echo "[smoke] poll $attempt status=$job_status processed_at=${processed_at:-null}"
-  if [[ "$job_status" == "processed" && -n "$processed_at" ]]; then
-    attempts="$(printf '%s' "$LAST_RESPONSE" | json_field attempts)"
-    echo "[smoke] processed job after attempts=$attempts"
-    echo "$LAST_RESPONSE"
-    exit 0
-  fi
-  sleep 0.25
-done
-
-echo "[smoke] job $JOB_ID never reached processed state" >&2
-echo "[smoke] final response: ${LAST_RESPONSE:-<none>}" >&2
-exit 1
+echo "[smoke] probing running instance via deploy-smoke.sh"
+BASE_URL="$BASE_URL" PORT="$PORT" bash "$ROOT/reference-backend/scripts/deploy-smoke.sh"
