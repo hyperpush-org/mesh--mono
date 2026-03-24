@@ -2,30 +2,36 @@
 
 ## What This Is
 
-Mesh is a programming language and application platform repository focused on becoming a production-trustworthy general-purpose language with a lean toward server/backend code. It already contains the compiler, runtime, standard library, formatter, LSP, REPL, package tooling, registry, docs site, benchmarks, and dogfooded applications. The current priority is M030: making the tooling, package, and dependency trust story credible for daily backend work now that the dogfood cleanup and formatter-correctness work are closed.
+Mesh is a programming language and backend application platform repository aimed at being trustworthy for real backend work, not just toy examples. The repo contains the compiler, runtime, formatter, LSP, REPL, package tooling, docs site, and two dogfood applications: `reference-backend/` as the narrow proof surface and `mesher/` as the broader pressure test.
 
 ## Core Value
 
-Mesh should be something you can trust for a real production app backend in any capacity, starting with an honest API + DB + migrations + background jobs path that feels as easy to deploy as a Go binary.
+Dogfood friction should turn into honest platform improvements: when Mesh or its data layer hits a real backend limitation, the repo should fix that limitation in Mesh and then use the repaired path in the app instead of carrying permanent folklore workarounds.
 
 ## Current State
 
-The repository ships a broad backend-oriented language platform:
-- Rust workspace crates for lexing, parsing, type checking, code generation, runtime, formatter, LSP, REPL, package resolution, and CLI tooling
-- native LLVM code generation to standalone binaries
+Mesh already ships a broad backend-oriented stack:
+- Rust workspace crates under `compiler/` for lexing, parsing, type checking, code generation, runtime, formatter, LSP, REPL, package tooling, and CLI commands
+- native compilation to standalone binaries
 - runtime support for actors, supervision, HTTP, WebSocket, JSON, database access, migrations, files, env, crypto, datetime, and collections
-- package and registry infrastructure plus a docs/website surface
-- dogfooded backend applications: `reference-backend/` (API + DB + jobs) and `mesher/` (error monitoring platform)
+- dogfooded applications: `reference-backend/` and `mesher/`
 
-M028 established the backend trust baseline with recovery proof, deployment proof, tooling trust, and documentation. M031 completed the language DX audit: fixed three compiler bugs (trailing-closure disambiguation in control-flow conditions, else-if chain value correctness, multiline fn call type resolution), added parenthesized multiline imports and trailing-comma support, cleaned both dogfood codebases to idiomatic Mesh (125 `let _ =` removed, 15 `== true` removed, struct update syntax, else-if chains, interpolation), and expanded the e2e test suite to 328 tests covering all 12 pattern categories. M029 is complete: S01 fixed dotted-path and multiline-import formatter corruption, S02 closed the Mesher JSON/interpolation and pipe-style cleanup, S03 finished the multiline-import rollout and the last formatter/CLI truth-surface repairs (`pub type`/schema spacing, silent `fmt --check` success), and milestone closeout reran the formatter library/CLI proofs, both dogfood formatter/build gates, and the full `cargo test -p meshc --test e2e` baseline at 318 passed / 10 known pre-existing try-family failures. The current repo state is ready to move into M030’s tooling/package trust work rather than more dogfood cleanup.
+Recent milestone state:
+- M028 established the production-backend trust baseline around API + DB + migrations + jobs
+- M029 completed the major formatter correctness and dogfood cleanup wave across `mesher/` and `reference-backend/`
+- M031 fixed several real DX/compiler rough edges found through dogfooding and expanded the regression suite
+
+The next planned work is a two-step dogfood-driven follow-up:
+1. audit `mesher/` workaround folklore and retire real Mesh blockers in M032
+2. strengthen the ORM and migration/DDL surfaces in M033, with a neutral core and explicit database-specific extras where honest
 
 ## Architecture / Key Patterns
 
-- Rust workspace under `compiler/` with distinct crates for lexer, parser, type checker, codegen, runtime, formatter, LSP, REPL, package tooling, and CLI
-- native-binary compilation via LLVM rather than a VM runtime requirement
-- runtime centered on actors, supervision, HTTP, WebSocket, DB, migrations, and other backend primitives
-- dogfooding through `reference-backend/` and `mesher/`
-- proof-first rule: if a language limitation blocks the app, fix Mesh at the source and prove it through a real backend workflow
+- Rust workspace under `compiler/` with separate crates for parser, type checker, codegen, runtime, formatter, LSP, CLI, REPL, and package tooling
+- backend-first proof surfaces through `reference-backend/` and `mesher/`
+- Mesh data access built around `Repo`, `Query`, and `Migration` runtime surfaces
+- proof-first dogfooding: reproduce a real app limitation, fix Mesh at the source, then dogfood the repaired path back into the app
+- keep the default surface boring and composable; use database-specific extras explicitly when the underlying behavior is genuinely vendor-specific
 
 ## Capability Contract
 
@@ -33,7 +39,9 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 ## Milestone Sequence
 
-- [x] M028: Language Baseline Audit & Hardening — backend trust baseline established; serial recovery-proof has residual flake
-- [x] M029: Mesher & Reference-Backend Dogfood Completion — formatter corruption fixed, Mesher cleanup finished, both dogfood apps formatter/build clean, full `meshc` e2e baseline rerun at 318 passed / 10 known pre-existing failures
-- [ ] M030: Tooling & Package Trust — make fmt/LSP/tests/coverage/dependency flow credible for daily backend work
-- [x] M031: Language DX Audit & Rough Edge Fixes — 3 compiler bugs fixed, multiline imports/trailing commas added, both dogfood codebases cleaned, 328 e2e tests
+- [x] M028: Language Baseline Audit & Hardening — prove the first honest API + DB + migrations + jobs backend path
+- [x] M029: Mesher & Reference-Backend Dogfood Completion — fix formatter corruption and complete the dogfood cleanup wave
+- [ ] M030: Tooling & Package Trust — make package, dependency, and daily-driver tooling flow credible for backend work
+- [x] M031: Language DX Audit & Rough Edge Fixes — retire real dogfood rough edges through compiler and parser fixes
+- [ ] M032: Mesher Limitation Truth & Mesh Dogfood Retirement — audit workaround folklore, fix real blockers in Mesh, and dogfood those repairs back into `mesher/`
+- [ ] M033: ORM Expressiveness & Schema Extras — strengthen the neutral data layer, add PG-first extras now, and leave a clean path for SQLite extras later
