@@ -48,7 +48,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Limitation truth audit and repro matrix** `risk:high` `depends:[]`
+- [x] **S01: Limitation truth audit and repro matrix** `risk:high` `depends:[]`
   > After this: the audited `mesher/` limitation comments are classified as stale versus real with concrete repro commands and affected module clusters.
 
 - [ ] **S02: Cross-module and inferred-export blocker retirement** `risk:high` `depends:[S01]`
