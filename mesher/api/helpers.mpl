@@ -56,5 +56,5 @@ end
 # Convert a list of JSON strings to a JSON array.
 # Replaces the old recursive json_array_loop pattern with String.join.
 pub fn to_json_array(items) -> String do
-  "[" <> String.join(items, ",") <> "]"
+  "[#{String.join(items, ",")}]"
 end

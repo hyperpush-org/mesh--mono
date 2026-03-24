@@ -38,7 +38,7 @@ end
 # Validate bulk event count. Returns Err if count exceeds max (100 default).
 pub fn validate_bulk_count(count :: Int, max_events :: Int) -> String!String do
   if count > max_events do
-    Err("too many events in bulk request (max " <> String.from(max_events) <> ")")
+    Err("too many events in bulk request (max #{max_events})")
   else
     Ok("ok")
   end

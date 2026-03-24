@@ -50,7 +50,7 @@ fn handle_stream_connect(conn, path :: String) do
   else
     List.get(parts, 3)
   end
-  let room = "project:" <> project_id
+  let room = "project:#{project_id}"
   Ws.join(conn, room)
   let stream_mgr_pid = Process.whereis("stream_manager")
   StreamManager.register_client(stream_mgr_pid, conn, project_id, "", "")
@@ -125,5 +125,5 @@ end
 pub fn ws_on_close(conn, code :: Int, reason :: String) do
   let stream_mgr_pid = Process.whereis("stream_manager")
   StreamManager.remove_client(stream_mgr_pid, conn)
-  println("[WS] Connection closed: " <> String.from(code))
+  println("[WS] Connection closed: #{code}")
 end

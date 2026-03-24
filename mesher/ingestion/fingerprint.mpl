@@ -24,23 +24,22 @@ end
 # Build a fingerprint component from a single stack frame.
 # Uses filename and function_name only (no line numbers -- GROUP-01).
 fn fingerprint_frame(frame :: StackFrame) -> String do
-  frame.filename <> "|" <> frame.function_name
+  "#{frame.filename}|#{frame.function_name}"
 end
 
 # Build fingerprint from stack trace frames and message (GROUP-01).
 # Format: "file|func;file|func;...:normalized_message"
 fn fingerprint_from_frames(frames, msg :: String) -> Fingerprint do
-  let suffix = ":" <> normalize_message(msg)
   let joined = frames |> List.map(fn(frame) do fingerprint_frame(frame) end) |> String.join(";")
-  joined <> suffix
+  "#{joined}:#{normalize_message(msg)}"
 end
 
 # Fallback fingerprint when no stack trace is available (GROUP-02).
 # Priority: exception type:value > "msg:normalized_message"
 fn fallback_fingerprint(payload :: EventPayload) -> String do
   case payload.exception do
-    Some(exc) -> exc.type_name <> ":" <> normalize_message(exc.value)
-    None -> "msg:" <> normalize_message(payload.message)
+    Some(exc) -> "#{exc.type_name}:#{normalize_message(exc.value)}"
+    None -> "msg:#{normalize_message(payload.message)}"
   end
 end
 
@@ -74,3 +73,4 @@ pub fn compute_fingerprint(payload :: EventPayload) -> Fingerprint do
     compute_from_stacktrace_or_fallback(payload)
   end
 end
+

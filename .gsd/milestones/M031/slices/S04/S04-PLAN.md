@@ -28,7 +28,7 @@
   - Verify: `rg 'let _ =' mesher/ -g '*.mpl'` returns 0 matches; `cargo run -p meshc -- build mesher` succeeds
   - Done when: Zero `let _ =` in mesher, all 3 `else if` sites flattened, mesher builds clean
 
-- [ ] **T02: Replace `<>` with interpolation and convert long imports to multiline** `est:40m`
+- [x] **T02: Replace `<>` with interpolation and convert long imports to multiline** `est:40m`
   - Why: ~10 `<>` concatenations are clearly more readable as interpolation; 13 import lines exceed 120 chars and should use the parenthesized multiline form proven in S02.
   - Files: `mesher/ingestion/validation.mpl`, `mesher/ingestion/ws_handler.mpl`, `mesher/ingestion/fingerprint.mpl`, `mesher/services/event_processor.mpl`, `mesher/api/helpers.mpl`, `mesher/main.mpl`, `mesher/ingestion/routes.mpl`, `mesher/api/dashboard.mpl`, `mesher/api/alerts.mpl`, `mesher/api/team.mpl`, `mesher/services/user.mpl`, `mesher/services/project.mpl`, `mesher/services/retention.mpl`, `mesher/api/search.mpl`, `mesher/ingestion/pipeline.mpl`
   - Do: Replace `<>` with interpolation in the 5 clear-win files (validation, ws_handler, fingerprint, event_processor, helpers). Keep `<>` in SQL DDL (schema.mpl), raw JSONB embedding (detail.mpl, search.mpl, alerts.mpl), and crypto construction (queries.mpl) per D029. Convert 13 imports >120 chars to `from Module import (\n  name1,\n  name2\n)` form.

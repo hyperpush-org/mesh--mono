@@ -315,7 +315,7 @@ end
 # Build JSON array from list of issues.
 fn issues_to_json(issues :: List<Issue>) -> String do
   let items = issues |> List.map(fn(issue) do issue_to_json_str(issue) end)
-  "[" <> String.join(items, ",") <> "]"
+  "[#{String.join(items, ",")}]"
 end
 
 # Handle GET /api/v1/projects/:project_id/issues?status=unresolved

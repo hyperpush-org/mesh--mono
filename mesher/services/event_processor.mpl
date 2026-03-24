@@ -24,7 +24,7 @@ end
 # The StorageWriter splits this to pass issue_id and fingerprint as separate
 # SQL parameters to insert_event (avoiding JSON field injection in Mesh).
 fn build_enriched_entry(issue_id :: String, fingerprint :: String, event_json :: String) -> String do
-  issue_id <> "|||" <> fingerprint <> "|||" <> event_json
+  "#{issue_id}|||#{fingerprint}|||#{event_json}"
 end
 
 # Store enriched event via StorageWriter and return updated state.
