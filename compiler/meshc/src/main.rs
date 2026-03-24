@@ -27,12 +27,17 @@ mod discovery;
 mod migrate;
 mod test_runner;
 
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process;
 
 use clap::{Parser, Subcommand};
+use mesh_parser::ast::expr::{FieldAccess, NameRef};
+use mesh_parser::ast::AstNode;
+use mesh_parser::syntax_kind::SyntaxKind;
 
 use mesh_typeck::diagnostics::DiagnosticOptions;
+use mesh_typeck::ty::Ty;
 
 #[derive(Parser)]
 #[command(name = "meshc", version, about = "The Mesh compiler")]
@@ -412,6 +417,22 @@ pub(crate) fn build(
         return Err("Compilation failed due to errors above.".to_string());
     }
 
+    let inferred_export_names: HashSet<String> = all_exports
+        .iter()
+        .filter_map(|exports_opt| exports_opt.as_ref())
+        .flat_map(|exports| {
+            exports.functions.iter().filter_map(|(name, scheme)| {
+                if ty_contains_var(&scheme.ty) {
+                    Some(name.clone())
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+    let inferred_fn_usage_types =
+        collect_inferred_fn_usage_types(&project.module_parses, &all_typeck, &inferred_export_names);
+
     // Lower ALL modules to MIR and merge into a single module for codegen
     let mut mir_modules = Vec::new();
     let mut entry_mir_idx = 0;
@@ -429,7 +450,13 @@ pub(crate) fn build(
             .map(|e| e.functions.keys().cloned().collect())
             .unwrap_or_default();
 
-        let mir = mesh_codegen::lower_to_mir_raw(parse, typeck, module_name, &pub_fns)?;
+        let mir = mesh_codegen::lower_to_mir_raw(
+            parse,
+            typeck,
+            module_name,
+            &pub_fns,
+            &inferred_fn_usage_types,
+        )?;
         if id == entry_id {
             entry_mir_idx = i;
         }
@@ -457,6 +484,91 @@ pub(crate) fn build(
     eprintln!("  Compiled: {}", output_path.display());
 
     Ok(())
+}
+
+fn ty_contains_var(ty: &Ty) -> bool {
+    match ty {
+        Ty::Var(_) => true,
+        Ty::Con(_) | Ty::Never => false,
+        Ty::Fun(params, ret) => params.iter().any(ty_contains_var) || ty_contains_var(ret),
+        Ty::App(con, args) => ty_contains_var(con) || args.iter().any(ty_contains_var),
+        Ty::Tuple(elems) => elems.iter().any(ty_contains_var),
+    }
+}
+
+fn is_concrete_fn_ty(ty: &Ty) -> bool {
+    matches!(ty, Ty::Fun(..)) && !ty_contains_var(ty)
+}
+
+fn push_usage_type(map: &mut HashMap<String, Vec<Ty>>, name: &str, ty: &Ty) {
+    if !is_concrete_fn_ty(ty) {
+        return;
+    }
+    let entry = map.entry(name.to_string()).or_default();
+    if !entry.contains(ty) {
+        entry.push(ty.clone());
+    }
+}
+
+fn collect_inferred_fn_usage_types(
+    parses: &[mesh_parser::Parse],
+    typecks: &[Option<mesh_typeck::TypeckResult>],
+    candidate_names: &HashSet<String>,
+) -> HashMap<String, Vec<Ty>> {
+    let mut usage = HashMap::new();
+    if candidate_names.is_empty() {
+        return usage;
+    }
+
+    for (parse, typeck_opt) in parses.iter().zip(typecks.iter()) {
+        let Some(typeck) = typeck_opt.as_ref() else {
+            continue;
+        };
+
+        for node in parse.syntax().descendants() {
+            match node.kind() {
+                SyntaxKind::NAME_REF => {
+                    if let Some(name_ref) = NameRef::cast(node.clone()) {
+                        if let Some(name) = name_ref.text() {
+                            if candidate_names.contains(&name) {
+                                if let Some(ty) = typeck.types.get(&name_ref.syntax().text_range()) {
+                                    push_usage_type(&mut usage, &name, ty);
+                                }
+                            }
+                        }
+                    }
+                }
+                SyntaxKind::FIELD_ACCESS => {
+                    if let Some(field_access) = FieldAccess::cast(node) {
+                        let Some(base_expr) = field_access.base() else {
+                            continue;
+                        };
+                        let mesh_parser::ast::expr::Expr::NameRef(base_name_ref) = base_expr else {
+                            continue;
+                        };
+                        let Some(base_name) = base_name_ref.text() else {
+                            continue;
+                        };
+                        if !typeck.qualified_modules.contains_key(&base_name) {
+                            continue;
+                        }
+                        let Some(field_name) = field_access.field().map(|t| t.text().to_string()) else {
+                            continue;
+                        };
+                        if !candidate_names.contains(&field_name) {
+                            continue;
+                        }
+                        if let Some(ty) = typeck.types.get(&field_access.syntax().text_range()) {
+                            push_usage_type(&mut usage, &field_name, ty);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    usage
 }
 
 /// Build an ImportContext for a module from already-checked dependency exports.

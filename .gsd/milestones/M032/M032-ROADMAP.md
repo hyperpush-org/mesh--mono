@@ -51,7 +51,7 @@ This milestone is complete only when all are true:
 - [x] **S01: Limitation truth audit and repro matrix** `risk:high` `depends:[]`
   > After this: the audited `mesher/` limitation comments are classified as stale versus real with concrete repro commands and affected module clusters.
 
-- [ ] **S02: Cross-module and inferred-export blocker retirement** `risk:high` `depends:[S01]`
+- [x] **S02: Cross-module and inferred-export blocker retirement** `risk:high` `depends:[S01]`
   > After this: at least one live compiler or runtime blocker behind a mesher workaround is fixed in Mesh, regression-covered, and used from mesher.
 
 - [ ] **S03: Request, handler, and control-flow dogfood cleanup** `risk:medium` `depends:[S01]`

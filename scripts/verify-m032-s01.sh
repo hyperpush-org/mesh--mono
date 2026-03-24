@@ -137,8 +137,9 @@ run_binary_expect_exact cast_if_else $'1\n2\n' ./.tmp/m032-s01/cast_if_else/cast
 # Retained build/runtime limits that must stay observable until their owning slices land.
 run_expect_failure_contains nested_and "PHI node entries do not match predecessors!" \
   cargo run -q -p meshc -- build .tmp/m032-s01/nested_and
-run_expect_failure_contains xmod_identity "Call parameter type does not match function signature!" \
-  cargo run -q -p meshc -- build .tmp/m032-s01/xmod_identity
+
+run_expect_success build_xmod_identity cargo run -q -p meshc -- build .tmp/m032-s01/xmod_identity
+run_binary_expect_exact xmod_identity $'7\npoly\n' ./.tmp/m032-s01/xmod_identity/xmod_identity
 
 run_expect_success build_timer_service_cast cargo run -q -p meshc -- build .tmp/m032-s01/timer_service_cast
 run_binary_expect_exact timer_service_cast $'0\n' ./.tmp/m032-s01/timer_service_cast/timer_service_cast

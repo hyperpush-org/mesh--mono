@@ -5,12 +5,12 @@
 # Retry strategy: 3 attempts with exponential backoff (100ms, 500ms), drop on final failure.
 # Buffer backpressure: drop-oldest when max_buffer exceeded.
 
-from Storage.Writer import insert_event
+from Storage.Writer import flush_batch
 
 # WriterState holds all service state for a single project writer.
 # Buffer stores enriched event entries as "issue_id|||fingerprint|||event_json"
 # strings. The flush loop splits these to pass issue_id and fingerprint as
-# separate SQL parameters to insert_event.
+# separate SQL parameters to flush_batch.
 
 struct WriterState do
   pool :: PoolHandle
@@ -24,25 +24,6 @@ end
 # --- Batch flush and retry logic ---
 # LOCKED: 3 attempts with exponential backoff (100ms, 500ms), drop on final failure.
 # Uses recursive loop since Mesh has no mutable variable assignment.
-
-fn flush_loop(pool :: PoolHandle, project_id :: String, events, i :: Int, total :: Int) -> Int ! String do
-  if i < total do
-    let entry = List.get(events, i)
-    let parts = String.split(entry, "|||")
-    let issue_id = List.get(parts, 0)
-    let fingerprint = List.get(parts, 1)
-    let event_json = List.get(parts, 2)
-    insert_event(pool, project_id, issue_id, fingerprint, event_json) ?
-    flush_loop(pool, project_id, events, i + 1, total)
-  else
-    Ok(0)
-  end
-end
-
-fn flush_batch(pool :: PoolHandle, project_id :: String, events) -> Int ! String do
-  let total = List.length(events)
-  flush_loop(pool, project_id, events, 0, total)
-end
 
 fn flush_drop(project_id :: String, count_val :: Int) -> Int ! String do
   println("[StorageWriter] Dropping batch of #{count_val} events for project #{project_id} after 3 retries")
@@ -137,8 +118,7 @@ end
 # Per-project batch writer with bounded buffer and dual flush triggers.
 # LOCKED: per-project writers for isolation, drop-oldest backpressure,
 # size + timer flush triggers, retry with exponential backoff.
-# insert_event imported from Storage.Writer. All other logic is local.
-# Buffer stores enriched event entries; flush_loop splits to extract issue_id/fingerprint.
+# flush_batch imported from Storage.Writer. All service state stays local.
 
 service StorageWriter do
   fn init(pool :: PoolHandle, project_id :: String) -> WriterState do

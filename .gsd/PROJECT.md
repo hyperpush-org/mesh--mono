@@ -20,9 +20,10 @@ Recent milestone state:
 - M028 established the production-backend trust baseline around API + DB + migrations + jobs
 - M029 completed the major formatter correctness and dogfood cleanup wave across `mesher/` and `reference-backend/`
 - M031 fixed several real DX/compiler rough edges found through dogfooding and expanded the regression suite
+- M032/S02 retired the unconstrained inferred-export blocker by threading concrete call-site signatures into MIR lowering, replaying `xmod_identity` as a success path, and dogfooding the repaired export via `mesher/storage/writer.mpl`
 
 The next planned work is a two-step dogfood-driven follow-up:
-1. audit `mesher/` workaround folklore and retire real Mesh blockers in M032
+1. finish the remaining M032 workaround-truth cleanup (`S03`-`S05`) on top of the repaired inferred-export path
 2. strengthen the ORM and migration/DDL surfaces in M033, with a neutral core and explicit database-specific extras where honest
 
 ## Architecture / Key Patterns

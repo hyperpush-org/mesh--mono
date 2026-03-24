@@ -21,7 +21,7 @@ pub mod link;
 pub mod mir;
 pub mod pattern;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use inkwell::context::Context;
@@ -44,7 +44,14 @@ pub fn lower_to_mir_module(
     typeck: &mesh_typeck::TypeckResult,
 ) -> Result<mir::MirModule, String> {
     let empty_pub_fns = HashSet::new();
-    let mut module = lower_to_mir(parse, typeck, "", &empty_pub_fns)?;
+    let empty_inferred_fn_usage_types: HashMap<String, Vec<mesh_typeck::ty::Ty>> = HashMap::new();
+    let mut module = lower_to_mir(
+        parse,
+        typeck,
+        "",
+        &empty_pub_fns,
+        &empty_inferred_fn_usage_types,
+    )?;
     monomorphize(&mut module);
     Ok(module)
 }
@@ -62,8 +69,9 @@ pub fn lower_to_mir_raw(
     typeck: &mesh_typeck::TypeckResult,
     module_name: &str,
     pub_fns: &HashSet<String>,
+    inferred_fn_usage_types: &HashMap<String, Vec<mesh_typeck::ty::Ty>>,
 ) -> Result<mir::MirModule, String> {
-    let module = lower_to_mir(parse, typeck, module_name, pub_fns)?;
+    let module = lower_to_mir(parse, typeck, module_name, pub_fns, inferred_fn_usage_types)?;
     Ok(module)
 }
 

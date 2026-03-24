@@ -269,6 +269,13 @@ struct Lowerer<'a> {
     /// This map lets the lowerer recover the correct parameter types for functions whose
     /// parameters were generalized (as Ty::Var) before the call site could constrain them.
     fn_value_usage_types: HashMap<String, Vec<Ty>>,
+    /// Inferred functions whose definitions still contain TyVar placeholders but whose
+    /// call sites expose one or more concrete function signatures.
+    ///
+    /// Single-signature entries let the lowerer repair the base ABI directly.
+    /// Multi-signature entries require per-signature MIR clones so each call site can
+    /// reference a concrete symbol instead of collapsing to the first observed ABI.
+    inferred_fn_specializations: HashMap<String, Vec<Ty>>,
     /// Current enclosing function's return type (Phase 45).
     /// Set when entering a function body, used by lower_try_expr for early-return
     /// variant construction. Save/restore pattern for nested functions and closures.
@@ -320,6 +327,7 @@ impl<'a> Lowerer<'a> {
         parse: &'a Parse,
         module_name: &str,
         pub_fns: &HashSet<String>,
+        inferred_fn_usage_types: &HashMap<String, Vec<Ty>>,
     ) -> Self {
         Lowerer {
             types: &typeck.types,
@@ -351,7 +359,8 @@ impl<'a> Lowerer<'a> {
             module_name: module_name.to_string(),
             pub_functions: pub_fns.clone(),
             user_fn_defs: HashSet::new(),
-            fn_value_usage_types: HashMap::new(),
+            fn_value_usage_types: inferred_fn_usage_types.clone(),
+            inferred_fn_specializations: inferred_fn_usage_types.clone(),
             current_fn_return_type: None,
             try_counter: 0,
             is_test_mode: false,
@@ -649,6 +658,141 @@ impl<'a> Lowerer<'a> {
             }
         }
         None
+    }
+
+    fn ty_contains_var(ty: &Ty) -> bool {
+        match ty {
+            Ty::Var(_) => true,
+            Ty::Con(_) | Ty::Never => false,
+            Ty::Fun(params, ret) => {
+                params.iter().any(Self::ty_contains_var) || Self::ty_contains_var(ret)
+            }
+            Ty::App(con, args) => {
+                Self::ty_contains_var(con) || args.iter().any(Self::ty_contains_var)
+            }
+            Ty::Tuple(elems) => elems.iter().any(Self::ty_contains_var),
+        }
+    }
+
+    fn is_concrete_fun_ty(ty: &Ty) -> bool {
+        matches!(ty, Ty::Fun(..)) && !Self::ty_contains_var(ty)
+    }
+
+    fn push_usage_type(map: &mut HashMap<String, Vec<Ty>>, name: &str, ty: &Ty) {
+        if !Self::is_concrete_fun_ty(ty) {
+            return;
+        }
+        let entry = map.entry(name.to_string()).or_default();
+        if !entry.contains(ty) {
+            entry.push(ty.clone());
+        }
+    }
+
+    fn merge_usage_types(&mut self, usage_types: HashMap<String, Vec<Ty>>) {
+        for (name, tys) in usage_types {
+            for ty in tys {
+                Self::push_usage_type(&mut self.fn_value_usage_types, &name, &ty);
+            }
+        }
+    }
+
+    fn mir_type_specialization_component(ty: &MirType) -> String {
+        match ty {
+            MirType::Int => "Int".to_string(),
+            MirType::Float => "Float".to_string(),
+            MirType::Bool => "Bool".to_string(),
+            MirType::String => "String".to_string(),
+            MirType::Unit => "Unit".to_string(),
+            MirType::Ptr => "Ptr".to_string(),
+            MirType::Never => "Never".to_string(),
+            MirType::Struct(name) | MirType::SumType(name) => name.clone(),
+            MirType::Tuple(elems) => format!(
+                "Tuple_{}",
+                elems
+                    .iter()
+                    .map(Self::mir_type_specialization_component)
+                    .collect::<Vec<_>>()
+                    .join("_")
+            ),
+            MirType::FnPtr(params, ret) => format!(
+                "Fn_{}_to_{}",
+                params
+                    .iter()
+                    .map(Self::mir_type_specialization_component)
+                    .collect::<Vec<_>>()
+                    .join("_"),
+                Self::mir_type_specialization_component(ret)
+            ),
+            MirType::Closure(params, ret) => format!(
+                "Closure_{}_to_{}",
+                params
+                    .iter()
+                    .map(Self::mir_type_specialization_component)
+                    .collect::<Vec<_>>()
+                    .join("_"),
+                Self::mir_type_specialization_component(ret)
+            ),
+            MirType::Pid(None) => "Pid".to_string(),
+            MirType::Pid(Some(msg_ty)) => {
+                format!("Pid_{}", Self::mir_type_specialization_component(msg_ty))
+            }
+        }
+    }
+
+    fn mangle_inferred_fn_name(&self, base_name: &str, fun_ty: &Ty) -> String {
+        let Ty::Fun(params, ret) = fun_ty else {
+            return base_name.to_string();
+        };
+
+        let mut parts: Vec<String> = params
+            .iter()
+            .map(|param_ty| {
+                let mir_ty = resolve_type(param_ty, self.registry, matches!(param_ty, Ty::Fun(..)));
+                Self::mir_type_specialization_component(&mir_ty)
+            })
+            .collect();
+        let ret_mir_ty = resolve_type(ret, self.registry, matches!(ret.as_ref(), Ty::Fun(..)));
+        parts.push("ret".to_string());
+        parts.push(Self::mir_type_specialization_component(&ret_mir_ty));
+        format!("{}__spec__{}", base_name, parts.join("__"))
+    }
+
+    fn specialization_ty_for_range(&self, name: &str, range: TextRange) -> Option<Ty> {
+        let variants = self.inferred_fn_specializations.get(name)?;
+        if variants.is_empty() {
+            return None;
+        }
+        if variants.len() == 1 {
+            return variants.first().cloned();
+        }
+        let ty = self.get_ty(range)?.clone();
+        if Self::is_concrete_fun_ty(&ty) && variants.contains(&ty) {
+            Some(ty)
+        } else {
+            None
+        }
+    }
+
+    fn lowered_fn_symbol_name(&self, original_name: &str, base_name: &str, range: TextRange) -> String {
+        match self.specialization_ty_for_range(original_name, range) {
+            Some(fun_ty)
+                if self
+                    .inferred_fn_specializations
+                    .get(original_name)
+                    .map(|variants| variants.len() > 1)
+                    .unwrap_or(false) =>
+            {
+                self.mangle_inferred_fn_name(base_name, &fun_ty)
+            }
+            _ => base_name.to_string(),
+        }
+    }
+
+    fn is_inferred_specialization_name(&self, name: &str) -> bool {
+        self.inferred_fn_specializations.keys().any(|base| {
+            name.starts_with(&format!("{}__spec__", base))
+                || name.starts_with(&format!("{}__spec__", self.qualify_name(base)))
+        })
     }
 
     // ── Top-level lowering ───────────────────────────────────────────
@@ -2658,7 +2802,31 @@ impl<'a> Lowerer<'a> {
         {
             let syntax = self.parse.syntax();
             let usage_types = self.build_fn_value_usage_types(&syntax);
-            self.fn_value_usage_types = usage_types;
+            self.merge_usage_types(usage_types);
+        }
+
+        // Identify locally-defined inferred functions whose definition type still
+        // contains TyVars. These need concrete call-site evidence to repair their
+        // ABI, and multi-signature cases need per-signature MIR clones.
+        for item in sf.items() {
+            if let Item::FnDef(fn_def) = item {
+                if let Some(name) = fn_def.name().and_then(|n| n.text()) {
+                    let range = fn_def.syntax().text_range();
+                    if let Some(fn_ty) = self.get_ty(range) {
+                        if Self::ty_contains_var(fn_ty) {
+                            if let Some(usage_tys) = self.fn_value_usage_types.get(&name).cloned() {
+                                for usage_ty in usage_tys {
+                                    Self::push_usage_type(
+                                        &mut self.inferred_fn_specializations,
+                                        &name,
+                                        &usage_ty,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Second pass: lower all items, grouping consecutive same-name FnDefs.
@@ -2759,21 +2927,74 @@ impl<'a> Lowerer<'a> {
     // ── Function lowering ────────────────────────────────────────────
 
     fn lower_fn_def(&mut self, fn_def: &FnDef) {
-        let name = fn_def
+        let original_name = fn_def
             .name()
             .and_then(|n| n.text())
             .unwrap_or_else(|| "<anonymous>".to_string());
 
-        // Get function type from typeck.
         let fn_range = fn_def.syntax().text_range();
         let fn_ty_raw = self.get_ty(fn_range).cloned();
 
-        // Extract parameter names and types.
+        let base_name = if original_name == "main" {
+            self.entry_function = Some("mesh_main".to_string());
+            "mesh_main".to_string()
+        } else if self.overloaded_pub_fn_names.contains(&original_name) {
+            let arity = fn_def
+                .param_list()
+                .map(|pl| pl.params().count())
+                .unwrap_or(0);
+            format!("{}__{}", original_name, arity)
+        } else {
+            self.qualify_name(&original_name)
+        };
+
+        let specialization_tys = self
+            .inferred_fn_specializations
+            .get(&original_name)
+            .cloned()
+            .unwrap_or_default();
+
+        if specialization_tys.len() > 1 {
+            for usage_ty in specialization_tys {
+                let emitted_name = self.mangle_inferred_fn_name(&base_name, &usage_ty);
+                self.lower_fn_def_variant(
+                    fn_def,
+                    &original_name,
+                    fn_ty_raw.as_ref(),
+                    Some(&usage_ty),
+                    emitted_name,
+                    false,
+                );
+            }
+            return;
+        }
+
+        let concrete_fn_ty = specialization_tys.first().or(fn_ty_raw.as_ref());
+        self.lower_fn_def_variant(
+            fn_def,
+            &original_name,
+            fn_ty_raw.as_ref(),
+            concrete_fn_ty,
+            base_name,
+            true,
+        );
+    }
+
+    fn lower_fn_def_variant(
+        &mut self,
+        fn_def: &FnDef,
+        original_name: &str,
+        fn_ty_raw: Option<&Ty>,
+        concrete_fn_ty: Option<&Ty>,
+        emitted_name: String,
+        update_original_name: bool,
+    ) {
         let mut params = Vec::new();
         self.push_scope();
 
         if let Some(param_list) = fn_def.param_list() {
-            if let Some(Ty::Fun(param_tys, _)) = &fn_ty_raw {
+            let param_ty_source = concrete_fn_ty.or(fn_ty_raw);
+            if let Some(Ty::Fun(param_tys, _)) = param_ty_source {
                 for (param_idx, (param, param_ty)) in
                     param_list.params().zip(param_tys.iter()).enumerate()
                 {
@@ -2783,11 +3004,9 @@ impl<'a> Lowerer<'a> {
                         .unwrap_or_else(|| "_".to_string());
                     let is_closure = matches!(param_ty, Ty::Fun(..));
                     let mut mir_ty = resolve_type(param_ty, self.registry, is_closure);
-                    // If the parameter type is unresolved (Ty::Var → MirType::Unit),
-                    // try to recover the concrete type from call sites where this
-                    // function was passed as a value argument (e.g. HTTP.use(r, fn)).
                     if mir_ty == MirType::Unit && matches!(param_ty, Ty::Var(_)) {
-                        if let Some(recovered) = self.resolve_param_from_usage(&name, param_idx) {
+                        if let Some(recovered) = self.resolve_param_from_usage(original_name, param_idx)
+                        {
                             mir_ty = recovered;
                         }
                     }
@@ -2795,7 +3014,6 @@ impl<'a> Lowerer<'a> {
                     params.push((param_name, mir_ty));
                 }
             } else {
-                // Fallback: use range-based type lookup for each param.
                 for param in param_list.params() {
                     let param_name = param
                         .name()
@@ -2808,18 +3026,15 @@ impl<'a> Lowerer<'a> {
             }
         }
 
-        // Return type.
-        let return_type = if let Some(Ty::Fun(_, ret)) = &fn_ty_raw {
-            resolve_type(ret, self.registry, false)
+        let return_type = if let Some(Ty::Fun(_, ret)) = concrete_fn_ty.or(fn_ty_raw) {
+            resolve_type(ret, self.registry, matches!(ret.as_ref(), Ty::Fun(..)))
         } else {
             MirType::Unit
         };
 
-        // Track current function return type for ? operator desugaring (Phase 45).
         let prev_fn_return_type = self.current_fn_return_type.take();
         self.current_fn_return_type = Some(return_type.clone());
 
-        // Monomorphization depth tracking.
         self.mono_depth += 1;
         let mut body = if self.mono_depth > self.max_mono_depth {
             MirExpr::Panic {
@@ -2833,49 +3048,30 @@ impl<'a> Lowerer<'a> {
         } else if let Some(block) = fn_def.body() {
             self.lower_block(&block)
         } else if let Some(expr) = fn_def.expr_body() {
-            // Handle `= expr` body form (e.g., `fn double(x) = x * 2`).
             self.lower_expr(&expr)
         } else {
             MirExpr::Unit
         };
         self.mono_depth -= 1;
 
-        // Restore previous function return type.
         self.current_fn_return_type = prev_fn_return_type;
-
         self.pop_scope();
 
-        // Rename "main" to "mesh_main" to avoid collision with C main() entry point.
-        // For arity-overloaded pub fns, emit mangled name__arity MIR name.
-        // Then apply module-qualified naming for private functions.
-        let fn_name = if name == "main" {
-            self.entry_function = Some("mesh_main".to_string());
-            "mesh_main".to_string()
-        } else if self.overloaded_pub_fn_names.contains(&name) {
-            let arity = fn_def
-                .param_list()
-                .map(|pl| pl.params().count())
-                .unwrap_or(0);
-            format!("{}__{}", name, arity)
-        } else {
-            self.qualify_name(&name)
-        };
-
-        // Register both original and qualified/mangled name in known_functions for
-        // intra-module call resolution (callers use unqualified name from AST).
-        if fn_name != name {
-            let fn_ty = MirType::FnPtr(
-                params.iter().map(|(_, t)| t.clone()).collect(),
-                Box::new(return_type.clone()),
-            );
-            self.known_functions.insert(name, fn_ty);
+        let fn_ty = MirType::FnPtr(
+            params.iter().map(|(_, t)| t.clone()).collect(),
+            Box::new(return_type.clone()),
+        );
+        self.known_functions
+            .insert(emitted_name.clone(), fn_ty.clone());
+        if update_original_name && emitted_name != original_name {
+            self.known_functions
+                .insert(original_name.to_string(), fn_ty.clone());
         }
 
-        // TCE: Rewrite self-recursive tail calls to TailCall nodes (Phase 48).
-        let has_tail_calls = rewrite_tail_calls(&mut body, &fn_name);
+        let has_tail_calls = rewrite_tail_calls(&mut body, &emitted_name);
 
         self.functions.push(MirFunction {
-            name: fn_name,
+            name: emitted_name,
             params,
             return_type,
             body,
@@ -7550,6 +7746,7 @@ impl<'a> Lowerer<'a> {
 
     fn lower_name_ref(&self, name_ref: &NameRef) -> MirExpr {
         let name = name_ref.text().unwrap_or_else(|| "<unknown>".to_string());
+        let range = name_ref.syntax().text_range();
 
         // Check if this is a nullary variant constructor (e.g., Red, None, Point).
         // These are NameRef nodes that refer to sum type variants with no fields.
@@ -7572,31 +7769,36 @@ impl<'a> Lowerer<'a> {
         // (e.g., `head` from `head :: tail`) take precedence over builtin function
         // name mappings (e.g., `head` -> `mesh_list_head`).
         if let Some(scope_ty) = self.lookup_var(&name) {
-            // Apply module-qualified naming to user-defined functions (Phase 41).
-            // Function names in scope still need qualification to match their
-            // renamed definitions. Local variables, variant constructors, actors
-            // etc. (not in user_fn_defs) are unchanged.
-            let name = if self.user_fn_defs.contains(&name) {
-                self.qualify_name(&name)
-            } else {
-                name
-            };
+            if self.user_fn_defs.contains(&name) {
+                let resolved_ty = self.resolve_range(range);
+                let qualified_name = self.qualify_name(&name);
+                let lowered_name = self.lowered_fn_symbol_name(&name, &qualified_name, range);
+                let var_ty = if matches!(resolved_ty, MirType::Unit) {
+                    scope_ty
+                } else {
+                    resolved_ty
+                };
+                return MirExpr::Var(lowered_name, var_ty);
+            }
             return MirExpr::Var(name, scope_ty);
         }
 
         // Map builtin function names to their runtime equivalents.
-        let name = map_builtin_name(&name);
+        let mapped_name = map_builtin_name(&name);
+        let ty = self.resolve_range(range);
 
         // Apply module-qualified naming to user-defined functions (Phase 41).
         // This ensures call sites match the qualified definition names.
-        let name = if self.user_fn_defs.contains(&name) {
-            self.qualify_name(&name)
+        let lowered_name = if self.user_fn_defs.contains(&mapped_name) {
+            let qualified_name = self.qualify_name(&mapped_name);
+            self.lowered_fn_symbol_name(&mapped_name, &qualified_name, range)
+        } else if self.imported_functions.contains(&mapped_name) {
+            self.lowered_fn_symbol_name(&mapped_name, &mapped_name, range)
         } else {
-            name
+            mapped_name
         };
 
-        let ty = self.resolve_range(name_ref.syntax().text_range());
-        MirExpr::Var(name, ty)
+        MirExpr::Var(lowered_name, ty)
     }
 
     // ── Binary expression lowering ───────────────────────────────────
@@ -8526,6 +8728,7 @@ impl<'a> Lowerer<'a> {
         let is_user_module_fn = if let MirExpr::Var(ref name, _) = callee {
             self.user_modules.values().any(|fns| fns.contains(name))
                 || self.imported_functions.contains(name)
+                || self.is_inferred_specialization_name(name)
         } else {
             false
         };
@@ -8773,7 +8976,8 @@ impl<'a> Lowerer<'a> {
                         let field = fa.field().map(|t| t.text().to_string()).unwrap_or_default();
                         if func_names.contains(&field) {
                             let ty = self.resolve_range(fa.syntax().text_range());
-                            return MirExpr::Var(field, ty);
+                            let lowered_name = self.lowered_fn_symbol_name(&field, &field, fa.syntax().text_range());
+                            return MirExpr::Var(lowered_name, ty);
                         }
                     }
 
@@ -13778,6 +13982,7 @@ pub fn lower_to_mir(
     typeck: &TypeckResult,
     module_name: &str,
     pub_fns: &HashSet<String>,
+    inferred_fn_usage_types: &HashMap<String, Vec<Ty>>,
 ) -> Result<MirModule, String> {
     let tree = parse.syntax();
     let source_file = match SourceFile::cast(tree.clone()) {
@@ -13785,7 +13990,7 @@ pub fn lower_to_mir(
         None => return Err("Failed to cast root node to SourceFile".to_string()),
     };
 
-    let mut lowerer = Lowerer::new(typeck, parse, module_name, pub_fns);
+    let mut lowerer = Lowerer::new(typeck, parse, module_name, pub_fns, inferred_fn_usage_types);
 
     // Also register builtin sum types from the registry (Option, Result).
     // Generic type params (T, E) are resolved to Ptr since all Mesh values
@@ -14055,6 +14260,7 @@ pub fn lower_to_mir(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     /// Helper to parse and type-check a Mesh source, then lower to MIR.
     fn lower(source: &str) -> MirModule {
@@ -14062,7 +14268,7 @@ mod tests {
         let typeck = mesh_typeck::check(&parse);
         let empty_pub_fns = HashSet::new();
         // Ignore type errors for MIR lowering tests -- we test lowering, not typeck.
-        lower_to_mir(&parse, &typeck, "", &empty_pub_fns).expect("MIR lowering failed")
+        lower_to_mir(&parse, &typeck, "", &empty_pub_fns, &HashMap::new()).expect("MIR lowering failed")
     }
 
     #[test]
@@ -14679,7 +14885,7 @@ fn main() do bar(42) end
         // that lowering a deeply nested call chain doesn't crash -- the depth
         // counter prevents stack overflow.
         let empty_pub_fns = HashSet::new();
-        let _mir = lower_to_mir(&parse, &typeck, "", &empty_pub_fns).expect("MIR lowering failed");
+        let _mir = lower_to_mir(&parse, &typeck, "", &empty_pub_fns, &HashMap::new()).expect("MIR lowering failed");
     }
 
     // ── End-to-end trait codegen integration tests (19-04) ────────────
@@ -14968,7 +15174,7 @@ end
         // MIR lowering still succeeds (it's error-tolerant), confirming CODEGEN-04
         // is handled by typeck, not the lowerer.
         let empty_pub_fns = HashSet::new();
-        let mir = lower_to_mir(&parse, &typeck, "", &empty_pub_fns);
+        let mir = lower_to_mir(&parse, &typeck, "", &empty_pub_fns, &HashMap::new());
         assert!(
             mir.is_ok(),
             "MIR lowering should succeed even with typeck errors (error recovery)"
@@ -15377,7 +15583,7 @@ end
         let parse = mesh_parser::parse(source);
         let typeck = mesh_typeck::check(&parse);
         let empty_pub_fns = HashSet::new();
-        let _mir = lower_to_mir(&parse, &typeck, "", &empty_pub_fns)
+        let _mir = lower_to_mir(&parse, &typeck, "", &empty_pub_fns, &HashMap::new())
             .expect("MIR lowering with depth tracking");
     }
 
@@ -16087,7 +16293,7 @@ end
         );
         // Should also lower to MIR without failure.
         let empty_pub_fns = HashSet::new();
-        let mir = lower_to_mir(&parse, &typeck, "", &empty_pub_fns).expect("MIR lowering failed");
+        let mir = lower_to_mir(&parse, &typeck, "", &empty_pub_fns, &HashMap::new()).expect("MIR lowering failed");
         assert!(
             mir.functions
                 .iter()
