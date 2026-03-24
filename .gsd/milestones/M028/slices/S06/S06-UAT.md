@@ -1,165 +1,173 @@
-# S06 UAT — Honest Production Proof and Documentation
+# S06 UAT — Honest production backend proof surface
 
-## Status
-This UAT script is tailored to the **current** S06 state. Public proof/docs surfaces exist, but slice acceptance is **not complete** until the recovery proofs are green.
+**Milestone:** M028  
+**Slice:** S06  
+**Current-state rule:** S06 no longer treats crash recovery as a blocker. Public proof claims must now be validated against the same green recovery-aware command set used by `.gsd/milestones/M028/slices/S07/S07-UAT.md`, plus the docs-surface checks that S06 introduced.
 
 ## Preconditions
-- Worktree: `M028`
-- Repo `.env` exists and exports a valid `DATABASE_URL`
-- `cargo`, `npm`, `bash`, `curl`, `psql`, and `python3` are installed
-- Run database-backed ignored proofs **serially**, not in parallel
+1. Run from repo root: `/Users/sn0w/Documents/dev/mesh-lang/.gsd/worktrees/M028`
+2. `.env` contains a working `DATABASE_URL`
+3. Postgres is reachable from this worktree
+4. No other long-lived `reference-backend` process is bound to the test ports the harness selects
+5. `npm`, `cargo`, and `bash` are installed
+6. Use the repo-root `.env` for all ignored `e2e_reference_backend` commands:
+   - `set -a && source .env && set +a`
 
-## Test Case 1 — Landing page routes evaluators to the real proof surface
-1. Open `README.md`.
-2. Confirm there is an early **Production Backend Proof** section or link.
-3. Confirm it points to:
-   - `https://meshlang.dev/docs/production-backend-proof/`
+## Test Case 1 — Public proof surfaces still agree
+
+### Goal
+Prove that the landing page, website proof page, package runbook, and verifier still point at one canonical production-backend proof path.
+
+### Steps
+1. Run:
+   - `bash reference-backend/scripts/verify-production-proof-surface.sh`
+2. Optionally inspect:
+   - `README.md`
+   - `website/docs/docs/production-backend-proof/index.md`
    - `reference-backend/README.md`
-4. Confirm README no longer contains `placeholder link` wording.
 
-**Expected outcome**
-- A fresh evaluator can find the production proof path directly from the repo landing page.
-- README points to the real reference backend proof surfaces instead of relying on toy examples.
+### Expected outcomes
+1. The script exits `0`.
+2. The verifier confirms the canonical files exist, link together correctly, and do not contain stale interim phrasing.
+3. The proof page and runbook still cite the same recovery-aware command set instead of diverging summaries.
 
-## Test Case 2 — Website docs expose one canonical production proof page
-1. Open `website/docs/docs/production-backend-proof/index.md`.
-2. Confirm it lists the named backend proof commands, including:
+## Test Case 2 — Website docs build cleanly with the canonical proof page
+
+### Goal
+Prove that the promoted proof page and the generic doc cross-links remain valid website content, not dead documentation.
+
+### Steps
+1. Run:
+   - `npm --prefix website ci`
+   - `npm --prefix website run build`
+
+### Expected outcomes
+1. Both commands exit `0`.
+2. The docs site builds with the production-backend proof page in navigation.
+3. Generic guides continue to route readers back to `/docs/production-backend-proof/` rather than duplicating a second backend manual.
+
+## Test Case 3 — Worker crash recovery is visible and exact-once
+
+### Goal
+Use the same authoritative recovery proof that S07 uses, because S06’s public claims are only honest if this technical contract is green.
+
+### Steps
+1. Run:
    - `cargo run -p meshc -- build reference-backend`
    - `cargo run -p meshc -- fmt --check reference-backend`
    - `cargo run -p meshc -- test reference-backend`
-   - `cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_builds -- --nocapture`
-   - `bash reference-backend/scripts/verify-production-proof-surface.sh`
-3. Confirm `website/docs/.vitepress/config.mts` includes the page in navigation.
+2. Run:
+   - `set -a && source .env && set +a && cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_worker_crash_recovers_job -- --ignored --nocapture`
 
-**Expected outcome**
-- The website has exactly one canonical production proof page.
-- The page points back to the real runbook and verifier rather than duplicating a second backend manual.
+### Expected outcomes
+1. All commands exit `0`.
+2. The proof shows an observable degraded/recovering window before healthy settlement:
+   - `/health.status == "degraded"`
+   - `/health.worker.liveness == "recovering"`
+   - `/health.worker.restart_count == 1`
+   - `/health.worker.recovery_active == true`
+3. The crashed job is requeued from `processing` back to `pending`, then processed exactly once after restart.
+4. Final settlement shows:
+   - `/jobs/:id.status == "processed"`
+   - `/jobs/:id.attempts == 2`
+   - final `/health.status == "ok"`
+   - final `/health.worker.recovery_active == false`
 
-## Test Case 3 — Generic docs route back to the canonical proof surface
-1. Open each of these files:
-   - `website/docs/docs/getting-started/index.md`
-   - `website/docs/docs/web/index.md`
-   - `website/docs/docs/databases/index.md`
-   - `website/docs/docs/concurrency/index.md`
-   - `website/docs/docs/tooling/index.md`
-   - `website/docs/docs/testing/index.md`
-2. In each file, confirm there is a link to `/docs/production-backend-proof/`.
-3. Confirm each callout references `reference-backend/README.md` as the deeper runbook.
-4. In getting-started, confirm the stale install URL `mesh-lang.org/install.sh` is gone.
+## Test Case 4 — Restart metadata stays coherent in `/health`
 
-**Expected outcome**
-- Generic docs teach their subsystem but route evaluators back to the canonical proof surface for readiness claims.
-- No stale installer URL remains in getting-started.
+### Goal
+Prove that the public proof surface is backed by stable restart metadata, not just a passing eventual-success story.
 
-## Test Case 4 — Mechanical doc-truth verifier passes
+### Steps
 1. Run:
-   ```bash
-   bash reference-backend/scripts/verify-production-proof-surface.sh
-   ```
-2. Read the `[proof-docs]` phases.
+   - `set -a && source .env && set +a && cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_worker_restart_is_visible_in_health -- --ignored --nocapture`
 
-**Expected outcome**
-- The script exits 0.
-- It confirms canonical files exist, generic docs link back correctly, sidebar/README point to the proof page, and stale phrases are absent.
+### Expected outcomes
+1. The test exits `0`.
+2. The proof observes an initial healthy worker, then a degraded/recovering worker, then healthy settlement again.
+3. Across the restart boundary:
+   - `boot_id` is non-empty before and after restart
+   - `started_at` is non-empty before and after restart
+   - restarted `boot_id` differs from the initial `boot_id`
+   - restarted `started_at` differs from the initial `started_at`
+4. Recovery metadata remains coherent after settlement:
+   - `restart_count == 1`
+   - `last_exit_reason == "worker_crash_after_claim"`
+   - `recovered_jobs == 1`
+   - `last_recovery_at` is non-null / non-empty
+   - `last_recovery_job_id` matches the crashed job id
+   - `last_recovery_count == 1`
 
-## Test Case 5 — Website build still succeeds with the new proof page
+## Test Case 5 — Whole-process restart recovers an in-flight job
+
+### Goal
+Prove that killing the entire backend process during an in-flight claimed job still leads to exact-once completion after restart.
+
+### Steps
 1. Run:
-   ```bash
-   npm --prefix website ci
-   npm --prefix website run build
-   ```
+   - `set -a && source .env && set +a && cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_process_restart_recovers_inflight_job -- --ignored --nocapture`
 
-**Expected outcome**
-- Install and docs build both exit 0.
-- The new proof page and cross-links do not break the site.
+### Expected outcomes
+1. The test exits `0`.
+2. The harness creates a job with the deterministic in-flight seam (`hold_after_claim_once`) and confirms the job is in `processing` before kill.
+3. The harness kills the backend process, restarts it, and then observes boot recovery.
+4. The durable row transitions through the intended process-restart contract:
+   - before kill: `processing`, `attempts == 1`
+   - after boot recovery: `pending`, still `attempts == 1`
+   - final settlement: `processed`, `attempts == 2`
+5. Final health is healthy, not stale or degraded.
+6. No second duplicate job row is created; the original job id is the one that finishes.
 
-## Test Case 6 — Reference backend baseline remains green
+## Test Case 6 — Migration and staged deploy truth still match the recovery contract
+
+### Goal
+Prove that the production-proof page is still backed by the real migration and staged deploy paths, not by docs-only claims.
+
+### Steps
 1. Run:
-   ```bash
-   cargo run -p meshc -- build reference-backend
-   cargo run -p meshc -- fmt --check reference-backend
-   cargo run -p meshc -- test reference-backend
-   cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_builds -- --nocapture
-   ```
-
-**Expected outcome**
-- All four commands pass.
-- S06 docs are anchored to a buildable/testable `reference-backend`, not a stale or broken package.
-
-## Test Case 7 — Staged deploy proof still works
-1. Load env:
-   ```bash
-   set -a && source .env && set +a
-   ```
+   - `set -a && source .env && set +a && cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_migration_status_and_apply -- --ignored --nocapture`
 2. Run:
-   ```bash
-   cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_deploy_artifact_smoke -- --ignored --nocapture
-   ```
+   - `set -a && source .env && set +a && cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_deploy_artifact_smoke -- --ignored --nocapture`
 
-**Expected outcome**
-- The ignored deploy-artifact smoke proof passes.
-- The staged bundle starts outside the repo root, applies deploy SQL, serves `/health`, creates a job, and processes it.
+### Expected outcomes
+1. Both tests exit `0`.
+2. Mesh migration status/apply still works against the canonical migration source.
+3. The staged deploy artifact still boots and processes jobs successfully.
+4. Both paths expose the recovery-aligned schema, including the processing-reclaim index used for stale-cutoff recovery.
+5. `_mesh_migrations` remains coherent after apply; staged deploy smoke still reaches healthy `/health` and successful job processing.
 
-## Test Case 8 — Recovery visibility proof (current blocker)
-1. Load env:
-   ```bash
-   set -a && source .env && set +a
-   ```
-2. Run:
-   ```bash
-   cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_worker_crash_recovers_job -- --ignored --nocapture
-   ```
+## Edge Cases to watch while running the script
 
-**Expected outcome for slice completion**
-- The test should pass.
-- During recovery, `/health` must expose a **degraded / recovering** state before returning to healthy.
-- Final health should show the recovery fields consistently.
+### Edge Case A — Docs stay green while runtime proof regresses
+If the verifier script and website build pass but any ignored backend proof fails, treat that as a real proof regression, not a docs-only success.
 
-**Current observed result in this worktree**
-- This test still fails.
-- The worker eventually reaches healthy state with `restart_count=1` and `recovered_jobs=1`, but the harness never sees the degraded/recovering window.
-
-## Test Case 9 — Restart visibility proof after Test Case 8 is fixed
-1. Load env if needed.
-2. Run:
-   ```bash
-   cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_worker_restart_is_visible_in_health -- --ignored --nocapture
-   ```
-
-**Expected outcome**
-- The test passes.
-- `/health` exposes restart/recovery metadata during and after worker restart.
-
-## Test Case 10 — Whole-process restart recovery proof after Tests 8-9 are fixed
-1. Load env if needed.
-2. Run:
-   ```bash
-   cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_process_restart_recovers_inflight_job -- --ignored --nocapture
-   ```
-
-**Expected outcome**
-- The process-restart proof exists and passes.
-- An inflight job is not stranded across full backend restart.
-
-## Edge Cases
-
-### Edge Case A — Doc drift without backend drift
-- If docs pass but Test Case 8 fails, S06 is still not done.
-- The proof surface must remain honest about recovery trust.
-
-### Edge Case B — Backend recovers too quickly for observability
-- If recovery eventually succeeds but `/health` never exposes degraded/recovering state, treat that as a failure.
-- S06 requires visible recovery truth, not hidden eventual correctness.
+### Edge Case B — Recovery happens too fast to observe
+If worker-crash proof skips straight to healthy, that is a failure. The promoted proof surface requires a real degraded/recovering window.
 
 ### Edge Case C — Shared test database interference
-- If ignored DB-backed proofs are run in parallel on one `DATABASE_URL`, treat failures as invalid evidence and rerun serially.
+Run the ignored DB-backed proofs serially on one `DATABASE_URL`. Parallel runs are invalid evidence.
 
-## Acceptance rule
-S06 can be marked complete only when:
-- doc verifier passes,
-- website build passes,
-- reference-backend baseline commands pass,
-- staged deploy smoke passes,
-- worker crash recovery proof passes,
-- worker restart visibility proof passes,
-- whole-process restart proof exists and passes.
+### Edge Case D — Proof-surface drift
+If the public verifier passes but the UAT/doc command list diverges from `.gsd/milestones/M028/slices/S07/S07-UAT.md`, reconcile the wording before treating the slice as stable.
+
+## Acceptance checklist
+- [ ] proof-surface verifier passes
+- [ ] website install/build pass
+- [ ] `meshc build` passes for `reference-backend`
+- [ ] `meshc fmt --check` passes for `reference-backend`
+- [ ] `meshc test` passes for `reference-backend`
+- [ ] worker-crash recovery proof passes
+- [ ] restart-visibility proof passes
+- [ ] whole-process restart proof passes
+- [ ] migration status/apply proof passes
+- [ ] staged deploy artifact smoke passes
+- [ ] degraded/recovering health is observed before final healthy settlement
+
+## Failure signals
+- verifier reports missing proof links or stale wording
+- website build fails on the proof page or generic doc cross-links
+- `restart_count` never increments
+- degraded/recovering health is never observed
+- job remains stuck in `processing`
+- final job attempts are not `2`
+- migration apply or staged deploy smoke no longer matches the recovery-aware schema

@@ -49,3 +49,9 @@ The repo still contains placeholder and pre-S07 closure artifacts that claim rec
 - `.gsd/milestones/M028/slices/S05/S05-UAT.md` — real S05 current-state UAT without placeholder language
 - `.gsd/milestones/M028/slices/S06/S06-SUMMARY.md` — updated S06 closure artifact describing the now-green proof surface
 - `.gsd/milestones/M028/slices/S06/S06-UAT.md` — updated S06 acceptance script aligned to the green S07 proof set
+
+## Observability Impact
+
+- Signals changed: the internal closure artifacts for S05 and S06 stop reporting stale blocker/placeholder states and instead point future agents at the same authoritative S07 recovery proof commands and `/health` recovery fields (`restart_count`, `last_exit_reason`, `recovered_jobs`, `last_recovery_at`, `recovery_active`).
+- How to inspect: rerun `rg -n` against the rewritten S05/S06 summary and UAT files to confirm stale language is gone, then compare their command lists against `.gsd/milestones/M028/slices/S07/S07-UAT.md` and the public verifier-backed surfaces.
+- Failure visibility: if one of these rewritten artifacts drifts again, the failure should be visibly classifiable as internal-closure drift rather than a runtime regression because the same S07 command names will still be available for rerun.

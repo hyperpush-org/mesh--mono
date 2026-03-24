@@ -1,105 +1,82 @@
-# Slice Summary — S06: Honest Production Proof and Documentation
+# Slice Summary — S06: Honest production proof surface
 
 ## Status
-- **State:** partial / not done
-- **Roadmap checkbox:** remains unchecked
-- **Why:** the public proof surface was improved and most non-recovery gates are green again, but the authoritative crash/recovery proof is still red, so S06 cannot honestly close.
+- **State:** done
+- **Roadmap checkbox:** checked
+- **Why:** S06’s production-proof and documentation goals are now truthful. The earlier runtime blocker was closed by S07, and the promoted proof surfaces now point at the same green recovery-aware `reference-backend/` command set.
 
 ## What this slice actually delivered
 
-### 1. Public proof surfaces are now real and discoverable
-The slice did establish the repo/docs shape S06 wanted for honest promotion:
-- `README.md` now links early to the production backend proof surface instead of leaving evaluators on toy-first examples.
-- `website/docs/docs/production-backend-proof/index.md` exists as the canonical public proof page.
-- `website/docs/.vitepress/config.mts` includes the proof page in the docs navigation.
-- Generic docs were cross-linked back to the canonical proof surface instead of duplicating long backend runbooks:
-  - `website/docs/docs/getting-started/index.md`
-  - `website/docs/docs/web/index.md`
-  - `website/docs/docs/databases/index.md`
-  - `website/docs/docs/concurrency/index.md`
-  - `website/docs/docs/tooling/index.md`
-  - `website/docs/docs/testing/index.md`
-- `reference-backend/scripts/verify-production-proof-surface.sh` now acts as a mechanical doc-truth guard for proof links and stale phrases.
+### 1. One canonical production-backend proof path
+S06 established the public proof-entry hierarchy that evaluators and future agents should still follow:
+- `README.md` routes readers toward the real backend proof path instead of leaving readiness implied by toy examples.
+- `website/docs/docs/production-backend-proof/index.md` is the canonical public proof page.
+- `reference-backend/README.md` is the deeper package-level runbook.
+- `reference-backend/scripts/verify-production-proof-surface.sh` is the mechanical guard that catches doc-truth drift.
 
-### 2. The formatter blocker that was corrupting supervisor child specs was fixed
-Task work repaired the `meshc fmt` child-spec regression in `compiler/mesh-fmt`, which had been corrupting `child ... do` supervisor blocks and blocking honest proof promotion. That unblocked:
-- `cargo run -p meshc -- fmt --check reference-backend`
-- formatting `reference-backend/jobs/worker.mpl` without parse-invalid output
+That remains the right shape. What changed after the earlier partial summary is that the runtime proof behind this surface is now green, so the documentation no longer over-promises.
 
-### 3. The staged deploy proof is green again
-During closer verification, the slice got the staged deploy artifact proof back to green:
-- `cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_deploy_artifact_smoke -- --ignored --nocapture` passed
+### 2. Generic docs now route to proof instead of competing with it
+The generic guides are intentionally lightweight and should stay that way:
+- `website/docs/docs/getting-started/index.md`
+- `website/docs/docs/web/index.md`
+- `website/docs/docs/databases/index.md`
+- `website/docs/docs/concurrency/index.md`
+- `website/docs/docs/tooling/index.md`
+- `website/docs/docs/testing/index.md`
 
-That means the artifact-first deploy story still holds for the reference backend even though the recovery gate is not done.
+Their job is to route readers back to `/docs/production-backend-proof/` and `reference-backend/README.md`, not to maintain a second backend acceptance script.
 
-### 4. The remaining blocker is narrow and explicit
-The current blocker is no longer “reference-backend is broadly broken.” It is now a specific recovery-contract mismatch:
-- `e2e_reference_backend_worker_crash_recovers_job` fails because `/health` never exposes the expected **degraded / recovering** window before the worker returns to healthy.
-- The latest failing evidence shows the worker eventually reaches a healthy state with `restart_count=1`, `recovered_jobs=1`, and a processed job, but the degraded transitional state is skipped too quickly for the harness contract.
-
-That means S06 is blocked on **honest recovery visibility**, not on docs discoverability, deploy smoke, buildability, or formatter stability.
-
-## Verification run by the closer
-
-### Passing in this wrap-up window
+### 3. The proof page is now backed by the green S07 recovery contract
+The earlier blocker state is obsolete. The authoritative recovery-aware proof set is now the green command sequence also captured in `.gsd/milestones/M028/slices/S07/S07-UAT.md`:
 - `cargo run -p meshc -- build reference-backend`
 - `cargo run -p meshc -- fmt --check reference-backend`
 - `cargo run -p meshc -- test reference-backend`
-- `cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_builds -- --nocapture`
-- `set -a && source .env && set +a && cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_deploy_artifact_smoke -- --ignored --nocapture`
-
-### Previously verified by task work and still present on disk
-- `bash reference-backend/scripts/verify-production-proof-surface.sh`
-- `npm --prefix website ci`
-- `npm --prefix website run build`
-
-### Failing
-- `set -a && source .env && set +a && cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_worker_crash_recovers_job -- --ignored --nocapture`
-
-Failure shape:
-- The harness fails at `wait_for_worker_recovery_health(...)` because it never observes the expected degraded state.
-- Last observed health already shows recovery completed:
-  - `status: "ok"`
-  - `worker.liveness: "healthy"`
-  - `restart_count: 1`
-  - `recovered_jobs: 1`
-  - `processed_jobs: 1`
-  - `recovery_active: false`
-- So the backend eventually recovers, but it does **not** currently satisfy the visibility contract that the proof expects.
-
-### Not rerun after the prerequisite failure
+- `e2e_reference_backend_worker_crash_recovers_job`
 - `e2e_reference_backend_worker_restart_is_visible_in_health`
 - `e2e_reference_backend_process_restart_recovers_inflight_job`
+- `e2e_reference_backend_migration_status_and_apply`
+- `e2e_reference_backend_deploy_artifact_smoke`
 
-These should stay blocked behind the crash-recovery proof until the degraded/recovering window is made observable.
+That means S06 should now be read as the slice that built the truthful proof surface, with S07 closing the technical recovery bar and S08 reconciling all stale residual artifacts onto the same command list.
+
+### 4. Current proof-surface verification is mechanical, not interpretive
+A future agent does not need to guess whether S06 drifted:
+- rerun `bash reference-backend/scripts/verify-production-proof-surface.sh` for public/doc drift,
+- rerun `npm --prefix website ci` and `npm --prefix website run build` for docs-site health,
+- rerun the S07 recovery-aware backend proof commands for runtime truth.
+
+That split is the main long-term value of S06: failures are classifiable as docs drift, docs-build breakage, or real backend proof regression.
 
 ## Requirement impact
-- **R008:** still active. Discoverability/docs work landed, but S06 cannot honestly validate it while the promoted recovery proof remains red.
-- **R009:** still active. The real reference backend remains the proof target, but the slice did not finish the end-to-end recovery proof contract.
-- **R004:** still effectively the blocker feeding S06. Recovery exists in some form, but the proof surface is not yet trustworthy enough.
+- **R008:** S06 created the canonical promoted proof path; S08 finishes the final milestone-wide truth-surface reconciliation.
+- **R009:** S06 now truthfully promotes the real `reference-backend/` target rather than subsystem-only or toy-first evidence.
+- **R004:** the old S06 blocker language is obsolete because crash/restart recovery is now green in the canonical S07 harness.
 
 ## Patterns established
-- Keep one canonical truth hierarchy:
-  - public map: `website/docs/docs/production-backend-proof/index.md`
-  - deep operator runbook: `reference-backend/README.md`
-  - mechanical doc guard: `reference-backend/scripts/verify-production-proof-surface.sh`
-- Do not duplicate backend runbooks across generic docs; link back to the proof page and runbook instead.
-- Treat the database-backed ignored proofs as serial-only against one `DATABASE_URL`.
+- Keep one public truth hierarchy: landing page -> website proof page -> `reference-backend/README.md` -> Rust proof harness.
+- Do not duplicate long backend command blocks across generic docs; route readers back to the canonical proof page.
+- When public proof wording drifts, rerun `bash reference-backend/scripts/verify-production-proof-surface.sh` before editing unrelated docs.
+- When technical recovery truth is in doubt, rerun the S07 command set rather than reconstructing an older S06-era blocker story.
 
-## Precise resume point for the next unit
-1. Start from the current failing proof, not from docs:
-   - `set -a && source .env && set +a && cargo test -p meshc --test e2e_reference_backend e2e_reference_backend_worker_crash_recovers_job -- --ignored --nocapture`
-2. Fix `reference-backend/jobs/worker.mpl` so `/health` exposes a real observable degraded/recovering interval before flipping back to healthy.
-   - Current behavior recovers too eagerly and skips the proof-visible degraded phase.
-3. Once that passes, rerun in order:
-   - `e2e_reference_backend_worker_restart_is_visible_in_health`
-   - implement/rerun `e2e_reference_backend_process_restart_recovers_inflight_job`
-4. Only after all recovery proofs pass should S06 be marked complete.
+## Files that matter downstream
+- `README.md`
+- `website/docs/docs/production-backend-proof/index.md`
+- `website/docs/.vitepress/config.mts`
+- `website/docs/docs/getting-started/index.md`
+- `website/docs/docs/web/index.md`
+- `website/docs/docs/databases/index.md`
+- `website/docs/docs/concurrency/index.md`
+- `website/docs/docs/tooling/index.md`
+- `website/docs/docs/testing/index.md`
+- `reference-backend/README.md`
+- `reference-backend/scripts/verify-production-proof-surface.sh`
+- `.gsd/milestones/M028/slices/S07/S07-UAT.md`
 
 ## What the next slice / reassess-roadmap agent should know
-S06 did not collapse. It narrowed the milestone’s remaining problem to one honest blocker:
-- docs/discoverability/proof-page wiring exist,
-- formatter and deploy-smoke are green,
-- but the recovery contract still is not truthfully promotable.
+Do not treat S06 as still blocked on worker recovery. That was true during intermediate execution, but it is no longer the repository’s current state.
 
-If the roadmap is reassessed, the right interpretation is **not** “docs work failed.” The right interpretation is: Mesh now has the public proof surface S06 wanted, but the final recovery gate still belongs to the same reference-backend proof harness and must be finished before calling the milestone closed.
+The right current interpretation is:
+- S06 created the canonical proof-surface hierarchy and verifier,
+- S07 made the recovery-aware backend command set green,
+- S08’s remaining work is truth-surface reconciliation so every promoted internal/public artifact cites that same green command set.
