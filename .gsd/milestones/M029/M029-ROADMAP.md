@@ -52,7 +52,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Formatter dot-path and multiline import fix** `risk:high` `depends:[]`
+- [x] **S01: Formatter dot-path and multiline import fix** `risk:high` `depends:[]`
   > After this: `meshc fmt` no longer inserts spaces into module dot-paths; parenthesized multiline imports survive round-trip formatting. Proven by `cargo test -p mesh-fmt --lib` passing and a new formatter test for dot-path + multiline import preservation.
 
 - [ ] **S02: Mesher JSON serialization and pipe cleanup** `risk:medium` `depends:[]`

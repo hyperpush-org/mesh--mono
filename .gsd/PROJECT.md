@@ -17,7 +17,7 @@ The repository ships a broad backend-oriented language platform:
 - package and registry infrastructure plus a docs/website surface
 - dogfooded backend applications: `reference-backend/` (API + DB + jobs) and `mesher/` (error monitoring platform)
 
-M028 established the backend trust baseline with recovery proof, deployment proof, tooling trust, and documentation. M031 completed the language DX audit: fixed three compiler bugs (trailing-closure disambiguation in control-flow conditions, else-if chain value correctness, multiline fn call type resolution), added parenthesized multiline imports and trailing-comma support, cleaned both dogfood codebases to idiomatic Mesh (125 `let _ =` removed, 15 `== true` removed, struct update syntax, else-if chains, interpolation), and expanded the e2e test suite to 328 tests covering all 12 pattern categories. Both `reference-backend/` and `mesher/` now exemplify idiomatic Mesh code rather than workaround patterns.
+M028 established the backend trust baseline with recovery proof, deployment proof, tooling trust, and documentation. M031 completed the language DX audit: fixed three compiler bugs (trailing-closure disambiguation in control-flow conditions, else-if chain value correctness, multiline fn call type resolution), added parenthesized multiline imports and trailing-comma support, cleaned both dogfood codebases to idiomatic Mesh (125 `let _ =` removed, 15 `== true` removed, struct update syntax, else-if chains, interpolation), and expanded the e2e test suite to 328 tests covering all 12 pattern categories. M029/S01 then closed the formatter regression blocking the remaining dogfood cleanup: `meshc fmt` now preserves dotted module paths and parenthesized multiline imports, the formatter has exact-output regressions at both the walker and CLI layers, and `reference-backend/` round-trips cleanly under `meshc fmt --check`. The remaining M029 work is mesher-focused cleanup and final formatter compliance.
 
 ## Architecture / Key Patterns
 
@@ -34,6 +34,6 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 ## Milestone Sequence
 
 - [x] M028: Language Baseline Audit & Hardening — backend trust baseline established; serial recovery-proof has residual flake
-- [ ] M029: Mesher & Reference-Backend Dogfood Completion — formatter dot-path/multiline-import fix, json macro + interpolation + pipe cleanup, formatter compliance on both codebases
+- [ ] M029: Mesher & Reference-Backend Dogfood Completion — S01 formatter dot-path/multiline-import fix is complete; mesher json macro + interpolation + pipe cleanup and final formatter compliance remain
 - [ ] M030: Tooling & Package Trust — make fmt/LSP/tests/coverage/dependency flow credible for daily backend work
 - [x] M031: Language DX Audit & Rough Edge Fixes — 3 compiler bugs fixed, multiline imports/trailing commas added, both dogfood codebases cleaned, 328 e2e tests

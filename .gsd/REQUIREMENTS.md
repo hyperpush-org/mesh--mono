@@ -77,31 +77,9 @@ This file is the explicit capability and coverage contract for the project.
 - Why it matters: Mesher is the larger dogfood app — its code quality reflects language usability.
 - Source: user
 - Primary owning slice: M029/S02
-- Supporting slices: M029/S03
+- Supporting slices: M029/S01, M029/S03
 - Validation: Partially validated by M031/S04: zero `let _ =` (72 removed). Remaining: `<>` JSON serialization → `json {}` macro + interpolation, pipe operator adoption, multiline imports.
-- Notes: M031/S04 completed `let _ =` removal and 11 clear-win interpolation swaps. M029 picks up: json macro adoption for JSON serializers (alerts, search, detail), remaining `<>` → interpolation, `List.map(rows, fn)` → pipe style, multiline imports (blocked on M029/S01 formatter fix).
-
-### R026 — `meshc fmt` must preserve module dot-paths and parenthesized multiline imports.
-- Class: quality-attribute
-- Status: active
-- Description: `meshc fmt` must not insert spaces into module dot-paths (`Api.Router` not `Api. Router`) and must preserve parenthesized multiline imports instead of collapsing them to single-line.
-- Why it matters: The formatter bug (D032) corrupts valid source code and blocks multiline import adoption across both dogfood codebases.
-- Source: execution
-- Primary owning slice: M029/S01
-- Supporting slices: none
-- Validation: unmapped
-- Notes: Root cause is in `walk_tokens_inline` — `needs_space_before` doesn't exclude IDENT-after-DOT. Multiline import collapse may be a second bug in `walk_from_import_decl` routing.
-
-### R027 — `reference-backend/` source files must have correct module dot-paths after formatter fix.
-- Class: quality-attribute
-- Status: active
-- Description: `reference-backend/` source files must have correct module dot-paths (`Api.Router` not `Api. Router`), verified by `meshc fmt --check reference-backend` passing after the formatter fix.
-- Why it matters: The reference-backend is the primary proof target — formatter-induced corruption in its imports undermines tooling trust.
-- Source: execution
-- Primary owning slice: M029/S03
-- Supporting slices: none
-- Validation: unmapped
-- Notes: Currently has `Api. Router`, `Runtime. Registry`, `Jobs. Worker`, `Storage. Jobs`, `Types. Job` corruption across 7 files. Will be fixed by reformatting with the corrected formatter.
+- Notes: Partially validated by M031/S04: zero `let _ =` (72 removed). M029/S01 removed the formatter blocker by validating dot-path preservation and parenthesized multiline import round-tripping. Remaining for M029: json macro adoption for JSON serializers, remaining `<>` → interpolation, pipe cleanup, and broad multiline-import rollout across mesher.
 
 ## Validated
 
@@ -270,6 +248,28 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: Validated by M031/S05 — all 12 listed pattern categories have dedicated e2e tests: bare expression statements (2 tests), else-if chains (S01 tests), if/while/case/for fn_call() do (S01 tests), not fn_call() in conditions (2 tests), multiline fn calls (S01 tests), multiline imports (S02 tests), trailing commas (S02 tests), struct update in service handlers (1 test), pipe chains (S03/S04 dogfood). Full suite: 328 tests, 318 pass, 10 pre-existing try_* failures.
 - Notes: Current suite has 216 e2e tests and 6 test.mpl files.
 
+### R026 — `meshc fmt` must not insert spaces into module dot-paths (`Api.Router` not `Api. Router`) and must preserve parenthesized multiline imports instead of collapsing them to single-line.
+- Class: quality-attribute
+- Status: validated
+- Description: `meshc fmt` must not insert spaces into module dot-paths (`Api.Router` not `Api. Router`) and must preserve parenthesized multiline imports instead of collapsing them to single-line.
+- Why it matters: The formatter bug (D032) corrupts valid source code and blocks multiline import adoption across both dogfood codebases.
+- Source: execution
+- Primary owning slice: M029/S01
+- Supporting slices: none
+- Validation: Validated by M029/S01: `meshc fmt` now preserves dotted module paths and parenthesized multiline imports. Proof: `cargo test -q -p mesh-fmt --lib` passed (124 tests), `cargo test -q -p meshc --test e2e_fmt -- --nocapture` passed, `cargo test -q -p meshc --test e2e_fmt fmt_preserves_dotted_paths_exactly -- --nocapture` passed, and `cargo test -q -p meshc --test e2e e2e_multiline_import_paren -- --nocapture` stayed green.
+- Notes: The old formatter bug could stabilize into semantically wrong but idempotent output (`Api. Router`). Keep exact-output regressions at both the walker and CLI layers; `fmt --check` alone is not sufficient proof.
+
+### R027 — `reference-backend/` source files must have correct module dot-paths (`Api.Router` not `Api. Router`), verified by `meshc fmt --check reference-backend` passing after the formatter fix.
+- Class: quality-attribute
+- Status: validated
+- Description: `reference-backend/` source files must have correct module dot-paths (`Api.Router` not `Api. Router`), verified by `meshc fmt --check reference-backend` passing after the formatter fix.
+- Why it matters: The reference-backend is the primary proof target — formatter-induced corruption in its imports undermines tooling trust.
+- Source: execution
+- Primary owning slice: M029/S01
+- Supporting slices: none
+- Validation: Validated by M029/S01: repaired canonical dotted imports in `reference-backend/main.mpl`, `api/health.mpl`, `api/router.mpl`, `api/jobs.mpl`, `storage/jobs.mpl`, and `jobs/worker.mpl`; then `cargo run -q -p meshc -- fmt --check reference-backend` passed and `rg -n '^from .*\. ' reference-backend -g '*.mpl'` returned no matches.
+- Notes: D035 moved the reference-backend import repair into S01 because check-only formatting on already-corrupted files was not an honest proof surface.
+
 ## Deferred
 
 ### R020 — Mesh eventually offers a stronger debugger/profiler/trace surface suitable for deeper production diagnostics.
@@ -389,10 +389,10 @@ This file is the explicit capability and coverage contract for the project.
 | R021 | admin/support | deferred | none | none | unmapped |
 | R022 | operability | deferred | M027/S02 (provisional) | none | unmapped |
 | R023 | quality-attribute | validated | M031/S03 | none | Validated by M031/S03: `rg 'let _ =' reference-backend/ -g '*.mpl'` returns 0 matches, `rg '== true' reference-backend/ -g '*.mpl'` returns 0 matches, all 8 WorkerState full reconstructions replaced with struct update syntax, all nested if/else chains flattened to else if, long import converted to multiline. Build, formatter, project tests, and 313 e2e tests pass clean. |
-| R024 | quality-attribute | active | M029/S02 | M029/S03 | Partially validated by M031/S04: zero `let _ =` (72 removed). Remaining: json macro, interpolation, pipes, multiline imports. |
+| R024 | quality-attribute | active | M029/S02 | M029/S01, M029/S03 | Partially validated by M031/S04: zero `let _ =` (72 removed). Remaining: `<>` JSON serialization → `json {}` macro + interpolation, pipe operator adoption, multiline imports. |
 | R025 | quality-attribute | validated | M031/S05 | M031/S01, M031/S02 | Validated by M031/S05 — all 12 listed pattern categories have dedicated e2e tests: bare expression statements (2 tests), else-if chains (S01 tests), if/while/case/for fn_call() do (S01 tests), not fn_call() in conditions (2 tests), multiline fn calls (S01 tests), multiline imports (S02 tests), trailing commas (S02 tests), struct update in service handlers (1 test), pipe chains (S03/S04 dogfood). Full suite: 328 tests, 318 pass, 10 pre-existing try_* failures. |
-| R026 | quality-attribute | active | M029/S01 | none | unmapped |
-| R027 | quality-attribute | active | M029/S03 | none | unmapped |
+| R026 | quality-attribute | validated | M029/S01 | none | Validated by M029/S01: `meshc fmt` now preserves dotted module paths and parenthesized multiline imports. Proof: `cargo test -q -p mesh-fmt --lib` passed (124 tests), `cargo test -q -p meshc --test e2e_fmt -- --nocapture` passed, `cargo test -q -p meshc --test e2e_fmt fmt_preserves_dotted_paths_exactly -- --nocapture` passed, and `cargo test -q -p meshc --test e2e e2e_multiline_import_paren -- --nocapture` stayed green. |
+| R027 | quality-attribute | validated | M029/S01 | none | Validated by M029/S01: repaired canonical dotted imports in `reference-backend/main.mpl`, `api/health.mpl`, `api/router.mpl`, `api/jobs.mpl`, `storage/jobs.mpl`, and `jobs/worker.mpl`; then `cargo run -q -p meshc -- fmt --check reference-backend` passed and `rg -n '^from .*\. ' reference-backend -g '*.mpl'` returned no matches. |
 | R030 | anti-feature | out-of-scope | none | none | n/a |
 | R031 | anti-feature | out-of-scope | none | none | n/a |
 | R032 | constraint | out-of-scope | none | none | n/a |
@@ -401,7 +401,7 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Coverage Summary
 
-- Active requirements: 9
-- Mapped to slices: 9
-- Validated: 15 (R001, R002, R003, R004, R005, R006, R008, R009, R015, R016, R017, R018, R019, R023, R025)
+- Active requirements: 7
+- Mapped to slices: 7
+- Validated: 17 (R001, R002, R003, R004, R005, R006, R008, R009, R015, R016, R017, R018, R019, R023, R025, R026, R027)
 - Unmapped active requirements: 0
