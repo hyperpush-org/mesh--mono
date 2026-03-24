@@ -66,7 +66,7 @@ This milestone is complete only when all are true:
 - [x] **S04: Mesher Dogfood Cleanup** `risk:low` `depends:[S01,S02]`
   > After this: `mesher/` builds with zero `let _ =`, interpolation replacing `<>`, multiline imports for long lines, pipe operators used where natural.
 
-- [ ] **S05: Language Test Expansion** `risk:low` `depends:[S01,S02,S03,S04]`
+- [x] **S05: Language Test Expansion** `risk:low` `depends:[S01,S02,S03,S04]`
   > After this: new e2e test files cover all fixed patterns including edge cases discovered during dogfood cleanup; full test suite passes.
 
 ## Boundary Map

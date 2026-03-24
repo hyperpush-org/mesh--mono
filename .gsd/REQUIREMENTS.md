@@ -103,17 +103,6 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: Partially validated by M031/S04: zero `let _ =` (72 removed across 6 files), 11 clear-win `<>` sites replaced with interpolation (D029-designated SQL/JSONB/crypto sites preserved), 3 nested else/if flattened to `else if`. Multiline imports deferred — meshc fmt collapses them back to single-line (formatter bug, not parser). Build succeeds; 313 e2e tests pass.
 - Notes: 72 `let _ =` removed, 11 `<>` → interpolation, 3 else if flattened. Multiline imports blocked on formatter fix (see KNOWLEDGE.md entry). Pipe operators were not in scope for S04 tasks — mesher already uses pipes where natural. The requirement's multiline-import criterion cannot be fully validated until the formatter walker handles FROM_IMPORT_DECL with IMPORT_LIST inside parens.
 
-### R025 — New e2e tests must cover: bare expression statements, `else if` chains (Int/String/Bool), `if fn_call() do`, `while fn_call() do`, `case fn_call() do`, `for x in fn_call() do`, `not fn_call()` in conditions, multiline fn calls, multiline imports, trailing commas, struct update in service handlers, pipe chains.
-- Class: quality-attribute
-- Status: active
-- Description: New e2e tests must cover: bare expression statements, `else if` chains (Int/String/Bool), `if fn_call() do`, `while fn_call() do`, `case fn_call() do`, `for x in fn_call() do`, `not fn_call()` in conditions, multiline fn calls, multiline imports, trailing commas, struct update in service handlers, pipe chains.
-- Why it matters: These patterns had zero test coverage — they must not regress.
-- Source: user
-- Primary owning slice: M031/S05
-- Supporting slices: M031/S01, M031/S02
-- Validation: unmapped
-- Notes: Current suite has 216 e2e tests and 6 test.mpl files.
-
 ## Validated
 
 ### R001 — Mesh has an explicit definition of what "production ready language needs to have" means for this repo, and that baseline can be checked through concrete proof rather than vague claims.
@@ -248,6 +237,17 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: Validated by M031/S03: `rg 'let _ =' reference-backend/ -g '*.mpl'` returns 0 matches, `rg '== true' reference-backend/ -g '*.mpl'` returns 0 matches, all 8 WorkerState full reconstructions replaced with struct update syntax, all nested if/else chains flattened to else if, long import converted to multiline. Build, formatter, project tests, and 313 e2e tests pass clean.
 - Notes: 53 `let _ =` removed (44 in worker.mpl, 9 in other files), 15 `== true` removed (11 in worker.mpl, 4 in health.mpl), 8 struct reconstructions replaced, 7 nested if/else chains flattened.
 
+### R025 — New e2e tests must cover: bare expression statements, `else if` chains (Int/String/Bool), `if fn_call() do`, `while fn_call() do`, `case fn_call() do`, `for x in fn_call() do`, `not fn_call()` in conditions, multiline fn calls, multiline imports, trailing commas, struct update in service handlers, pipe chains.
+- Class: quality-attribute
+- Status: validated
+- Description: New e2e tests must cover: bare expression statements, `else if` chains (Int/String/Bool), `if fn_call() do`, `while fn_call() do`, `case fn_call() do`, `for x in fn_call() do`, `not fn_call()` in conditions, multiline fn calls, multiline imports, trailing commas, struct update in service handlers, pipe chains.
+- Why it matters: These patterns had zero test coverage — they must not regress.
+- Source: user
+- Primary owning slice: M031/S05
+- Supporting slices: M031/S01, M031/S02
+- Validation: Validated by M031/S05 — all 12 listed pattern categories have dedicated e2e tests: bare expression statements (2 tests), else-if chains (S01 tests), if/while/case/for fn_call() do (S01 tests), not fn_call() in conditions (2 tests), multiline fn calls (S01 tests), multiline imports (S02 tests), trailing commas (S02 tests), struct update in service handlers (1 test), pipe chains (S03/S04 dogfood). Full suite: 328 tests, 318 pass, 10 pre-existing try_* failures.
+- Notes: Current suite has 216 e2e tests and 6 test.mpl files.
+
 ## Deferred
 
 ### R020 — Mesh eventually offers a stronger debugger/profiler/trace surface suitable for deeper production diagnostics.
@@ -368,7 +368,7 @@ This file is the explicit capability and coverage contract for the project.
 | R022 | operability | deferred | M027/S02 (provisional) | none | unmapped |
 | R023 | quality-attribute | validated | M031/S03 | none | Validated by M031/S03: `rg 'let _ =' reference-backend/ -g '*.mpl'` returns 0 matches, `rg '== true' reference-backend/ -g '*.mpl'` returns 0 matches, all 8 WorkerState full reconstructions replaced with struct update syntax, all nested if/else chains flattened to else if, long import converted to multiline. Build, formatter, project tests, and 313 e2e tests pass clean. |
 | R024 | quality-attribute | active | M031/S04 | none | Partially validated by M031/S04: zero `let _ =` (72 removed across 6 files), 11 clear-win `<>` sites replaced with interpolation (D029-designated SQL/JSONB/crypto sites preserved), 3 nested else/if flattened to `else if`. Multiline imports deferred — meshc fmt collapses them back to single-line (formatter bug, not parser). Build succeeds; 313 e2e tests pass. |
-| R025 | quality-attribute | active | M031/S05 | M031/S01, M031/S02 | unmapped |
+| R025 | quality-attribute | validated | M031/S05 | M031/S01, M031/S02 | Validated by M031/S05 — all 12 listed pattern categories have dedicated e2e tests: bare expression statements (2 tests), else-if chains (S01 tests), if/while/case/for fn_call() do (S01 tests), not fn_call() in conditions (2 tests), multiline fn calls (S01 tests), multiline imports (S02 tests), trailing commas (S02 tests), struct update in service handlers (1 test), pipe chains (S03/S04 dogfood). Full suite: 328 tests, 318 pass, 10 pre-existing try_* failures. |
 | R030 | anti-feature | out-of-scope | none | none | n/a |
 | R031 | anti-feature | out-of-scope | none | none | n/a |
 | R032 | constraint | out-of-scope | none | none | n/a |
@@ -377,7 +377,7 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Coverage Summary
 
-- Active requirements: 10
-- Mapped to slices: 10
-- Validated: 12 (R001, R002, R003, R004, R005, R006, R008, R009, R015, R016, R018, R023)
+- Active requirements: 9
+- Mapped to slices: 9
+- Validated: 13 (R001, R002, R003, R004, R005, R006, R008, R009, R015, R016, R018, R023, R025)
 - Unmapped active requirements: 0

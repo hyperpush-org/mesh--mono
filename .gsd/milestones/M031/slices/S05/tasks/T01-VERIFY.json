@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T01",
+  "unitId": "M031/S05/T01",
+  "timestamp": 1774346169099,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "cargo test -p meshc --test e2e not_fn_call",
+      "exitCode": 0,
+      "durationMs": 8175,
+      "verdict": "pass"
+    },
+    {
+      "command": "cargo test -p meshc --test e2e struct_update_in_service",
+      "exitCode": 0,
+      "durationMs": 7258,
+      "verdict": "pass"
+    }
+  ]
+}
