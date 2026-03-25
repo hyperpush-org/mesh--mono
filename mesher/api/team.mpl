@@ -14,20 +14,42 @@ from Storage.Queries import (
   create_api_key,
   revoke_api_key
 )
+from Types.User import User, OrgMembership
 from Api.Helpers import query_or_default, to_json_array, require_param, get_registry, resolve_project_id
 
 # --- Shared helpers (leaf functions first, per define-before-use requirement) ---
 # Serialize a member row (with user info) to JSON.
 # Fields: id, user_id, email, display_name, role, joined_at
 
+fn member_row_to_membership(row) -> OrgMembership do
+  OrgMembership {
+    id : Map.get(row, "id"),
+    user_id : Map.get(row, "user_id"),
+    org_id : "",
+    role : Map.get(row, "role"),
+    joined_at : Map.get(row, "joined_at")
+  }
+end
+
+fn member_row_to_user(row) -> User do
+  User {
+    id : Map.get(row, "user_id"),
+    email : Map.get(row, "email"),
+    display_name : Map.get(row, "display_name"),
+    created_at : ""
+  }
+end
+
 fn member_to_json(row) -> String do
-  let id = Map.get(row, "id")
-  let user_id = Map.get(row, "user_id")
-  let email = Map.get(row, "email")
-  let display_name = Map.get(row, "display_name")
-  let role = Map.get(row, "role")
-  let joined_at = Map.get(row, "joined_at")
-  json { id : id, user_id : user_id, email : email, display_name : display_name, role : role, joined_at : joined_at }
+  let membership_json = Json.encode(member_row_to_membership(row))
+  let user_json = Json.encode(member_row_to_user(row))
+  let id = Json.get(membership_json, "id")
+  let user_id = Json.get(membership_json, "user_id")
+  let email = Json.get(user_json, "email")
+  let display_name = Json.get(user_json, "display_name")
+  let role = Json.get(membership_json, "role")
+  let joined_at = Json.get(membership_json, "joined_at")
+  """{"id":"#{id}","user_id":"#{user_id}","email":"#{email}","display_name":"#{display_name}","role":"#{role}","joined_at":"#{joined_at}"}"""
 end
 
 # Serialize an API key row to JSON.
@@ -42,11 +64,11 @@ fn api_key_to_json(row) -> String do
   let created_at = Map.get(row, "created_at")
   let revoked_at_raw = Map.get(row, "revoked_at")
   let revoked_at = if String.length(revoked_at_raw) == 0 do
-    None
+    "null"
   else
-    Some(revoked_at_raw)
+    "\"#{revoked_at_raw}\""
   end
-  json { id : id, project_id : project_id, key_value : key_value, label : label, created_at : created_at, revoked_at : revoked_at }
+  """{"id":"#{id}","project_id":"#{project_id}","key_value":"#{key_value}","label":"#{label}","created_at":"#{created_at}","revoked_at":#{revoked_at}}"""
 end
 
 # Extract a field from a JSON body using Mesh-native Json.get (no DB roundtrip).

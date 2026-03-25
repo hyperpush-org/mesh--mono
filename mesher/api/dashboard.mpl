@@ -24,7 +24,7 @@ fn bucket_to_json(row) -> String do
     Some( n) -> n
     None -> 0
   end
-  json { bucket : bucket, count : count }
+  """{"bucket":"#{bucket}","count":#{count}}"""
 end
 
 # Serialize {level, count} row to JSON. count is numeric (no quotes).
@@ -36,7 +36,7 @@ fn level_to_json(row) -> String do
     Some( n) -> n
     None -> 0
   end
-  json { level : level, count : count }
+  """{"level":"#{level}","count":#{count}}"""
 end
 
 # Serialize top issue row to JSON. event_count is numeric.
@@ -52,7 +52,7 @@ fn top_issue_to_json(row) -> String do
     None -> 0
   end
   let last_seen = Map.get(row, "last_seen")
-  json { id : id, title : title, level : level, status : status, event_count : event_count, last_seen : last_seen }
+  """{"id":"#{id}","title":"#{title}","level":"#{level}","status":"#{status}","event_count":#{event_count},"last_seen":"#{last_seen}"}"""
 end
 
 # Serialize {tag_value, count} row to JSON. count is numeric.
@@ -61,16 +61,16 @@ end
 fn tag_entry_to_json(row) -> String do
   let tag_value = Map.get(row, "tag_value")
   let value = if String.length(tag_value) == 0 do
-    None
+    "null"
   else
-    Some(tag_value)
+    "\"#{tag_value}\""
   end
   let count_opt = String.to_int(Map.get(row, "count"))
   let count = case count_opt do
     Some( n) -> n
     None -> 0
   end
-  json { value : value, count : count }
+  """{"value":#{value},"count":#{count}}"""
 end
 
 # Serialize timeline event row to JSON.
@@ -80,7 +80,7 @@ fn timeline_event_to_json(row) -> String do
   let level = Map.get(row, "level")
   let message = Map.get(row, "message")
   let received_at = Map.get(row, "received_at")
-  json { id : id, level : level, message : message, received_at : received_at }
+  """{"id":"#{id}","level":"#{level}","message":"#{message}","received_at":"#{received_at}"}"""
 end
 
 # --- Handler functions (pub, defined after all helpers) ---

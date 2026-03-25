@@ -2576,3 +2576,504 @@ fn e2e_m033_s03_composed_reads_alert_lists_and_predicates() {
         }
     });
 }
+
+#[test]
+fn e2e_m033_s03_hard_reads_filtered_issue_cursor_and_health_summary() {
+    with_mesher_postgres("hard-filter-health", || {
+        let migrate_output = run_mesher_migrations(MESHER_DATABASE_URL);
+        assert_command_success(&migrate_output, "meshc migrate mesher up");
+        ensure_today_event_partition(MESHER_DATABASE_URL);
+
+        let project_id = insert_org_and_project(MESHER_DATABASE_URL, "m033-s03-hard-filter-health");
+        let assignee = insert_user(
+            MESHER_DATABASE_URL,
+            "m033-s03-hard-filter@example.com",
+            "mesh-password-42",
+            "Hard Filter User",
+        );
+
+        let newest_issue = insert_issue(
+            MESHER_DATABASE_URL,
+            &project_id,
+            "fp-s03-hard-newest",
+            "Newest filtered issue",
+            "error",
+        );
+        update_issue_read_fields(
+            MESHER_DATABASE_URL,
+            &newest_issue,
+            "unresolved",
+            9,
+            -90,
+            -5,
+            Some(&assignee),
+        );
+
+        let older_issue = insert_issue(
+            MESHER_DATABASE_URL,
+            &project_id,
+            "fp-s03-hard-older",
+            "Older filtered issue",
+            "error",
+        );
+        update_issue_read_fields(
+            MESHER_DATABASE_URL,
+            &older_issue,
+            "unresolved",
+            4,
+            -180,
+            -30,
+            Some(&assignee),
+        );
+
+        let wrong_level_issue = insert_issue(
+            MESHER_DATABASE_URL,
+            &project_id,
+            "fp-s03-hard-level",
+            "Wrong level issue",
+            "warning",
+        );
+        update_issue_read_fields(
+            MESHER_DATABASE_URL,
+            &wrong_level_issue,
+            "unresolved",
+            3,
+            -60,
+            -15,
+            Some(&assignee),
+        );
+
+        let unassigned_issue = insert_issue(
+            MESHER_DATABASE_URL,
+            &project_id,
+            "fp-s03-hard-unassigned",
+            "Unassigned error issue",
+            "error",
+        );
+        update_issue_read_fields(
+            MESHER_DATABASE_URL,
+            &unassigned_issue,
+            "unresolved",
+            2,
+            -45,
+            -12,
+            None,
+        );
+
+        let resolved_issue = insert_issue(
+            MESHER_DATABASE_URL,
+            &project_id,
+            "fp-s03-hard-resolved",
+            "Resolved error issue",
+            "error",
+        );
+        update_issue_read_fields(
+            MESHER_DATABASE_URL,
+            &resolved_issue,
+            "resolved",
+            6,
+            -240,
+            -2,
+            Some(&assignee),
+        );
+
+        insert_event_row(
+            MESHER_DATABASE_URL,
+            &project_id,
+            &newest_issue,
+            "error",
+            "hard newest one",
+            "fp-s03-hard-newest",
+            None,
+            None,
+            None,
+            r#"{"env":"prod"}"#,
+            r#"{}"#,
+            None,
+            None,
+            None,
+            -25,
+        );
+        insert_event_row(
+            MESHER_DATABASE_URL,
+            &project_id,
+            &older_issue,
+            "error",
+            "hard older one",
+            "fp-s03-hard-older",
+            None,
+            None,
+            None,
+            r#"{"env":"prod"}"#,
+            r#"{}"#,
+            None,
+            None,
+            None,
+            -15,
+        );
+        insert_event_row(
+            MESHER_DATABASE_URL,
+            &project_id,
+            &unassigned_issue,
+            "error",
+            "hard unassigned one",
+            "fp-s03-hard-unassigned",
+            None,
+            None,
+            None,
+            r#"{"env":"prod"}"#,
+            r#"{}"#,
+            None,
+            None,
+            None,
+            -5,
+        );
+
+        let config = mesher_test_config();
+        let spawned = spawn_mesher(config);
+        let result = std::panic::catch_unwind(|| {
+            wait_for_mesher(&config);
+
+            let page1_path = format!(
+                "/api/v1/projects/{project_id}/issues?status=unresolved&level=error&assigned_to={assignee}&limit=1"
+            );
+            let page1_json = get_json(&config, &page1_path, 200);
+            assert_eq!(page1_json["has_more"].as_bool(), Some(true));
+            let page1_items = page1_json["data"]
+                .as_array()
+                .expect("filtered issue page 1 should expose a data array");
+            let page1_rows = query_database_rows(
+                MESHER_DATABASE_URL,
+                "SELECT id::text AS id, title, level, status, event_count::text AS event_count, first_seen::text AS first_seen, last_seen::text AS last_seen, COALESCE(assigned_to::text, '') AS assigned_to FROM issues WHERE project_id = $1::uuid AND status = 'unresolved' AND level = 'error' AND assigned_to = $2::uuid ORDER BY last_seen DESC, id DESC LIMIT 1",
+                &[&project_id, &assignee],
+            );
+            assert_eq!(
+                json_array_signature(
+                    page1_items,
+                    &["id", "title", "level", "status", "event_count", "first_seen", "last_seen", "assigned_to"],
+                ),
+                rows_signature(
+                    &page1_rows,
+                    &["id", "title", "level", "status", "event_count", "first_seen", "last_seen", "assigned_to"],
+                ),
+                "e2e_m033_s03_hard_reads_filtered_issue_cursor_and_health_summary filtered issue page 1 drifted"
+            );
+
+            let cursor = page1_rows[0]
+                .get("last_seen")
+                .cloned()
+                .expect("missing page1 cursor last_seen");
+            let cursor_id = page1_rows[0]
+                .get("id")
+                .cloned()
+                .expect("missing page1 cursor id");
+            assert_eq!(page1_json["next_cursor"].as_str(), Some(cursor.as_str()));
+            assert_eq!(page1_json["next_cursor_id"].as_str(), Some(cursor_id.as_str()));
+
+            let page2_path = format!(
+                "/api/v1/projects/{project_id}/issues?status=unresolved&level=error&assigned_to={assignee}&limit=1&cursor={}&cursor_id={}",
+                url_encode_component(&cursor),
+                url_encode_component(&cursor_id),
+            );
+            let page2_json = get_json(&config, &page2_path, 200);
+            assert_eq!(page2_json["has_more"].as_bool(), Some(true));
+            let page2_items = page2_json["data"]
+                .as_array()
+                .expect("filtered issue page 2 should expose a data array");
+            let page2_rows = query_database_rows(
+                MESHER_DATABASE_URL,
+                "SELECT id::text AS id, title, level, status, event_count::text AS event_count, first_seen::text AS first_seen, last_seen::text AS last_seen, COALESCE(assigned_to::text, '') AS assigned_to FROM issues WHERE project_id = $1::uuid AND status = 'unresolved' AND level = 'error' AND assigned_to = $2::uuid AND (last_seen, id) < ($3::timestamptz, $4::uuid) ORDER BY last_seen DESC, id DESC LIMIT 1",
+                &[&project_id, &assignee, &cursor, &cursor_id],
+            );
+            assert_eq!(
+                json_array_signature(
+                    page2_items,
+                    &["id", "title", "level", "status", "event_count", "first_seen", "last_seen", "assigned_to"],
+                ),
+                rows_signature(
+                    &page2_rows,
+                    &["id", "title", "level", "status", "event_count", "first_seen", "last_seen", "assigned_to"],
+                ),
+                "e2e_m033_s03_hard_reads_filtered_issue_cursor_and_health_summary filtered issue page 2 drifted"
+            );
+
+            let page2_cursor = page2_rows[0]
+                .get("last_seen")
+                .cloned()
+                .expect("missing page2 cursor last_seen");
+            let page2_cursor_id = page2_rows[0]
+                .get("id")
+                .cloned()
+                .expect("missing page2 cursor id");
+            assert_eq!(page2_json["next_cursor"].as_str(), Some(page2_cursor.as_str()));
+            assert_eq!(page2_json["next_cursor_id"].as_str(), Some(page2_cursor_id.as_str()));
+
+            let page3_path = format!(
+                "/api/v1/projects/{project_id}/issues?status=unresolved&level=error&assigned_to={assignee}&limit=1&cursor={}&cursor_id={}",
+                url_encode_component(&page2_cursor),
+                url_encode_component(&page2_cursor_id),
+            );
+            let page3_json = get_json(&config, &page3_path, 200);
+            assert_eq!(page3_json["has_more"].as_bool(), Some(false));
+            let page3_items = page3_json["data"]
+                .as_array()
+                .expect("filtered issue page 3 should expose a data array");
+            assert!(page3_items.is_empty(), "expected filtered issue page 3 to be empty");
+
+            let health_json = get_json(
+                &config,
+                &format!("/api/v1/projects/{project_id}/dashboard/health"),
+                200,
+            );
+            let health_row = query_single_row(
+                MESHER_DATABASE_URL,
+                "SELECT (SELECT count(*)::text FROM issues WHERE project_id = $1::uuid AND status = 'unresolved') AS unresolved_count, (SELECT count(*)::text FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours') AS events_24h, (SELECT count(*)::text FROM issues WHERE project_id = $1::uuid AND first_seen > now() - interval '24 hours') AS new_today",
+                &[&project_id],
+            );
+            let unresolved_expected = health_row
+                .get("unresolved_count")
+                .and_then(|value| value.parse::<u64>().ok())
+                .expect("unresolved_count should parse as u64");
+            let events_expected = health_row
+                .get("events_24h")
+                .and_then(|value| value.parse::<u64>().ok())
+                .expect("events_24h should parse as u64");
+            let new_today_expected = health_row
+                .get("new_today")
+                .and_then(|value| value.parse::<u64>().ok())
+                .expect("new_today should parse as u64");
+            assert_eq!(health_json["unresolved_count"].as_u64(), Some(unresolved_expected));
+            assert_eq!(health_json["events_24h"].as_u64(), Some(events_expected));
+            assert_eq!(health_json["new_today"].as_u64(), Some(new_today_expected));
+        });
+        let logs = stop_mesher(spawned);
+        match result {
+            Ok(()) => assert_mesher_logs(&logs, &config),
+            Err(payload) => panic!(
+                "M033/S03 hard filter/health assertions failed: {}\nstdout:\n{}\nstderr:\n{}",
+                panic_payload_to_string(payload),
+                logs.stdout,
+                logs.stderr,
+            ),
+        }
+    });
+}
+
+#[test]
+fn e2e_m033_s03_hard_reads_neighbors_and_threshold_rule_probe() {
+    with_mesher_postgres("hard-neighbors-threshold", || {
+        let migrate_output = run_mesher_migrations(MESHER_DATABASE_URL);
+        assert_command_success(&migrate_output, "meshc migrate mesher up");
+        ensure_today_event_partition(MESHER_DATABASE_URL);
+
+        let project_id = insert_org_and_project(MESHER_DATABASE_URL, "m033-s03-hard-threshold");
+        let issue_id = insert_issue(
+            MESHER_DATABASE_URL,
+            &project_id,
+            "fp-s03-hard-threshold",
+            "Threshold issue",
+            "error",
+        );
+        update_issue_read_fields(
+            MESHER_DATABASE_URL,
+            &issue_id,
+            "unresolved",
+            3,
+            -40,
+            -1,
+            None,
+        );
+
+        let oldest_event = insert_event_row(
+            MESHER_DATABASE_URL,
+            &project_id,
+            &issue_id,
+            "warning",
+            "threshold oldest",
+            "fp-s03-hard-threshold",
+            None,
+            None,
+            None,
+            r#"{"env":"prod"}"#,
+            r#"{}"#,
+            None,
+            None,
+            None,
+            -9,
+        );
+        let middle_event = insert_event_row(
+            MESHER_DATABASE_URL,
+            &project_id,
+            &issue_id,
+            "error",
+            "threshold middle",
+            "fp-s03-hard-threshold",
+            None,
+            None,
+            None,
+            r#"{"env":"prod"}"#,
+            r#"{}"#,
+            None,
+            None,
+            None,
+            -6,
+        );
+        let newest_event = insert_event_row(
+            MESHER_DATABASE_URL,
+            &project_id,
+            &issue_id,
+            "error",
+            "threshold newest",
+            "fp-s03-hard-threshold",
+            None,
+            None,
+            None,
+            r#"{"env":"prod"}"#,
+            r#"{}"#,
+            None,
+            None,
+            None,
+            -2,
+        );
+
+        let fresh_rule = insert_alert_rule_row(
+            MESHER_DATABASE_URL,
+            &project_id,
+            "Fresh threshold rule",
+            r#"{"condition_type":"threshold","threshold":"2","window_minutes":"10"}"#,
+            r#"{"type":"email"}"#,
+            true,
+            60,
+            None,
+            -30,
+        );
+        let hot_rule = insert_alert_rule_row(
+            MESHER_DATABASE_URL,
+            &project_id,
+            "Hot threshold rule",
+            r#"{"condition_type":"threshold","threshold":"2","window_minutes":"10"}"#,
+            r#"{"type":"websocket"}"#,
+            true,
+            60,
+            Some(-5),
+            -20,
+        );
+        let quiet_rule = insert_alert_rule_row(
+            MESHER_DATABASE_URL,
+            &project_id,
+            "Quiet threshold rule",
+            r#"{"condition_type":"threshold","threshold":"10","window_minutes":"10"}"#,
+            r#"{"type":"email"}"#,
+            true,
+            60,
+            None,
+            -10,
+        );
+
+        let middle_row = query_single_row(
+            MESHER_DATABASE_URL,
+            "SELECT received_at::text AS received_at FROM events WHERE id = $1::uuid",
+            &[&middle_event],
+        );
+        let middle_received_at = middle_row
+            .get("received_at")
+            .cloned()
+            .expect("missing middle event received_at");
+
+        let template = r##"
+from Storage.Queries import get_event_neighbors, evaluate_threshold_rule
+
+fn bool_text(value :: Bool) -> String do
+  if value do
+    "true"
+  else
+    "false"
+  end
+end
+
+fn main() do
+  let pool_result = Pool.open("postgres://mesh:mesh@127.0.0.1:5432/mesher", 1, 1, 5000)
+  case pool_result do
+    Err( e) -> println("pool_err=#{e}")
+    Ok( pool) -> do
+      case get_event_neighbors(pool, __ISSUE_ID__, __RECEIVED_AT__, __EVENT_ID__) do
+        Err( e) -> println("neighbors_err=#{e}")
+        Ok( rows) -> do
+          println("neighbors_count=#{List.length(rows)}")
+          let row = List.get(rows, 0)
+          let next_id = Map.get(row, "next_id")
+          let prev_id = Map.get(row, "prev_id")
+          println("neighbor_next_id=#{next_id}")
+          println("neighbor_prev_id=#{prev_id}")
+        end
+      end
+      case evaluate_threshold_rule(pool, __FRESH_RULE_ID__, __PROJECT_ID__, "2", "10", "60") do
+        Err( e) -> println("fresh_err=#{e}")
+        Ok( value) -> println("fresh_should_fire=#{bool_text(value)}")
+      end
+      case evaluate_threshold_rule(pool, __HOT_RULE_ID__, __PROJECT_ID__, "2", "10", "60") do
+        Err( e) -> println("hot_err=#{e}")
+        Ok( value) -> println("hot_should_fire=#{bool_text(value)}")
+      end
+      case evaluate_threshold_rule(pool, __QUIET_RULE_ID__, __PROJECT_ID__, "10", "10", "60") do
+        Err( e) -> println("quiet_err=#{e}")
+        Ok( value) -> println("quiet_should_fire=#{bool_text(value)}")
+      end
+    end
+  end
+end
+"##;
+        let source = render_mesh_template(
+            template,
+            &[
+                ("__ISSUE_ID__", mesh_string_literal(&issue_id)),
+                ("__RECEIVED_AT__", mesh_string_literal(&middle_received_at)),
+                ("__EVENT_ID__", mesh_string_literal(&middle_event)),
+                ("__PROJECT_ID__", mesh_string_literal(&project_id)),
+                ("__FRESH_RULE_ID__", mesh_string_literal(&fresh_rule)),
+                ("__HOT_RULE_ID__", mesh_string_literal(&hot_rule)),
+                ("__QUIET_RULE_ID__", mesh_string_literal(&quiet_rule)),
+            ],
+        );
+
+        let output = compile_and_run_mesher_storage_probe(&source);
+        let values = parse_output_map(&output);
+        assert_eq!(
+            values.get("neighbors_count").map(String::as_str),
+            Some("1"),
+            "e2e_m033_s03_hard_reads_neighbors_and_threshold_rule_probe should return one neighbors row:\n{output}"
+        );
+        assert_eq!(
+            values.get("neighbor_next_id").map(String::as_str),
+            Some(newest_event.as_str()),
+            "e2e_m033_s03_hard_reads_neighbors_and_threshold_rule_probe next_id drifted:\n{output}"
+        );
+        assert_eq!(
+            values.get("neighbor_prev_id").map(String::as_str),
+            Some(oldest_event.as_str()),
+            "e2e_m033_s03_hard_reads_neighbors_and_threshold_rule_probe prev_id drifted:\n{output}"
+        );
+        assert_eq!(
+            values.get("fresh_should_fire").map(String::as_str),
+            Some("true"),
+            "e2e_m033_s03_hard_reads_neighbors_and_threshold_rule_probe fresh threshold should fire:\n{output}"
+        );
+        assert_eq!(
+            values.get("hot_should_fire").map(String::as_str),
+            Some("false"),
+            "e2e_m033_s03_hard_reads_neighbors_and_threshold_rule_probe cooldown should suppress hot rule:\n{output}"
+        );
+        assert_eq!(
+            values.get("quiet_should_fire").map(String::as_str),
+            Some("false"),
+            "e2e_m033_s03_hard_reads_neighbors_and_threshold_rule_probe high threshold should stay quiet:\n{output}"
+        );
+
+        let event_count_row = query_single_row(
+            MESHER_DATABASE_URL,
+            "SELECT count(*)::text AS cnt FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '10 minutes'",
+            &[&project_id],
+        );
+        assert_eq!(event_count_row.get("cnt").map(String::as_str), Some("3"));
+    });
+}

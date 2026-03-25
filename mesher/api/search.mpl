@@ -5,6 +5,8 @@
 
 from Ingestion.Pipeline import PipelineRegistry
 from Storage.Queries import list_issues_filtered, search_events_fulltext, filter_events_by_tag, list_events_for_issue
+from Types.Event import Event
+from Types.Issue import Issue
 from Api.Helpers import query_or_default, to_json_array, require_param, get_registry, resolve_project_id
 
 # --- Shared helpers (leaf functions first, per define-before-use requirement) ---
@@ -40,6 +42,17 @@ fn get_limit(request) -> String do
   end
 end
 
+# Decode the small percent-encoded query subset Mesher currently emits in
+# pagination cursors. Request.query hands the raw encoded component through, so
+# detail/search cursor timestamps must be normalized before they reach Postgres.
+
+fn decode_query_component(value :: String) -> String do
+  value
+    |> String.replace("%20", " ")
+    |> String.replace("%3A", ":")
+    |> String.replace("%2B", "+")
+end
+
 # Convert an issue row (Map<String, String>) to a JSON string.
 # All fields are strings from SQL; event_count is numeric so parse to Int.
 
@@ -56,7 +69,7 @@ fn row_to_issue_json(row) -> String do
   let first_seen = Map.get(row, "first_seen")
   let last_seen = Map.get(row, "last_seen")
   let assigned_to = Map.get(row, "assigned_to")
-  json { id : id, title : title, level : level, status : status, event_count : event_count, first_seen : first_seen, last_seen : last_seen, assigned_to : assigned_to }
+  """{"id":"#{id}","title":"#{title}","level":"#{level}","status":"#{status}","event_count":#{event_count},"first_seen":"#{first_seen}","last_seen":"#{last_seen}","assigned_to":"#{assigned_to}"}"""
 end
 
 # Convert an event search result row to JSON.
@@ -67,7 +80,7 @@ fn row_to_event_json(row) -> String do
   let level = Map.get(row, "level")
   let message = Map.get(row, "message")
   let received_at = Map.get(row, "received_at")
-  json { id : id, issue_id : issue_id, level : level, message : message, received_at : received_at }
+  """{"id":"#{id}","issue_id":"#{issue_id}","level":"#{level}","message":"#{message}","received_at":"#{received_at}"}"""
 end
 
 # Convert a tag filter result row to JSON.
@@ -86,20 +99,32 @@ end
 # Convert a per-issue event row to JSON (minimal fields).
 
 fn row_to_issue_event_json(row) -> String do
-  let id = Map.get(row, "id")
-  let level = Map.get(row, "level")
-  let message = Map.get(row, "message")
-  let received_at = Map.get(row, "received_at")
-  json { id : id, level : level, message : message, received_at : received_at }
+  let event = issue_event_row_to_event(row)
+  Json.encode(event)
 end
 
 # Helper: extract last_seen and id from the last row for pagination cursor.
 
+fn issue_row_to_cursor_issue(row) -> Issue do
+  Issue {
+    id : Map.get(row, "id"),
+    project_id : "",
+    fingerprint : "",
+    title : Map.get(row, "title"),
+    level : Map.get(row, "level"),
+    status : Map.get(row, "status"),
+    event_count : 0,
+    first_seen : Map.get(row, "first_seen"),
+    last_seen : Map.get(row, "last_seen"),
+    assigned_to : Map.get(row, "assigned_to")
+  }
+end
+
 fn extract_cursor_from_last(rows, last_seen_key :: String, id_key :: String) -> String do
   let total = List.length(rows)
-  let last_row = List.get(rows, total - 1)
-  let next_cursor = Map.get(last_row, last_seen_key)
-  let next_cursor_id = Map.get(last_row, id_key)
+  let normalized = Json.encode(issue_row_to_cursor_issue(List.get(rows, total - 1)))
+  let next_cursor = Json.get(normalized, last_seen_key)
+  let next_cursor_id = Json.get(normalized, id_key)
   ""","next_cursor":"#{next_cursor}","next_cursor_id":"#{next_cursor_id}","has_more":true}"""
 end
 
@@ -117,10 +142,39 @@ end
 
 # Build paginated response for event lists (cursor key is received_at).
 
+fn issue_event_row_to_event(row) -> Event do
+  Event {
+    id : Map.get(row, "id"),
+    project_id : "",
+    issue_id : "",
+    level : Map.get(row, "level"),
+    message : Map.get(row, "message"),
+    fingerprint : "",
+    exception : "null",
+    stacktrace : "[]",
+    breadcrumbs : "[]",
+    tags : "{}",
+    extra : "{}",
+    user_context : "null",
+    sdk_name : "",
+    sdk_version : "",
+    received_at : Map.get(row, "received_at")
+  }
+end
+
+fn extract_event_cursor_from_last(rows) -> String do
+  let total = List.length(rows)
+  let event = issue_event_row_to_event(List.get(rows, total - 1))
+  let event_json = Json.encode(event)
+  let next_cursor = Json.get(event_json, "received_at")
+  let next_cursor_id = Json.get(event_json, "id")
+  ""","next_cursor":"#{next_cursor}","next_cursor_id":"#{next_cursor_id}","has_more":true}"""
+end
+
 fn build_event_paginated_response(json_array :: String, rows, limit :: Int) -> String do
   let count = List.length(rows)
   if count == limit do
-    """{"data":#{json_array}#{extract_cursor_from_last(rows, "received_at", "id")}"""
+    """{"data":#{json_array}#{extract_event_cursor_from_last(rows)}"""
   else
     """{"data":#{json_array},"has_more":false}"""
   end
@@ -172,7 +226,9 @@ pub fn handle_search_issues(request) do
   let level = query_or_default(request, "level", "")
   let assigned_to = query_or_default(request, "assigned_to", "")
   let cursor = query_or_default(request, "cursor", "")
+    |> decode_query_component()
   let cursor_id = query_or_default(request, "cursor_id", "")
+    |> decode_query_component()
   let limit_str = get_limit(request)
   let result = list_issues_filtered(pool,
   project_id,
@@ -312,7 +368,9 @@ pub fn handle_list_issue_events(request) do
   let pool = PipelineRegistry.get_pool(reg_pid)
   let issue_id = require_param(request, "issue_id")
   let cursor = query_or_default(request, "cursor", "")
+    |> decode_query_component()
   let cursor_id = query_or_default(request, "cursor_id", "")
+    |> decode_query_component()
   let limit_str = get_limit(request)
   let result = list_events_for_issue(pool, issue_id, cursor, cursor_id, limit_str)
   case result do

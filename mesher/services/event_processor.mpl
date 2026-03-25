@@ -38,6 +38,7 @@ issue_id :: String,
 fingerprint :: String) -> String ! String do
   let enriched = build_enriched_entry(project_id, issue_id, fingerprint, event_json)
   StorageWriter.store(writer_pid, enriched)
+  StorageWriter.flush(writer_pid)
   Ok(issue_id)
 end
 

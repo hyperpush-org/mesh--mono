@@ -20,7 +20,6 @@ from Storage.Queries import (
   list_issues_by_status,
   check_new_issue,
   get_event_alert_rules,
-  should_fire_by_cooldown,
   fire_alert,
   check_sample_rate,
   count_unresolved_issues,
@@ -81,6 +80,24 @@ end
 
 # --- Event-based alert helpers (ALERT-03, ALERT-04, ALERT-05) ---
 # Defined before broadcast_event (define-before-use, decision [90-03]).
+# Normalize event-rule selector rows through a concrete shape before Json.get
+# reads them on the live alert path.
+
+struct EventRuleRow do
+  id :: String
+  name :: String
+  cooldown_minutes :: String
+end deriving(Json)
+
+fn normalize_event_rule_row(row) -> String do
+  let rule = EventRuleRow {
+    id : Map.get(row, "id"),
+    name : Map.get(row, "name"),
+    cooldown_minutes : Map.get(row, "cooldown_minutes")
+  }
+  Json.encode(rule)
+end
+
 # Broadcast alert notification to project WebSocket room (ALERT-04).
 
 fn broadcast_alert_notification(project_id :: String,
@@ -94,49 +111,22 @@ message :: String) do
   0
 end
 
-# Fire alert if cooldown allows (ALERT-05).
-
-fn fire_if_cooldown_ok(pool :: PoolHandle,
-rule_id :: String,
-project_id :: String,
-rule_name :: String,
-condition_type :: String,
-issue_id :: String,
-should_fire :: Bool) do
-  if should_fire do
-    let message = "#{condition_type} detected for issue #{issue_id}"
-    let result = fire_alert(pool, rule_id, project_id, message, condition_type, rule_name)
-    case result do
-      Ok( alert_id) -> broadcast_alert_notification(project_id,
-      alert_id,
-      rule_name,
-      condition_type,
-      message)
-      Err( _) -> 0
-    end
-  else
-    0
-  end
-end
-
-# Fire and broadcast a single event-based alert with cooldown check.
+# Fire and broadcast a single event-based alert.
 
 fn fire_event_alert(pool :: PoolHandle,
 rule_id :: String,
 project_id :: String,
 rule_name :: String,
 condition_type :: String,
-cooldown_str :: String,
 issue_id :: String) do
-  let cooldown_ok = should_fire_by_cooldown(pool, rule_id, cooldown_str)
-  case cooldown_ok do
-    Ok( should_fire) -> fire_if_cooldown_ok(pool,
-    rule_id,
-    project_id,
+  let message = "#{condition_type} detected for issue #{issue_id}"
+  let result = fire_alert(pool, rule_id, project_id, message, condition_type, rule_name)
+  case result do
+    Ok( alert_id) -> broadcast_alert_notification(project_id,
+    alert_id,
     rule_name,
     condition_type,
-    issue_id,
-    should_fire)
+    message)
     Err( _) -> 0
   end
 end
@@ -152,10 +142,10 @@ i :: Int,
 total :: Int) do
   if i < total do
     let rule = List.get(rules, i)
-    let rule_id = Map.get(rule, "id")
-    let rule_name = Map.get(rule, "name")
-    let cooldown_str = Map.get(rule, "cooldown_minutes")
-    fire_event_alert(pool, rule_id, project_id, rule_name, condition_type, cooldown_str, issue_id)
+    let normalized = normalize_event_rule_row(rule)
+    let rule_id = Json.get(normalized, "id")
+    let rule_name = Json.get(normalized, "name")
+    fire_event_alert(pool, rule_id, project_id, rule_name, condition_type, issue_id)
     fire_event_alerts_loop(pool, rules, project_id, condition_type, issue_id, i + 1, total)
   else
     0

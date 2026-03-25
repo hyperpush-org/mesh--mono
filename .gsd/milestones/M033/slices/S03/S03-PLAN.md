@@ -84,7 +84,7 @@ Do: Rewrite `list_issues_filtered`, `project_health_summary`, `get_event_neighbo
   - Verify: cargo test -p meshc --test e2e_m033_s03 hard_reads -- --nocapture
 cargo run -q -p meshc -- build mesher
 
-- [ ] **T05: Close S03 with the live Postgres verifier and named keep-list gate** `est:2h`
+- [x] **T05: Close S03 with the live Postgres verifier and named keep-list gate** `est:2h`
   Why: After the proof-surface pivot and hard-family rewrites, the slice still needs one stable rerunnable acceptance path that proves both behavior and the raw-boundary contract.
 
 Do: Finish the full live-Postgres `e2e_m033_s03.rs` suite on the new harness, then add or update `scripts/verify-m033-s03.sh` so it runs the full S03 test target, Mesher fmt/build checks, and a keep-list sweep naming the only allowed S03 leftovers while excluding the S04-owned partition/catalog raw sites. Make failures point at the drifting proof family or offending function block so future agents do not need to rediscover the boundary by hand.

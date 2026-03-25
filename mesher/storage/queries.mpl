@@ -141,14 +141,11 @@ pub fn get_project_by_api_key(pool :: PoolHandle, key_value :: String) -> Projec
   let q = Query.from(Project.__table__())
     |> Query.join_as(:inner, ApiKey.__table__(), "ak", "ak.project_id = projects.id")
     |> Query.where_expr(Expr.eq(Expr.column("ak.key_value"), Expr.value(key_value)))
-    |> Query.where_expr(Expr.eq(Expr.coalesce([Pg.text(Expr.column("ak.revoked_at")), Expr.value("")]), Expr.value("")))
-    |> Query.select_exprs([
-      Expr.label(Expr.column("projects.id"), "id"),
-      Expr.label(Expr.column("projects.org_id"), "org_id"),
-      Expr.label(Expr.column("projects.name"), "name"),
-      Expr.label(Expr.column("projects.platform"), "platform"),
-      Expr.label(Expr.column("projects.created_at"), "created_at")
-    ])
+    |> Query.where_expr(Expr.eq(Expr.coalesce([Pg.text(Expr.column("ak.revoked_at")), Expr.value("")]),
+    Expr.value("")))
+    |> Query.select_exprs([Expr.label(Expr.column("projects.id"), "id"), Expr.label(Expr.column("projects.org_id"),
+    "org_id"), Expr.label(Expr.column("projects.name"), "name"), Expr.label(Expr.column("projects.platform"),
+    "platform"), Expr.label(Expr.column("projects.created_at"), "created_at")])
   let rows = Repo.all(pool, q) ?
   if List.length(rows) > 0 do
     let row = List.head(rows)
@@ -245,12 +242,9 @@ pub fn validate_session(pool :: PoolHandle, token :: String) -> Session ! String
   let q = Query.from(Session.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("token"), Expr.value(token)))
     |> Query.where_expr(Expr.gt(Expr.column("expires_at"), Pg.timestamptz(Expr.fn_call("now", []))))
-    |> Query.select_exprs([
-      Expr.label(Expr.column("token"), "token"),
-      Expr.label(Pg.text(Expr.column("user_id")), "user_id"),
-      Expr.label(Pg.text(Expr.column("created_at")), "created_at"),
-      Expr.label(Pg.text(Expr.column("expires_at")), "expires_at")
-    ])
+    |> Query.select_exprs([Expr.label(Expr.column("token"), "token"), Expr.label(Pg.text(Expr.column("user_id")),
+    "user_id"), Expr.label(Pg.text(Expr.column("created_at")), "created_at"), Expr.label(Pg.text(Expr.column("expires_at")),
+    "expires_at")])
   let rows = Repo.all(pool, q) ?
   if List.length(rows) > 0 do
     let row = List.head(rows)
@@ -522,18 +516,12 @@ pub fn list_issues_by_status(pool :: PoolHandle, project_id :: String, status ::
   let q = Query.from(Issue.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
     |> Query.where_expr(Expr.eq(Expr.column("status"), Expr.value(status)))
-    |> Query.select_exprs([
-      Expr.label(Expr.column("id"), "id"),
-      Expr.label(Expr.column("project_id"), "project_id"),
-      Expr.label(Expr.column("fingerprint"), "fingerprint"),
-      Expr.label(Expr.column("title"), "title"),
-      Expr.label(Expr.column("level"), "level"),
-      Expr.label(Expr.column("status"), "status"),
-      Expr.label(Expr.column("event_count"), "event_count"),
-      Expr.label(Expr.column("first_seen"), "first_seen"),
-      Expr.label(Expr.column("last_seen"), "last_seen"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("assigned_to")), Expr.value("")]), "assigned_to")
-    ])
+    |> Query.select_exprs([Expr.label(Expr.column("id"), "id"), Expr.label(Expr.column("project_id"),
+    "project_id"), Expr.label(Expr.column("fingerprint"), "fingerprint"), Expr.label(Expr.column("title"),
+    "title"), Expr.label(Expr.column("level"), "level"), Expr.label(Expr.column("status"), "status"), Expr.label(Expr.column("event_count"),
+    "event_count"), Expr.label(Expr.column("first_seen"), "first_seen"), Expr.label(Expr.column("last_seen"),
+    "last_seen"), Expr.label(Expr.coalesce([Pg.text(Expr.column("assigned_to")), Expr.value("")]),
+    "assigned_to")])
     |> Query.order_by(:last_seen, :desc)
   let rows = Repo.all(pool, q) ?
   Ok(rows
@@ -593,9 +581,10 @@ end
 
 # --- Search, filter, and pagination queries (Phase 91 Plan 01) ---
 # SEARCH-01 + SEARCH-05: List issues with optional filters and keyset pagination.
-# Builds the optional status/level/assigned_to predicates conditionally in Mesh,
-# then keeps only the tuple cursor predicate as a narrow raw fragment. This keeps
-# the caller-visible row keys stable without relying on a whole-query raw string.
+# Honest raw S03 keep-site: the conditional builder-assembled version compiled but
+# crashed the real Mesher/search proof surface with a non-exhaustive switch before
+# the caller could observe rows. Keep the SQL explicit and parameterized until the
+# live runtime can safely carry this optional-filter + tuple-cursor row family.
 
 pub fn list_issues_filtered(pool :: PoolHandle,
 project_id :: String,
@@ -605,44 +594,9 @@ assigned_to :: String,
 cursor :: String,
 cursor_id :: String,
 limit_str :: String) -> List < Map < String, String > > ! String do
-  let lim = parse_limit(limit_str)
-  let base = Query.from(Issue.__table__())
-    |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
-    |> Query.select_exprs([
-      Expr.label(Pg.text(Expr.column("id")), "id"),
-      Expr.label(Expr.column("title"), "title"),
-      Expr.label(Expr.column("level"), "level"),
-      Expr.label(Expr.column("status"), "status"),
-      Expr.label(Pg.text(Expr.column("event_count")), "event_count"),
-      Expr.label(Pg.text(Expr.column("first_seen")), "first_seen"),
-      Expr.label(Pg.text(Expr.column("last_seen")), "last_seen"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("assigned_to")), Expr.value("")]), "assigned_to")
-    ])
-    |> Query.order_by(:last_seen, :desc)
-    |> Query.order_by(:id, :desc)
-    |> Query.limit(lim)
-  let with_status = if String.length(status) > 0 do
-    base |> Query.where_expr(Expr.eq(Expr.column("status"), Expr.value(status)))
-  else
-    base
-  end
-  let with_level = if String.length(level) > 0 do
-    with_status |> Query.where_expr(Expr.eq(Expr.column("level"), Expr.value(level)))
-  else
-    with_status
-  end
-  let with_assigned = if String.length(assigned_to) > 0 do
-    with_level |> Query.where_expr(Expr.eq(Expr.column("assigned_to"), Pg.uuid(Expr.value(assigned_to))))
-  else
-    with_level
-  end
-  if String.length(cursor) > 0 do
-    let q = with_assigned
-      |> Query.where_raw("(last_seen, id) < (?::timestamptz, ?::uuid)", [cursor, cursor_id])
-    Repo.all(pool, q)
-  else
-    Repo.all(pool, with_assigned)
-  end
+  let lim = String.from(parse_limit(limit_str))
+  let sql = "SELECT id::text AS id, title::text AS title, level::text AS level, status::text AS status, event_count::text AS event_count, first_seen::text AS first_seen, last_seen::text AS last_seen, COALESCE(assigned_to::text, '') AS assigned_to FROM issues WHERE project_id = $1::uuid AND ($2 = '' OR status = $2) AND ($3 = '' OR level = $3) AND ($4 = '' OR assigned_to = NULLIF($4, '')::uuid) AND ($5 = '' OR (last_seen, id) < ($5::timestamptz, NULLIF($6, '')::uuid)) ORDER BY last_seen DESC, id DESC LIMIT $7::int"
+  Repo.query_raw(pool, sql, [project_id, status, level, assigned_to, cursor, cursor_id, lim])
 end
 
 # SEARCH-02: Full-text search on event messages using inline tsvector.
@@ -689,55 +643,64 @@ limit_str :: String) -> List < Map < String, String > > ! String do
 end
 
 # Event listing within an issue with keyset pagination (for DETAIL-05 context).
-# Keyset pagination on (received_at, id) for stable browsing.
-# Keeps the tuple cursor predicate raw because the current builder still lacks OR/tuple expression support,
-# but the projection itself is fully builder-backed.
+# Keep the page-1 and cursor follow-up queries as separate linear builder paths.
+# The earlier shared-query/raw rewrite either crashed the live route or surfaced
+# pointer-stringified values from the partitioned events read surface.
+
+fn list_events_for_issue_page(pool :: PoolHandle, issue_id :: String, limit_str :: String) -> List < Map < String, String > > ! String do
+  let lim = parse_limit(limit_str)
+  let q = Query.from(Event.__table__())
+    |> Query.where_expr(Expr.eq(Expr.column("issue_id"), Pg.uuid(Expr.value(issue_id))))
+    |> Query.select_exprs([Expr.label(Pg.text(Expr.column("id")), "id"), Expr.label(Expr.column("level"),
+    "level"), Expr.label(Expr.column("message"), "message"), Expr.label(Pg.text(Expr.column("received_at")),
+    "received_at")])
+    |> Query.order_by(:received_at, :desc)
+    |> Query.order_by(:id, :desc)
+    |> Query.limit(lim)
+  Repo.all(pool, q)
+end
+
+fn list_events_for_issue_after_cursor(pool :: PoolHandle,
+issue_id :: String,
+cursor :: String,
+cursor_id :: String,
+limit_str :: String) -> List < Map < String, String > > ! String do
+  let lim = parse_limit(limit_str)
+  let q = Query.from(Event.__table__())
+    |> Query.where_expr(Expr.eq(Expr.column("issue_id"), Pg.uuid(Expr.value(issue_id))))
+    |> Query.where_raw("(received_at, id) < (?::timestamptz, ?::uuid)", [cursor, cursor_id])
+    |> Query.select_exprs([Expr.label(Pg.text(Expr.column("id")), "id"), Expr.label(Expr.column("level"),
+    "level"), Expr.label(Expr.column("message"), "message"), Expr.label(Pg.text(Expr.column("received_at")),
+    "received_at")])
+    |> Query.order_by(:received_at, :desc)
+    |> Query.order_by(:id, :desc)
+    |> Query.limit(lim)
+  Repo.all(pool, q)
+end
 
 pub fn list_events_for_issue(pool :: PoolHandle,
 issue_id :: String,
 cursor :: String,
 cursor_id :: String,
 limit_str :: String) -> List < Map < String, String > > ! String do
-  let lim = parse_limit(limit_str)
-  let base = Query.from(Event.__table__())
-    |> Query.where_expr(Expr.eq(Expr.column("issue_id"), Pg.uuid(Expr.value(issue_id))))
-    |> Query.select_exprs([
-      Expr.label(Pg.text(Expr.column("id")), "id"),
-      Expr.label(Expr.column("level"), "level"),
-      Expr.label(Expr.column("message"), "message"),
-      Expr.label(Pg.text(Expr.column("received_at")), "received_at")
-    ])
-    |> Query.order_by(:received_at, :desc)
-    |> Query.order_by(:id, :desc)
-    |> Query.limit(lim)
   if String.length(cursor) > 0 do
-    let q = base
-      |> Query.where_raw("(received_at, id) < (?::timestamptz, ?::uuid)", [cursor, cursor_id])
-    Repo.all(pool, q)
+    list_events_for_issue_after_cursor(pool, issue_id, cursor, cursor_id, limit_str)
   else
-    Repo.all(pool, base)
+    list_events_for_issue_page(pool, issue_id, limit_str)
   end
 end
 
 # --- Dashboard aggregation queries (Phase 91 Plan 02) ---
 # DASH-01: Event volume bucketed by hour or day for a project.
 # bucket param is normalized to the honest allow-list used by the caller surface.
-# Default 24-hour time window.
-# Uses structured SELECT expressions plus alias-based GROUP BY / ORDER BY.
+# Honest raw S03 keep-site: the builder-backed alias/group_by form kept counts but
+# dropped the bucket value on the live dashboard route, so keep the SQL explicit
+# until the labeled date_trunc projection survives the real Mesher caller path.
 
 pub fn event_volume_hourly(pool :: PoolHandle, project_id :: String, bucket :: String) -> List < Map < String, String > > ! String do
   let bucket_name = normalize_time_bucket(bucket)
-  let bucket_expr = Expr.fn_call("date_trunc", [Expr.value(bucket_name), Expr.column("received_at")])
-  let q = Query.from(Event.__table__())
-    |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
-    |> Query.where_raw("received_at > now() - interval '24 hours'", [])
-    |> Query.select_exprs([
-      Expr.label(Pg.text(bucket_expr), "bucket"),
-      Expr.label(Pg.text(Expr.fn_call("count", [Expr.column("*")])), "count")
-    ])
-    |> Query.group_by(:bucket)
-    |> Query.order_by(:bucket, :asc)
-  Repo.all(pool, q)
+  let sql = "SELECT date_trunc('" <> bucket_name <> "', received_at)::text AS bucket, count(*)::text AS count FROM events WHERE project_id = $1::uuid AND received_at > now() - interval '24 hours' GROUP BY 1 ORDER BY 1 ASC"
+  Repo.query_raw(pool, sql, [project_id])
 end
 
 # DASH-02: Error breakdown by severity level for a project.
@@ -748,10 +711,9 @@ pub fn error_breakdown_by_level(pool :: PoolHandle, project_id :: String) -> Lis
   let q = Query.from(Event.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
     |> Query.where_raw("received_at > now() - interval '24 hours'", [])
-    |> Query.select_exprs([
-      Expr.label(Expr.column("level"), "level"),
-      Expr.label(Expr.fn_call("count", [Expr.column("*")]), "count")
-    ])
+    |> Query.select_exprs([Expr.label(Expr.column("level"), "level"), Expr.label(Expr.fn_call("count",
+    [Expr.column("*")]),
+    "count")])
     |> Query.group_by(:level)
     |> Query.order_by(:count, :desc)
   Repo.all(pool, q)
@@ -766,14 +728,9 @@ pub fn top_issues_by_frequency(pool :: PoolHandle, project_id :: String, limit_s
   let q = Query.from(Issue.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
     |> Query.where_expr(Expr.eq(Expr.column("status"), Expr.value("unresolved")))
-    |> Query.select_exprs([
-      Expr.label(Expr.column("id"), "id"),
-      Expr.label(Expr.column("title"), "title"),
-      Expr.label(Expr.column("level"), "level"),
-      Expr.label(Expr.column("status"), "status"),
-      Expr.label(Expr.column("event_count"), "event_count"),
-      Expr.label(Expr.column("last_seen"), "last_seen")
-    ])
+    |> Query.select_exprs([Expr.label(Expr.column("id"), "id"), Expr.label(Expr.column("title"),
+    "title"), Expr.label(Expr.column("level"), "level"), Expr.label(Expr.column("status"), "status"), Expr.label(Expr.column("event_count"),
+    "event_count"), Expr.label(Expr.column("last_seen"), "last_seen")])
     |> Query.order_by(:event_count, :desc)
     |> Query.limit(lim)
   Repo.all(pool, q)
@@ -784,15 +741,15 @@ end
 # so the JSONB key filter and projection stay on the explicit PG surface.
 
 pub fn event_breakdown_by_tag(pool :: PoolHandle, project_id :: String, tag_key :: String) -> List < Map < String, String > > ! String do
-  let tag_value = Expr.fn_call("jsonb_extract_path_text", [Expr.column("tags"), Expr.value(tag_key)])
+  let tag_value = Expr.fn_call("jsonb_extract_path_text",
+  [Expr.column("tags"), Expr.value(tag_key)])
   let q = Query.from(Event.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
     |> Query.where_raw("received_at > now() - interval '24 hours'", [])
     |> Query.where_expr(Expr.fn_call("jsonb_exists", [Expr.column("tags"), Expr.value(tag_key)]))
-    |> Query.select_exprs([
-      Expr.label(tag_value, "tag_value"),
-      Expr.label(Expr.fn_call("count", [Expr.column("*")]), "count")
-    ])
+    |> Query.select_exprs([Expr.label(tag_value, "tag_value"), Expr.label(Expr.fn_call("count",
+    [Expr.column("*")]),
+    "count")])
     |> Query.group_by(:tag_value)
     |> Query.order_by(:count, :desc)
     |> Query.limit(20)
@@ -807,12 +764,9 @@ pub fn issue_event_timeline(pool :: PoolHandle, issue_id :: String, limit_str ::
   let lim = parse_limit(limit_str)
   let q = Query.from(Event.__table__())
     |> Query.where_raw("issue_id = ?::uuid", [issue_id])
-    |> Query.select_exprs([
-      Expr.label(Pg.text(Expr.column("id")), "id"),
-      Expr.label(Expr.column("level"), "level"),
-      Expr.label(Expr.column("message"), "message"),
-      Expr.label(Pg.text(Expr.column("received_at")), "received_at")
-    ])
+    |> Query.select_exprs([Expr.label(Pg.text(Expr.column("id")), "id"), Expr.label(Expr.column("level"),
+    "level"), Expr.label(Expr.column("message"), "message"), Expr.label(Pg.text(Expr.column("received_at")),
+    "received_at")])
     |> Query.order_by(:received_at, :desc)
     |> Query.limit(lim)
   Repo.all(pool, q)
@@ -853,23 +807,17 @@ end
 pub fn get_event_detail(pool :: PoolHandle, event_id :: String) -> List < Map < String, String > > ! String do
   let q = Query.from(Event.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("id"), Pg.uuid(Expr.value(event_id))))
-    |> Query.select_exprs([
-      Expr.label(Expr.column("id"), "id"),
-      Expr.label(Expr.column("project_id"), "project_id"),
-      Expr.label(Expr.column("issue_id"), "issue_id"),
-      Expr.label(Expr.column("level"), "level"),
-      Expr.label(Expr.column("message"), "message"),
-      Expr.label(Expr.column("fingerprint"), "fingerprint"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("exception")), Expr.value("null")]), "exception"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("stacktrace")), Expr.value("[]")]), "stacktrace"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("breadcrumbs")), Expr.value("[]")]), "breadcrumbs"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("tags")), Expr.value("{}")]), "tags"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("extra")), Expr.value("{}")]), "extra"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("user_context")), Expr.value("null")]), "user_context"),
-      Expr.label(Expr.coalesce([Expr.column("sdk_name"), Expr.value("")]), "sdk_name"),
-      Expr.label(Expr.coalesce([Expr.column("sdk_version"), Expr.value("")]), "sdk_version"),
-      Expr.label(Expr.column("received_at"), "received_at")
-    ])
+    |> Query.select_exprs([Expr.label(Expr.column("id"), "id"), Expr.label(Expr.column("project_id"),
+    "project_id"), Expr.label(Expr.column("issue_id"), "issue_id"), Expr.label(Expr.column("level"),
+    "level"), Expr.label(Expr.column("message"), "message"), Expr.label(Expr.column("fingerprint"),
+    "fingerprint"), Expr.label(Expr.coalesce([Pg.text(Expr.column("exception")), Expr.value("null")]),
+    "exception"), Expr.label(Expr.coalesce([Pg.text(Expr.column("stacktrace")), Expr.value("[]")]),
+    "stacktrace"), Expr.label(Expr.coalesce([Pg.text(Expr.column("breadcrumbs")), Expr.value("[]")]),
+    "breadcrumbs"), Expr.label(Expr.coalesce([Pg.text(Expr.column("tags")), Expr.value("{}")]),
+    "tags"), Expr.label(Expr.coalesce([Pg.text(Expr.column("extra")), Expr.value("{}")]), "extra"), Expr.label(Expr.coalesce([Pg.text(Expr.column("user_context")), Expr.value("null")]),
+    "user_context"), Expr.label(Expr.coalesce([Expr.column("sdk_name"), Expr.value("")]),
+    "sdk_name"), Expr.label(Expr.coalesce([Expr.column("sdk_version"), Expr.value("")]),
+    "sdk_version"), Expr.label(Expr.column("received_at"), "received_at")])
   Repo.all(pool, q)
 end
 
@@ -919,15 +867,10 @@ pub fn get_members_with_users(pool :: PoolHandle, org_id :: String) -> List < Ma
   let q = Query.from(OrgMembership.__table__())
     |> Query.join_as(:inner, User.__table__(), "u", "u.id = org_memberships.user_id")
     |> Query.where_expr(Expr.eq(Expr.column("org_memberships.org_id"), Pg.uuid(Expr.value(org_id))))
-    |> Query.select_exprs([
-      Expr.label(Expr.column("org_memberships.id"), "id"),
-      Expr.label(Expr.column("org_memberships.user_id"), "user_id"),
-      Expr.label(Expr.column("org_memberships.org_id"), "org_id"),
-      Expr.label(Expr.column("org_memberships.role"), "role"),
-      Expr.label(Expr.column("org_memberships.joined_at"), "joined_at"),
-      Expr.label(Expr.column("u.email"), "email"),
-      Expr.label(Expr.column("u.display_name"), "display_name")
-    ])
+    |> Query.select_exprs([Expr.label(Expr.column("org_memberships.id"), "id"), Expr.label(Expr.column("org_memberships.user_id"),
+    "user_id"), Expr.label(Expr.column("org_memberships.org_id"), "org_id"), Expr.label(Expr.column("org_memberships.role"),
+    "role"), Expr.label(Expr.column("org_memberships.joined_at"), "joined_at"), Expr.label(Expr.column("u.email"),
+    "email"), Expr.label(Expr.column("u.display_name"), "display_name")])
     |> Query.order_by(:joined_at, :asc)
   Repo.all(pool, q)
 end
@@ -940,14 +883,10 @@ end
 pub fn list_api_keys(pool :: PoolHandle, project_id :: String) -> List < Map < String, String > > ! String do
   let q = Query.from(ApiKey.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
-    |> Query.select_exprs([
-      Expr.label(Pg.text(Expr.column("id")), "id"),
-      Expr.label(Pg.text(Expr.column("project_id")), "project_id"),
-      Expr.label(Expr.column("key_value"), "key_value"),
-      Expr.label(Expr.column("label"), "label"),
-      Expr.label(Pg.text(Expr.column("created_at")), "created_at"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("revoked_at")), Expr.value("")]), "revoked_at")
-    ])
+    |> Query.select_exprs([Expr.label(Pg.text(Expr.column("id")), "id"), Expr.label(Pg.text(Expr.column("project_id")),
+    "project_id"), Expr.label(Expr.column("key_value"), "key_value"), Expr.label(Expr.column("label"),
+    "label"), Expr.label(Pg.text(Expr.column("created_at")), "created_at"), Expr.label(Expr.coalesce([Pg.text(Expr.column("revoked_at")), Expr.value("")]),
+    "revoked_at")])
     |> Query.order_by(:created_at, :desc)
   Repo.all(pool, q)
 end
@@ -974,17 +913,11 @@ end
 pub fn list_alert_rules(pool :: PoolHandle, project_id :: String) -> List < Map < String, String > > ! String do
   let q = Query.from(AlertRule.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
-    |> Query.select_exprs([
-      Expr.label(Pg.text(Expr.column("id")), "id"),
-      Expr.label(Pg.text(Expr.column("project_id")), "project_id"),
-      Expr.label(Expr.column("name"), "name"),
-      Expr.label(Pg.text(Expr.column("condition_json")), "condition_json"),
-      Expr.label(Pg.text(Expr.column("action_json")), "action_json"),
-      Expr.label(Pg.text(Expr.column("enabled")), "enabled"),
-      Expr.label(Pg.text(Expr.column("cooldown_minutes")), "cooldown_minutes"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("last_fired_at")), Expr.value("")]), "last_fired_at"),
-      Expr.label(Pg.text(Expr.column("created_at")), "created_at")
-    ])
+    |> Query.select_exprs([Expr.label(Pg.text(Expr.column("id")), "id"), Expr.label(Pg.text(Expr.column("project_id")),
+    "project_id"), Expr.label(Expr.column("name"), "name"), Expr.label(Pg.text(Expr.column("condition_json")),
+    "condition_json"), Expr.label(Pg.text(Expr.column("action_json")), "action_json"), Expr.label(Pg.text(Expr.column("enabled")),
+    "enabled"), Expr.label(Pg.text(Expr.column("cooldown_minutes")), "cooldown_minutes"), Expr.label(Expr.coalesce([Pg.text(Expr.column("last_fired_at")), Expr.value("")]),
+    "last_fired_at"), Expr.label(Pg.text(Expr.column("created_at")), "created_at")])
     |> Query.order_by(:created_at, :desc)
   Repo.all(pool, q)
 end
@@ -1017,13 +950,13 @@ project_id :: String,
 threshold_str :: String,
 window_str :: String,
 cooldown_str :: String) -> Bool ! String do
-  let sql = "SELECT CASE WHEN event_count > $3::int AND (last_fired IS NULL OR last_fired < now() - interval '1 minute' * $6::int) THEN 1 ELSE 0 END AS should_fire FROM (SELECT count(*) AS event_count FROM events WHERE project_id = $2::uuid AND received_at > now() - interval '1 minute' * $4::int) counts, (SELECT last_fired_at AS last_fired FROM alert_rules WHERE id = $1::uuid) cooldown"
+  let sql = "SELECT CASE WHEN event_count > $3::int AND (last_fired IS NULL OR last_fired < now() - interval '1 minute' * $5::int) THEN 'true' ELSE 'false' END AS should_fire FROM (SELECT count(*) AS event_count FROM events WHERE project_id = $2::uuid AND received_at > now() - interval '1 minute' * $4::int) counts, (SELECT last_fired_at AS last_fired FROM alert_rules WHERE id = $1::uuid) cooldown"
   let rows = Repo.query_raw(pool,
   sql,
-  [rule_id, project_id, threshold_str, window_str, "", cooldown_str]) ?
+  [rule_id, project_id, threshold_str, window_str, cooldown_str]) ?
   if List.length(rows) > 0 do
     let should_fire = Map.get(List.head(rows), "should_fire")
-    Ok(should_fire == "1")
+    Ok(should_fire == "true")
   else
     Ok(false)
   end
@@ -1064,30 +997,28 @@ pub fn check_new_issue(pool :: PoolHandle, issue_id :: String) -> Bool ! String 
 end
 
 # ALERT-03: Get enabled alert rules for event-based conditions for a project.
-# Uses expression-valued JSONB extraction for condition_json filtering.
+# Honest raw S03 keep-site: the live alert loop needs stable text rows and a
+# truthful cooldown gate. Keep the selector explicit and pre-filter it on the
+# row's own cooldown window so the caller does not need a second drifting read.
 
 pub fn get_event_alert_rules(pool :: PoolHandle, project_id :: String, condition_type :: String) -> List < Map < String, String > > ! String do
-  let q = Query.from(AlertRule.__table__())
-    |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
-    |> Query.where_expr(Expr.eq(Expr.column("enabled"), Pg.cast(Expr.value("true"), "boolean")))
-    |> Query.where_expr(Expr.eq(Expr.fn_call("jsonb_extract_path_text",
-    [Expr.column("condition_json"), Expr.value("condition_type")]),
-    Expr.value(condition_type)))
-    |> Query.select(["id", "name", "cooldown_minutes"])
-  Repo.all(pool, q)
+  let sql = "SELECT id::text AS id, name::text AS name, cooldown_minutes::text AS cooldown_minutes FROM alert_rules WHERE project_id = $1::uuid AND enabled = true AND jsonb_extract_path_text(condition_json, 'condition_type') = $2 AND (last_fired_at IS NULL OR last_fired_at < now() - interval '1 minute' * cooldown_minutes)"
+  Repo.query_raw(pool, sql, [project_id, condition_type])
 end
 
 # ALERT-05: Check cooldown before firing (for event-based triggers).
-# Uses Repo.exists so the helper stays builder-backed apart from the interval predicate.
+# Honest raw S03 keep-site: the live cooldown proof needs a stable boolean row
+# from the rule timestamp comparison, and the builder-backed interval predicate
+# no longer held the hot-rule gate on the real alert path.
 
 pub fn should_fire_by_cooldown(pool :: PoolHandle, rule_id :: String, cooldown_str :: String) -> Bool ! String do
-  let q = Query.from(AlertRule.__table__())
-    |> Query.where_expr(Expr.eq(Expr.column("id"), Pg.uuid(Expr.value(rule_id))))
-    |> Query.where_raw("(last_fired_at IS NULL OR last_fired_at < now() - interval '1 minute' * ?::int)",
-    [cooldown_str])
-    |> Query.select(["id"])
-  let rows = Repo.all(pool, q) ?
-  Ok(List.length(rows) > 0)
+  let sql = "SELECT CASE WHEN last_fired_at IS NULL OR last_fired_at < now() - interval '1 minute' * $2::int THEN 'true' ELSE 'false' END AS should_fire FROM alert_rules WHERE id = $1::uuid"
+  let rows = Repo.query_raw(pool, sql, [rule_id, cooldown_str]) ?
+  if List.length(rows) > 0 do
+    Ok(Map.get(List.head(rows), "should_fire") == "true")
+  else
+    Ok(false)
+  end
 end
 
 # ALERT-06: Transition alert to acknowledged.
@@ -1118,46 +1049,24 @@ pub fn resolve_fired_alert(pool :: PoolHandle, alert_id :: String) -> Int ! Stri
 end
 
 # ALERT-06: List alerts for a project filtered by status.
-# Uses structured SELECT expressions plus conditional query assembly.
+# Honest raw S03 keep-site: the builder-backed join + optional status filter
+# compiled but crashed the live alerts route with a non-exhaustive switch before
+# serialization. Keep the SQL explicit and named until that read-side caller
+# contract can survive the real Mesher/runtime path.
 
 pub fn list_alerts(pool :: PoolHandle, project_id :: String, status :: String) -> List < Map < String, String > > ! String do
-  let base = Query.from(Alert.__table__())
-    |> Query.join_as(:inner, AlertRule.__table__(), "r", "r.id = alerts.rule_id")
-    |> Query.where_expr(Expr.eq(Expr.column("alerts.project_id"), Pg.uuid(Expr.value(project_id))))
-    |> Query.select_exprs([
-      Expr.label(Expr.column("alerts.id"), "id"),
-      Expr.label(Expr.column("alerts.rule_id"), "rule_id"),
-      Expr.label(Expr.column("alerts.project_id"), "project_id"),
-      Expr.label(Expr.column("alerts.status"), "status"),
-      Expr.label(Expr.column("alerts.message"), "message"),
-      Expr.label(Pg.text(Expr.column("alerts.condition_snapshot")), "condition_snapshot"),
-      Expr.label(Expr.column("alerts.triggered_at"), "triggered_at"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("alerts.acknowledged_at")), Expr.value("")]), "acknowledged_at"),
-      Expr.label(Expr.coalesce([Pg.text(Expr.column("alerts.resolved_at")), Expr.value("")]), "resolved_at"),
-      Expr.label(Expr.column("r.name"), "rule_name")
-    ])
-    |> Query.order_by(:triggered_at, :desc)
-    |> Query.limit(50)
-  if String.length(status) > 0 do
-    let q = base
-      |> Query.where_expr(Expr.eq(Expr.column("alerts.status"), Expr.value(status)))
-    Repo.all(pool, q)
-  else
-    Repo.all(pool, base)
-  end
+  let sql = "SELECT alerts.id::text AS id, alerts.rule_id::text AS rule_id, alerts.project_id::text AS project_id, alerts.status::text AS status, alerts.message::text AS message, alerts.condition_snapshot::text AS condition_snapshot, alerts.triggered_at::text AS triggered_at, COALESCE(alerts.acknowledged_at::text, '') AS acknowledged_at, COALESCE(alerts.resolved_at::text, '') AS resolved_at, alert_rules.name::text AS rule_name FROM alerts JOIN alert_rules ON alert_rules.id = alerts.rule_id WHERE alerts.project_id = $1::uuid AND ($2 = '' OR alerts.status = $2) ORDER BY alerts.triggered_at DESC LIMIT 50"
+  Repo.query_raw(pool, sql, [project_id, status])
 end
 
 # Load all enabled threshold rules for evaluation.
-# Uses expression-valued JSONB extraction for the threshold condition filter.
+# Honest raw S03 keep-site: keep the rule rows explicit and text-cast alongside
+# the event-rule selector so alert evaluation sees stable IDs and JSON payloads on
+# the live path while S03 closes with a named raw boundary.
 
 pub fn get_threshold_rules(pool :: PoolHandle) -> List < Map < String, String > > ! String do
-  let q = Query.from(AlertRule.__table__())
-    |> Query.where_expr(Expr.eq(Expr.column("enabled"), Pg.cast(Expr.value("true"), "boolean")))
-    |> Query.where_expr(Expr.eq(Expr.fn_call("jsonb_extract_path_text",
-    [Expr.column("condition_json"), Expr.value("condition_type")]),
-    Expr.value("threshold")))
-    |> Query.select(["id", "project_id", "name", "condition_json", "cooldown_minutes"])
-  Repo.all(pool, q)
+  let sql = "SELECT id::text AS id, project_id::text AS project_id, name::text AS name, condition_json::text AS condition_json, cooldown_minutes::text AS cooldown_minutes FROM alert_rules WHERE enabled = true AND jsonb_extract_path_text(condition_json, 'condition_type') = 'threshold'"
+  Repo.query_raw(pool, sql, [])
 end
 
 # --- Retention and storage queries (Phase 93, ORM rewrite Phase 113) ---
@@ -1195,10 +1104,8 @@ end
 
 pub fn get_all_project_retention(pool :: PoolHandle) -> List < Map < String, String > > ! String do
   let q = Query.from(Project.__table__())
-    |> Query.select_exprs([
-      Expr.label(Pg.text(Expr.column("id")), "id"),
-      Expr.label(Pg.text(Expr.column("retention_days")), "retention_days")
-    ])
+    |> Query.select_exprs([Expr.label(Pg.text(Expr.column("id")), "id"), Expr.label(Pg.text(Expr.column("retention_days")),
+    "retention_days")])
   Repo.all(pool, q)
 end
 
@@ -1211,10 +1118,8 @@ pub fn get_project_storage(pool :: PoolHandle, project_id :: String) -> List < M
   let estimated_bytes = Expr.mul(event_count, Pg.cast(Expr.value("1024"), "bigint"))
   let q = Query.from(Event.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
-    |> Query.select_exprs([
-      Expr.label(Pg.text(event_count), "event_count"),
-      Expr.label(Pg.text(estimated_bytes), "estimated_bytes")
-    ])
+    |> Query.select_exprs([Expr.label(Pg.text(event_count), "event_count"), Expr.label(Pg.text(estimated_bytes),
+    "estimated_bytes")])
   Repo.all(pool, q)
 end
 
@@ -1260,10 +1165,8 @@ end
 pub fn get_project_settings(pool :: PoolHandle, project_id :: String) -> List < Map < String, String > > ! String do
   let q = Query.from(Project.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("id"), Pg.uuid(Expr.value(project_id))))
-    |> Query.select_exprs([
-      Expr.label(Pg.text(Expr.column("retention_days")), "retention_days"),
-      Expr.label(Pg.text(Expr.column("sample_rate")), "sample_rate")
-    ])
+    |> Query.select_exprs([Expr.label(Pg.text(Expr.column("retention_days")), "retention_days"), Expr.label(Pg.text(Expr.column("sample_rate")),
+    "sample_rate")])
   Repo.all(pool, q)
 end
 

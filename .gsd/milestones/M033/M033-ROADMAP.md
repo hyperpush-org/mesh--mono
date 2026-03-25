@@ -18,7 +18,7 @@
 - [x] **S02: Explicit PG extras for JSONB, search, and crypto** `risk:high` `depends:[S01]`
   > After this: After this: Mesher event ingest, JSONB extraction, full-text search, and pgcrypto-backed auth flows work through explicit PostgreSQL helpers on the real runtime path.
 
-- [ ] **S03: Hard read-side coverage and honest raw-tail collapse** `risk:medium` `depends:[S01,S02]`
+- [x] **S03: Hard read-side coverage and honest raw-tail collapse** `risk:medium` `depends:[S01,S02]`
   > After this: After this: Mesher’s recurring scalar-subquery, derived-table, parameterized select, and expression-heavy read paths use the new builders wherever honest, and the remaining raw query keep-list is short and named.
 
 - [ ] **S04: Schema extras and live partition lifecycle proof** `risk:medium` `depends:[S01,S02]`
