@@ -28,6 +28,10 @@ pub enum SqlExpr {
     },
     Coalesce(Vec<SqlExpr>),
     Excluded(String),
+    Cast {
+        expr: Box<SqlExpr>,
+        sql_type: String,
+    },
     Alias {
         expr: Box<SqlExpr>,
         alias: String,
@@ -131,6 +135,11 @@ pub(crate) fn render_expr(
             format!("COALESCE({rendered})")
         }
         SqlExpr::Excluded(name) => format!("EXCLUDED.{}", quote_ident(name)),
+        SqlExpr::Cast { expr, sql_type } => format!(
+            "{}::{}",
+            render_expr(expr, params, next_idx),
+            sql_type.replace('"', "")
+        ),
         SqlExpr::Alias { expr, alias } => format!(
             "{} AS {}",
             render_expr(expr, params, next_idx),
@@ -159,6 +168,22 @@ fn binary_expr(op: &'static str, lhs: *mut u8, rhs: *mut u8) -> *mut u8 {
     }
 }
 
+fn cast_expr(expr: *mut u8, sql_type: String) -> *mut u8 {
+    unsafe {
+        alloc_expr(SqlExpr::Cast {
+            expr: Box::new(clone_expr(expr)),
+            sql_type,
+        })
+    }
+}
+
+fn call_expr(name: &str, args: Vec<SqlExpr>) -> *mut u8 {
+    alloc_expr(SqlExpr::Call {
+        name: name.to_string(),
+        args,
+    })
+}
+
 #[no_mangle]
 pub extern "C" fn mesh_expr_column(field: *mut u8) -> *mut u8 {
     unsafe { alloc_expr(SqlExpr::Column(mesh_str_ref(field).to_string())) }
@@ -182,6 +207,101 @@ pub extern "C" fn mesh_expr_call(name: *mut u8, args: *mut u8) -> *mut u8 {
             args: expr_list_to_vec(args),
         })
     }
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_cast(expr: *mut u8, sql_type: *mut u8) -> *mut u8 {
+    unsafe { cast_expr(expr, mesh_str_ref(sql_type).to_string()) }
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_jsonb(expr: *mut u8) -> *mut u8 {
+    cast_expr(expr, "jsonb".to_string())
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_int(expr: *mut u8) -> *mut u8 {
+    cast_expr(expr, "int".to_string())
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_text(expr: *mut u8) -> *mut u8 {
+    cast_expr(expr, "text".to_string())
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_uuid(expr: *mut u8) -> *mut u8 {
+    cast_expr(expr, "uuid".to_string())
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_timestamptz(expr: *mut u8) -> *mut u8 {
+    cast_expr(expr, "timestamptz".to_string())
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_gen_salt(algorithm: *mut u8, rounds: i64) -> *mut u8 {
+    unsafe {
+        call_expr(
+            "gen_salt",
+            vec![
+                SqlExpr::Value(mesh_str_ref(algorithm).to_string()),
+                SqlExpr::Value(rounds.to_string()),
+            ],
+        )
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_crypt(password: *mut u8, salt: *mut u8) -> *mut u8 {
+    unsafe { call_expr("crypt", vec![clone_expr(password), clone_expr(salt)]) }
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_to_tsvector(config: *mut u8, expr: *mut u8) -> *mut u8 {
+    unsafe {
+        call_expr(
+            "to_tsvector",
+            vec![
+                SqlExpr::Cast {
+                    expr: Box::new(SqlExpr::Value(mesh_str_ref(config).to_string())),
+                    sql_type: "regconfig".to_string(),
+                },
+                clone_expr(expr),
+            ],
+        )
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_plainto_tsquery(config: *mut u8, expr: *mut u8) -> *mut u8 {
+    unsafe {
+        call_expr(
+            "plainto_tsquery",
+            vec![
+                SqlExpr::Cast {
+                    expr: Box::new(SqlExpr::Value(mesh_str_ref(config).to_string())),
+                    sql_type: "regconfig".to_string(),
+                },
+                clone_expr(expr),
+            ],
+        )
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_ts_rank(vector: *mut u8, query: *mut u8) -> *mut u8 {
+    unsafe { call_expr("ts_rank", vec![clone_expr(vector), clone_expr(query)]) }
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_tsvector_matches(vector: *mut u8, query: *mut u8) -> *mut u8 {
+    binary_expr("@@", vector, query)
+}
+
+#[no_mangle]
+pub extern "C" fn mesh_pg_jsonb_contains(lhs: *mut u8, rhs: *mut u8) -> *mut u8 {
+    binary_expr("@>", lhs, rhs)
 }
 
 #[no_mangle]
@@ -317,18 +437,78 @@ mod tests {
     }
 
     #[test]
-    fn serialize_nested_call_and_arithmetic_quotes_columns() {
-        let expr = SqlExpr::Call {
-            name: "coalesce".into(),
-            args: vec![SqlExpr::Binary {
-                op: "+",
-                lhs: Box::new(SqlExpr::Column("issues.event_count".into())),
-                rhs: Box::new(SqlExpr::Value("1".into())),
-            }],
+    fn serialize_cast_supports_vendor_types_without_quoting() {
+        let expr = SqlExpr::Cast {
+            expr: Box::new(SqlExpr::Value("42".into())),
+            sql_type: "jsonb".into(),
         };
 
         let (sql, params) = serialize_expr(&expr);
-        assert_eq!(sql, "coalesce((\"issues\".\"event_count\" + $1))");
-        assert_eq!(params, vec!["1"]);
+        assert_eq!(sql, "$1::jsonb");
+        assert_eq!(params, vec!["42"]);
+    }
+
+    #[test]
+    fn serialize_pg_crypto_and_fulltext_helpers_keep_param_order() {
+        let expr = SqlExpr::Call {
+            name: "ts_rank".into(),
+            args: vec![
+                SqlExpr::Call {
+                    name: "to_tsvector".into(),
+                    args: vec![
+                        SqlExpr::Cast {
+                            expr: Box::new(SqlExpr::Value("english".into())),
+                            sql_type: "regconfig".into(),
+                        },
+                        SqlExpr::Call {
+                            name: "crypt".into(),
+                            args: vec![
+                                SqlExpr::Value("secret".into()),
+                                SqlExpr::Call {
+                                    name: "gen_salt".into(),
+                                    args: vec![
+                                        SqlExpr::Value("bf".into()),
+                                        SqlExpr::Value("12".into()),
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                SqlExpr::Call {
+                    name: "plainto_tsquery".into(),
+                    args: vec![
+                        SqlExpr::Cast {
+                            expr: Box::new(SqlExpr::Value("english".into())),
+                            sql_type: "regconfig".into(),
+                        },
+                        SqlExpr::Value("secret".into()),
+                    ],
+                },
+            ],
+        };
+
+        let (sql, params) = serialize_expr(&expr);
+        assert_eq!(
+            sql,
+            "ts_rank(to_tsvector($1::regconfig, crypt($2, gen_salt($3, $4))), plainto_tsquery($5::regconfig, $6))"
+        );
+        assert_eq!(params, vec!["english", "secret", "bf", "12", "english", "secret"]);
+    }
+
+    #[test]
+    fn serialize_jsonb_contains_uses_pg_operator() {
+        let expr = SqlExpr::Binary {
+            op: "@>",
+            lhs: Box::new(SqlExpr::Column("events.tags".into())),
+            rhs: Box::new(SqlExpr::Cast {
+                expr: Box::new(SqlExpr::Value("{\"env\":\"prod\"}".into())),
+                sql_type: "jsonb".into(),
+            }),
+        };
+
+        let (sql, params) = serialize_expr(&expr);
+        assert_eq!(sql, "(\"events\".\"tags\" @> $1::jsonb)");
+        assert_eq!(params, vec!["{\"env\":\"prod\"}"]);
     }
 }

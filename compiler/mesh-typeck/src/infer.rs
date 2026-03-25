@@ -1665,6 +1665,54 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
             },
         );
     }
+    // Pg.cast(Ptr, String) -> Ptr  (vendor-specific SQL type cast)
+    let ptr_t = Ty::Con(TyCon::new("Ptr"));
+    pg_mod.insert(
+        "cast".to_string(),
+        Scheme::mono(Ty::fun(vec![ptr_t.clone(), Ty::string()], ptr_t.clone())),
+    );
+    // Pg.jsonb/int/text/uuid/timestamptz(Ptr) -> Ptr
+    for helper in ["jsonb", "int", "text", "uuid", "timestamptz"] {
+        pg_mod.insert(
+            helper.to_string(),
+            Scheme::mono(Ty::fun(vec![ptr_t.clone()], ptr_t.clone())),
+        );
+    }
+    // Pg.gen_salt(String, Int) -> Ptr
+    pg_mod.insert(
+        "gen_salt".to_string(),
+        Scheme::mono(Ty::fun(
+            vec![Ty::string(), Ty::int()],
+            ptr_t.clone(),
+        )),
+    );
+    // Pg.crypt(Ptr, Ptr) -> Ptr
+    pg_mod.insert(
+        "crypt".to_string(),
+        Scheme::mono(Ty::fun(vec![ptr_t.clone(), ptr_t.clone()], ptr_t.clone())),
+    );
+    // Pg.to_tsvector/plainto_tsquery(String, Ptr) -> Ptr
+    for helper in ["to_tsvector", "plainto_tsquery"] {
+        pg_mod.insert(
+            helper.to_string(),
+            Scheme::mono(Ty::fun(
+                vec![Ty::string(), ptr_t.clone()],
+                ptr_t.clone(),
+            )),
+        );
+    }
+    // Pg.ts_rank(Ptr, Ptr) -> Ptr
+    pg_mod.insert(
+        "ts_rank".to_string(),
+        Scheme::mono(Ty::fun(vec![ptr_t.clone(), ptr_t.clone()], ptr_t.clone())),
+    );
+    // Pg.tsvector_matches/jsonb_contains(Ptr, Ptr) -> Ptr
+    for helper in ["tsvector_matches", "jsonb_contains"] {
+        pg_mod.insert(
+            helper.to_string(),
+            Scheme::mono(Ty::fun(vec![ptr_t.clone(), ptr_t.clone()], ptr_t.clone())),
+        );
+    }
     modules.insert("Pg".to_string(), pg_mod);
 
     // ── Pool module (Phase 57) ──────────────────────────────────────
@@ -2279,6 +2327,11 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
                 ptr_t.clone(),
             )),
         );
+        // Query.where_expr(Ptr, Ptr) -> Ptr  (structured expression predicate)
+        query_mod.insert(
+            "where_expr".to_string(),
+            Scheme::mono(Ty::fun(vec![ptr_t.clone(), ptr_t.clone()], ptr_t.clone())),
+        );
         // Query.select(Ptr, List<String>) -> Ptr  (select fields list)
         query_mod.insert(
             "select".to_string(),
@@ -2286,6 +2339,11 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
                 vec![ptr_t.clone(), Ty::list(Ty::string())],
                 ptr_t.clone(),
             )),
+        );
+        // Query.select_expr(Ptr, Ptr) -> Ptr  (single structured SELECT expression)
+        query_mod.insert(
+            "select_expr".to_string(),
+            Scheme::mono(Ty::fun(vec![ptr_t.clone(), ptr_t.clone()], ptr_t.clone())),
         );
         // Query.select_exprs(Ptr, List<Ptr>) -> Ptr  (structured SELECT expressions)
         query_mod.insert(
@@ -2477,6 +2535,18 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
                     pool_t.clone(),
                     Ty::string(),
                     Ty::map(Ty::string(), Ty::string()),
+                ],
+                Ty::result(Ty::map(Ty::string(), Ty::string()), Ty::string()),
+            )),
+        );
+        // Repo.insert_expr(PoolHandle, String, Map<String,Ptr>) -> Result<Map<String,String>, String>
+        repo_mod.insert(
+            "insert_expr".to_string(),
+            Scheme::mono(Ty::fun(
+                vec![
+                    pool_t.clone(),
+                    Ty::string(),
+                    Ty::map(Ty::string(), ptr_t.clone()),
                 ],
                 Ty::result(Ty::map(Ty::string(), Ty::string()), Ty::string()),
             )),

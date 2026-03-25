@@ -1830,6 +1830,60 @@ pub fn declare_intrinsics<'ctx>(module: &Module<'ctx>) {
         Some(inkwell::module::Linkage::External),
     );
 
+    // ── M033/S02: Pg expression helpers ───────────────────────────────
+
+    // mesh_pg_cast(expr: ptr, sql_type: ptr) -> ptr
+    module.add_function(
+        "mesh_pg_cast",
+        ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External),
+    );
+
+    // mesh_pg_jsonb/int/text/uuid/timestamptz(expr: ptr) -> ptr
+    for name in [
+        "mesh_pg_jsonb",
+        "mesh_pg_int",
+        "mesh_pg_text",
+        "mesh_pg_uuid",
+        "mesh_pg_timestamptz",
+    ] {
+        module.add_function(
+            name,
+            ptr_type.fn_type(&[ptr_type.into()], false),
+            Some(inkwell::module::Linkage::External),
+        );
+    }
+
+    // mesh_pg_gen_salt(algorithm: ptr, rounds: i64) -> ptr
+    module.add_function(
+        "mesh_pg_gen_salt",
+        ptr_type.fn_type(&[ptr_type.into(), i64_type.into()], false),
+        Some(inkwell::module::Linkage::External),
+    );
+
+    // mesh_pg_crypt/ts_rank/tsvector_matches/jsonb_contains(lhs: ptr, rhs: ptr) -> ptr
+    for name in [
+        "mesh_pg_crypt",
+        "mesh_pg_ts_rank",
+        "mesh_pg_tsvector_matches",
+        "mesh_pg_jsonb_contains",
+    ] {
+        module.add_function(
+            name,
+            ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
+            Some(inkwell::module::Linkage::External),
+        );
+    }
+
+    // mesh_pg_to_tsvector/plainto_tsquery(config: ptr, expr: ptr) -> ptr
+    for name in ["mesh_pg_to_tsvector", "mesh_pg_plainto_tsquery"] {
+        module.add_function(
+            name,
+            ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
+            Some(inkwell::module::Linkage::External),
+        );
+    }
+
     // ── Phase 57: SQLite Transactions ──────────────────────────────────
 
     // mesh_sqlite_begin(conn: i64) -> ptr (MeshResult)
@@ -2713,9 +2767,23 @@ pub fn declare_intrinsics<'ctx>(module: &Module<'ctx>) {
         Some(inkwell::module::Linkage::External),
     );
 
+    // mesh_query_where_expr(q: ptr, expr: ptr) -> ptr
+    module.add_function(
+        "mesh_query_where_expr",
+        ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External),
+    );
+
     // mesh_query_select(q: ptr, fields: ptr) -> ptr
     module.add_function(
         "mesh_query_select",
+        ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External),
+    );
+
+    // mesh_query_select_expr(q: ptr, expr: ptr) -> ptr
+    module.add_function(
+        "mesh_query_select_expr",
         ptr_type.fn_type(&[ptr_type.into(), ptr_type.into()], false),
         Some(inkwell::module::Linkage::External),
     );
@@ -2942,6 +3010,13 @@ pub fn declare_intrinsics<'ctx>(module: &Module<'ctx>) {
     // mesh_repo_insert(pool: i64, table: ptr, fields: ptr) -> ptr
     module.add_function(
         "mesh_repo_insert",
+        ptr_type.fn_type(&[i64_type.into(), ptr_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External),
+    );
+
+    // mesh_repo_insert_expr(pool: i64, table: ptr, expr_fields: ptr) -> ptr
+    module.add_function(
+        "mesh_repo_insert_expr",
         ptr_type.fn_type(&[i64_type.into(), ptr_type.into(), ptr_type.into()], false),
         Some(inkwell::module::Linkage::External),
     );
@@ -3515,6 +3590,21 @@ mod tests {
         assert!(module.get_function("mesh_pg_rollback").is_some());
         assert!(module.get_function("mesh_pg_transaction").is_some());
 
+        // M033/S02: Pg expression helpers
+        assert!(module.get_function("mesh_pg_cast").is_some());
+        assert!(module.get_function("mesh_pg_jsonb").is_some());
+        assert!(module.get_function("mesh_pg_int").is_some());
+        assert!(module.get_function("mesh_pg_text").is_some());
+        assert!(module.get_function("mesh_pg_uuid").is_some());
+        assert!(module.get_function("mesh_pg_timestamptz").is_some());
+        assert!(module.get_function("mesh_pg_gen_salt").is_some());
+        assert!(module.get_function("mesh_pg_crypt").is_some());
+        assert!(module.get_function("mesh_pg_to_tsvector").is_some());
+        assert!(module.get_function("mesh_pg_plainto_tsquery").is_some());
+        assert!(module.get_function("mesh_pg_ts_rank").is_some());
+        assert!(module.get_function("mesh_pg_tsvector_matches").is_some());
+        assert!(module.get_function("mesh_pg_jsonb_contains").is_some());
+
         // Phase 57: SQLite Transactions
         assert!(module.get_function("mesh_sqlite_begin").is_some());
         assert!(module.get_function("mesh_sqlite_commit").is_some());
@@ -3714,6 +3804,8 @@ mod tests {
         assert!(module.get_function("mesh_query_where_null").is_some());
         assert!(module.get_function("mesh_query_where_not_null").is_some());
         assert!(module.get_function("mesh_query_select").is_some());
+        assert!(module.get_function("mesh_query_where_expr").is_some());
+        assert!(module.get_function("mesh_query_select_expr").is_some());
         assert!(module.get_function("mesh_query_select_exprs").is_some());
         assert!(module.get_function("mesh_query_order_by").is_some());
         assert!(module.get_function("mesh_query_limit").is_some());
@@ -3736,6 +3828,8 @@ mod tests {
         assert!(module.get_function("mesh_query_select_min").is_some());
         assert!(module.get_function("mesh_query_select_max").is_some());
         // Phase 109: Upsert, RETURNING, Subquery
+        assert!(module.get_function("mesh_repo_insert").is_some());
+        assert!(module.get_function("mesh_repo_insert_expr").is_some());
         assert!(module.get_function("mesh_repo_insert_or_update").is_some());
         assert!(module
             .get_function("mesh_repo_insert_or_update_expr")

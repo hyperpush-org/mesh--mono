@@ -2114,6 +2114,44 @@ impl<'a> Lowerer<'a> {
                 Box::new(MirType::Ptr),
             ),
         );
+        // ── M033/S02: Pg expression helpers ─────────────────────────────
+        self.known_functions.insert(
+            "mesh_pg_cast".to_string(),
+            MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)),
+        );
+        for name in [
+            "mesh_pg_jsonb",
+            "mesh_pg_int",
+            "mesh_pg_text",
+            "mesh_pg_uuid",
+            "mesh_pg_timestamptz",
+        ] {
+            self.known_functions.insert(
+                name.to_string(),
+                MirType::FnPtr(vec![MirType::Ptr], Box::new(MirType::Ptr)),
+            );
+        }
+        self.known_functions.insert(
+            "mesh_pg_gen_salt".to_string(),
+            MirType::FnPtr(vec![MirType::Ptr, MirType::Int], Box::new(MirType::Ptr)),
+        );
+        for name in [
+            "mesh_pg_crypt",
+            "mesh_pg_ts_rank",
+            "mesh_pg_tsvector_matches",
+            "mesh_pg_jsonb_contains",
+        ] {
+            self.known_functions.insert(
+                name.to_string(),
+                MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)),
+            );
+        }
+        for name in ["mesh_pg_to_tsvector", "mesh_pg_plainto_tsquery"] {
+            self.known_functions.insert(
+                name.to_string(),
+                MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)),
+            );
+        }
         // ── Phase 57: SQLite Transaction functions ──────────────────────
         self.known_functions.insert(
             "mesh_sqlite_begin".to_string(),
@@ -2373,9 +2411,19 @@ impl<'a> Lowerer<'a> {
                 Box::new(MirType::Ptr),
             ),
         );
+        // mesh_query_where_expr(q: ptr, expr: ptr) -> ptr
+        self.known_functions.insert(
+            "mesh_query_where_expr".to_string(),
+            MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)),
+        );
         // mesh_query_select(q: ptr, fields: ptr) -> ptr
         self.known_functions.insert(
             "mesh_query_select".to_string(),
+            MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)),
+        );
+        // mesh_query_select_expr(q: ptr, expr: ptr) -> ptr
+        self.known_functions.insert(
+            "mesh_query_select_expr".to_string(),
             MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)),
         );
         // mesh_query_select_exprs(q: ptr, exprs: ptr) -> ptr
@@ -2549,6 +2597,14 @@ impl<'a> Lowerer<'a> {
         // mesh_repo_insert(pool: i64, table: ptr, fields: ptr) -> ptr
         self.known_functions.insert(
             "mesh_repo_insert".to_string(),
+            MirType::FnPtr(
+                vec![MirType::Int, MirType::Ptr, MirType::Ptr],
+                Box::new(MirType::Ptr),
+            ),
+        );
+        // mesh_repo_insert_expr(pool: i64, table: ptr, expr_fields: ptr) -> ptr
+        self.known_functions.insert(
+            "mesh_repo_insert_expr".to_string(),
             MirType::FnPtr(
                 vec![MirType::Int, MirType::Ptr, MirType::Ptr],
                 Box::new(MirType::Ptr),
@@ -13394,6 +13450,20 @@ fn map_builtin_name(name: &str) -> String {
         "pg_commit" => "mesh_pg_commit".to_string(),
         "pg_rollback" => "mesh_pg_rollback".to_string(),
         "pg_transaction" => "mesh_pg_transaction".to_string(),
+        // ── M033/S02: Pg expression helpers ─────────────────────────────
+        "pg_cast" => "mesh_pg_cast".to_string(),
+        "pg_jsonb" => "mesh_pg_jsonb".to_string(),
+        "pg_int" => "mesh_pg_int".to_string(),
+        "pg_text" => "mesh_pg_text".to_string(),
+        "pg_uuid" => "mesh_pg_uuid".to_string(),
+        "pg_timestamptz" => "mesh_pg_timestamptz".to_string(),
+        "pg_gen_salt" => "mesh_pg_gen_salt".to_string(),
+        "pg_crypt" => "mesh_pg_crypt".to_string(),
+        "pg_to_tsvector" => "mesh_pg_to_tsvector".to_string(),
+        "pg_plainto_tsquery" => "mesh_pg_plainto_tsquery".to_string(),
+        "pg_ts_rank" => "mesh_pg_ts_rank".to_string(),
+        "pg_tsvector_matches" => "mesh_pg_tsvector_matches".to_string(),
+        "pg_jsonb_contains" => "mesh_pg_jsonb_contains".to_string(),
         // ── Phase 57: SQLite Transaction functions ──────────────────────
         "sqlite_begin" => "mesh_sqlite_begin".to_string(),
         "sqlite_commit" => "mesh_sqlite_commit".to_string(),
@@ -13445,7 +13515,9 @@ fn map_builtin_name(name: &str) -> String {
         "query_where_not_in" => "mesh_query_where_not_in".to_string(),
         "query_where_between" => "mesh_query_where_between".to_string(),
         "query_where_or" => "mesh_query_where_or".to_string(),
+        "query_where_expr" => "mesh_query_where_expr".to_string(),
         "query_select" => "mesh_query_select".to_string(),
+        "query_select_expr" => "mesh_query_select_expr".to_string(),
         "query_select_exprs" => "mesh_query_select_exprs".to_string(),
         "query_order_by" => "mesh_query_order_by".to_string(),
         "query_limit" => "mesh_query_limit".to_string(),
@@ -13479,6 +13551,7 @@ fn map_builtin_name(name: &str) -> String {
         "repo_exists" => "mesh_repo_exists".to_string(),
         // ── Phase 98: Repo Write Operations ─────────────────────────────
         "repo_insert" => "mesh_repo_insert".to_string(),
+        "repo_insert_expr" => "mesh_repo_insert_expr".to_string(),
         "repo_update" => "mesh_repo_update".to_string(),
         "repo_delete" => "mesh_repo_delete".to_string(),
         "repo_transaction" => "mesh_repo_transaction".to_string(),

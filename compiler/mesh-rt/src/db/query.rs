@@ -378,6 +378,34 @@ pub extern "C" fn mesh_query_where_not_null(q: *mut u8, field: *mut u8) -> *mut 
     }
 }
 
+/// Add a structured expression-valued WHERE predicate.
+///
+/// `Query.where_expr(q, Expr.eq(Expr.column("password_hash"), Pg.crypt(...)))`
+///   -> new Query with a serialized boolean expression in the WHERE list.
+#[no_mangle]
+pub extern "C" fn mesh_query_where_expr(q: *mut u8, expr: *mut u8) -> *mut u8 {
+    unsafe {
+        let new_q = clone_query(q);
+        let serialized = serialize_expr(&clone_expr(expr));
+        let encoded_expr = rust_str_to_mesh(&format!("EXPR:{}", serialized.0));
+
+        let wc = query_get(new_q, SLOT_WHERE_CLAUSES);
+        query_set(
+            new_q,
+            SLOT_WHERE_CLAUSES,
+            mesh_list_append(wc, encoded_expr as u64),
+        );
+
+        let mut wp = query_get(new_q, SLOT_WHERE_PARAMS);
+        for value in serialized.1 {
+            let value_ptr = rust_str_to_mesh(&value);
+            wp = mesh_list_append(wp, value_ptr as u64);
+        }
+        query_set(new_q, SLOT_WHERE_PARAMS, wp);
+        new_q
+    }
+}
+
 /// Set the SELECT fields for the query.
 ///
 /// `Query.select(q, ["id", "name"])` -> new Query with SELECT id, name
@@ -391,6 +419,38 @@ pub extern "C" fn mesh_query_select(q: *mut u8, fields: *mut u8) -> *mut u8 {
     }
 }
 
+unsafe fn append_select_exprs(new_q: *mut u8, exprs: *mut u8) {
+    let mut select_fields = query_get(new_q, SLOT_SELECT);
+    let mut select_params = query_get(new_q, SLOT_SELECT_PARAMS);
+    let expr_count = mesh_list_length(exprs);
+
+    for idx in 0..expr_count {
+        let expr_ptr = mesh_list_get(exprs, idx) as *mut u8;
+        let expr = clone_expr(expr_ptr);
+        let (expr_sql, expr_param_values) = serialize_expr(&expr);
+        let encoded_expr = rust_str_to_mesh(&format!("EXPR:{expr_sql}"));
+        select_fields = mesh_list_append(select_fields, encoded_expr as u64);
+        for value in expr_param_values {
+            let param_ptr = rust_str_to_mesh(&value);
+            select_params = mesh_list_append(select_params, param_ptr as u64);
+        }
+    }
+
+    query_set(new_q, SLOT_SELECT, select_fields);
+    query_set(new_q, SLOT_SELECT_PARAMS, select_params);
+}
+
+/// Append a single structured expression-valued SELECT item.
+#[no_mangle]
+pub extern "C" fn mesh_query_select_expr(q: *mut u8, expr: *mut u8) -> *mut u8 {
+    unsafe {
+        let new_q = clone_query(q);
+        let exprs = mesh_list_append(mesh_list_new(), expr as u64);
+        append_select_exprs(new_q, exprs);
+        new_q
+    }
+}
+
 /// Append structured expression-valued SELECT items.
 ///
 /// `Query.select_exprs(q, [Expr.alias(Expr.coalesce([...]), "label")])`
@@ -399,24 +459,7 @@ pub extern "C" fn mesh_query_select(q: *mut u8, fields: *mut u8) -> *mut u8 {
 pub extern "C" fn mesh_query_select_exprs(q: *mut u8, exprs: *mut u8) -> *mut u8 {
     unsafe {
         let new_q = clone_query(q);
-        let mut select_fields = query_get(new_q, SLOT_SELECT);
-        let mut select_params = query_get(new_q, SLOT_SELECT_PARAMS);
-        let expr_count = mesh_list_length(exprs);
-
-        for idx in 0..expr_count {
-            let expr_ptr = mesh_list_get(exprs, idx) as *mut u8;
-            let expr = clone_expr(expr_ptr);
-            let (expr_sql, expr_param_values) = serialize_expr(&expr);
-            let encoded_expr = rust_str_to_mesh(&format!("EXPR:{expr_sql}"));
-            select_fields = mesh_list_append(select_fields, encoded_expr as u64);
-            for value in expr_param_values {
-                let param_ptr = rust_str_to_mesh(&value);
-                select_params = mesh_list_append(select_params, param_ptr as u64);
-            }
-        }
-
-        query_set(new_q, SLOT_SELECT, select_fields);
-        query_set(new_q, SLOT_SELECT_PARAMS, select_params);
+        append_select_exprs(new_q, exprs);
         new_q
     }
 }

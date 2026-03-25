@@ -37,7 +37,7 @@
 
 ## Tasks
 
-- [ ] **T01: Add explicit Pg helper plumbing and rewrite the auth path** `est:3h`
+- [x] **T01: Add explicit Pg helper plumbing and rewrite the auth path** `est:3h`
   - Why: R037 is blocked until Mesh has honest PG-only helper surfaces that compose with the S01 expression core, and auth is the smallest real vertical path that proves the new boundary without reopening the neutral API.
   - Files: `compiler/mesh-rt/src/db/expr.rs`, `compiler/mesh-rt/src/db/query.rs`, `compiler/mesh-rt/src/db/repo.rs`, `compiler/mesh-rt/src/lib.rs`, `compiler/mesh-typeck/src/infer.rs`, `compiler/mesh-codegen/src/mir/lower.rs`, `compiler/mesh-codegen/src/codegen/intrinsics.rs`, `mesher/storage/queries.mpl`
   - Do: Add cast-capable expression internals and explicit `Pg.*` constructors for JSONB/search/pgcrypto work; teach `Query` to bind expression-valued `SELECT` / `WHERE` clauses through `select_params`; add `Repo.insert_expr`; wire the new calls through type inference, MIR lowering, runtime exports, and intrinsics; then move `create_user` and `authenticate_user` onto the new helper surface. Keep the public vendor-specific API under `Pg`, not `Expr`, so R040 stays intact.

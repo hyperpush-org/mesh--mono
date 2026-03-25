@@ -320,118 +320,11 @@ fn build_select_sql_from_parts_with_select_params(
 
     // WHERE clause
     if !where_clauses.is_empty() {
-        sql.push_str(" WHERE ");
-        let mut conditions = Vec::new();
-        let mut wp_idx = 0;
-        for clause in where_clauses {
-            // OR clause: "OR:field1,field2,...:N"
-            if clause.starts_with("OR:") {
-                let parts: Vec<&str> = clause.splitn(3, ':').collect();
-                if parts.len() == 3 {
-                    let fields: Vec<&str> = parts[1].split(',').collect();
-                    let count: usize = parts[2].parse().unwrap_or(0);
-                    let mut or_parts = Vec::new();
-                    for field in fields.iter().take(count) {
-                        or_parts.push(format!("{} = ${}", quote_ident(field), param_idx));
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    conditions.push(format!("({})", or_parts.join(" OR ")));
-                }
-                continue;
-            }
-            if let Some(raw) = clause.strip_prefix("RAW:") {
-                // Raw WHERE clause: emit verbatim, replace ? and $N with renumbered $N
-                let (renumbered, consumed) = renumber_placeholders(raw, param_idx);
-                conditions.push(renumbered);
-                for _ in 0..consumed {
-                    if wp_idx < where_params.len() {
-                        params.push(where_params[wp_idx].clone());
-                        wp_idx += 1;
-                    }
-                    param_idx += 1;
-                }
-            } else if let Some(space_pos) = clause.find(' ') {
-                let col = &clause[..space_pos];
-                let op = clause[space_pos + 1..].trim();
-                if op == "IS NULL" || op == "IS NOT NULL" {
-                    // No parameter consumed
-                    conditions.push(format!("{} {}", quote_ident(col), op));
-                } else if op.starts_with("IN:") {
-                    // IN clause: "field IN:N"
-                    let count: usize = op[3..].parse().unwrap_or(0);
-                    let placeholders: Vec<String> =
-                        (0..count).map(|i| format!("${}", param_idx + i)).collect();
-                    conditions.push(format!(
-                        "{} IN ({})",
-                        quote_ident(col),
-                        placeholders.join(", ")
-                    ));
-                    for _ in 0..count {
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    continue; // skip default param handling
-                } else if op.starts_with("NOT_IN:") {
-                    // NOT IN clause: "field NOT_IN:N"
-                    let count: usize = op[7..].parse().unwrap_or(0);
-                    let placeholders: Vec<String> =
-                        (0..count).map(|i| format!("${}", param_idx + i)).collect();
-                    conditions.push(format!(
-                        "{} NOT IN ({})",
-                        quote_ident(col),
-                        placeholders.join(", ")
-                    ));
-                    for _ in 0..count {
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    continue;
-                } else if op == "BETWEEN" {
-                    // BETWEEN clause: consumes two params
-                    conditions.push(format!(
-                        "{} BETWEEN ${} AND ${}",
-                        quote_ident(col),
-                        param_idx,
-                        param_idx + 1
-                    ));
-                    for _ in 0..2 {
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    continue;
-                } else {
-                    // Regular operator: "field op" -> "field" op $N
-                    conditions.push(format!("{} {} ${}", quote_ident(col), op, param_idx));
-                    if wp_idx < where_params.len() {
-                        params.push(where_params[wp_idx].clone());
-                        wp_idx += 1;
-                    }
-                    param_idx += 1;
-                }
-            } else {
-                // Just a column name, default to = operator
-                conditions.push(format!("{} = ${}", quote_ident(clause), param_idx));
-                if wp_idx < where_params.len() {
-                    params.push(where_params[wp_idx].clone());
-                    wp_idx += 1;
-                }
-                param_idx += 1;
-            }
-        }
-        sql.push_str(&conditions.join(" AND "));
+        let (where_sql, where_param_values, next_param_idx) =
+            build_where_from_query_parts(where_clauses, where_params, param_idx);
+        sql.push_str(&format!(" WHERE {}", where_sql));
+        params.extend(where_param_values);
+        param_idx = next_param_idx;
     }
 
     // GROUP BY clause
@@ -578,112 +471,11 @@ fn build_count_sql_from_parts(
 
     // WHERE clause
     if !where_clauses.is_empty() {
-        sql.push_str(" WHERE ");
-        let mut conditions = Vec::new();
-        let mut wp_idx = 0;
-        for clause in where_clauses {
-            // OR clause: "OR:field1,field2,...:N"
-            if clause.starts_with("OR:") {
-                let parts: Vec<&str> = clause.splitn(3, ':').collect();
-                if parts.len() == 3 {
-                    let fields: Vec<&str> = parts[1].split(',').collect();
-                    let count: usize = parts[2].parse().unwrap_or(0);
-                    let mut or_parts = Vec::new();
-                    for field in fields.iter().take(count) {
-                        or_parts.push(format!("{} = ${}", quote_ident(field), param_idx));
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    conditions.push(format!("({})", or_parts.join(" OR ")));
-                }
-                continue;
-            }
-            if let Some(raw) = clause.strip_prefix("RAW:") {
-                // Raw WHERE clause: emit verbatim, replace ? and $N with renumbered $N
-                let (renumbered, consumed) = renumber_placeholders(raw, param_idx);
-                conditions.push(renumbered);
-                for _ in 0..consumed {
-                    if wp_idx < where_params.len() {
-                        params.push(where_params[wp_idx].clone());
-                        wp_idx += 1;
-                    }
-                    param_idx += 1;
-                }
-            } else if let Some(space_pos) = clause.find(' ') {
-                let col = &clause[..space_pos];
-                let op = clause[space_pos + 1..].trim();
-                if op == "IS NULL" || op == "IS NOT NULL" {
-                    conditions.push(format!("{} {}", quote_ident(col), op));
-                } else if op.starts_with("IN:") {
-                    let count: usize = op[3..].parse().unwrap_or(0);
-                    let placeholders: Vec<String> =
-                        (0..count).map(|i| format!("${}", param_idx + i)).collect();
-                    conditions.push(format!(
-                        "{} IN ({})",
-                        quote_ident(col),
-                        placeholders.join(", ")
-                    ));
-                    for _ in 0..count {
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    continue;
-                } else if op.starts_with("NOT_IN:") {
-                    let count: usize = op[7..].parse().unwrap_or(0);
-                    let placeholders: Vec<String> =
-                        (0..count).map(|i| format!("${}", param_idx + i)).collect();
-                    conditions.push(format!(
-                        "{} NOT IN ({})",
-                        quote_ident(col),
-                        placeholders.join(", ")
-                    ));
-                    for _ in 0..count {
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    continue;
-                } else if op == "BETWEEN" {
-                    conditions.push(format!(
-                        "{} BETWEEN ${} AND ${}",
-                        quote_ident(col),
-                        param_idx,
-                        param_idx + 1
-                    ));
-                    for _ in 0..2 {
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    continue;
-                } else {
-                    conditions.push(format!("{} {} ${}", quote_ident(col), op, param_idx));
-                    if wp_idx < where_params.len() {
-                        params.push(where_params[wp_idx].clone());
-                        wp_idx += 1;
-                    }
-                    param_idx += 1;
-                }
-            } else {
-                conditions.push(format!("{} = ${}", quote_ident(clause), param_idx));
-                if wp_idx < where_params.len() {
-                    params.push(where_params[wp_idx].clone());
-                    wp_idx += 1;
-                }
-                param_idx += 1;
-            }
-        }
-        sql.push_str(&conditions.join(" AND "));
+        let (where_sql, where_param_values, next_param_idx) =
+            build_where_from_query_parts(where_clauses, where_params, param_idx);
+        sql.push_str(&format!(" WHERE {}", where_sql));
+        params.extend(where_param_values);
+        param_idx = next_param_idx;
     }
 
     // GROUP BY clause
@@ -747,7 +539,7 @@ fn build_exists_sql_from_parts(
 ) -> (String, Vec<String>) {
     let mut inner_sql = String::new();
     let mut params: Vec<String> = Vec::new();
-    let mut param_idx = 1usize;
+    let param_idx = 1usize;
 
     inner_sql.push_str(&format!("SELECT 1 FROM {}", quote_ident(source)));
 
@@ -779,112 +571,10 @@ fn build_exists_sql_from_parts(
 
     // WHERE clause
     if !where_clauses.is_empty() {
-        inner_sql.push_str(" WHERE ");
-        let mut conditions = Vec::new();
-        let mut wp_idx = 0;
-        for clause in where_clauses {
-            // OR clause: "OR:field1,field2,...:N"
-            if clause.starts_with("OR:") {
-                let parts: Vec<&str> = clause.splitn(3, ':').collect();
-                if parts.len() == 3 {
-                    let fields: Vec<&str> = parts[1].split(',').collect();
-                    let count: usize = parts[2].parse().unwrap_or(0);
-                    let mut or_parts = Vec::new();
-                    for field in fields.iter().take(count) {
-                        or_parts.push(format!("{} = ${}", quote_ident(field), param_idx));
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    conditions.push(format!("({})", or_parts.join(" OR ")));
-                }
-                continue;
-            }
-            if let Some(raw) = clause.strip_prefix("RAW:") {
-                // Raw WHERE clause: emit verbatim, replace ? and $N with renumbered $N
-                let (renumbered, consumed) = renumber_placeholders(raw, param_idx);
-                conditions.push(renumbered);
-                for _ in 0..consumed {
-                    if wp_idx < where_params.len() {
-                        params.push(where_params[wp_idx].clone());
-                        wp_idx += 1;
-                    }
-                    param_idx += 1;
-                }
-            } else if let Some(space_pos) = clause.find(' ') {
-                let col = &clause[..space_pos];
-                let op = clause[space_pos + 1..].trim();
-                if op == "IS NULL" || op == "IS NOT NULL" {
-                    conditions.push(format!("{} {}", quote_ident(col), op));
-                } else if op.starts_with("IN:") {
-                    let count: usize = op[3..].parse().unwrap_or(0);
-                    let placeholders: Vec<String> =
-                        (0..count).map(|i| format!("${}", param_idx + i)).collect();
-                    conditions.push(format!(
-                        "{} IN ({})",
-                        quote_ident(col),
-                        placeholders.join(", ")
-                    ));
-                    for _ in 0..count {
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    continue;
-                } else if op.starts_with("NOT_IN:") {
-                    let count: usize = op[7..].parse().unwrap_or(0);
-                    let placeholders: Vec<String> =
-                        (0..count).map(|i| format!("${}", param_idx + i)).collect();
-                    conditions.push(format!(
-                        "{} NOT IN ({})",
-                        quote_ident(col),
-                        placeholders.join(", ")
-                    ));
-                    for _ in 0..count {
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    continue;
-                } else if op == "BETWEEN" {
-                    conditions.push(format!(
-                        "{} BETWEEN ${} AND ${}",
-                        quote_ident(col),
-                        param_idx,
-                        param_idx + 1
-                    ));
-                    for _ in 0..2 {
-                        if wp_idx < where_params.len() {
-                            params.push(where_params[wp_idx].clone());
-                            wp_idx += 1;
-                        }
-                        param_idx += 1;
-                    }
-                    continue;
-                } else {
-                    conditions.push(format!("{} {} ${}", quote_ident(col), op, param_idx));
-                    if wp_idx < where_params.len() {
-                        params.push(where_params[wp_idx].clone());
-                        wp_idx += 1;
-                    }
-                    param_idx += 1;
-                }
-            } else {
-                conditions.push(format!("{} = ${}", quote_ident(clause), param_idx));
-                if wp_idx < where_params.len() {
-                    params.push(where_params[wp_idx].clone());
-                    wp_idx += 1;
-                }
-                param_idx += 1;
-            }
-        }
-        inner_sql.push_str(&conditions.join(" AND "));
+        let (where_sql, where_param_values, _next_param_idx) =
+            build_where_from_query_parts(where_clauses, where_params, param_idx);
+        inner_sql.push_str(&format!(" WHERE {}", where_sql));
+        params.extend(where_param_values);
     }
 
     inner_sql.push_str(" LIMIT 1");
@@ -1277,6 +967,43 @@ fn build_insert_or_update_expr_sql_pure(
     Ok((sql, params))
 }
 
+fn build_insert_expr_sql_pure(
+    table: &str,
+    columns: &[String],
+    exprs: &[SqlExpr],
+) -> Result<(String, Vec<String>), &'static str> {
+    if columns.is_empty() {
+        return Err("insert_expr: no fields provided");
+    }
+
+    let quoted_columns = columns
+        .iter()
+        .map(|column| quote_ident(column))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let mut value_sql_parts = Vec::with_capacity(exprs.len());
+    let mut params = Vec::new();
+    let mut next_idx = 1usize;
+
+    for expr in exprs {
+        let (expr_sql_local, expr_params) = serialize_expr(expr);
+        let (expr_sql, _consumed) = renumber_placeholders(&expr_sql_local, next_idx);
+        next_idx += expr_params.len();
+        params.extend(expr_params);
+        value_sql_parts.push(expr_sql);
+    }
+
+    let sql = format!(
+        "INSERT INTO {} ({}) VALUES ({}) RETURNING *",
+        quote_ident(table),
+        quoted_columns,
+        value_sql_parts.join(", ")
+    );
+
+    Ok((sql, params))
+}
+
 // ── Write Operations ──────────────────────────────────────────────────
 
 /// Insert a new row and return the inserted record.
@@ -1316,6 +1043,40 @@ pub extern "C" fn mesh_repo_insert(pool: u64, table: *mut u8, fields: *mut u8) -
         let list_len = mesh_list_length(list);
         if list_len == 0 {
             return err_result("insert: no row returned");
+        }
+
+        let first_row = mesh_list_get(list, 0) as *mut u8;
+        ok_result(first_row)
+    }
+}
+
+/// Insert a new row using expression-valued fields and return the inserted record.
+///
+/// `Repo.insert_expr(pool, table, expr_fields_map)` -> `Result<Map<String,String>, String>`
+#[no_mangle]
+pub extern "C" fn mesh_repo_insert_expr(pool: u64, table: *mut u8, expr_fields: *mut u8) -> *mut u8 {
+    unsafe {
+        let table_str = mesh_str_ref(table);
+        let (columns, exprs) = map_to_columns_and_exprs(expr_fields);
+
+        let (sql, params) = match build_insert_expr_sql_pure(table_str, &columns, &exprs) {
+            Ok(built) => built,
+            Err(msg) => return err_result(msg),
+        };
+
+        let sql_ptr = rust_str_to_mesh(&sql) as *const MeshString;
+        let params_ptr = strings_to_mesh_list(&params);
+        let result = mesh_pool_query(pool, sql_ptr, params_ptr);
+
+        let r = &*(result as *const MeshResult);
+        if r.tag != 0 {
+            return result;
+        }
+
+        let list = r.value;
+        let list_len = mesh_list_length(list);
+        if list_len == 0 {
+            return err_result("insert_expr: no row returned");
         }
 
         let first_row = mesh_list_get(list, 0) as *mut u8;
@@ -2078,23 +1839,31 @@ fn build_where_from_query_parts(
             }
             continue;
         }
-        if clause.starts_with("RAW:") {
-            let raw_sql = &clause[4..];
-            let mut frag_sql = String::new();
-            for ch in raw_sql.chars() {
-                if ch == '?' {
-                    frag_sql.push_str(&format!("${}", param_idx));
-                    if wp_idx < where_params.len() {
-                        params.push(where_params[wp_idx].clone());
-                        wp_idx += 1;
-                    }
-                    param_idx += 1;
-                } else {
-                    frag_sql.push(ch);
+        if let Some(expr_sql) = clause.strip_prefix("EXPR:") {
+            let (renumbered, consumed) = renumber_placeholders(expr_sql, param_idx);
+            conditions.push(renumbered);
+            for _ in 0..consumed {
+                if wp_idx < where_params.len() {
+                    params.push(where_params[wp_idx].clone());
+                    wp_idx += 1;
                 }
+                param_idx += 1;
             }
-            conditions.push(frag_sql);
-        } else if let Some(space_pos) = clause.find(' ') {
+            continue;
+        }
+        if let Some(raw_sql) = clause.strip_prefix("RAW:") {
+            let (renumbered, consumed) = renumber_placeholders(raw_sql, param_idx);
+            conditions.push(renumbered);
+            for _ in 0..consumed {
+                if wp_idx < where_params.len() {
+                    params.push(where_params[wp_idx].clone());
+                    wp_idx += 1;
+                }
+                param_idx += 1;
+            }
+            continue;
+        }
+        if let Some(space_pos) = clause.find(' ') {
             let col = &clause[..space_pos];
             let op = clause[space_pos + 1..].trim();
             if op == "IS NULL" || op == "IS NOT NULL" {
@@ -3818,6 +3587,67 @@ mod tests {
                 "resolved",
                 "unresolved",
             ]
+        );
+    }
+
+    #[test]
+    fn test_where_expr_sql_renumbers_after_select_params() {
+        let (sql, params) = build_select_sql_from_parts_with_select_params(
+            "users",
+            &["EXPR:crypt($1, password_hash) AS \"candidate\"".into()],
+            &["secret".into()],
+            &["EXPR:(\"password_hash\" = crypt($1, \"password_hash\"))".into()],
+            &["secret".into()],
+            &[],
+            -1,
+            -1,
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+        );
+
+        assert_eq!(
+            sql,
+            "SELECT crypt($1, password_hash) AS \"candidate\" FROM \"users\" WHERE (\"password_hash\" = crypt($2, \"password_hash\"))"
+        );
+        assert_eq!(params, vec!["secret", "secret"]);
+    }
+
+    #[test]
+    fn test_insert_expr_sql_preserves_expr_param_order() {
+        let (sql, params) = build_insert_expr_sql_pure(
+            "users",
+            &["email".into(), "password_hash".into(), "display_name".into()],
+            &[
+                SqlExpr::Value("alice@example.com".into()),
+                SqlExpr::Call {
+                    name: "crypt".into(),
+                    args: vec![
+                        SqlExpr::Value("secret".into()),
+                        SqlExpr::Call {
+                            name: "gen_salt".into(),
+                            args: vec![
+                                SqlExpr::Value("bf".into()),
+                                SqlExpr::Value("12".into()),
+                            ],
+                        },
+                    ],
+                },
+                SqlExpr::Value("Alice".into()),
+            ],
+        )
+        .expect("insert_expr SQL should build");
+
+        assert_eq!(
+            sql,
+            "INSERT INTO \"users\" (\"email\", \"password_hash\", \"display_name\") VALUES ($1, crypt($2, gen_salt($3, $4)), $5) RETURNING *"
+        );
+        assert_eq!(
+            params,
+            vec!["alice@example.com", "secret", "bf", "12", "Alice"]
         );
     }
 }

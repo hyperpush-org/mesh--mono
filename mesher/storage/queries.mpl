@@ -168,31 +168,25 @@ end
 
 # --- User queries ---
 # Create a new user with bcrypt password hashing via pgcrypto (cost factor 12).
-# Two-step pattern: Repo.query_raw for crypt() hash generation, then Repo.insert for data INSERT.
+# Uses explicit Pg helpers plus Repo.insert_expr so the auth path no longer depends on raw SQL.
 
 pub fn create_user(pool :: PoolHandle, email :: String, password :: String, display_name :: String) -> String ! String do
-  # Step 1: Hash password via pgcrypto
-  let hash_rows = Repo.query_raw(pool, "SELECT crypt($1, gen_salt('bf', 12)) AS hash", [password]) ?
-  if List.length(hash_rows) > 0 do
-    let password_hash = Map.get(List.head(hash_rows), "hash")
-    # Step 2: Insert user with ORM
-    let fields = %{"email" => email, "password_hash" => password_hash, "display_name" => display_name}
-    let row = Repo.insert(pool, User.__table__(), fields) ?
-    Ok(Map.get(row, "id"))
-  else
-    Err("create_user: password hashing failed")
-  end
+  let row = Repo.insert_expr(pool,
+  User.__table__(),
+  %{"email" => Expr.value(email), "password_hash" => Pg.crypt(Expr.value(password),
+  Pg.gen_salt("bf", 12)), "display_name" => Expr.value(display_name)}) ?
+  Ok(Map.get(row, "id"))
 end
 
 # Authenticate a user by email and password.
 # Returns the User if credentials match, Err("not found") otherwise.
-# Uses ORM Query.where + Query.where_raw for crypt() password verification.
+# Uses Query.where_expr with explicit Pg.crypt verification instead of raw SQL fragments.
 
 pub fn authenticate_user(pool :: PoolHandle, email :: String, password :: String) -> User ! String do
   let q = Query.from(User.__table__())
     |> Query.where(:email, email)
-    |> Query.where_raw("password_hash = crypt(?, password_hash)", [password])
-    |> Query.select_raw(["id::text", "email", "display_name", "created_at::text"])
+    |> Query.where_expr(Expr.eq(Expr.column("password_hash"),
+    Pg.crypt(Expr.value(password), Expr.column("password_hash"))))
   let rows = Repo.all(pool, q) ?
   if List.length(rows) > 0 do
     let row = List.head(rows)
