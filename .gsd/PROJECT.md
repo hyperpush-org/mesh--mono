@@ -28,8 +28,9 @@ Recent milestone state:
 - M032 is now fully closed through `.gsd/milestones/M032/M032-SUMMARY.md`, which records the compiler repair, the Mesher dogfood cleanup, and the three-bucket handoff into M033 (supported-now proof, still-real Mesh keep-sites, and real data-layer follow-on work)
 
 The next planned work is M033:
-1. shape the neutral ORM/migration core plus explicit PG extras around the recurring `mesher/storage/queries.mpl` and `mesher/storage/writer.mpl` ORM boundary families
-2. cover the retained migration/DDL gap anchored by the `PARTITION BY` note while keeping a clean path for SQLite-specific extras later
+1. S01 has now landed the neutral expression/runtime/compiler plumbing plus Mesher write-path rewrites for `revoke_api_key`, `assign_issue`, `acknowledge_alert`, `resolve_fired_alert`, `update_project_settings`, and `upsert_issue`, but the slice closeout still records a live Mesher HTTP-readiness blocker in the new `e2e_m033_s01` harness.
+2. finish the blocked S01 acceptance rerun, then continue with explicit PG extras around the recurring `mesher/storage/queries.mpl` and `mesher/storage/writer.mpl` ORM boundary families
+3. cover the retained migration/DDL gap anchored by the `PARTITION BY` note while keeping a clean path for SQLite-specific extras later
 
 ## Architecture / Key Patterns
 

@@ -2120,6 +2120,13 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
             )),
         );
         expr_mod.insert(
+            "fn_call".to_string(),
+            Scheme::mono(Ty::fun(
+                vec![Ty::string(), Ty::list(ptr_t.clone())],
+                ptr_t.clone(),
+            )),
+        );
+        expr_mod.insert(
             "add".to_string(),
             Scheme::mono(Ty::fun(vec![ptr_t.clone(), ptr_t.clone()], ptr_t.clone())),
         );
@@ -2161,6 +2168,13 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
         );
         expr_mod.insert(
             "case".to_string(),
+            Scheme::mono(Ty::fun(
+                vec![Ty::list(ptr_t.clone()), Ty::list(ptr_t.clone()), ptr_t.clone()],
+                ptr_t.clone(),
+            )),
+        );
+        expr_mod.insert(
+            "case_when".to_string(),
             Scheme::mono(Ty::fun(
                 vec![Ty::list(ptr_t.clone()), Ty::list(ptr_t.clone()), ptr_t.clone()],
                 ptr_t.clone(),

@@ -164,7 +164,7 @@ pub fn revoke_api_key(pool :: PoolHandle, key_id :: String) -> Int ! String do
     |> Query.where_raw("id = ?::uuid", [key_id])
   Repo.update_where_expr(pool,
   ApiKey.__table__(),
-  %{"revoked_at" => Expr.call("now", [])},
+  %{"revoked_at" => Expr.fn_call("now", [])},
   q) ?
   Ok(1)
 end
@@ -319,8 +319,8 @@ level :: String) -> String ! String do
   }
   let update_fields = %{
     "event_count" => Expr.add(Expr.column("issues.event_count"), Expr.value("1")),
-    "last_seen" => Expr.call("now", []),
-    "status" => Expr.case(
+    "last_seen" => Expr.fn_call("now", []),
+    "status" => Expr.case_when(
       [Expr.eq(Expr.column("issues.status"), Expr.value("resolved"))],
       [Expr.value("unresolved")],
       Expr.column("issues.status")
@@ -381,17 +381,26 @@ pub fn unresolve_issue(pool :: PoolHandle, issue_id :: String) -> Int ! String d
 end
 
 # Assign an issue to a user. Pass empty string to unassign (ISSUE-04).
-# Uses ORM Repo.update_where for the assign branch.
-# Unassign branch retains Repo.execute_raw since ORM Map<String,String> cannot represent NULL.
+# Uses expression-aware Repo.update_where_expr for both assign and unassign,
+# with Expr.null() carrying the neutral NULL assignment path.
 
 pub fn assign_issue(pool :: PoolHandle, issue_id :: String, user_id :: String) -> Int ! String do
-  if String.length(user_id) > 0 do
-    let q = Query.from(Issue.__table__())
-      |> Query.where_raw("id = ?::uuid", [issue_id])
-    Repo.update_where(pool, Issue.__table__(), %{"assigned_to" => user_id}, q) ?
-    Ok(1)
+  let q = Query.from(Issue.__table__())
+    |> Query.where_raw("id = ?::uuid", [issue_id])
+  let result = if String.length(user_id) > 0 do
+    Repo.update_where_expr(pool,
+    Issue.__table__(),
+    %{"assigned_to" => Expr.value(user_id)},
+    q)
   else
-    Repo.execute_raw(pool, "UPDATE issues SET assigned_to = NULL WHERE id = $1::uuid", [issue_id])
+    Repo.update_where_expr(pool,
+    Issue.__table__(),
+    %{"assigned_to" => Expr.null()},
+    q)
+  end
+  case result do
+    Ok( _) -> Ok(1)
+    Err( e) -> Err(e)
   end
 end
 
@@ -883,25 +892,30 @@ pub fn should_fire_by_cooldown(pool :: PoolHandle, rule_id :: String, cooldown_s
 end
 
 # ALERT-06: Transition alert to acknowledged.
-# ORM boundary: SET acknowledged_at = now() uses a server-side function call in the
-# UPDATE SET clause. Repo.update_where takes Map<String,String> which can only set
-# literal string values, not PG function calls like now(). Intentional raw SQL.
+# Uses expression-aware Repo.update_where_expr for the now() timestamp update.
 
 pub fn acknowledge_alert(pool :: PoolHandle, alert_id :: String) -> Int ! String do
-  Repo.execute_raw(pool,
-  "UPDATE alerts SET status = 'acknowledged', acknowledged_at = now() WHERE id = $1::uuid AND status = 'active'",
-  [alert_id])
+  let q = Query.from(Alert.__table__())
+    |> Query.where_raw("id = ?::uuid", [alert_id])
+    |> Query.where(:status, "active")
+  Repo.update_where_expr(pool,
+  Alert.__table__(),
+  %{"status" => Expr.value("acknowledged"), "acknowledged_at" => Expr.fn_call("now", [])},
+  q) ?
+  Ok(1)
 end
 
 # ALERT-06: Transition alert to resolved.
-# ORM boundary: SET resolved_at = now() uses a server-side function call in the
-# UPDATE SET clause. Repo.update_where takes Map<String,String> which can only set
-# literal string values, not PG function calls like now(). Intentional raw SQL.
+# Uses expression-aware Repo.update_where_expr for the now() timestamp update.
 
 pub fn resolve_fired_alert(pool :: PoolHandle, alert_id :: String) -> Int ! String do
-  Repo.execute_raw(pool,
-  "UPDATE alerts SET status = 'resolved', resolved_at = now() WHERE id = $1::uuid AND status IN ('active', 'acknowledged')",
-  [alert_id])
+  let q = Query.from(Alert.__table__())
+    |> Query.where_raw("id = ?::uuid AND status IN ('active', 'acknowledged')", [alert_id])
+  Repo.update_where_expr(pool,
+  Alert.__table__(),
+  %{"status" => Expr.value("resolved"), "resolved_at" => Expr.fn_call("now", [])},
+  q) ?
+  Ok(1)
 end
 
 # ALERT-06: List alerts for a project filtered by status.
@@ -979,17 +993,39 @@ pub fn get_project_storage(pool :: PoolHandle, project_id :: String) -> List < M
 end
 
 # Update project retention and sampling settings from JSON body.
-# Uses SQL-side JSON extraction per decision [91-03].
-# ORM boundary: SET clause uses COALESCE with server-side JSONB extraction
-# ($2::jsonb->>'field')::type to conditionally update only provided fields,
-# falling back to current column value. Repo.update_where takes Map<String,String>
-# which cannot express COALESCE fallback to current column value or server-side
-# JSONB extraction. Intentional raw SQL.
+# Uses Mesh-side Json.get parsing so the neutral write path only updates the
+# fields that were actually provided by the caller.
 
 pub fn update_project_settings(pool :: PoolHandle, project_id :: String, body :: String) -> Int ! String do
-  Repo.execute_raw(pool,
-  "UPDATE projects SET retention_days = COALESCE(($2::jsonb->>'retention_days')::int, retention_days), sample_rate = COALESCE(($2::jsonb->>'sample_rate')::real, sample_rate) WHERE id = $1::uuid",
-  [project_id, body])
+  let retention_days = Json.get(body, "retention_days")
+  let sample_rate = Json.get(body, "sample_rate")
+  if String.length(retention_days) > 0 do
+    let q = Query.from(Project.__table__())
+      |> Query.where_raw("id = ?::uuid", [project_id])
+    if String.length(sample_rate) > 0 do
+      Repo.update_where_expr(pool,
+      Project.__table__(),
+      %{"retention_days" => Expr.value(retention_days), "sample_rate" => Expr.value(sample_rate)},
+      q) ?
+      Ok(1)
+    else
+      Repo.update_where_expr(pool,
+      Project.__table__(),
+      %{"retention_days" => Expr.value(retention_days)},
+      q) ?
+      Ok(1)
+    end
+  else if String.length(sample_rate) > 0 do
+    let q = Query.from(Project.__table__())
+      |> Query.where_raw("id = ?::uuid", [project_id])
+    Repo.update_where_expr(pool,
+    Project.__table__(),
+    %{"sample_rate" => Expr.value(sample_rate)},
+    q) ?
+    Ok(1)
+  else
+    Ok(0)
+  end
 end
 
 # Get retention and sampling settings for a project.

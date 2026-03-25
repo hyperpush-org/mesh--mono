@@ -13091,6 +13091,7 @@ const STDLIB_MODULES: &[&str] = &[
     "Global",    // Phase 68
     "Iter",      // Phase 76
     "Orm",       // Phase 97
+    "Expr",      // M033/S01
     "Query",     // Phase 98
     "Repo",      // Phase 98
     "Changeset", // Phase 99
@@ -13402,6 +13403,7 @@ fn map_builtin_name(name: &str) -> String {
         "expr_value" => "mesh_expr_value".to_string(),
         "expr_null" => "mesh_expr_null".to_string(),
         "expr_call" => "mesh_expr_call".to_string(),
+        "expr_fn_call" => "mesh_expr_call".to_string(),
         "expr_add" => "mesh_expr_add".to_string(),
         "expr_sub" => "mesh_expr_sub".to_string(),
         "expr_mul" => "mesh_expr_mul".to_string(),
@@ -13413,6 +13415,7 @@ fn map_builtin_name(name: &str) -> String {
         "expr_gt" => "mesh_expr_gt".to_string(),
         "expr_gte" => "mesh_expr_gte".to_string(),
         "expr_case" => "mesh_expr_case".to_string(),
+        "expr_case_when" => "mesh_expr_case".to_string(),
         "expr_coalesce" => "mesh_expr_coalesce".to_string(),
         "expr_excluded" => "mesh_expr_excluded".to_string(),
         "expr_alias" => "mesh_expr_alias".to_string(),
