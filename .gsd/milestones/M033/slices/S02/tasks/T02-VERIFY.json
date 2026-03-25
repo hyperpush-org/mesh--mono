@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T02",
+  "unitId": "M033/S02/T02",
+  "timestamp": 1774458220191,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "cargo run -q -p meshc -- build mesher",
+      "exitCode": 0,
+      "durationMs": 21053,
+      "verdict": "pass"
+    }
+  ]
+}

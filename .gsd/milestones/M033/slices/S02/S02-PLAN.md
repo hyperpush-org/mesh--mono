@@ -49,7 +49,7 @@
   - Do: Rewrite `search_events_fulltext`, `filter_events_by_tag`, `event_breakdown_by_tag`, `create_alert_rule`, `fire_alert`, `insert_event`, `get_event_alert_rules`, and `get_threshold_rules` to use `Pg.*`, `Query.select_expr`, `Query.where_expr`, and `Repo.insert_expr`. Re-evaluate `extract_event_fields`; if it still needs ordinality/scalar-subquery work, keep it raw with an explicit S03 boundary comment instead of forcing it through a fake helper.
   - Verify: `cargo run -q -p meshc -- build mesher`
   - Done when: the S02-owned Mesher JSONB/search/auth helpers use explicit PG surfaces on the real storage path and only the named dishonest leftover remains raw.
-- [ ] **T03: Prove PG helper boundaries with Postgres-backed Mesher storage tests** `est:2h`
+- [x] **T03: Prove PG helper boundaries with Postgres-backed Mesher storage tests** `est:2h`
   - Why: S02 closes only when a future agent can rerun a concrete proof bundle that exercises the real runtime path and catches raw-boundary drift without depending on the still-fragile S01 HTTP readiness harness.
   - Files: `compiler/meshc/tests/e2e_m033_s02.rs`, `scripts/verify-m033-s02.sh`
   - Do: Reuse the Postgres harness pattern from `compiler/meshc/tests/e2e_m033_s01.rs` to execute the rewritten Mesher storage paths directly against live Postgres, covering pgcrypto hash/verify, full-text search ranking and parameter ordering, JSONB insert/defaulting, tag filtering/breakdown, alert-rule create/fire helpers, and the owned keep-list boundary. Add `scripts/verify-m033-s02.sh` to run the new test target, `meshc` build/fmt checks, and a keep-list sweep that allows only the named leftovers.
