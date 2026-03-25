@@ -1,18 +1,16 @@
 # PostgreSQL partition management for Mesher monitoring platform.
 # Schema DDL is now managed by migration files (mesher/migrations/).
 # This module retains only runtime partition creation for the events table.
-# Create a single daily partition for the events table.
+# Build the DDL for a single daily partition.
 # The date_str parameter is in YYYYMMDD format (e.g., "20260214").
 
-pub fn create_partition(pool :: PoolHandle, date_str :: String) -> Int ! String do
+fn build_partition_sql(date_str :: String) -> String do
   let year = String.slice(date_str, 0, 4)
   let month = String.slice(date_str, 4, 6)
   let day = String.slice(date_str, 6, 8)
   let formatted = year <> "-" <> month <> "-" <> day
   let part1 = "CREATE TABLE IF NOT EXISTS events_" <> date_str <> " PARTITION OF events FOR VALUES FROM ('"
-  let sql = part1 <> formatted <> "') TO (('" <> formatted <> "'::date + 1))"
-  Repo.execute_raw(pool, sql, []) ?
-  Ok(0)
+  part1 <> formatted <> "') TO (('" <> formatted <> "'::date + 1))"
 end
 
 fn create_partitions_loop(pool :: PoolHandle, days :: Int, i :: Int) -> Int ! String do
@@ -23,7 +21,7 @@ fn create_partitions_loop(pool :: PoolHandle, days :: Int, i :: Int) -> Int ! St
     [offset_str]) ?
     if List.length(rows) > 0 do
       let date_str = Map.get(List.head(rows), "d")
-      create_partition(pool, date_str) ?
+      Repo.execute_raw(pool, build_partition_sql(date_str), []) ?
       0
     else
       0

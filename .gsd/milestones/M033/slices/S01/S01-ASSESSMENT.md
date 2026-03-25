@@ -1,59 +1,76 @@
-# S01 closer wrap-up — incomplete slice closeout
+# S01 closeout reassessment — still incomplete, now with concrete crash sites
 
 ## Status
-Slice S01 is **not ready for closeout**. I hit the context-budget stop while wiring the neutral expression surface through compiler/codegen and starting the Mesher write-path rewrites. I did **not** run the slice verification bundle and I did **not** call `gsd_slice_complete`.
+Slice S01 is **still not ready for closeout**, but the blocker is now narrower and better localized than the prior assessment.
 
-## Durable work landed this unit
+## What changed in this unit
+- Audited the current M033 state against repo evidence instead of trusting stale roadmap/task assumptions.
+- Confirmed S01 has real implementation artifacts and proofs, but S02 is still plan/research only.
+- Fixed one live Mesher startup crash in `mesher/storage/schema.mpl` by removing the `create_partition(...) ?` helper call from the recursive partition loop and executing the built DDL inline with `Repo.execute_raw(pool, build_partition_sql(date_str), []) ?`.
+- Rebuilt Mesher successfully with `cargo run -q -p meshc -- build mesher`.
+- Re-ran `cargo test -p meshc --test e2e_m033_s01 e2e_m033_mesher_mutations -- --nocapture`.
 
-### Compiler / runtime wiring started
-- `compiler/mesh-typeck/src/infer.rs`
-  - added an `Expr` stdlib module surface for `column`, `value`, `null`, `call`, arithmetic/comparison helpers, `case`, `coalesce`, `excluded`, and `alias`
-  - added `Repo.update_where_expr(...)` and `Repo.insert_or_update_expr(...)` type signatures
-  - added `Expr` to `STDLIB_MODULE_NAMES`
-- `compiler/mesh-codegen/src/mir/lower.rs`
-  - registered `mesh_expr_*` known functions
-  - registered `mesh_repo_update_where_expr` and `mesh_repo_insert_or_update_expr`
-  - added builtin-name mappings for `expr_*`, `repo_update_where_expr`, and `repo_insert_or_update_expr`
-- `compiler/mesh-codegen/src/codegen/intrinsics.rs`
-  - declared LLVM externs for `mesh_expr_*`, `mesh_repo_update_where_expr`, and `mesh_repo_insert_or_update_expr`
-  - extended intrinsic presence assertions for those symbols
+## New verified findings
+### 1. The old S01 readiness blocker was real, but its first root cause is now fixed
+Before the schema change, Mesher crashed during startup after:
+- `[Mesher] Connecting to PostgreSQL...`
+- `[Mesher] Running in standalone mode (no distribution)`
 
-### Mesher write-path rewrites started
-- `mesher/storage/queries.mpl`
-  - rewrote `revoke_api_key(...)` to use `Repo.update_where_expr(..., %{"revoked_at" => Expr.call("now", [])}, ...)`
-  - rewrote `upsert_issue(...)` to use `Repo.insert_or_update_expr(...)` with expression-valued `event_count`, `last_seen`, and `status`
+LLDB localized that crash to:
+- `Storage_Schema__create_partitions_loop`
+- specifically the generated Ok-path dereference after `create_partition(...) ?`
 
-## Important current state
-This is a **partial** implementation state. The following planned S01 work is still missing or unverified:
-- no `compiler/meshc/tests/e2e_m033_s01.rs`
-- no `scripts/verify-m033-s01.sh`
-- no slice-level verification rerun
-- no proof yet that the new typechecker/codegen wiring actually compiles Mesh code end-to-end
-- `assign_issue`, `acknowledge_alert`, `resolve_fired_alert`, and `update_project_settings` in `mesher/storage/queries.mpl` are still on their old implementations
-- requirement status was **not** updated because there is no passing evidence bundle yet
-- `DECISIONS.md`, `KNOWLEDGE.md`, and `PROJECT.md` were **not** updated in this interrupted unit
+After the inline `Repo.execute_raw(...) ?` change in `mesher/storage/schema.mpl`, Mesher now starts far enough to log:
+- partition creation
+- service startup
+- websocket startup
+- HTTP startup
 
-## Highest-value resume order
-1. **Build/test the compiler surface first**
-   - `cargo test -p meshc --test e2e -- --nocapture` is too broad; start narrower with the runtime/compiler crates or a targeted `cargo test -p mesh-rt` / `cargo test -p meshc` check to catch symbol/signature mismatches from the new `Expr` and Repo-expression hooks.
-   - Expect the most likely drift in `compiler/mesh-codegen/src/codegen/intrinsics.rs` because this file already had existing ORM declaration blocks; I removed one duplicate block during this unit, but this is the first place to inspect if declarations/assertions drift.
-2. **Finish the remaining Mesher rewrites in `mesher/storage/queries.mpl`**
-   - `assign_issue`
-   - `acknowledge_alert`
-   - `resolve_fired_alert`
-   - `update_project_settings`
-3. **Create the missing proof artifacts**
-   - `compiler/meshc/tests/e2e_m033_s01.rs`
-   - `scripts/verify-m033-s01.sh`
-4. **Only after those exist, run the slice bundle from the plan**
-   - `cargo test -p meshc --test e2e_m033_s01 -- --nocapture`
-   - `cargo test -p meshc --test e2e_m033_s01 expr_error_ -- --nocapture`
-   - `cargo run -q -p meshc -- fmt --check mesher`
-   - `cargo run -q -p meshc -- build mesher`
-   - `bash scripts/verify-m033-s01.sh`
-5. If the full bundle passes, then update requirement evidence and perform the real slice closeout with `gsd_slice_complete`.
+So the startup/readiness blocker is no longer "Mesher never becomes ready" in the broad sense; it was at least partly a real runtime crash in the partition bootstrap path.
 
-## Resume cautions
-- Do **not** trust the current task checkboxes in `S01-PLAN.md` as evidence of completion; prior interrupted units already marked tasks done on disk while leaving the slice unproven.
-- The absence of language servers in this environment means semantic verification is unavailable; expect to rely on direct compile/test feedback.
-- Keep the S01 boundary honest: JSONB-heavy write paths (`create_alert_rule`, `fire_alert`, `insert_event`) still belong to S02.
+### 2. The remaining live S01 blocker is now an event-path crash, not startup readiness
+After the schema fix, the live mutation test no longer fails waiting for readiness. It now fails when exercising the real ingest route:
+- `POST /api/v1/events` returns an incomplete response
+- the Mesher process exits with `SIGSEGV` / `EXC_BAD_ACCESS`
+
+Manual reproduction plus LLDB localized the new crash to:
+- `__actor_alert_evaluator_body`
+- specifically the Ok-path dereference around `Ingestion_Pipeline__log_eval_result`
+
+This means the current closeout blocker is now in the threshold alert evaluator path, not in the neutral expression write-path rewrites themselves.
+
+## Evidence from this unit
+Passing:
+- `cargo run -q -p meshc -- build mesher`
+
+Failing but informative:
+- `cargo test -p meshc --test e2e_m033_s01 e2e_m033_mesher_mutations -- --nocapture`
+  - Mesher reaches HTTP/WebSocket startup
+  - test then fails because `POST /api/v1/events` gets an empty/incomplete response after the process crashes
+- LLDB on `./mesher/mesher`
+  - first crash site: `Storage_Schema__create_partitions_loop` (startup path, now mitigated)
+  - second crash site: `__actor_alert_evaluator_body` (current blocker)
+
+## Disk/task state corrections made
+- Updated `mesher/storage/schema.mpl` with the startup crash mitigation.
+- Corrected `S01-PLAN.md` task checkboxes so T02 and T03 are no longer marked complete while their live-route verification is still failing.
+
+## Resume point
+Start from the alert-evaluator crash, not from generic startup debugging.
+
+### Highest-value next step
+Inspect `mesher/ingestion/pipeline.mpl` and the generated Ok/Error handling around:
+- `evaluate_all_threshold_rules(...)`
+- `log_eval_result(...)`
+- `__actor_alert_evaluator_body`
+
+The likely bug class is another bad lowering/runtime ABI path around `Result<Int, String>` handling inside the actor loop, similar in shape to the earlier partition-loop crash.
+
+### Commands to resume with
+- `cargo run -q -p meshc -- build mesher`
+- `cargo test -p meshc --test e2e_m033_s01 e2e_m033_mesher_mutations -- --nocapture`
+- `cargo test -p meshc --test e2e_m033_s01 e2e_m033_mesher_issue_upsert -- --nocapture`
+- LLDB on `./mesher/mesher` if the actor crash remains
+
+## Conclusion
+S01 should remain open. The neutral write-path work is present, and one real startup crash has been removed, but live Mesher acceptance is still blocked by a separate crash in the alert evaluator event path. S02 should not be treated as complete at all from the current repo state.
