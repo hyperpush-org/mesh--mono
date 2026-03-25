@@ -1665,6 +1665,62 @@ fn stdlib_modules() -> HashMap<String, HashMap<String, Scheme>> {
             },
         );
     }
+    let pg_pool_t = Ty::Con(TyCon::new("PoolHandle"));
+    let pg_int_result_t = Ty::result(Ty::int(), Ty::string());
+    // M033/S04: explicit PostgreSQL schema helpers.
+    pg_mod.insert(
+        "create_extension".to_string(),
+        Scheme::mono(Ty::fun(
+            vec![pg_pool_t.clone(), Ty::string()],
+            pg_int_result_t.clone(),
+        )),
+    );
+    pg_mod.insert(
+        "create_range_partitioned_table".to_string(),
+        Scheme::mono(Ty::fun(
+            vec![
+                pg_pool_t.clone(),
+                Ty::string(),
+                Ty::list(Ty::string()),
+                Ty::string(),
+            ],
+            pg_int_result_t.clone(),
+        )),
+    );
+    pg_mod.insert(
+        "create_gin_index".to_string(),
+        Scheme::mono(Ty::fun(
+            vec![
+                pg_pool_t.clone(),
+                Ty::string(),
+                Ty::string(),
+                Ty::string(),
+                Ty::string(),
+            ],
+            pg_int_result_t.clone(),
+        )),
+    );
+    pg_mod.insert(
+        "create_daily_partitions_ahead".to_string(),
+        Scheme::mono(Ty::fun(
+            vec![pg_pool_t.clone(), Ty::string(), Ty::int()],
+            pg_int_result_t.clone(),
+        )),
+    );
+    pg_mod.insert(
+        "list_daily_partitions_before".to_string(),
+        Scheme::mono(Ty::fun(
+            vec![pg_pool_t.clone(), Ty::string(), Ty::int()],
+            Ty::result(Ty::list(Ty::string()), Ty::string()),
+        )),
+    );
+    pg_mod.insert(
+        "drop_partition".to_string(),
+        Scheme::mono(Ty::fun(
+            vec![pg_pool_t.clone(), Ty::string()],
+            pg_int_result_t.clone(),
+        )),
+    );
     // Pg.cast(Ptr, String) -> Ptr  (vendor-specific SQL type cast)
     let ptr_t = Ty::Con(TyCon::new("Ptr"));
     pg_mod.insert(

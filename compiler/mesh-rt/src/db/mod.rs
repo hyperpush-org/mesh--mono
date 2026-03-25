@@ -4,6 +4,7 @@ pub mod json;
 pub mod migration;
 pub mod orm;
 pub mod pg;
+pub mod pg_schema;
 pub mod pool;
 pub mod query;
 pub mod repo;

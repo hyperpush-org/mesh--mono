@@ -31,7 +31,7 @@
 
 ## Tasks
 
-- [ ] **T01: Add honest migration index support and explicit PG schema helpers** `est:3h`
+- [x] **T01: Add honest migration index support and explicit PG schema helpers** `est:3h`
   Why: S04 cannot safely rewrite Mesher until the runtime/compiler boundary exposes the honest helper split the roadmap calls for.
 
 Steps:

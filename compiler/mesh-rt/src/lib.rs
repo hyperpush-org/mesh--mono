@@ -103,6 +103,11 @@ pub use db::orm::{
     mesh_orm_build_delete, mesh_orm_build_insert, mesh_orm_build_select, mesh_orm_build_update,
 };
 pub use db::pg::{mesh_pg_close, mesh_pg_connect, mesh_pg_execute, mesh_pg_query};
+pub use db::pg_schema::{
+    mesh_pg_create_daily_partitions_ahead, mesh_pg_create_extension,
+    mesh_pg_create_gin_index, mesh_pg_create_range_partitioned_table,
+    mesh_pg_drop_partition, mesh_pg_list_daily_partitions_before,
+};
 pub use db::pool::{
     mesh_pool_checkin, mesh_pool_checkout, mesh_pool_close, mesh_pool_execute, mesh_pool_open,
     mesh_pool_query,

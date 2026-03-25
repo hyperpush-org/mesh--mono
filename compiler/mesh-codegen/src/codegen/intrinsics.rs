@@ -1884,6 +1884,67 @@ pub fn declare_intrinsics<'ctx>(module: &Module<'ctx>) {
         );
     }
 
+    // ── M033/S04: explicit PostgreSQL schema helpers ──────────────────
+
+    // mesh_pg_create_extension(pool: i64, name: ptr) -> ptr (MeshResult)
+    module.add_function(
+        "mesh_pg_create_extension",
+        ptr_type.fn_type(&[i64_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External),
+    );
+
+    // mesh_pg_create_range_partitioned_table(pool: i64, table: ptr, cols: ptr, partition_col: ptr) -> ptr
+    module.add_function(
+        "mesh_pg_create_range_partitioned_table",
+        ptr_type.fn_type(
+            &[
+                i64_type.into(),
+                ptr_type.into(),
+                ptr_type.into(),
+                ptr_type.into(),
+            ],
+            false,
+        ),
+        Some(inkwell::module::Linkage::External),
+    );
+
+    // mesh_pg_create_gin_index(pool: i64, table: ptr, index_name: ptr, column: ptr, opclass: ptr) -> ptr
+    module.add_function(
+        "mesh_pg_create_gin_index",
+        ptr_type.fn_type(
+            &[
+                i64_type.into(),
+                ptr_type.into(),
+                ptr_type.into(),
+                ptr_type.into(),
+                ptr_type.into(),
+            ],
+            false,
+        ),
+        Some(inkwell::module::Linkage::External),
+    );
+
+    // mesh_pg_create_daily_partitions_ahead(pool: i64, parent_table: ptr, days: i64) -> ptr
+    module.add_function(
+        "mesh_pg_create_daily_partitions_ahead",
+        ptr_type.fn_type(&[i64_type.into(), ptr_type.into(), i64_type.into()], false),
+        Some(inkwell::module::Linkage::External),
+    );
+
+    // mesh_pg_list_daily_partitions_before(pool: i64, parent_table: ptr, max_days: i64) -> ptr
+    module.add_function(
+        "mesh_pg_list_daily_partitions_before",
+        ptr_type.fn_type(&[i64_type.into(), ptr_type.into(), i64_type.into()], false),
+        Some(inkwell::module::Linkage::External),
+    );
+
+    // mesh_pg_drop_partition(pool: i64, partition_name: ptr) -> ptr (MeshResult)
+    module.add_function(
+        "mesh_pg_drop_partition",
+        ptr_type.fn_type(&[i64_type.into(), ptr_type.into()], false),
+        Some(inkwell::module::Linkage::External),
+    );
+
     // ── Phase 57: SQLite Transactions ──────────────────────────────────
 
     // mesh_sqlite_begin(conn: i64) -> ptr (MeshResult)
@@ -3604,6 +3665,20 @@ mod tests {
         assert!(module.get_function("mesh_pg_ts_rank").is_some());
         assert!(module.get_function("mesh_pg_tsvector_matches").is_some());
         assert!(module.get_function("mesh_pg_jsonb_contains").is_some());
+
+        // M033/S04: Pg schema helpers
+        assert!(module.get_function("mesh_pg_create_extension").is_some());
+        assert!(module
+            .get_function("mesh_pg_create_range_partitioned_table")
+            .is_some());
+        assert!(module.get_function("mesh_pg_create_gin_index").is_some());
+        assert!(module
+            .get_function("mesh_pg_create_daily_partitions_ahead")
+            .is_some());
+        assert!(module
+            .get_function("mesh_pg_list_daily_partitions_before")
+            .is_some());
+        assert!(module.get_function("mesh_pg_drop_partition").is_some());
 
         // Phase 57: SQLite Transactions
         assert!(module.get_function("mesh_sqlite_begin").is_some());

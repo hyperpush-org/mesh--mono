@@ -2152,6 +2152,49 @@ impl<'a> Lowerer<'a> {
                 MirType::FnPtr(vec![MirType::Ptr, MirType::Ptr], Box::new(MirType::Ptr)),
             );
         }
+        // ── M033/S04: Pg schema helpers ───────────────────────────────
+        self.known_functions.insert(
+            "mesh_pg_create_extension".to_string(),
+            MirType::FnPtr(vec![MirType::Int, MirType::Ptr], Box::new(MirType::Ptr)),
+        );
+        self.known_functions.insert(
+            "mesh_pg_create_range_partitioned_table".to_string(),
+            MirType::FnPtr(
+                vec![MirType::Int, MirType::Ptr, MirType::Ptr, MirType::Ptr],
+                Box::new(MirType::Ptr),
+            ),
+        );
+        self.known_functions.insert(
+            "mesh_pg_create_gin_index".to_string(),
+            MirType::FnPtr(
+                vec![
+                    MirType::Int,
+                    MirType::Ptr,
+                    MirType::Ptr,
+                    MirType::Ptr,
+                    MirType::Ptr,
+                ],
+                Box::new(MirType::Ptr),
+            ),
+        );
+        self.known_functions.insert(
+            "mesh_pg_create_daily_partitions_ahead".to_string(),
+            MirType::FnPtr(
+                vec![MirType::Int, MirType::Ptr, MirType::Int],
+                Box::new(MirType::Ptr),
+            ),
+        );
+        self.known_functions.insert(
+            "mesh_pg_list_daily_partitions_before".to_string(),
+            MirType::FnPtr(
+                vec![MirType::Int, MirType::Ptr, MirType::Int],
+                Box::new(MirType::Ptr),
+            ),
+        );
+        self.known_functions.insert(
+            "mesh_pg_drop_partition".to_string(),
+            MirType::FnPtr(vec![MirType::Int, MirType::Ptr], Box::new(MirType::Ptr)),
+        );
         // ── Phase 57: SQLite Transaction functions ──────────────────────
         self.known_functions.insert(
             "mesh_sqlite_begin".to_string(),
@@ -13464,6 +13507,19 @@ fn map_builtin_name(name: &str) -> String {
         "pg_ts_rank" => "mesh_pg_ts_rank".to_string(),
         "pg_tsvector_matches" => "mesh_pg_tsvector_matches".to_string(),
         "pg_jsonb_contains" => "mesh_pg_jsonb_contains".to_string(),
+        // ── M033/S04: Pg schema helpers ─────────────────────────────
+        "pg_create_extension" => "mesh_pg_create_extension".to_string(),
+        "pg_create_range_partitioned_table" => {
+            "mesh_pg_create_range_partitioned_table".to_string()
+        },
+        "pg_create_gin_index" => "mesh_pg_create_gin_index".to_string(),
+        "pg_create_daily_partitions_ahead" => {
+            "mesh_pg_create_daily_partitions_ahead".to_string()
+        },
+        "pg_list_daily_partitions_before" => {
+            "mesh_pg_list_daily_partitions_before".to_string()
+        },
+        "pg_drop_partition" => "mesh_pg_drop_partition".to_string(),
         // ── Phase 57: SQLite Transaction functions ──────────────────────
         "sqlite_begin" => "mesh_sqlite_begin".to_string(),
         "sqlite_commit" => "mesh_sqlite_commit".to_string(),

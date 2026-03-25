@@ -693,6 +693,32 @@ fn register_runtime_symbols() {
         mesh_rt::mesh_migration_execute as *const (),
     );
 
+    // M033/S04: explicit PostgreSQL schema helpers
+    add_sym(
+        "mesh_pg_create_extension",
+        mesh_rt::mesh_pg_create_extension as *const (),
+    );
+    add_sym(
+        "mesh_pg_create_range_partitioned_table",
+        mesh_rt::mesh_pg_create_range_partitioned_table as *const (),
+    );
+    add_sym(
+        "mesh_pg_create_gin_index",
+        mesh_rt::mesh_pg_create_gin_index as *const (),
+    );
+    add_sym(
+        "mesh_pg_create_daily_partitions_ahead",
+        mesh_rt::mesh_pg_create_daily_partitions_ahead as *const (),
+    );
+    add_sym(
+        "mesh_pg_list_daily_partitions_before",
+        mesh_rt::mesh_pg_list_daily_partitions_before as *const (),
+    );
+    add_sym(
+        "mesh_pg_drop_partition",
+        mesh_rt::mesh_pg_drop_partition as *const (),
+    );
+
     // Changeset Operations (Phase 99)
     add_sym(
         "mesh_changeset_cast",

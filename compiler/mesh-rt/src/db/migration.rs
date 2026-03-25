@@ -18,6 +18,7 @@
 
 use crate::collections::list::{mesh_list_get, mesh_list_length, mesh_list_new};
 use crate::db::pool::mesh_pool_execute;
+use crate::io::alloc_result;
 use crate::string::{mesh_string_new, MeshString};
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -44,6 +45,10 @@ unsafe fn list_to_strings(list_ptr: *mut u8) -> Vec<String> {
 /// Create a MeshString from a Rust &str and return as *mut u8.
 unsafe fn rust_string_to_mesh(s: &str) -> *mut u8 {
     mesh_string_new(s.as_ptr(), s.len() as u64) as *mut u8
+}
+
+fn err_result(message: &str) -> *mut u8 {
+    unsafe { alloc_result(1, rust_string_to_mesh(message)) as *mut u8 }
 }
 
 // ── Pure Rust SQL builders (testable without GC) ─────────────────────
@@ -130,15 +135,156 @@ pub(crate) fn build_rename_column_sql(table: &str, old_name: &str, new_name: &st
 ///
 /// Options is a string with space-separated key:value pairs:
 /// - `unique:true` -- creates a UNIQUE index
+/// - `name:idx_name` -- preserves the exact index name instead of deriving one
 /// - `where:condition` -- adds a WHERE clause for partial index
 ///
-/// The index name is auto-generated as `idx_{table}_{col1}_{col2}`.
-pub(crate) fn build_create_index_sql(table: &str, columns: &[String], options: &str) -> String {
-    let is_unique = options.contains("unique:true") || options.contains("unique: true");
-    let index_name = format!("idx_{}_{}", table, columns.join("_"));
+/// Each column may optionally end with `:ASC` or `:DESC`. The neutral parser
+/// intentionally rejects any other suffix so PostgreSQL-specific features like
+/// opclasses stay behind explicit `Pg.*` helpers.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct CreateIndexOptions {
+    is_unique: bool,
+    name: Option<String>,
+    where_clause: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct IndexColumnSpec {
+    name: String,
+    direction: Option<&'static str>,
+}
+
+fn parse_create_index_options(options: &str) -> Result<CreateIndexOptions, String> {
+    let trimmed = options.trim();
+    if trimmed.is_empty() {
+        return Ok(CreateIndexOptions::default());
+    }
+
+    let (head, where_clause) = if let Some(where_start) = trimmed.find("where:") {
+        (
+            trimmed[..where_start].trim_end(),
+            Some(trimmed[where_start + 6..].trim().to_string()),
+        )
+    } else {
+        (trimmed, None)
+    };
+
+    let mut parsed = CreateIndexOptions {
+        where_clause,
+        ..CreateIndexOptions::default()
+    };
+
+    for token in head.split_whitespace() {
+        let Some((key, value)) = token.split_once(':') else {
+            return Err(format!(
+                "Migration.create_index options: invalid token `{token}`"
+            ));
+        };
+        match key {
+            "unique" => match value {
+                "true" => parsed.is_unique = true,
+                "false" => parsed.is_unique = false,
+                _ => {
+                    return Err(format!(
+                        "Migration.create_index options: unique must be `true` or `false`, got `{value}`"
+                    ));
+                }
+            },
+            "name" => {
+                if value.trim().is_empty() {
+                    return Err(
+                        "Migration.create_index options: name must not be empty".to_string(),
+                    );
+                }
+                parsed.name = Some(value.trim().to_string());
+            }
+            "where" => {
+                return Err(
+                    "Migration.create_index options: where clause must come last".to_string(),
+                );
+            }
+            other => {
+                return Err(format!(
+                    "Migration.create_index options: unsupported option `{other}`"
+                ));
+            }
+        }
+    }
+
+    if matches!(parsed.where_clause.as_deref(), Some("")) {
+        return Err("Migration.create_index options: where clause must not be empty".to_string());
+    }
+
+    Ok(parsed)
+}
+
+fn parse_index_column(column: &str) -> Result<IndexColumnSpec, String> {
+    let trimmed = column.trim();
+    if trimmed.is_empty() {
+        return Err("Migration.create_index columns: column name must not be empty".to_string());
+    }
+
+    if let Some((name, suffix)) = trimmed.rsplit_once(':') {
+        let name = name.trim();
+        let suffix = suffix.trim();
+        let direction = if suffix.eq_ignore_ascii_case("ASC") {
+            Some("ASC")
+        } else if suffix.eq_ignore_ascii_case("DESC") {
+            Some("DESC")
+        } else {
+            None
+        };
+
+        if let Some(direction) = direction {
+            if name.is_empty() {
+                return Err(
+                    "Migration.create_index columns: column name must not be empty".to_string(),
+                );
+            }
+            return Ok(IndexColumnSpec {
+                name: name.to_string(),
+                direction: Some(direction),
+            });
+        }
+
+        return Err(format!(
+            "Migration.create_index columns: `{trimmed}` only supports :ASC or :DESC order suffixes"
+        ));
+    }
+
+    Ok(IndexColumnSpec {
+        name: trimmed.to_string(),
+        direction: None,
+    })
+}
+
+pub(crate) fn build_create_index_sql(
+    table: &str,
+    columns: &[String],
+    options: &str,
+) -> Result<String, String> {
+    let parsed_options = parse_create_index_options(options)?;
+    let parsed_columns: Vec<IndexColumnSpec> = columns
+        .iter()
+        .map(|column| parse_index_column(column))
+        .collect::<Result<_, _>>()?;
+
+    if parsed_columns.is_empty() {
+        return Err("Migration.create_index columns: at least one column is required".to_string());
+    }
+
+    let index_name = parsed_options.name.unwrap_or_else(|| {
+        let column_suffix = parsed_columns
+            .iter()
+            .map(|column| column.name.as_str())
+            .collect::<Vec<_>>()
+            .join("_");
+        format!("idx_{table}_{column_suffix}")
+    });
+
     let mut sql = String::new();
     sql.push_str("CREATE ");
-    if is_unique {
+    if parsed_options.is_unique {
         sql.push_str("UNIQUE ");
     }
     sql.push_str("INDEX IF NOT EXISTS ");
@@ -146,17 +292,22 @@ pub(crate) fn build_create_index_sql(table: &str, columns: &[String], options: &
     sql.push_str(" ON ");
     sql.push_str(&quote_ident(table));
     sql.push_str(" (");
-    let quoted_cols: Vec<String> = columns.iter().map(|c| quote_ident(c)).collect();
-    sql.push_str(&quoted_cols.join(", "));
+    let rendered_columns: Vec<String> = parsed_columns
+        .iter()
+        .map(|column| match column.direction {
+            Some(direction) => format!("{} {}", quote_ident(&column.name), direction),
+            None => quote_ident(&column.name),
+        })
+        .collect();
+    sql.push_str(&rendered_columns.join(", "));
     sql.push(')');
 
-    // WHERE clause for partial index
-    if let Some(where_start) = options.find("where:") {
-        let where_clause = &options[where_start + 6..];
-        sql.push_str(&format!(" WHERE {}", where_clause.trim()));
+    if let Some(where_clause) = parsed_options.where_clause {
+        sql.push_str(" WHERE ");
+        sql.push_str(&where_clause);
     }
 
-    sql
+    Ok(sql)
 }
 
 /// Build DROP INDEX SQL.
@@ -296,10 +447,14 @@ pub extern "C" fn mesh_migration_create_index(
         let table_name = (*table).as_str();
         let cols = list_to_strings(columns);
         let opts = (*options).as_str();
-        let sql = build_create_index_sql(table_name, &cols, opts);
-        let sql_ptr = rust_string_to_mesh(&sql) as *const MeshString;
-        let empty_params = mesh_list_new();
-        mesh_pool_execute(pool, sql_ptr, empty_params)
+        match build_create_index_sql(table_name, &cols, opts) {
+            Ok(sql) => {
+                let sql_ptr = rust_string_to_mesh(&sql) as *const MeshString;
+                let empty_params = mesh_list_new();
+                mesh_pool_execute(pool, sql_ptr, empty_params)
+            }
+            Err(message) => err_result(&message),
+        }
     }
 }
 
@@ -410,7 +565,8 @@ mod tests {
 
     #[test]
     fn test_build_create_index_sql() {
-        let sql = build_create_index_sql("users", &["email".to_string()], "");
+        let sql = build_create_index_sql("users", &["email".to_string()], "")
+            .expect("plain index SQL should build");
         assert_eq!(
             sql,
             "CREATE INDEX IF NOT EXISTS \"idx_users_email\" ON \"users\" (\"email\")"
@@ -419,7 +575,8 @@ mod tests {
 
     #[test]
     fn test_build_create_index_sql_unique() {
-        let sql = build_create_index_sql("users", &["email".to_string()], "unique:true");
+        let sql = build_create_index_sql("users", &["email".to_string()], "unique:true")
+            .expect("unique index SQL should build");
         assert_eq!(
             sql,
             "CREATE UNIQUE INDEX IF NOT EXISTS \"idx_users_email\" ON \"users\" (\"email\")"
@@ -428,8 +585,12 @@ mod tests {
 
     #[test]
     fn test_build_create_index_sql_multi_column() {
-        let sql =
-            build_create_index_sql("orders", &["user_id".to_string(), "status".to_string()], "");
+        let sql = build_create_index_sql(
+            "orders",
+            &["user_id".to_string(), "status".to_string()],
+            "",
+        )
+        .expect("multi-column index SQL should build");
         assert_eq!(
             sql,
             "CREATE INDEX IF NOT EXISTS \"idx_orders_user_id_status\" ON \"orders\" (\"user_id\", \"status\")"
@@ -442,10 +603,45 @@ mod tests {
             "users",
             &["email".to_string()],
             "unique:true where:active = true",
-        );
+        )
+        .expect("partial index SQL should build");
         assert_eq!(
             sql,
             "CREATE UNIQUE INDEX IF NOT EXISTS \"idx_users_email\" ON \"users\" (\"email\") WHERE active = true"
+        );
+    }
+
+    #[test]
+    fn test_build_create_index_sql_preserves_exact_name_and_ordered_columns() {
+        let sql = build_create_index_sql(
+            "issues",
+            &["project_id".to_string(), "last_seen:DESC".to_string()],
+            "name:idx_issues_project_last_seen where:status = 'open'",
+        )
+        .expect("ordered named index SQL should build");
+        assert_eq!(
+            sql,
+            "CREATE INDEX IF NOT EXISTS \"idx_issues_project_last_seen\" ON \"issues\" (\"project_id\", \"last_seen\" DESC) WHERE status = 'open'"
+        );
+    }
+
+    #[test]
+    fn test_build_create_index_sql_rejects_pg_only_column_suffixes() {
+        let err = build_create_index_sql("events", &["tags:jsonb_path_ops".to_string()], "")
+            .expect_err("PG-only opclass syntax must stay out of Migration.create_index");
+        assert_eq!(
+            err,
+            "Migration.create_index columns: `tags:jsonb_path_ops` only supports :ASC or :DESC order suffixes"
+        );
+    }
+
+    #[test]
+    fn test_build_create_index_sql_rejects_unsupported_options() {
+        let err = build_create_index_sql("events", &["tags".to_string()], "using:gin")
+            .expect_err("PG-only index method options must stay out of Migration.create_index");
+        assert_eq!(
+            err,
+            "Migration.create_index options: unsupported option `using`"
         );
     }
 
