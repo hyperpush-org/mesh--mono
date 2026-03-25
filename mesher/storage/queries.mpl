@@ -135,14 +135,20 @@ pub fn create_api_key(pool :: PoolHandle, project_id :: String, label :: String)
 end
 
 # Get the project associated with a valid (non-revoked) API key.
-# Uses ORM Query.join_as + Query.where_raw instead of raw SQL JOIN.
+# Uses ORM Query.join_as plus structured SELECT/WHERE expressions instead of raw projections.
 
 pub fn get_project_by_api_key(pool :: PoolHandle, key_value :: String) -> Project ! String do
   let q = Query.from(Project.__table__())
     |> Query.join_as(:inner, ApiKey.__table__(), "ak", "ak.project_id = projects.id")
-    |> Query.where_raw("ak.key_value = ?", [key_value])
-    |> Query.where_raw("ak.revoked_at IS NULL", [])
-    |> Query.select_raw(["projects.id::text", "projects.org_id::text", "projects.name", "projects.platform", "projects.created_at::text"])
+    |> Query.where_expr(Expr.eq(Expr.column("ak.key_value"), Expr.value(key_value)))
+    |> Query.where_expr(Expr.eq(Expr.coalesce([Pg.text(Expr.column("ak.revoked_at")), Expr.value("")]), Expr.value("")))
+    |> Query.select_exprs([
+      Expr.label(Expr.column("projects.id"), "id"),
+      Expr.label(Expr.column("projects.org_id"), "org_id"),
+      Expr.label(Expr.column("projects.name"), "name"),
+      Expr.label(Expr.column("projects.platform"), "platform"),
+      Expr.label(Expr.column("projects.created_at"), "created_at")
+    ])
   let rows = Repo.all(pool, q) ?
   if List.length(rows) > 0 do
     let row = List.head(rows)
@@ -436,16 +442,37 @@ fn parse_limit(s :: String) -> Int do
   end
 end
 
+# Helper: keep dashboard bucket selection honest and injection-safe.
+
+fn normalize_time_bucket(bucket :: String) -> String do
+  if bucket == "day" do
+    "day"
+  else
+    "hour"
+  end
+end
+
 # List issues for a project filtered by status (for API listing).
 # Constructs Issue structs manually with parse_event_count for the Int field.
-# Uses ORM Query.where + Query.order_by + Query.select_raw + Repo.all instead of Repo.query_raw.
+# Uses structured SELECT expressions plus regular ordering instead of raw projections.
 
 pub fn list_issues_by_status(pool :: PoolHandle, project_id :: String, status :: String) -> List < Issue > ! String do
   let q = Query.from(Issue.__table__())
-    |> Query.where_raw("project_id = ?::uuid", [project_id])
-    |> Query.where(:status, status)
+    |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
+    |> Query.where_expr(Expr.eq(Expr.column("status"), Expr.value(status)))
+    |> Query.select_exprs([
+      Expr.label(Expr.column("id"), "id"),
+      Expr.label(Expr.column("project_id"), "project_id"),
+      Expr.label(Expr.column("fingerprint"), "fingerprint"),
+      Expr.label(Expr.column("title"), "title"),
+      Expr.label(Expr.column("level"), "level"),
+      Expr.label(Expr.column("status"), "status"),
+      Expr.label(Expr.column("event_count"), "event_count"),
+      Expr.label(Expr.column("first_seen"), "first_seen"),
+      Expr.label(Expr.column("last_seen"), "last_seen"),
+      Expr.label(Expr.coalesce([Pg.text(Expr.column("assigned_to")), Expr.value("")]), "assigned_to")
+    ])
     |> Query.order_by(:last_seen, :desc)
-    |> Query.select_raw(["id::text", "project_id::text", "fingerprint", "title", "level", "status", "event_count::text", "first_seen::text", "last_seen::text", "COALESCE(assigned_to::text, '') as assigned_to"])
   let rows = Repo.all(pool, q) ?
   Ok(rows
     |> List.map(fn (row) do
@@ -578,7 +605,7 @@ end
 
 # Event listing within an issue with keyset pagination (for DETAIL-05 context).
 # Keyset pagination on (received_at, id) for stable browsing.
-# Uses ORM Query.where_raw + Query.select_raw + Query.order_by_raw + Query.limit + Repo.all.
+# Keeps the tuple cursor predicate raw because the current builder still lacks OR/tuple expression support.
 
 pub fn list_events_for_issue(pool :: PoolHandle,
 issue_id :: String,
@@ -587,9 +614,15 @@ cursor_id :: String,
 limit_str :: String) -> List < Map < String, String > > ! String do
   let lim = parse_limit(limit_str)
   let base = Query.from(Event.__table__())
-    |> Query.where_raw("issue_id = ?::uuid", [issue_id])
-    |> Query.select_raw(["id::text", "level", "message", "received_at::text"])
-    |> Query.order_by_raw("received_at DESC, id DESC")
+    |> Query.where_expr(Expr.eq(Expr.column("issue_id"), Pg.uuid(Expr.value(issue_id))))
+    |> Query.select_exprs([
+      Expr.label(Expr.column("id"), "id"),
+      Expr.label(Expr.column("level"), "level"),
+      Expr.label(Expr.column("message"), "message"),
+      Expr.label(Expr.column("received_at"), "received_at")
+    ])
+    |> Query.order_by(:received_at, :desc)
+    |> Query.order_by(:id, :desc)
     |> Query.limit(lim)
   if String.length(cursor) > 0 do
     let q = base
@@ -602,45 +635,59 @@ end
 
 # --- Dashboard aggregation queries (Phase 91 Plan 02) ---
 # DASH-01: Event volume bucketed by hour or day for a project.
-# bucket param is either "hour" or "day" (passed from handler, validated by caller).
+# bucket param is normalized to the honest allow-list used by the caller surface.
 # Default 24-hour time window.
-# Uses ORM Query.where_raw + Query.select_raw + Query.group_by_raw + Query.order_by_raw + Repo.all.
-# Bucket is string-interpolated into date_trunc expression (safe: caller validates "hour"/"day" only).
+# Uses structured SELECT expressions plus alias-based GROUP BY / ORDER BY.
 
 pub fn event_volume_hourly(pool :: PoolHandle, project_id :: String, bucket :: String) -> List < Map < String, String > > ! String do
+  let bucket_name = normalize_time_bucket(bucket)
+  let bucket_expr = Expr.fn_call("date_trunc", [Expr.value(bucket_name), Expr.column("received_at")])
   let q = Query.from(Event.__table__())
-    |> Query.where_raw("project_id = ?::uuid", [project_id])
+    |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
     |> Query.where_raw("received_at > now() - interval '24 hours'", [])
-    |> Query.select_raw(["date_trunc('" <> bucket <> "', received_at)::text AS bucket", "count(*)::text AS count"])
-    |> Query.group_by_raw("1")
-    |> Query.order_by_raw("1")
+    |> Query.select_exprs([
+      Expr.label(bucket_expr, "bucket"),
+      Expr.label(Expr.fn_call("count", [Expr.column("*")]), "count")
+    ])
+    |> Query.group_by(:bucket)
+    |> Query.order_by(:bucket, :asc)
   Repo.all(pool, q)
 end
 
 # DASH-02: Error breakdown by severity level for a project.
 # Groups events by level (error, warning, info, etc.) with counts.
-# Uses ORM Query.where_raw + Query.select_raw + Query.group_by_raw + Query.order_by_raw + Repo.all.
+# Uses structured SELECT expressions with regular GROUP BY / ORDER BY.
 
 pub fn error_breakdown_by_level(pool :: PoolHandle, project_id :: String) -> List < Map < String, String > > ! String do
   let q = Query.from(Event.__table__())
-    |> Query.where_raw("project_id = ?::uuid", [project_id])
+    |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
     |> Query.where_raw("received_at > now() - interval '24 hours'", [])
-    |> Query.select_raw(["level", "count(*)::text AS count"])
-    |> Query.group_by_raw("level")
-    |> Query.order_by_raw("count DESC")
+    |> Query.select_exprs([
+      Expr.label(Expr.column("level"), "level"),
+      Expr.label(Expr.fn_call("count", [Expr.column("*")]), "count")
+    ])
+    |> Query.group_by(:level)
+    |> Query.order_by(:count, :desc)
   Repo.all(pool, q)
 end
 
 # DASH-03: Top issues ranked by frequency (event count).
 # Returns unresolved issues ordered by event_count DESC.
-# Uses ORM Query.where_raw + Query.where + Query.select_raw + Query.order_by + Query.limit + Repo.all.
+# Uses structured projection helpers while keeping numeric ORDER BY on the real column.
 
 pub fn top_issues_by_frequency(pool :: PoolHandle, project_id :: String, limit_str :: String) -> List < Map < String, String > > ! String do
   let lim = parse_limit(limit_str)
   let q = Query.from(Issue.__table__())
-    |> Query.where_raw("project_id = ?::uuid", [project_id])
-    |> Query.where(:status, "unresolved")
-    |> Query.select_raw(["id::text", "title", "level", "status", "event_count::text", "last_seen::text"])
+    |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
+    |> Query.where_expr(Expr.eq(Expr.column("status"), Expr.value("unresolved")))
+    |> Query.select_exprs([
+      Expr.label(Expr.column("id"), "id"),
+      Expr.label(Expr.column("title"), "title"),
+      Expr.label(Expr.column("level"), "level"),
+      Expr.label(Expr.column("status"), "status"),
+      Expr.label(Expr.column("event_count"), "event_count"),
+      Expr.label(Expr.column("last_seen"), "last_seen")
+    ])
     |> Query.order_by(:event_count, :desc)
     |> Query.limit(lim)
   Repo.all(pool, q)
@@ -651,15 +698,17 @@ end
 # so the JSONB key filter and projection stay on the explicit PG surface.
 
 pub fn event_breakdown_by_tag(pool :: PoolHandle, project_id :: String, tag_key :: String) -> List < Map < String, String > > ! String do
+  let tag_value = Expr.fn_call("jsonb_extract_path_text", [Expr.column("tags"), Expr.value(tag_key)])
   let q = Query.from(Event.__table__())
     |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
     |> Query.where_raw("received_at > now() - interval '24 hours'", [])
     |> Query.where_expr(Expr.fn_call("jsonb_exists", [Expr.column("tags"), Expr.value(tag_key)]))
-    |> Query.select_exprs([Expr.label(Expr.fn_call("jsonb_extract_path_text",
-    [Expr.column("tags"), Expr.value(tag_key)]),
-    "tag_value"), Expr.label(Expr.fn_call("count", [Expr.column("*")]), "count")])
-    |> Query.group_by_raw("1")
-    |> Query.order_by_raw("count DESC")
+    |> Query.select_exprs([
+      Expr.label(tag_value, "tag_value"),
+      Expr.label(Expr.fn_call("count", [Expr.column("*")]), "count")
+    ])
+    |> Query.group_by(:tag_value)
+    |> Query.order_by(:count, :desc)
     |> Query.limit(20)
   Repo.all(pool, q)
 end
@@ -695,12 +744,28 @@ end
 # DETAIL-01..04, DETAIL-06: Get complete event with all JSONB fields.
 # Returns full event payload including exception, stacktrace, breadcrumbs,
 # tags, extra, user_context. JSONB fields use COALESCE for null safety.
-# Uses ORM Query.where_raw + Query.select_raw + Repo.all.
+# Uses structured projection helpers instead of raw SELECT fragments.
 
 pub fn get_event_detail(pool :: PoolHandle, event_id :: String) -> List < Map < String, String > > ! String do
   let q = Query.from(Event.__table__())
-    |> Query.where_raw("id = ?::uuid", [event_id])
-    |> Query.select_raw(["id::text", "project_id::text", "issue_id::text", "level", "message", "fingerprint", "COALESCE(exception::text, 'null') AS exception", "COALESCE(stacktrace::text, '[]') AS stacktrace", "COALESCE(breadcrumbs::text, '[]') AS breadcrumbs", "COALESCE(tags::text, '{}') AS tags", "COALESCE(extra::text, '{}') AS extra", "COALESCE(user_context::text, 'null') AS user_context", "COALESCE(sdk_name, '') AS sdk_name", "COALESCE(sdk_version, '') AS sdk_version", "received_at::text"])
+    |> Query.where_expr(Expr.eq(Expr.column("id"), Pg.uuid(Expr.value(event_id))))
+    |> Query.select_exprs([
+      Expr.label(Expr.column("id"), "id"),
+      Expr.label(Expr.column("project_id"), "project_id"),
+      Expr.label(Expr.column("issue_id"), "issue_id"),
+      Expr.label(Expr.column("level"), "level"),
+      Expr.label(Expr.column("message"), "message"),
+      Expr.label(Expr.column("fingerprint"), "fingerprint"),
+      Expr.label(Expr.coalesce([Pg.text(Expr.column("exception")), Expr.value("null")]), "exception"),
+      Expr.label(Expr.coalesce([Pg.text(Expr.column("stacktrace")), Expr.value("[]")]), "stacktrace"),
+      Expr.label(Expr.coalesce([Pg.text(Expr.column("breadcrumbs")), Expr.value("[]")]), "breadcrumbs"),
+      Expr.label(Expr.coalesce([Pg.text(Expr.column("tags")), Expr.value("{}")]), "tags"),
+      Expr.label(Expr.coalesce([Pg.text(Expr.column("extra")), Expr.value("{}")]), "extra"),
+      Expr.label(Expr.coalesce([Pg.text(Expr.column("user_context")), Expr.value("null")]), "user_context"),
+      Expr.label(Expr.coalesce([Expr.column("sdk_name"), Expr.value("")]), "sdk_name"),
+      Expr.label(Expr.coalesce([Expr.column("sdk_version"), Expr.value("")]), "sdk_version"),
+      Expr.label(Expr.column("received_at"), "received_at")
+    ])
   Repo.all(pool, q)
 end
 
@@ -744,14 +809,22 @@ end
 # List all members of an organization with user info (email, display_name).
 # JOIN with users table for enriched member listing.
 # Returns raw Map rows for flexible JSON serialization.
-# Uses ORM Query.join_as + Query.where_raw + Query.select_raw + Query.order_by_raw + Repo.all.
+# Uses structured SELECT expressions with regular ordering.
 
 pub fn get_members_with_users(pool :: PoolHandle, org_id :: String) -> List < Map < String, String > > ! String do
   let q = Query.from(OrgMembership.__table__())
     |> Query.join_as(:inner, User.__table__(), "u", "u.id = org_memberships.user_id")
-    |> Query.where_raw("org_memberships.org_id = ?::uuid", [org_id])
-    |> Query.select_raw(["org_memberships.id::text", "org_memberships.user_id::text", "org_memberships.org_id::text", "org_memberships.role", "org_memberships.joined_at::text", "u.email", "u.display_name"])
-    |> Query.order_by_raw("org_memberships.joined_at")
+    |> Query.where_expr(Expr.eq(Expr.column("org_memberships.org_id"), Pg.uuid(Expr.value(org_id))))
+    |> Query.select_exprs([
+      Expr.label(Expr.column("org_memberships.id"), "id"),
+      Expr.label(Expr.column("org_memberships.user_id"), "user_id"),
+      Expr.label(Expr.column("org_memberships.org_id"), "org_id"),
+      Expr.label(Expr.column("org_memberships.role"), "role"),
+      Expr.label(Expr.column("org_memberships.joined_at"), "joined_at"),
+      Expr.label(Expr.column("u.email"), "email"),
+      Expr.label(Expr.column("u.display_name"), "display_name")
+    ])
+    |> Query.order_by(:joined_at, :asc)
   Repo.all(pool, q)
 end
 
@@ -875,14 +948,13 @@ rule_name :: String) -> String ! String do
 end
 
 # ALERT-03: Check if an issue was just created (first_seen = last_seen).
-# Uses ORM Query.where_raw + Query.select_raw + Repo.all.
+# Uses structured WHERE expressions plus Repo.exists.
 
 pub fn check_new_issue(pool :: PoolHandle, issue_id :: String) -> Bool ! String do
   let q = Query.from(Issue.__table__())
-    |> Query.where_raw("id = ?::uuid AND first_seen = last_seen", [issue_id])
-    |> Query.select_raw(["1 AS is_new"])
-  let rows = Repo.all(pool, q) ?
-  Ok(List.length(rows) > 0)
+    |> Query.where_expr(Expr.eq(Expr.column("id"), Pg.uuid(Expr.value(issue_id))))
+    |> Query.where_expr(Expr.eq(Expr.column("first_seen"), Expr.column("last_seen")))
+  Repo.exists(pool, q)
 end
 
 # ALERT-03: Get enabled alert rules for event-based conditions for a project.
@@ -900,15 +972,14 @@ pub fn get_event_alert_rules(pool :: PoolHandle, project_id :: String, condition
 end
 
 # ALERT-05: Check cooldown before firing (for event-based triggers).
-# Uses ORM Query.where_raw + Query.select_raw + Repo.all instead of Repo.query_raw.
+# Uses Repo.exists so the helper stays builder-backed apart from the interval predicate.
 
 pub fn should_fire_by_cooldown(pool :: PoolHandle, rule_id :: String, cooldown_str :: String) -> Bool ! String do
   let q = Query.from(AlertRule.__table__())
-    |> Query.where_raw("id = ?::uuid AND (last_fired_at IS NULL OR last_fired_at < now() - interval '1 minute' * ?::int)",
-    [rule_id, cooldown_str])
-    |> Query.select_raw(["1 AS ok"])
-  let rows = Repo.all(pool, q) ?
-  Ok(List.length(rows) > 0)
+    |> Query.where_expr(Expr.eq(Expr.column("id"), Pg.uuid(Expr.value(rule_id))))
+    |> Query.where_raw("(last_fired_at IS NULL OR last_fired_at < now() - interval '1 minute' * ?::int)",
+    [cooldown_str])
+  Repo.exists(pool, q)
 end
 
 # ALERT-06: Transition alert to acknowledged.
@@ -939,17 +1010,33 @@ pub fn resolve_fired_alert(pool :: PoolHandle, alert_id :: String) -> Int ! Stri
 end
 
 # ALERT-06: List alerts for a project filtered by status.
-# Uses ORM Query.join_as + Query.where_raw + Query.select_raw + Query.order_by_raw + Query.limit + Repo.all.
+# Uses structured SELECT expressions plus conditional query assembly.
 
 pub fn list_alerts(pool :: PoolHandle, project_id :: String, status :: String) -> List < Map < String, String > > ! String do
-  let q = Query.from(Alert.__table__())
+  let base = Query.from(Alert.__table__())
     |> Query.join_as(:inner, AlertRule.__table__(), "r", "r.id = alerts.rule_id")
-    |> Query.where_raw("alerts.project_id = ?::uuid AND (? = '' OR alerts.status = ?)",
-    [project_id, status, status])
-    |> Query.select_raw(["alerts.id::text", "alerts.rule_id::text", "alerts.project_id::text", "alerts.status", "alerts.message", "alerts.condition_snapshot::text", "alerts.triggered_at::text", "COALESCE(alerts.acknowledged_at::text, '') AS acknowledged_at", "COALESCE(alerts.resolved_at::text, '') AS resolved_at", "r.name AS rule_name"])
-    |> Query.order_by_raw("alerts.triggered_at DESC")
+    |> Query.where_expr(Expr.eq(Expr.column("alerts.project_id"), Pg.uuid(Expr.value(project_id))))
+    |> Query.select_exprs([
+      Expr.label(Expr.column("alerts.id"), "id"),
+      Expr.label(Expr.column("alerts.rule_id"), "rule_id"),
+      Expr.label(Expr.column("alerts.project_id"), "project_id"),
+      Expr.label(Expr.column("alerts.status"), "status"),
+      Expr.label(Expr.column("alerts.message"), "message"),
+      Expr.label(Pg.text(Expr.column("alerts.condition_snapshot")), "condition_snapshot"),
+      Expr.label(Expr.column("alerts.triggered_at"), "triggered_at"),
+      Expr.label(Expr.coalesce([Pg.text(Expr.column("alerts.acknowledged_at")), Expr.value("")]), "acknowledged_at"),
+      Expr.label(Expr.coalesce([Pg.text(Expr.column("alerts.resolved_at")), Expr.value("")]), "resolved_at"),
+      Expr.label(Expr.column("r.name"), "rule_name")
+    ])
+    |> Query.order_by(:triggered_at, :desc)
     |> Query.limit(50)
-  Repo.all(pool, q)
+  if String.length(status) > 0 do
+    let q = base
+      |> Query.where_expr(Expr.eq(Expr.column("alerts.status"), Expr.value(status)))
+    Repo.all(pool, q)
+  else
+    Repo.all(pool, base)
+  end
 end
 
 # Load all enabled threshold rules for evaluation.
