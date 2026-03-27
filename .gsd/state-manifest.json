@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-03-27T19:23:55.363Z",
+  "exported_at": "2026-03-27T19:32:08.057Z",
   "milestones": [
     {
       "id": "M001",
@@ -4035,19 +4035,30 @@
       "milestone_id": "M034",
       "slice_id": "S09",
       "id": "T06",
-      "title": "Archive first-green exactly once and rerun the full assembled verifier",
-      "status": "pending",
-      "one_liner": "",
-      "narrative": "",
-      "verification_result": "",
+      "title": "Reran the S05 stop-after preflight, proved the repaired rollout SHA is still red on hosted verification, and preserved `first-green` for the next real green bundle.",
+      "status": "complete",
+      "one_liner": "Reran the S05 stop-after preflight, proved the repaired rollout SHA is still red on hosted verification, and preserved `first-green` for the next real green bundle.",
+      "narrative": "Loaded `.env` and reran `scripts/verify-m034-s05.sh` with `VERIFY_M034_S05_STOP_AFTER=remote-evidence`. Local prereq/docs/workflow/verifier phases completed, but `remote-evidence` failed on live hosted truth: `authoritative-verification.yml` and `release.yml` both matched the expected `headSha` `8e6d49dacc4f4cd64824b032078ae45aabfe9635` and still concluded `failure`. Read-only GitHub checks confirmed this was not a stale-run selection bug. I captured the failing hosted logs into `.tmp/m034-s09/t06-blocker/` and identified the active blockers: authoritative verification is still failing inside `scripts/verify-m034-s01.sh` with package latest-version drift, and the release workflow is still failing in the Windows `scripts/verify-m034-s03.ps1` staged installer smoke (`installed meshc.exe build installer smoke fixture failed`). Because the stop-after preflight was red, I did not archive `.tmp/m034-s06/evidence/first-green/` and did not run the full assembled S05 replay; using the once-only label on a failing bundle would make the canonical evidence dishonest. This is a plan-invalidating blocker because T06 assumes the repaired hosted evidence set is already green, but the hosted rollout still needs remediation and reruns before the closeout task can truthfully proceed.",
+      "verification_result": "Reran the stop-after `remote-evidence` verifier with `.env` loaded. It failed at `remote-evidence` and wrote fresh artifacts under `.tmp/m034-s05/verify/`, including `status.txt=failed`, `failed-phase.txt=remote-evidence`, and a new `remote-runs.json` showing the repaired-sha failures. Then ran read-only `gh run list` checks to confirm the latest `authoritative-verification.yml` and `release.yml` runs on the expected refs were the failing runs on `8e6d49dacc4f4cd64824b032078ae45aabfe9635`, not stale older greens. Finally downloaded failed hosted logs with `gh run view --log-failed` and verified the concrete blocker messages locally. The archive step and full assembled replay were intentionally withheld because the preflight was red.",
       "duration": "",
-      "completed_at": null,
-      "blocker_discovered": false,
-      "deviations": "",
-      "known_issues": "",
-      "key_files": [],
-      "key_decisions": [],
-      "full_summary_md": "",
+      "completed_at": "2026-03-27T19:32:07.527Z",
+      "blocker_discovered": true,
+      "deviations": "Did not run the archive command or the full assembled S05 replay because the required stop-after `remote-evidence` preflight was red on the repaired rollout SHA. Preserving `first-green` for the first truthful green bundle was more important than forcing the remaining scripted steps.",
+      "known_issues": "`authoritative-verification.yml` is still red on `8e6d49dacc4f4cd64824b032078ae45aabfe9635` because `scripts/verify-m034-s01.sh` reports package latest-version drift. `release.yml` is still red on the same SHA because the Windows `scripts/verify-m034-s03.ps1` staged installer smoke fails while building the installed `meshc.exe` fixture. Until those hosted blockers are fixed and rerun successfully, `.tmp/m034-s06/evidence/first-green/` must remain absent.",
+      "key_files": [
+        ".tmp/m034-s05/verify/remote-runs.json",
+        ".tmp/m034-s05/verify/failed-phase.txt",
+        ".tmp/m034-s09/t06-blocker/23663179236-failed.log",
+        ".tmp/m034-s09/t06-blocker/23663179715-failed.log",
+        ".tmp/m034-s09/t06-blocker/23663179236-view.json",
+        ".tmp/m034-s09/t06-blocker/23663179715-view.json",
+        ".gsd/milestones/M034/slices/S09/tasks/T06-SUMMARY.md"
+      ],
+      "key_decisions": [
+        "Preserved the once-only `first-green` label by refusing to archive a red `remote-evidence` preflight.",
+        "When the stop-after `remote-evidence` run is red, capture the hosted failure logs locally first and block closeout instead of archiving misleading evidence."
+      ],
+      "full_summary_md": "---\nid: T06\nparent: S09\nmilestone: M034\nkey_files:\n  - .tmp/m034-s05/verify/remote-runs.json\n  - .tmp/m034-s05/verify/failed-phase.txt\n  - .tmp/m034-s09/t06-blocker/23663179236-failed.log\n  - .tmp/m034-s09/t06-blocker/23663179715-failed.log\n  - .tmp/m034-s09/t06-blocker/23663179236-view.json\n  - .tmp/m034-s09/t06-blocker/23663179715-view.json\n  - .gsd/milestones/M034/slices/S09/tasks/T06-SUMMARY.md\nkey_decisions:\n  - Preserved the once-only `first-green` label by refusing to archive a red `remote-evidence` preflight.\n  - When the stop-after `remote-evidence` run is red, capture the hosted failure logs locally first and block closeout instead of archiving misleading evidence.\nduration: \"\"\nverification_result: mixed\ncompleted_at: 2026-03-27T19:32:07.528Z\nblocker_discovered: true\n---\n\n# T06: Reran the S05 stop-after preflight, proved the repaired rollout SHA is still red on hosted verification, and preserved `first-green` for the next real green bundle.\n\n**Reran the S05 stop-after preflight, proved the repaired rollout SHA is still red on hosted verification, and preserved `first-green` for the next real green bundle.**\n\n## What Happened\n\nLoaded `.env` and reran `scripts/verify-m034-s05.sh` with `VERIFY_M034_S05_STOP_AFTER=remote-evidence`. Local prereq/docs/workflow/verifier phases completed, but `remote-evidence` failed on live hosted truth: `authoritative-verification.yml` and `release.yml` both matched the expected `headSha` `8e6d49dacc4f4cd64824b032078ae45aabfe9635` and still concluded `failure`. Read-only GitHub checks confirmed this was not a stale-run selection bug. I captured the failing hosted logs into `.tmp/m034-s09/t06-blocker/` and identified the active blockers: authoritative verification is still failing inside `scripts/verify-m034-s01.sh` with package latest-version drift, and the release workflow is still failing in the Windows `scripts/verify-m034-s03.ps1` staged installer smoke (`installed meshc.exe build installer smoke fixture failed`). Because the stop-after preflight was red, I did not archive `.tmp/m034-s06/evidence/first-green/` and did not run the full assembled S05 replay; using the once-only label on a failing bundle would make the canonical evidence dishonest. This is a plan-invalidating blocker because T06 assumes the repaired hosted evidence set is already green, but the hosted rollout still needs remediation and reruns before the closeout task can truthfully proceed.\n\n## Verification\n\nReran the stop-after `remote-evidence` verifier with `.env` loaded. It failed at `remote-evidence` and wrote fresh artifacts under `.tmp/m034-s05/verify/`, including `status.txt=failed`, `failed-phase.txt=remote-evidence`, and a new `remote-runs.json` showing the repaired-sha failures. Then ran read-only `gh run list` checks to confirm the latest `authoritative-verification.yml` and `release.yml` runs on the expected refs were the failing runs on `8e6d49dacc4f4cd64824b032078ae45aabfe9635`, not stale older greens. Finally downloaded failed hosted logs with `gh run view --log-failed` and verified the concrete blocker messages locally. The archive step and full assembled replay were intentionally withheld because the preflight was red.\n\n## Verification Evidence\n\n| # | Command | Exit Code | Verdict | Duration |\n|---|---------|-----------|---------|----------|\n| 1 | `bash -c 'set -euo pipefail; test -f .env; set -a; source .env; set +a; VERIFY_M034_S05_STOP_AFTER=remote-evidence bash scripts/verify-m034-s05.sh'` | 1 | ❌ fail | 199000ms |\n| 2 | `gh run list -R snowdamiz/mesh-lang --workflow authoritative-verification.yml --limit 1 --json databaseId,status,conclusion,headBranch,headSha,url && gh run list -R snowdamiz/mesh-lang --workflow release.yml --limit 1 --json databaseId,status,conclusion,headBranch,headSha,url` | 0 | ✅ pass | 3000ms |\n| 3 | `gh run view 23663179236 -R snowdamiz/mesh-lang --log-failed && gh run view 23663179715 -R snowdamiz/mesh-lang --log-failed` | 0 | ✅ pass | 3000ms |\n\n\n## Deviations\n\nDid not run the archive command or the full assembled S05 replay because the required stop-after `remote-evidence` preflight was red on the repaired rollout SHA. Preserving `first-green` for the first truthful green bundle was more important than forcing the remaining scripted steps.\n\n## Known Issues\n\n`authoritative-verification.yml` is still red on `8e6d49dacc4f4cd64824b032078ae45aabfe9635` because `scripts/verify-m034-s01.sh` reports package latest-version drift. `release.yml` is still red on the same SHA because the Windows `scripts/verify-m034-s03.ps1` staged installer smoke fails while building the installed `meshc.exe` fixture. Until those hosted blockers are fixed and rerun successfully, `.tmp/m034-s06/evidence/first-green/` must remain absent.\n\n## Files Created/Modified\n\n- `.tmp/m034-s05/verify/remote-runs.json`\n- `.tmp/m034-s05/verify/failed-phase.txt`\n- `.tmp/m034-s09/t06-blocker/23663179236-failed.log`\n- `.tmp/m034-s09/t06-blocker/23663179715-failed.log`\n- `.tmp/m034-s09/t06-blocker/23663179236-view.json`\n- `.tmp/m034-s09/t06-blocker/23663179715-view.json`\n- `.gsd/milestones/M034/slices/S09/tasks/T06-SUMMARY.md`\n",
       "description": "With the repaired hosted evidence set green on the fresh rollout SHA, close the slice with the canonical assembled proof.\n- Load `.env`, rerun the stop-after `remote-evidence` preflight, and confirm it is green on the repaired refs and `headSha`.\n- If `.tmp/m034-s06/evidence/first-green/` is still absent, capture it exactly once through `scripts/verify-m034-s06-remote-evidence.sh` and validate the archived manifest plus remote-run summary.\n- Run the full `bash scripts/verify-m034-s05.sh` replay with `.env` loaded and confirm `remote-evidence`, `public-http`, and `s01-live-proof` all pass on the repaired hosted state.\n- Check the final proof bundle for `status.txt == ok`, a complete phase report, `public-http.log`, and the S01 package-version evidence so the slice demo is preserved in one truthful bundle.",
       "estimate": "1h",
       "files": [
@@ -8559,6 +8570,39 @@
       "verdict": "❌ fail",
       "duration_ms": 1000,
       "created_at": "2026-03-27T19:23:54.381Z"
+    },
+    {
+      "id": 297,
+      "task_id": "T06",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "bash -c 'set -euo pipefail; test -f .env; set -a; source .env; set +a; VERIFY_M034_S05_STOP_AFTER=remote-evidence bash scripts/verify-m034-s05.sh'",
+      "exit_code": 1,
+      "verdict": "❌ fail",
+      "duration_ms": 199000,
+      "created_at": "2026-03-27T19:32:07.527Z"
+    },
+    {
+      "id": 298,
+      "task_id": "T06",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "gh run list -R snowdamiz/mesh-lang --workflow authoritative-verification.yml --limit 1 --json databaseId,status,conclusion,headBranch,headSha,url && gh run list -R snowdamiz/mesh-lang --workflow release.yml --limit 1 --json databaseId,status,conclusion,headBranch,headSha,url",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 3000,
+      "created_at": "2026-03-27T19:32:07.527Z"
+    },
+    {
+      "id": 299,
+      "task_id": "T06",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "gh run view 23663179236 -R snowdamiz/mesh-lang --log-failed && gh run view 23663179715 -R snowdamiz/mesh-lang --log-failed",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 3000,
+      "created_at": "2026-03-27T19:32:07.527Z"
     }
   ]
 }

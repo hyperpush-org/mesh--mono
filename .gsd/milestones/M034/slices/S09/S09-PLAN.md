@@ -91,7 +91,7 @@ for name in required:
 print('workflow-status.json matches repaired rollout target and all-green hosted evidence')
 PY
   - Blocker: `authoritative-verification.yml` failed on repaired SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635` because the package-level `latest` metadata lagged the version just published by the hosted proof run. `release.yml`, `extension-release-proof.yml`, and `publish-extension.yml` were still in progress when the monitor stopped on that red lane, so the task does not claim an all-green hosted evidence set. T06 remains blocked until that new hosted failure is fixed.
-- [ ] **T06: Archive first-green exactly once and rerun the full assembled verifier** — With the repaired hosted evidence set green on the fresh rollout SHA, close the slice with the canonical assembled proof.
+- [x] **T06: Reran the S05 stop-after preflight, proved the repaired rollout SHA is still red on hosted verification, and preserved `first-green` for the next real green bundle.** — With the repaired hosted evidence set green on the fresh rollout SHA, close the slice with the canonical assembled proof.
 - Load `.env`, rerun the stop-after `remote-evidence` preflight, and confirm it is green on the repaired refs and `headSha`.
 - If `.tmp/m034-s06/evidence/first-green/` is still absent, capture it exactly once through `scripts/verify-m034-s06-remote-evidence.sh` and validate the archived manifest plus remote-run summary.
 - Run the full `bash scripts/verify-m034-s05.sh` replay with `.env` loaded and confirm `remote-evidence`, `public-http`, and `s01-live-proof` all pass on the repaired hosted state.
@@ -115,3 +115,4 @@ assert public_log.exists(), public_log
 assert any(Path('.tmp/m034-s01/verify').rglob('package-version.txt'))
 print('assembled proof bundle is complete')
 PY
+  - Blocker: `authoritative-verification.yml` is still red on `8e6d49dacc4f4cd64824b032078ae45aabfe9635` because `scripts/verify-m034-s01.sh` reports package latest-version drift. `release.yml` is still red on the same SHA because the Windows `scripts/verify-m034-s03.ps1` staged installer smoke fails while building the installed `meshc.exe` fixture. Until those hosted blockers are fixed and rerun successfully, `.tmp/m034-s06/evidence/first-green/` must remain absent.

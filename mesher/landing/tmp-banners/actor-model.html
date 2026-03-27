@@ -406,11 +406,11 @@ const phases = [
     duration: 5,
     label: '01', heading: 'Lightweight <span class="accent">Processes</span>',
     sub: 'Each actor is an isolated process with its own heap, stack, and mailbox.',
-    code: `<span class="cm">// spawn lightweight actors</span>
-<span class="kw">let</span> <span class="fn">sup</span>  <span class="op">=</span> <span class="kw">spawn</span> Supervisor<span class="op">.</span>start<span class="op">()</span>
-<span class="kw">let</span> <span class="fn">http</span> <span class="op">=</span> <span class="kw">spawn</span> HTTP<span class="op">.</span>listen<span class="op">(</span><span class="num">8080</span><span class="op">)</span>
-<span class="kw">let</span> <span class="fn">auth</span> <span class="op">=</span> <span class="kw">spawn</span> Auth<span class="op">.</span>init<span class="op">()</span>
-<span class="kw">let</span> <span class="fn">pool</span> <span class="op">=</span> <span class="kw">spawn</span> DB<span class="op">.</span>pool<span class="op">(</span><span class="num">10</span><span class="op">)</span>`,
+    code: `<span class="cm"># spawn lightweight actors</span>
+<span class="kw">let</span> <span class="fn">sup</span>  <span class="op">=</span> <span class="kw">spawn</span><span class="op">(</span>AppSupervisor<span class="op">)</span>
+<span class="kw">let</span> <span class="fn">http</span> <span class="op">=</span> <span class="kw">spawn</span><span class="op">(</span>http_handler<span class="op">)</span>
+<span class="kw">let</span> <span class="fn">auth</span> <span class="op">=</span> <span class="kw">spawn</span><span class="op">(</span>auth_worker<span class="op">)</span>
+<span class="kw">let</span> <span class="fn">pool</span> <span class="op">=</span> Pool<span class="op">.</span>open<span class="op">(</span>db_url<span class="op">,</span> <span class="num">1</span><span class="op">,</span> <span class="num">4</span><span class="op">,</span> <span class="num">5000</span><span class="op">)</span>`,
     enter(t) {
       const order = [0,1,2,3,4,5,6,7,8,9,10];
       order.forEach((idx, i) => {
@@ -438,14 +438,15 @@ const phases = [
     duration: 6.5,
     label: '02', heading: 'Message <span class="accent">Passing</span>',
     sub: 'No shared memory. Actors communicate exclusively through async messages.',
-    code: `<span class="cm">// actors communicate via messages</span>
-<span class="kw">send</span> http <span class="op">←</span> <span class="str">{:request, conn}</span>
-<span class="kw">send</span> auth <span class="op">←</span> <span class="str">{:verify, token}</span>
-<span class="kw">send</span> pool <span class="op">←</span> <span class="str">{:query, sql}</span>
+    code: `<span class="cm"># actors communicate via messages</span>
+<span class="kw">actor</span> worker<span class="op">()</span> <span class="kw">do</span>
+  <span class="kw">receive</span> <span class="kw">do</span>
+    msg <span class="op">-></span> handle<span class="op">(</span>msg<span class="op">)</span>
+  <span class="kw">end</span>
+<span class="kw">end</span>
 
-<span class="kw">receive</span> <span class="op">{</span>
-  <span class="str">{:ok, data}</span> <span class="op">→</span> handle<span class="op">(</span>data<span class="op">)</span>
-<span class="op">}</span>`,
+<span class="kw">send</span><span class="op">(</span>http<span class="op">,</span> <span class="str">"request"</span><span class="op">)</span>
+<span class="kw">send</span><span class="op">(</span>auth<span class="op">,</span> <span class="str">"verify"</span><span class="op">)</span>`,
     enter(t) {
       // Tree messages
       if (Math.random() < 0.08) {
@@ -470,11 +471,11 @@ const phases = [
     duration: 5.5,
     label: '03', heading: 'Fault <span class="accent">Isolation</span>',
     sub: 'When a process crashes, it can\'t take down the system. The failure is contained.',
-    code: `<span class="cm">// a process crashes…</span>
-<span class="fn">Router</span><span class="op">.</span>handle<span class="op">(</span>msg<span class="op">)</span>
+    code: `<span class="cm"># a process crashes…</span>
+Router<span class="op">.</span>handle<span class="op">(</span>msg<span class="op">)</span>
   <span class="op">|></span> <span class="err">** (CrashError)</span>
 
-<span class="cm">// others continue unaffected</span>
+<span class="cm"># others continue unaffected</span>
 <span class="fn">HTTP</span>   <span class="op">→</span> <span class="ok">running</span>
 <span class="fn">Auth</span>   <span class="op">→</span> <span class="ok">running</span>
 <span class="fn">DB</span>     <span class="op">→</span> <span class="ok">running</span>`,
@@ -528,13 +529,17 @@ const phases = [
     duration: 5.5,
     label: '04', heading: 'Supervisor <span class="accent">Restart</span>',
     sub: 'The supervisor detects the failure and restarts the crashed processes automatically.',
-    code: `<span class="cm">// supervisor detects failure</span>
-<span class="kw">receive</span> <span class="op">{</span>
-  <span class="str">{:DOWN, pid, reason}</span> <span class="op">→</span>
-    <span class="kw">spawn</span> Router<span class="op">.</span>init<span class="op">()</span>
-    <span class="kw">spawn</span> Logger<span class="op">.</span>init<span class="op">()</span>
-<span class="op">}</span>
-<span class="cm">// </span><span class="ok">✓ system restored</span>`,
+    code: `<span class="cm"># supervisor detects failure</span>
+<span class="kw">supervisor</span> AppSup <span class="kw">do</span>
+  strategy<span class="op">:</span> one_for_one
+  max_restarts<span class="op">:</span> <span class="num">3</span>
+
+  <span class="kw">child</span> router <span class="kw">do</span>
+    start<span class="op">:</span> <span class="kw">fn</span> <span class="op">-></span> <span class="kw">spawn</span><span class="op">(</span>router<span class="op">)</span> <span class="kw">end</span>
+    restart<span class="op">:</span> permanent
+  <span class="kw">end</span>
+<span class="kw">end</span>
+<span class="cm"># </span><span class="ok">✓ system restored</span>`,
     enter(t) {
       const ri = 3, li = 8, si = 0;
 
@@ -589,7 +594,7 @@ const phases = [
     duration: 5.5,
     label: '05', heading: 'Self-Healing <span class="accent">Systems</span>',
     sub: 'Millions of processes. Sub-millisecond spawns. Automatic fault recovery.',
-    code: `<span class="cm">// Mesh actor model</span>
+    code: `<span class="cm"># Mesh actor model</span>
 <span class="ok">✓</span> <span class="str">Isolated process memory</span>
 <span class="ok">✓</span> <span class="str">Async message passing</span>
 <span class="ok">✓</span> <span class="str">Supervision trees</span>
