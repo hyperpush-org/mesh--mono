@@ -96,6 +96,12 @@ pub(crate) mod build_trace {
                     .map(Value::from)
                     .unwrap_or(Value::Null),
             );
+            doc.insert(
+                "meshRtLibPath".to_string(),
+                std::env::var("MESH_RT_LIB_PATH")
+                    .map(Value::from)
+                    .unwrap_or(Value::Null),
+            );
             doc.insert("lastStage".to_string(), json!("compile-start"));
             doc.insert("success".to_string(), json!(false));
         });
@@ -328,6 +334,7 @@ pub fn compile_to_binary(
 ) -> Result<(), String> {
     let obj_path = output.with_extension("o");
     build_trace::set_compile_context(output, &obj_path, target_triple);
+    let link_plan = link::prepare_link(target_triple, rt_lib_path)?;
 
     let result: Result<(), String> = (|| -> Result<(), String> {
         build_trace::set_stage("lower-to-mir");
@@ -349,7 +356,7 @@ pub fn compile_to_binary(
         codegen.emit_object(&obj_path)?;
         build_trace::mark_object_emitted(&obj_path);
 
-        link::link(&obj_path, output, target_triple, rt_lib_path)?;
+        link::link_with_plan(&obj_path, output, &link_plan)?;
         Ok(())
     })();
 
@@ -401,6 +408,7 @@ pub fn compile_mir_to_binary(
 ) -> Result<(), String> {
     let obj_path = output.with_extension("o");
     build_trace::set_compile_context(output, &obj_path, target_triple);
+    let link_plan = link::prepare_link(target_triple, rt_lib_path)?;
 
     let result: Result<(), String> = (|| -> Result<(), String> {
         build_trace::set_stage("create-codegen");
@@ -419,7 +427,7 @@ pub fn compile_mir_to_binary(
         codegen.emit_object(&obj_path)?;
         build_trace::mark_object_emitted(&obj_path);
 
-        link::link(&obj_path, output, target_triple, rt_lib_path)?;
+        link::link_with_plan(&obj_path, output, &link_plan)?;
         Ok(())
     })();
 

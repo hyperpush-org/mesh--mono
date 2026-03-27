@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-03-27T23:31:05.448Z",
+  "exported_at": "2026-03-27T23:47:48.076Z",
   "milestones": [
     {
       "id": "M001",
@@ -4542,19 +4542,33 @@
       "milestone_id": "M034",
       "slice_id": "S12",
       "id": "T02",
-      "title": "Repair the installed Windows compiler path and prove the staged hello build",
-      "status": "pending",
-      "one_liner": "",
-      "narrative": "",
-      "verification_result": "",
+      "title": "Preflighted Windows link prerequisites and made the staged verifier export `CARGO_TARGET_DIR`.",
+      "status": "complete",
+      "one_liner": "Preflighted Windows link prerequisites and made the staged verifier export `CARGO_TARGET_DIR`.",
+      "narrative": "Moved runtime and Windows clang prerequisite resolution ahead of LLVM object emission in `mesh-codegen`, added an explicit `MESH_RT_LIB_PATH` override for installed-compiler regressions, extended build traces with `meshRtLibPath`, and updated the Windows staged verifier to export and restore repo-root `CARGO_TARGET_DIR` before invoking installed `meshc.exe build`. Expanded the Rust and PowerShell regressions to prove happy-path tracing, missing-runtime preflight, bad-Windows-LLVM-prefix preflight, and verifier env shaping, then wrote `.tmp/m034-s12/t02/local-repair-summary.json` with the repaired boundary and artifacts.",
+      "verification_result": "Passed `cargo test -p mesh-codegen link -- --nocapture`, `cargo test -p meshc --test e2e_m034_s12 -- --nocapture`, `pwsh -NoProfile -File scripts/tests/verify-m034-s03-last-exitcode.ps1`, `pwsh -NoProfile -File scripts/tests/verify-m034-s03-installed-build.ps1`, and `bash scripts/verify-m034-s02-workflows.sh`. Also wrote `.tmp/m034-s12/t02/verification-results.json` and `.tmp/m034-s12/t02/local-repair-summary.json` capturing the exact commands, durations, and diagnostic artifact paths.",
       "duration": "",
-      "completed_at": null,
+      "completed_at": "2026-03-27T23:47:46.683Z",
       "blocker_discovered": false,
-      "deviations": "",
-      "known_issues": "",
-      "key_files": [],
-      "key_decisions": [],
-      "full_summary_md": "",
+      "deviations": "None.",
+      "known_issues": "The archived hosted Windows artifact at `.tmp/m034-s11/t03/diag-download/windows/verify/run/07-hello-build.log` is still pre-trace evidence only. A fresh hosted rerun in T03 is still required to replace that old access-violation bundle with live post-repair proof.",
+      "key_files": [
+        "compiler/mesh-codegen/src/link.rs",
+        "compiler/mesh-codegen/src/lib.rs",
+        "compiler/meshc/src/main.rs",
+        "compiler/meshc/tests/e2e_m034_s12.rs",
+        "scripts/verify-m034-s03.ps1",
+        "scripts/tests/verify-m034-s03-installed-build.ps1",
+        ".tmp/m034-s12/t02/verification-results.json",
+        ".tmp/m034-s12/t02/local-repair-summary.json",
+        ".gsd/milestones/M034/slices/S12/tasks/T02-SUMMARY.md",
+        ".gsd/KNOWLEDGE.md"
+      ],
+      "key_decisions": [
+        "D110: preflight installed-compiler runtime and Windows clang resolution before LLVM object emission, while the Windows staged verifier exports repo-root `target/` through `CARGO_TARGET_DIR`.",
+        "Keep `MESH_RT_LIB_PATH` as an explicit regression/operator override while the verifier’s normal handshake stays on `CARGO_TARGET_DIR` rather than hardcoding a single runtime file path."
+      ],
+      "full_summary_md": "---\nid: T02\nparent: S12\nmilestone: M034\nkey_files:\n  - compiler/mesh-codegen/src/link.rs\n  - compiler/mesh-codegen/src/lib.rs\n  - compiler/meshc/src/main.rs\n  - compiler/meshc/tests/e2e_m034_s12.rs\n  - scripts/verify-m034-s03.ps1\n  - scripts/tests/verify-m034-s03-installed-build.ps1\n  - .tmp/m034-s12/t02/verification-results.json\n  - .tmp/m034-s12/t02/local-repair-summary.json\n  - .gsd/milestones/M034/slices/S12/tasks/T02-SUMMARY.md\n  - .gsd/KNOWLEDGE.md\nkey_decisions:\n  - D110: preflight installed-compiler runtime and Windows clang resolution before LLVM object emission, while the Windows staged verifier exports repo-root `target/` through `CARGO_TARGET_DIR`.\n  - Keep `MESH_RT_LIB_PATH` as an explicit regression/operator override while the verifier’s normal handshake stays on `CARGO_TARGET_DIR` rather than hardcoding a single runtime file path.\nduration: \"\"\nverification_result: passed\ncompleted_at: 2026-03-27T23:47:46.686Z\nblocker_discovered: false\n---\n\n# T02: Preflighted Windows link prerequisites and made the staged verifier export `CARGO_TARGET_DIR`.\n\n**Preflighted Windows link prerequisites and made the staged verifier export `CARGO_TARGET_DIR`.**\n\n## What Happened\n\nMoved runtime and Windows clang prerequisite resolution ahead of LLVM object emission in `mesh-codegen`, added an explicit `MESH_RT_LIB_PATH` override for installed-compiler regressions, extended build traces with `meshRtLibPath`, and updated the Windows staged verifier to export and restore repo-root `CARGO_TARGET_DIR` before invoking installed `meshc.exe build`. Expanded the Rust and PowerShell regressions to prove happy-path tracing, missing-runtime preflight, bad-Windows-LLVM-prefix preflight, and verifier env shaping, then wrote `.tmp/m034-s12/t02/local-repair-summary.json` with the repaired boundary and artifacts.\n\n## Verification\n\nPassed `cargo test -p mesh-codegen link -- --nocapture`, `cargo test -p meshc --test e2e_m034_s12 -- --nocapture`, `pwsh -NoProfile -File scripts/tests/verify-m034-s03-last-exitcode.ps1`, `pwsh -NoProfile -File scripts/tests/verify-m034-s03-installed-build.ps1`, and `bash scripts/verify-m034-s02-workflows.sh`. Also wrote `.tmp/m034-s12/t02/verification-results.json` and `.tmp/m034-s12/t02/local-repair-summary.json` capturing the exact commands, durations, and diagnostic artifact paths.\n\n## Verification Evidence\n\n| # | Command | Exit Code | Verdict | Duration |\n|---|---------|-----------|---------|----------|\n| 1 | `cargo test -p mesh-codegen link -- --nocapture` | 0 | ✅ pass | 1213ms |\n| 2 | `cargo test -p meshc --test e2e_m034_s12 -- --nocapture` | 0 | ✅ pass | 6574ms |\n| 3 | `pwsh -NoProfile -File scripts/tests/verify-m034-s03-last-exitcode.ps1` | 0 | ✅ pass | 2691ms |\n| 4 | `pwsh -NoProfile -File scripts/tests/verify-m034-s03-installed-build.ps1` | 0 | ✅ pass | 2490ms |\n| 5 | `bash scripts/verify-m034-s02-workflows.sh` | 0 | ✅ pass | 1050ms |\n\n\n## Deviations\n\nNone.\n\n## Known Issues\n\nThe archived hosted Windows artifact at `.tmp/m034-s11/t03/diag-download/windows/verify/run/07-hello-build.log` is still pre-trace evidence only. A fresh hosted rerun in T03 is still required to replace that old access-violation bundle with live post-repair proof.\n\n## Files Created/Modified\n\n- `compiler/mesh-codegen/src/link.rs`\n- `compiler/mesh-codegen/src/lib.rs`\n- `compiler/meshc/src/main.rs`\n- `compiler/meshc/tests/e2e_m034_s12.rs`\n- `scripts/verify-m034-s03.ps1`\n- `scripts/tests/verify-m034-s03-installed-build.ps1`\n- `.tmp/m034-s12/t02/verification-results.json`\n- `.tmp/m034-s12/t02/local-repair-summary.json`\n- `.gsd/milestones/M034/slices/S12/tasks/T02-SUMMARY.md`\n- `.gsd/KNOWLEDGE.md`\n",
       "description": "Fix the installed Windows compiler/runtime handshake and keep the verifier honest so the staged hello fixture either builds successfully or reports a deterministic actionable error.\n- Why: the release lane cannot go green until the real installed `meshc.exe build` path stops collapsing into an empty access-violation bundle.\n- Do: repair runtime/toolchain discovery or earlier codegen failure surfaces, extend regression coverage, and only touch workflow contract text if the truthful verifier shape changes.\n- Done when: the installed build path no longer fails opaquely and the local repair proofs are fresh.",
       "estimate": "1h30m",
       "files": [
@@ -5988,6 +6002,18 @@
       "decision": "How the Windows staged smoke verifier classifies installed meshc build failures",
       "choice": "Use an env-driven compiler trace file (`MESH_BUILD_TRACE_PATH`) plus verifier-side summary classification instead of inferring failure phases from process exit codes alone.",
       "rationale": "The hosted Windows smoke failure currently collapses into an access-violation exit code with empty stdout/stderr. A trace file written by the real compiler pipeline preserves object-emission, runtime-discovery, and linker-invocation progress without replacing the installed build path with a weaker synthetic helper. The PowerShell verifier can then classify failures truthfully as pre-object, runtime-lookup, or link-time from persisted evidence.",
+      "revisable": "Yes",
+      "made_by": "agent",
+      "superseded_by": null
+    },
+    {
+      "seq": 3419,
+      "id": "D110",
+      "when_context": "M034/S12/T02",
+      "scope": "compiler",
+      "decision": "How the installed compiler should handle runtime and Windows toolchain prerequisites before linking",
+      "choice": "Preflight link planning before object emission and allow an explicit `MESH_RT_LIB_PATH` override, while the Windows staged verifier exports `CARGO_TARGET_DIR` to the repo target tree.",
+      "rationale": "The hosted Windows smoke blocker was opaque because prerequisite discovery happened too late and depended on installed-binary auto-discovery. Moving runtime/linker resolution ahead of LLVM object emission turns missing runtime or bad `LLVM_SYS_211_PREFIX` inputs into deterministic Rust errors, and exporting `CARGO_TARGET_DIR` keeps the verifier honest about where `mesh-rt` was built.",
       "revisable": "Yes",
       "made_by": "agent",
       "superseded_by": null
@@ -9579,6 +9605,61 @@
       "verdict": "✅ pass",
       "duration_ms": 38332,
       "created_at": "2026-03-27T23:31:03.710Z"
+    },
+    {
+      "id": 327,
+      "task_id": "T02",
+      "slice_id": "S12",
+      "milestone_id": "M034",
+      "command": "cargo test -p mesh-codegen link -- --nocapture",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 1213,
+      "created_at": "2026-03-27T23:47:46.683Z"
+    },
+    {
+      "id": 328,
+      "task_id": "T02",
+      "slice_id": "S12",
+      "milestone_id": "M034",
+      "command": "cargo test -p meshc --test e2e_m034_s12 -- --nocapture",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 6574,
+      "created_at": "2026-03-27T23:47:46.684Z"
+    },
+    {
+      "id": 329,
+      "task_id": "T02",
+      "slice_id": "S12",
+      "milestone_id": "M034",
+      "command": "pwsh -NoProfile -File scripts/tests/verify-m034-s03-last-exitcode.ps1",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 2691,
+      "created_at": "2026-03-27T23:47:46.684Z"
+    },
+    {
+      "id": 330,
+      "task_id": "T02",
+      "slice_id": "S12",
+      "milestone_id": "M034",
+      "command": "pwsh -NoProfile -File scripts/tests/verify-m034-s03-installed-build.ps1",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 2490,
+      "created_at": "2026-03-27T23:47:46.684Z"
+    },
+    {
+      "id": 331,
+      "task_id": "T02",
+      "slice_id": "S12",
+      "milestone_id": "M034",
+      "command": "bash scripts/verify-m034-s02-workflows.sh",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 1050,
+      "created_at": "2026-03-27T23:47:46.684Z"
     }
   ]
 }

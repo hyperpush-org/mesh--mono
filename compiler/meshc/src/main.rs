@@ -482,11 +482,30 @@ pub(crate) fn build(
     }
 
     // Compile to native binary
-    mesh_codegen::compile_mir_to_binary(&merged_mir, &output_path, opt_level, target, None)?;
+    let runtime_override = runtime_lib_override_from_env()?;
+    mesh_codegen::compile_mir_to_binary(
+        &merged_mir,
+        &output_path,
+        opt_level,
+        target,
+        runtime_override.as_deref(),
+    )?;
 
     eprintln!("  Compiled: {}", output_path.display());
 
     Ok(())
+}
+
+fn runtime_lib_override_from_env() -> Result<Option<PathBuf>, String> {
+    let Some(raw) = std::env::var_os("MESH_RT_LIB_PATH") else {
+        return Ok(None);
+    };
+
+    if raw.is_empty() {
+        return Err("MESH_RT_LIB_PATH was set but empty. Provide an absolute path to the Mesh runtime static library or unset it.".to_string());
+    }
+
+    Ok(Some(PathBuf::from(raw)))
 }
 
 fn ty_contains_var(ty: &Ty) -> bool {

@@ -13,6 +13,22 @@ $HostedLogPath = Join-Path $RootDir '.tmp/m034-s11/t03/diag-download/windows/ver
 Remove-Item -Recurse -Force $TestRoot -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $TestRoot, $SummaryRoot -Force | Out-Null
 
+$expectedTargetDir = Join-Path $RootDir 'target'
+if ((Get-InstalledBuildTargetDir) -ne $expectedTargetDir) {
+    throw 'installed-build target dir helper drifted'
+}
+
+$env:CARGO_TARGET_DIR = 'sentinel-target'
+Push-InstalledBuildEnvironment
+if ($env:CARGO_TARGET_DIR -ne $expectedTargetDir) {
+    throw 'Push-InstalledBuildEnvironment did not export the repo target dir'
+}
+Pop-InstalledBuildEnvironment
+if ($env:CARGO_TARGET_DIR -ne 'sentinel-target') {
+    throw 'Pop-InstalledBuildEnvironment did not restore the previous CARGO_TARGET_DIR'
+}
+Remove-Item Env:CARGO_TARGET_DIR -ErrorAction SilentlyContinue
+
 $hostedInfo = Get-LoggedCommandMetadata -LogPath $HostedLogPath
 if (-not $hostedInfo.exists) {
     throw 'hosted hello-build anchor is missing'
@@ -28,14 +44,18 @@ if ($hostedInfo.display -ne 'installed meshc.exe build installer smoke fixture')
 }
 
 $hostedContextLog = Join-Path $TestRoot 'hosted-build-context.log'
-Set-Content -Path $hostedContextLog -Value @(
-    'installed_meshc=hosted-artifact-only',
-    'installed_meshpkg=hosted-artifact-only',
-    "trace_path=$(Join-Path $SummaryRoot 'missing-hosted-trace.json')",
-    'output_path=hosted-artifact-only',
-    'llvm_sys_211_prefix=unavailable',
-    'cargo_target_dir=unavailable'
-)
+$env:CARGO_TARGET_DIR = $expectedTargetDir
+$env:MESH_RT_LIB_PATH = 'C:\mesh\mesh_rt.lib'
+Write-InstalledBuildContextLog -Path $hostedContextLog -InstalledMeshcPath 'hosted-artifact-only' -InstalledMeshpkgPath 'hosted-artifact-only' -TracePath (Join-Path $SummaryRoot 'missing-hosted-trace.json') -HelloExePath 'hosted-artifact-only'
+Remove-Item Env:CARGO_TARGET_DIR -ErrorAction SilentlyContinue
+Remove-Item Env:MESH_RT_LIB_PATH -ErrorAction SilentlyContinue
+$hostedContext = Get-Content $hostedContextLog -Raw
+if (-not $hostedContext.Contains("cargo_target_dir=$expectedTargetDir")) {
+    throw 'build context log did not preserve cargo_target_dir'
+}
+if (-not $hostedContext.Contains('mesh_rt_lib_path=C:\mesh\mesh_rt.lib')) {
+    throw 'build context log did not preserve mesh_rt_lib_path'
+}
 
 $summaryPath = Join-Path $SummaryRoot 'diagnostic-summary.json'
 $missingTracePath = Join-Path $SummaryRoot 'missing-hosted-trace.json'

@@ -29,11 +29,38 @@ pub fn link(
     target_triple: Option<&str>,
     rt_lib_path: Option<&Path>,
 ) -> Result<(), String> {
+    let plan = prepare_link(target_triple, rt_lib_path)?;
+    link_with_plan(object_path, output_path, &plan)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LinkPlan {
+    target: LinkTarget,
+    rt_path: PathBuf,
+    linker_program: PathBuf,
+}
+
+pub(crate) fn prepare_link(
+    target_triple: Option<&str>,
+    rt_lib_path: Option<&Path>,
+) -> Result<LinkPlan, String> {
     let target = LinkTarget::detect(target_triple)?;
     build_trace::set_stage("resolve-runtime-library");
 
     let rt_path = match rt_lib_path {
-        Some(path) => path.to_path_buf(),
+        Some(path) => match validate_runtime_override(path, &target) {
+            Ok(()) => path.to_path_buf(),
+            Err(error) => {
+                build_trace::set_link_context(
+                    &target.display_triple(),
+                    Some(path),
+                    Some(path.exists()),
+                    None,
+                );
+                build_trace::record_error(&error);
+                return Err(error);
+            }
+        },
         None => match find_mesh_rt(&target) {
             Ok(path) => path,
             Err(error) => {
@@ -45,7 +72,14 @@ pub fn link(
     };
 
     let runtime_exists = rt_path.exists();
-    let linker_program = target.linker_program();
+    let linker_program = match target.linker_program() {
+        Ok(path) => path,
+        Err(error) => {
+            build_trace::set_link_context(&target.display_triple(), Some(&rt_path), Some(runtime_exists), None);
+            build_trace::record_error(&error);
+            return Err(error);
+        }
+    };
     build_trace::set_link_context(
         &target.display_triple(),
         Some(&rt_path),
@@ -65,19 +99,31 @@ pub fn link(
         return Err(error);
     }
 
-    let mut cmd = Command::new(&linker_program);
+    Ok(LinkPlan {
+        target,
+        rt_path,
+        linker_program,
+    })
+}
+
+pub(crate) fn link_with_plan(
+    object_path: &Path,
+    output_path: &Path,
+    plan: &LinkPlan,
+) -> Result<(), String> {
+    let mut cmd = Command::new(&plan.linker_program);
     cmd.arg(object_path);
 
-    match target.kind {
+    match plan.target.kind {
         LinkTargetKind::Unix => {
-            cmd.arg(&rt_path).arg("-lm").arg("-o").arg(output_path);
+            cmd.arg(&plan.rt_path).arg("-lm").arg("-o").arg(output_path);
         }
         LinkTargetKind::WindowsMsvc => {
-            cmd.arg(&rt_path).arg("-o").arg(output_path);
+            cmd.arg(&plan.rt_path).arg("-o").arg(output_path);
         }
     }
 
-    if target.needs_security_framework() {
+    if plan.target.needs_security_framework() {
         cmd.arg("-framework").arg("Security");
     }
 
@@ -87,9 +133,9 @@ pub fn link(
         Err(error) => {
             let error = format!(
                 "Failed to invoke linker '{}': {}.{}",
-                linker_program.display(),
+                plan.linker_program.display(),
                 error,
-                target.linker_help_suffix(),
+                plan.target.linker_help_suffix(),
             );
             build_trace::record_error(&error);
             return Err(error);
@@ -109,9 +155,9 @@ pub fn link(
 
         let error = format!(
             "Linking failed for target '{}'.\nlinker: {}\nruntime: {}\n{}",
-            target.display_triple(),
-            linker_program.display(),
-            rt_path.display(),
+            plan.target.display_triple(),
+            plan.linker_program.display(),
+            plan.rt_path.display(),
             detail,
         );
         build_trace::record_error(&error);
@@ -187,6 +233,28 @@ fn mesh_rt_candidates(target_dir: &Path, target: &LinkTarget, profiles: &[&str])
     candidates
 }
 
+fn validate_runtime_override(path: &Path, target: &LinkTarget) -> Result<(), String> {
+    let Some(file_name) = path.file_name().and_then(|value| value.to_str()) else {
+        return Err(format!(
+            "Mesh runtime override '{}' does not name a file. Expected {} for target '{}'.",
+            path.display(),
+            target.runtime_filename(),
+            target.display_triple(),
+        ));
+    };
+
+    if file_name != target.runtime_filename() {
+        return Err(format!(
+            "Mesh runtime override '{}' does not match expected filename '{}' for target '{}'.",
+            path.display(),
+            target.runtime_filename(),
+            target.display_triple(),
+        ));
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LinkTargetKind {
     Unix,
@@ -225,9 +293,9 @@ impl LinkTarget {
         }
     }
 
-    fn linker_program(&self) -> PathBuf {
+    fn linker_program(&self) -> Result<PathBuf, String> {
         match self.kind {
-            LinkTargetKind::Unix => PathBuf::from("cc"),
+            LinkTargetKind::Unix => Ok(PathBuf::from("cc")),
             LinkTargetKind::WindowsMsvc => windows_clang_path(),
         }
     }
@@ -319,15 +387,25 @@ fn host_target_triple() -> String {
     }
 }
 
-fn windows_clang_path() -> PathBuf {
+fn windows_clang_path() -> Result<PathBuf, String> {
     if let Ok(prefix) = std::env::var("LLVM_SYS_211_PREFIX") {
-        let candidate = PathBuf::from(prefix).join("bin").join("clang.exe");
+        let candidate = windows_clang_path_from_prefix(Path::new(&prefix));
         if candidate.exists() {
-            return candidate;
+            return Ok(candidate);
         }
+
+        return Err(format!(
+            "LLVM_SYS_211_PREFIX='{}' does not contain bin/clang.exe at '{}'. Install LLVM 21 or set LLVM_SYS_211_PREFIX correctly.",
+            prefix,
+            candidate.display(),
+        ));
     }
 
-    PathBuf::from("clang")
+    Ok(PathBuf::from("clang"))
+}
+
+fn windows_clang_path_from_prefix(prefix: &Path) -> PathBuf {
+    prefix.join("bin").join("clang.exe")
 }
 
 /// Attempt to find the workspace target directory.
@@ -362,6 +440,7 @@ fn find_workspace_target_dir() -> Option<PathBuf> {
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -428,6 +507,22 @@ mod tests {
         );
 
         fs::remove_dir_all(temp_target).unwrap();
+    }
+
+    #[test]
+    fn explicit_runtime_override_should_reject_wrong_filename_for_windows_target() {
+        let target = LinkTarget::detect(Some("x86_64-pc-windows-msvc")).unwrap();
+        let error = validate_runtime_override(Path::new("/tmp/libmesh_rt.a"), &target).unwrap_err();
+        assert!(
+            error.contains("expected filename 'mesh_rt.lib'"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn windows_clang_path_from_prefix_should_append_bin_clang_exe() {
+        let actual = windows_clang_path_from_prefix(Path::new("C:/llvm"));
+        assert_eq!(actual, PathBuf::from("C:/llvm").join("bin").join("clang.exe"));
     }
 
     fn find_mesh_rt_in(

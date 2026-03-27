@@ -46,6 +46,7 @@ fn m034_s12_native_build_trace_records_object_and_link_context() {
     let output = Command::new(meshc_bin())
         .env("MESH_BUILD_TRACE_PATH", &trace_path)
         .env_remove("CARGO_TARGET_DIR")
+        .env_remove("MESH_RT_LIB_PATH")
         .args([
             "build",
             project_dir.to_str().unwrap(),
@@ -85,7 +86,7 @@ fn m034_s12_native_build_trace_records_object_and_link_context() {
 }
 
 #[test]
-fn m034_s12_missing_runtime_lookup_is_reported_after_object_emission() {
+fn m034_s12_missing_runtime_lookup_is_reported_before_object_emission() {
     let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
     let project_dir = temp_dir.path().join("installer-smoke");
     let empty_target_dir = temp_dir.path().join("empty-target");
@@ -97,6 +98,7 @@ fn m034_s12_missing_runtime_lookup_is_reported_after_object_emission() {
     let output = Command::new(meshc_bin())
         .env("MESH_BUILD_TRACE_PATH", &trace_path)
         .env("CARGO_TARGET_DIR", &empty_target_dir)
+        .env_remove("MESH_RT_LIB_PATH")
         .args([
             "build",
             project_dir.to_str().unwrap(),
@@ -116,9 +118,10 @@ fn m034_s12_missing_runtime_lookup_is_reported_after_object_emission() {
     let trace = read_trace(&trace_path);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    assert_eq!(trace["objectEmissionStarted"], true);
-    assert_eq!(trace["objectEmissionCompleted"], true);
-    assert_eq!(trace["objectExistsAfterEmit"], true);
+    assert_eq!(trace["lastStage"], "resolve-runtime-library");
+    assert_eq!(trace["objectEmissionStarted"], Value::Null);
+    assert_eq!(trace["objectEmissionCompleted"], Value::Null);
+    assert_eq!(trace["objectExistsAfterEmit"], Value::Null);
     assert_eq!(trace["linkStarted"], Value::Null);
     assert_eq!(trace["linkCompleted"], Value::Null);
     assert_eq!(trace["runtimeLibraryExists"], false);
@@ -132,5 +135,62 @@ fn m034_s12_missing_runtime_lookup_is_reported_after_object_emission() {
     assert!(
         stderr.contains("Could not locate Mesh runtime static library"),
         "stderr should preserve the runtime lookup failure:\n{stderr}"
+    );
+}
+
+#[test]
+fn m034_s12_bad_windows_llvm_prefix_is_reported_before_object_emission() {
+    let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+    let project_dir = temp_dir.path().join("installer-smoke");
+    let output_path = temp_dir.path().join("installer-smoke.exe");
+    let trace_path = temp_dir.path().join("build-trace-bad-windows-llvm.json");
+    let runtime_path = temp_dir.path().join("mesh_rt.lib");
+    let bad_llvm_prefix = temp_dir.path().join("missing-llvm");
+    copy_smoke_fixture(&project_dir);
+    std::fs::write(&runtime_path, b"fake windows runtime").expect("failed to create fake runtime");
+
+    let output = Command::new(meshc_bin())
+        .env("MESH_BUILD_TRACE_PATH", &trace_path)
+        .env("MESH_RT_LIB_PATH", &runtime_path)
+        .env("LLVM_SYS_211_PREFIX", &bad_llvm_prefix)
+        .args([
+            "build",
+            project_dir.to_str().unwrap(),
+            "--output",
+            output_path.to_str().unwrap(),
+            "--target",
+            "x86_64-pc-windows-msvc",
+            "--no-color",
+        ])
+        .output()
+        .expect("failed to invoke meshc build");
+
+    assert!(
+        !output.status.success(),
+        "meshc build should fail when LLVM_SYS_211_PREFIX does not contain clang.exe"
+    );
+    assert!(trace_path.exists(), "trace file was not written on failure");
+
+    let trace = read_trace(&trace_path);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let expected_clang = bad_llvm_prefix.join("bin").join("clang.exe");
+
+    assert_eq!(trace["lastStage"], "resolve-runtime-library");
+    assert_eq!(trace["meshRtLibPath"], runtime_path.display().to_string());
+    assert_eq!(trace["runtimeLibraryPath"], runtime_path.display().to_string());
+    assert_eq!(trace["runtimeLibraryExists"], true);
+    assert_eq!(trace["objectEmissionStarted"], Value::Null);
+    assert_eq!(trace["objectEmissionCompleted"], Value::Null);
+    assert_eq!(trace["linkStarted"], Value::Null);
+    assert_eq!(trace["linkCompleted"], Value::Null);
+    assert!(
+        trace["error"].as_str().is_some_and(|value| {
+            value.contains("LLVM_SYS_211_PREFIX") && value.contains(&expected_clang.display().to_string())
+        }),
+        "trace should preserve the bad LLVM prefix failure: {trace:#}"
+    );
+    assert!(
+        stderr.contains("LLVM_SYS_211_PREFIX") && stderr.contains(&expected_clang.display().to_string()),
+        "stderr should preserve the bad LLVM prefix failure:\n{stderr}"
     );
 }

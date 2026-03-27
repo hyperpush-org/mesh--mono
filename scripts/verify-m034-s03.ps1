@@ -29,6 +29,8 @@ $Target = 'x86_64-pc-windows-msvc'
 $MeshcArchive = ''
 $MeshpkgArchive = ''
 $GoodRoot = Join-Path $ServerRoot 'good'
+$PriorCargoTargetDir = $null
+$HadCargoTargetDir = $false
 
 function Stop-LocalServer {
     if ($script:ServerProcess -and -not $script:ServerProcess.HasExited) {
@@ -36,6 +38,31 @@ function Stop-LocalServer {
             Stop-Process -Id $script:ServerProcess.Id -Force -ErrorAction SilentlyContinue
         } catch {
         }
+    }
+}
+
+function Get-InstalledBuildTargetDir {
+    return Join-Path $RootDir 'target'
+}
+
+function Push-InstalledBuildEnvironment {
+    $existingValue = Get-Item Env:CARGO_TARGET_DIR -ErrorAction SilentlyContinue
+    if ($null -ne $existingValue) {
+        $script:HadCargoTargetDir = $true
+        $script:PriorCargoTargetDir = $existingValue.Value
+    } else {
+        $script:HadCargoTargetDir = $false
+        $script:PriorCargoTargetDir = $null
+    }
+
+    $env:CARGO_TARGET_DIR = Get-InstalledBuildTargetDir
+}
+
+function Pop-InstalledBuildEnvironment {
+    if ($script:HadCargoTargetDir) {
+        $env:CARGO_TARGET_DIR = $script:PriorCargoTargetDir
+    } else {
+        Remove-Item Env:CARGO_TARGET_DIR -ErrorAction SilentlyContinue
     }
 }
 
@@ -497,6 +524,10 @@ function Write-InstalledBuildContextLog {
     if (-not $cargoTargetDir) {
         $cargoTargetDir = 'unset'
     }
+    $meshRtLibPath = $env:MESH_RT_LIB_PATH
+    if (-not $meshRtLibPath) {
+        $meshRtLibPath = 'unset'
+    }
 
     Set-Content -Path $Path -Value @(
         "installed_meshc=$InstalledMeshcPath",
@@ -504,7 +535,8 @@ function Write-InstalledBuildContextLog {
         "trace_path=$TracePath",
         "output_path=$HelloExePath",
         "llvm_sys_211_prefix=$llvmPrefix",
-        "cargo_target_dir=$cargoTargetDir"
+        "cargo_target_dir=$cargoTargetDir",
+        "mesh_rt_lib_path=$meshRtLibPath"
     )
 }
 
@@ -559,6 +591,7 @@ function Write-InstalledBuildDiagnosticSummary {
             objectEmissionCompleted = if ($traceData -and (Test-ObjectProperty -Object $traceData -Name 'objectEmissionCompleted')) { $traceData.objectEmissionCompleted } else { $null }
             objectExistsAfterEmit = if ($traceData -and (Test-ObjectProperty -Object $traceData -Name 'objectExistsAfterEmit')) { $traceData.objectExistsAfterEmit } else { $null }
             runtimeLibraryPath = if ($traceData -and (Test-ObjectProperty -Object $traceData -Name 'runtimeLibraryPath')) { $traceData.runtimeLibraryPath } else { $null }
+            meshRtLibPath = if ($traceData -and (Test-ObjectProperty -Object $traceData -Name 'meshRtLibPath')) { $traceData.meshRtLibPath } else { $null }
             runtimeLibraryExists = if ($traceData -and (Test-ObjectProperty -Object $traceData -Name 'runtimeLibraryExists')) { $traceData.runtimeLibraryExists } else { $null }
             linkerProgram = if ($traceData -and (Test-ObjectProperty -Object $traceData -Name 'linkerProgram')) { $traceData.linkerProgram } else { $null }
             linkStarted = if ($traceData -and (Test-ObjectProperty -Object $traceData -Name 'linkStarted')) { $traceData.linkStarted } else { $null }
@@ -716,6 +749,7 @@ try {
     $helloContext = Join-Path $RunDir '07-hello-build.context.log'
     $helloSummary = Join-Path $SliceDiagRoot 'diagnostic-summary.json'
 
+    Push-InstalledBuildEnvironment
     Write-InstalledBuildContextLog -Path $helloContext -InstalledMeshcPath $installedMeshc -InstalledMeshpkgPath $installedMeshpkg -TracePath $helloTrace -HelloExePath $helloExe
     Invoke-InstalledBuildCommand -Phase 'build' -Label '07-hello-build' -Display 'installed meshc.exe build installer smoke fixture' -Command {
         & $installedMeshc build $smokeDir --output $helloExe --no-color
@@ -728,5 +762,6 @@ try {
 
     Write-Host 'verify-m034-s03.ps1: ok'
 } finally {
+    Pop-InstalledBuildEnvironment
     Stop-LocalServer
 }

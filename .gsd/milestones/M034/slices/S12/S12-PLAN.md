@@ -13,7 +13,7 @@
   - Verify: pwsh -NoProfile -File scripts/tests/verify-m034-s03-last-exitcode.ps1
 pwsh -NoProfile -File scripts/tests/verify-m034-s03-installed-build.ps1
 cargo test -p meshc --test e2e_m034_s12 -- --nocapture
-- [ ] **T02: Repair the installed Windows compiler path and prove the staged hello build** — Fix the installed Windows compiler/runtime handshake and keep the verifier honest so the staged hello fixture either builds successfully or reports a deterministic actionable error.
+- [x] **T02: Preflighted Windows link prerequisites and made the staged verifier export `CARGO_TARGET_DIR`.** — Fix the installed Windows compiler/runtime handshake and keep the verifier honest so the staged hello fixture either builds successfully or reports a deterministic actionable error.
 - Why: the release lane cannot go green until the real installed `meshc.exe build` path stops collapsing into an empty access-violation bundle.
 - Do: repair runtime/toolchain discovery or earlier codegen failure surfaces, extend regression coverage, and only touch workflow contract text if the truthful verifier shape changes.
 - Done when: the installed build path no longer fails opaquely and the local repair proofs are fresh.

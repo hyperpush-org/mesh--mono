@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T01",
+  "unitId": "M034/S12/T01",
+  "timestamp": 1774654278440,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "pwsh -NoProfile -File scripts/tests/verify-m034-s03-last-exitcode.ps1\npwsh -NoProfile -File scripts/tests/verify-m034-s03-installed-build.ps1\ncargo test -p meshc --test e2e_m034_s12 -- --nocapture",
+      "exitCode": 0,
+      "durationMs": 13122,
+      "verdict": "pass"
+    }
+  ]
+}
