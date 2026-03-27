@@ -412,6 +412,29 @@ jobs:
       - name: Install Rust for smoke verifier
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install LLVM 21 for Windows smoke verifier
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $LLVM_VERSION = "21.1.8"
+          $LLVM_DIR = "$env:USERPROFILE\llvm"
+          $ClangPath = Join-Path $LLVM_DIR 'bin\clang.exe'
+          if (Test-Path $ClangPath) {
+            Write-Host "LLVM already present at $LLVM_DIR"
+            exit 0
+          }
+          $LLVM_URL = "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-pc-windows-msvc.tar.xz"
+          Invoke-WebRequest -Uri $LLVM_URL -OutFile llvm.tar.xz
+          7z x llvm.tar.xz
+          7z x llvm.tar -o"$env:USERPROFILE"
+          Rename-Item "$env:USERPROFILE\clang+llvm-${LLVM_VERSION}-x86_64-pc-windows-msvc" $LLVM_DIR
+          Remove-Item llvm.tar.xz, llvm.tar -Force
+
+      - name: Set LLVM prefix for Windows smoke verifier
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: echo "LLVM_SYS_211_PREFIX=$env:USERPROFILE\llvm" >> $env:GITHUB_ENV
+
       - name: Build mesh-rt for smoke verifier
         run: cargo build -q -p mesh-rt
 
