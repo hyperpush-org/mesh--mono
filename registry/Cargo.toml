@@ -62,3 +62,4 @@ flate2 = { workspace = true }
 tar = { workspace = true }
 reqwest = { workspace = true }
 time = { workspace = true }
+semver = "1"

@@ -49,13 +49,19 @@
   /* Logo — top left */
   .logo-area {
     top: 28px; left: 36px;
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 0;
     opacity: 0;
     transition: opacity 0.8s ease;
   }
   .logo-area.visible { opacity: 1; }
-  .logo-area svg { width: 26px; height: 26px; }
-  .logo-area .name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+  .logo-area svg.hp-logo { height: 20px; width: auto; }
+  .logo-area .slash {
+    font-size: 18px; font-weight: 300;
+    color: rgba(255,255,255,0.15);
+    margin: 0 10px;
+  }
+  .logo-area svg.mesh-icon { width: 20px; height: 20px; margin-right: 7px; }
+  .logo-area .mesh-name { font-size: 14px; font-weight: 800; letter-spacing: -0.3px; }
   .logo-area .tag {
     font-size: 10px; font-weight: 600;
     color: rgba(255,255,255,0.25);
@@ -164,6 +170,7 @@
   .code-snippet .num { color: #c4a7e7; }
   .code-snippet .err { color: #ff5050; }
   .code-snippet .ok  { color: #59C184; }
+  .code-snippet .type { color: #c4a7e7; }
 </style>
 </head>
 <body>
@@ -172,12 +179,15 @@
 <canvas id="c"></canvas>
 
 <div class="overlay logo-area" id="logo">
-  <svg viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M58.4637 127.026C49.371 111.277 54.767 91.1387 70.5159 82.0461L122.475 172.041C131.567 187.79 126.171 207.928 110.422 217.021L58.4637 127.026Z" fill="#59C184"/>
-    <path d="M79.1494 77.0625C95.0428 67.8864 115.366 73.3319 124.542 89.2253L152.938 138.409C137.044 147.585 116.722 142.139 107.545 126.246L79.1494 77.0625Z" fill="white"/>
-    <path d="M133.024 83.9788C123.931 68.2299 129.327 48.0919 145.076 38.9992L182.534 103.879C191.627 119.628 186.231 139.766 170.482 148.859L133.024 83.9788Z" fill="#59C184"/>
+  <!-- hyperpush full logo (icon + wordmark) -->
+  <svg class="hp-logo" viewBox="0 0 2316 521" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M651.496 369.01C644.66 369.01 641.242 365.592 641.242 358.756V127.018C641.242 120.182 644.66 116.764 651.496 116.764H678.84C685.676 116.764 689.094 120.182 689.094 127.018V196.061C689.094 200.618 688.866 205.175 688.41 209.732H689.436C694.676 200.732 701.341 194.579 709.431 191.275C717.52 187.857 727.261 186.148 738.654 186.148C756.428 186.148 771.125 191.731 782.746 202.896C794.367 214.062 800.178 234.456 800.178 264.078V358.756C800.178 365.592 796.76 369.01 789.924 369.01H762.58C755.744 369.01 752.326 365.592 752.326 358.756V276.383C752.326 251.546 750.617 235.88 747.199 229.386C743.781 222.892 736.433 219.645 725.153 219.645C713.19 219.645 704.19 224.316 698.151 233.658C692.113 242.887 689.094 262.141 689.094 291.422V358.756C689.094 365.592 685.676 369.01 678.84 369.01H651.496ZM835.212 202.896C832.136 194.01 834.016 189.566 840.852 189.566H871.442C876.683 189.566 880.101 192.472 881.696 198.282L907.502 293.814C908.755 298.258 909.838 304.011 910.749 311.075C911.774 318.025 912.287 322.468 912.287 324.405H913.312C914.68 318.367 915.648 313.582 916.218 310.05C916.901 306.404 918.667 299.397 921.516 289.029L945.954 198.282C947.549 192.472 950.967 189.566 956.208 189.566H986.799C993.521 189.566 995.401 194.01 992.438 202.896L934.846 376.188C928.124 396.467 919.864 412.304 910.065 423.697C900.267 435.09 886.652 440.787 869.221 440.787C859.65 440.787 851.105 439.99 843.586 438.395C839.257 437.483 837.604 434.521 838.63 429.508L842.39 410.709C843.415 405.81 846.32 404.101 851.105 405.582C854.637 406.721 857.941 407.291 861.018 407.291C870.246 407.291 877.253 402.905 882.038 394.132C886.937 385.359 890.184 377.84 891.779 371.573L892.292 369.01L835.212 202.896ZM1025.76 437.369C1018.93 437.369 1015.51 433.951 1015.51 427.115V199.82C1015.51 192.984 1018.93 189.566 1025.76 189.566H1052.77C1058.46 189.566 1061.54 192.984 1061.99 199.82L1062.68 209.732H1063.36C1069.29 199.934 1075.89 193.554 1083.19 190.592C1090.48 187.63 1099.25 186.148 1109.5 186.148C1136.28 186.148 1155.08 195.434 1165.9 214.005C1176.84 232.462 1182.31 254.223 1182.31 279.288C1182.31 304.353 1176.84 326.171 1165.9 344.742C1155.08 363.199 1136.28 372.428 1109.5 372.428C1099.25 372.428 1090.48 370.947 1083.19 367.984C1075.89 365.022 1069.29 358.642 1063.36 348.844H1062.68C1063.13 353.401 1063.36 357.958 1063.36 362.516V427.115C1063.36 433.951 1059.94 437.369 1053.11 437.369H1025.76ZM1063.36 286.979C1063.36 302.359 1066.38 314.892 1072.42 324.576C1078.57 334.146 1085.92 338.932 1094.46 338.932C1109.85 338.932 1119.87 333.577 1124.54 322.867C1129.33 312.044 1131.72 297.517 1131.72 279.288C1131.72 261.059 1129.33 246.59 1124.54 235.88C1119.87 225.056 1109.85 219.645 1094.46 219.645C1085.92 219.645 1078.57 224.487 1072.42 234.171C1066.38 243.741 1063.36 256.217 1063.36 271.598V286.979ZM1209.65 279.288C1209.65 250.463 1216.83 227.734 1231.18 211.1C1245.65 194.465 1266.05 186.148 1292.37 186.148C1322.9 186.148 1345.57 194.01 1360.38 209.732C1375.19 225.455 1382.6 250.748 1382.6 285.611C1382.6 292.447 1379.41 295.865 1373.03 295.865H1260.24C1262.06 314.778 1266.73 326.684 1274.25 331.583C1281.77 336.482 1290.49 338.932 1300.4 338.932C1309.85 338.932 1317.09 337.678 1322.1 335.172C1327.11 332.665 1331.33 329.247 1334.75 324.918C1338.62 319.905 1343.41 319.107 1349.1 322.525L1366.19 332.95C1372.92 337.052 1373.88 341.951 1369.1 347.647C1362.15 355.965 1354 362.174 1344.66 366.275C1335.32 370.377 1320.56 372.428 1300.4 372.428C1267.7 372.428 1244.4 364.111 1230.5 347.477C1216.6 330.842 1209.65 308.113 1209.65 279.288ZM1260.41 261.686H1334.75C1334.75 249.381 1331.67 239.355 1325.52 231.607C1319.37 223.746 1309.57 219.815 1296.12 219.815C1285.42 219.815 1276.93 223.575 1270.66 231.095C1264.39 238.5 1260.98 248.697 1260.41 261.686ZM1430.11 369.01C1423.27 369.01 1419.86 365.592 1419.86 358.756V199.82C1419.86 192.984 1423.27 189.566 1430.11 189.566H1457.11C1463.95 189.566 1467.37 192.984 1467.37 199.82V213.834H1468.05C1471.01 206.542 1475.97 200.105 1482.92 194.522C1489.87 188.94 1498.07 186.148 1507.53 186.148C1514.02 186.148 1519.38 186.946 1523.59 188.541C1527.58 190.022 1529.12 192.757 1528.21 196.744L1523.42 217.081C1522.39 221.638 1519.32 223.006 1514.19 221.183C1511.23 220.157 1508.38 219.645 1505.65 219.645C1494.71 219.645 1485.65 226.196 1478.47 239.298C1471.3 252.4 1467.71 271.484 1467.71 296.549V358.756C1467.71 365.592 1464.29 369.01 1457.45 369.01H1430.11ZM1564.44 437.369C1557.6 437.369 1554.18 433.951 1554.18 427.115V199.82C1554.18 192.984 1557.6 189.566 1564.44 189.566H1591.44C1597.13 189.566 1600.21 192.984 1600.67 199.82L1601.35 209.732H1602.03C1607.96 199.934 1614.57 193.554 1621.86 190.592C1629.15 187.63 1637.92 186.148 1648.18 186.148C1674.95 186.148 1693.75 195.434 1704.57 214.005C1715.51 232.462 1720.98 254.223 1720.98 279.288C1720.98 304.353 1715.51 326.171 1704.57 344.742C1693.75 363.199 1674.95 372.428 1648.18 372.428C1637.92 372.428 1629.15 370.947 1621.86 367.984C1614.57 365.022 1607.96 358.642 1602.03 348.844H1601.35C1601.81 353.401 1602.03 357.958 1602.03 362.516V427.115C1602.03 433.951 1598.62 437.369 1591.78 437.369H1564.44ZM1602.03 286.979C1602.03 302.359 1605.05 314.892 1611.09 324.576C1617.24 334.146 1624.59 338.932 1633.14 338.932C1648.52 338.932 1658.54 333.577 1663.21 322.867C1668 312.044 1670.39 297.517 1670.39 279.288C1670.39 261.059 1668 246.59 1663.21 235.88C1658.54 225.056 1648.52 219.645 1633.14 219.645C1624.59 219.645 1617.24 224.487 1611.09 234.171C1605.05 243.741 1602.03 256.217 1602.03 271.598V286.979ZM1757.55 294.498V199.82C1757.55 192.984 1760.97 189.566 1767.8 189.566H1795.15C1801.98 189.566 1805.4 192.984 1805.4 199.82V282.193C1805.4 307.031 1807.11 322.696 1810.53 329.19C1813.95 335.685 1821.12 338.932 1832.06 338.932C1843.68 338.932 1852.51 334.317 1858.55 325.089C1864.59 315.746 1867.61 296.435 1867.61 267.154V199.82C1867.61 192.984 1871.03 189.566 1877.86 189.566H1905.21C1912.04 189.566 1915.46 192.984 1915.46 199.82V358.756C1915.46 365.592 1912.04 369.01 1905.21 369.01H1878.21C1871.37 369.01 1867.95 365.592 1867.95 358.756V348.844H1867.27C1862.03 357.844 1855.36 364.054 1847.27 367.472C1839.18 370.776 1829.61 372.428 1818.56 372.428C1801.13 372.428 1786.6 366.845 1774.98 355.68C1763.36 344.514 1757.55 324.12 1757.55 294.498ZM1958.36 357.047C1952.77 353.059 1951.24 348.787 1953.74 344.229L1962.46 328.336C1965.53 322.639 1970.32 321.956 1976.81 326.285C1983.31 330.615 1990.94 333.805 1999.71 335.855C2008.6 337.906 2016.69 338.932 2023.98 338.932C2029.11 338.932 2033.89 338.419 2038.34 337.394C2042.78 336.368 2046.54 334.374 2049.62 331.412C2052.69 328.45 2054.23 324.12 2054.23 318.424C2054.23 315.006 2053.32 312.101 2051.5 309.708C2049.67 307.315 2047.34 305.493 2044.49 304.239C2041.64 302.986 2038.62 301.961 2035.43 301.163C2031.22 300.138 2025.12 298.429 2017.15 296.036C2009.28 293.644 2001.71 290.852 1994.42 287.662C1988.38 285.042 1982.45 281.396 1976.64 276.725C1970.95 271.939 1966.73 266.642 1964 260.831C1961.38 255.021 1960.07 247.843 1960.07 239.298C1960.07 227.791 1963.37 217.708 1969.98 209.049C1976.7 200.39 1985.36 194.409 1995.95 191.104C2006.55 187.8 2019.77 186.148 2035.6 186.148C2046.31 186.148 2056.74 187.687 2066.88 190.763C2077.02 193.839 2084.25 196.744 2088.58 199.479C2095.42 203.808 2097.13 208.422 2093.71 213.321L2083.28 228.531C2080.09 233.089 2074.97 233.43 2067.9 229.557C2062.55 226.594 2057.25 224.202 2052.01 222.379C2046.88 220.556 2041.13 219.645 2034.75 219.645C2030.42 219.645 2026.26 220.1 2022.27 221.012C2018.28 221.923 2014.87 223.632 2012.02 226.139C2009.28 228.645 2007.92 231.949 2007.92 236.051C2007.92 240.38 2009.17 243.798 2011.68 246.305C2014.3 248.697 2017.26 250.463 2020.56 251.603C2023.98 252.742 2027.23 253.824 2030.3 254.85C2036.68 256.9 2043.12 258.894 2049.62 260.831C2056.11 262.654 2062.72 264.876 2069.44 267.496C2075.25 269.775 2080.89 273.022 2086.36 277.237C2091.83 281.453 2095.82 286.808 2098.32 293.302C2100.83 299.796 2102.08 307.201 2102.08 315.519C2102.08 326.57 2098.78 336.824 2092.17 346.28C2085.56 355.737 2076.85 362.459 2066.02 366.446C2055.2 370.434 2042.61 372.428 2028.25 372.428C2012.19 372.428 1998.52 371.288 1987.24 369.01C1975.96 366.731 1966.33 362.743 1958.36 357.047ZM2144.12 369.01C2137.29 369.01 2133.87 365.592 2133.87 358.756V127.018C2133.87 120.182 2137.29 116.764 2144.12 116.764H2171.47C2178.3 116.764 2181.72 120.182 2181.72 127.018V196.061C2181.72 200.618 2181.49 205.175 2181.04 209.732H2182.06C2187.3 200.732 2193.97 194.579 2202.06 191.275C2210.15 187.857 2219.89 186.148 2231.28 186.148C2249.05 186.148 2263.75 191.731 2275.37 202.896C2286.99 214.062 2292.8 234.456 2292.8 264.078V358.756C2292.8 365.592 2289.39 369.01 2282.55 369.01H2255.21C2248.37 369.01 2244.95 365.592 2244.95 358.756V276.383C2244.95 251.546 2243.24 235.88 2239.83 229.386C2236.41 222.892 2229.06 219.645 2217.78 219.645C2205.82 219.645 2196.82 224.316 2190.78 233.658C2184.74 242.887 2181.72 262.141 2181.72 291.422V358.756C2181.72 365.592 2178.3 369.01 2171.47 369.01H2144.12Z" fill="white"/>
+    <path d="M68.5237 278.127C43.9914 235.635 58.55 181.302 101.041 156.77L241.228 399.581C265.761 442.072 251.202 496.406 208.711 520.938L68.5237 278.127Z" fill="#59C184"/>
+    <path d="M124.334 143.322C167.215 118.565 222.047 133.257 246.805 176.138L323.419 308.837C280.537 333.595 225.706 318.903 200.948 276.021L124.334 143.322Z" fill="white"/>
+    <path d="M243.64 121.357C219.108 78.8659 233.667 24.5325 276.158 0.000168L377.223 175.05C401.755 217.541 387.197 271.875 344.706 296.407L243.64 121.357Z" fill="#59C184"/>
   </svg>
-  <span class="name">Mesh</span>
+  <span class="slash">/</span>
+  <span class="mesh-name">Mesh</span>
   <span class="tag">Actor Model</span>
 </div>
 
@@ -233,6 +243,7 @@ const ORANGE = [255, 165, 50];
 const BLUE   = [100, 155, 255];
 const PURPLE = [175, 130, 255];
 const WHITE  = [255, 255, 255];
+const YELLOW = [255, 220, 80];
 
 function rgba(c, a) { return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
 function lerpColor(a, b, t) {
@@ -256,6 +267,16 @@ function easeInOutCubic(t) {
 
 // ═══════════════════════════════════════════
 // Actor definitions — positions set in layoutActors()
+//
+// Supervision tree (fault-tolerance hierarchy):
+//   Supervisor -> HTTP, Auth, Router, DB Pool (one_for_one)
+//   HTTP -> WS:1, WS:2  (supervises its children)
+//   Auth -> Session
+//   Router -> Logger
+//   DB Pool -> Cache, Query
+//
+// Message paths are separate — any actor can send
+// to any actor it has a PID for.
 // ═══════════════════════════════════════════
 const actorDefs = [
   { id: 'supervisor', label: 'Supervisor', tier: 0, color: ACCENT, r: 0.032, ox: 0, oy: -0.22 },
@@ -271,12 +292,37 @@ const actorDefs = [
   { id: 'query',    label: 'Query',     tier: 2, color: ORANGE, r: 0.017, ox: 0.30,  oy: 0.24 },
 ];
 
-const treeEdges = [
+// Supervision links — NOT message paths.
+// These represent who monitors/restarts whom.
+const supervisionLinks = [
   [0,1],[0,2],[0,3],[0,4], // supervisor -> tier1
-  [1,5],[1,6],             // http -> ws
+  [1,5],[1,6],             // http -> ws children
   [2,7],                    // auth -> session
   [3,8],                    // router -> logger
   [4,9],[4,10],            // dbpool -> cache, query
+];
+
+// Realistic message routes — business logic flows.
+// HTTP receives requests, sends to Router for dispatch,
+// Router asks Auth for verification, Auth checks Session,
+// Router sends to DB Pool for data, DB Pool uses Query/Cache.
+const msgRoutes = [
+  // HTTP request flow
+  { from: 1, to: 3, label: 'route_request' },   // HTTP -> Router
+  { from: 3, to: 2, label: 'verify_token' },     // Router -> Auth
+  { from: 2, to: 7, label: 'check_session' },    // Auth -> Session
+  { from: 3, to: 4, label: 'query_data' },       // Router -> DB Pool
+  { from: 4, to: 10, label: 'execute_query' },   // DB Pool -> Query
+  { from: 4, to: 9, label: 'cache_lookup' },     // DB Pool -> Cache
+  // WebSocket flows
+  { from: 5, to: 3, label: 'ws_message' },       // WS:1 -> Router
+  { from: 6, to: 3, label: 'ws_message' },       // WS:2 -> Router
+  // Response back-propagation
+  { from: 3, to: 1, label: 'response' },         // Router -> HTTP
+  { from: 9, to: 4, label: 'cache_hit' },        // Cache -> DB Pool
+  // Logging (any actor can log)
+  { from: 1, to: 8, label: 'log_event' },        // HTTP -> Logger
+  { from: 3, to: 8, label: 'log_event' },        // Router -> Logger
 ];
 
 // ═══════════════════════════════════════════
@@ -293,6 +339,7 @@ let time = 0;
 let phase = -1;
 let phaseTime = 0;
 let screenShake = { x: 0, y: 0, intensity: 0 };
+let downSignalSent = false; // track :DOWN signal in crash phase
 
 function layoutActors() {
   const scale = Math.min(W, H);
@@ -316,14 +363,19 @@ function initActors() {
     crash: false, crashShake: 0,
     respawnGlow: 0,
     mailboxFlash: 0,
+    mailboxCount: 0, // number of queued messages
+    mailboxDecay: 0, // visual decay timer
     ringPhase: 0, // rotating ring
+    processing: false, // currently processing a message
+    processTimer: 0,
   }));
-  edges = treeEdges.map(([f, t]) => ({ from: f, to: t, opacity: 0 }));
+  edges = supervisionLinks.map(([f, t]) => ({ from: f, to: t, opacity: 0 }));
   messages = [];
   particles = [];
   explosions = [];
   shockwaves = [];
   ringPulses = [];
+  downSignalSent = false;
   layoutActors();
   initAmbientParticles();
 }
@@ -341,17 +393,21 @@ function initAmbientParticles() {
       vy: (Math.random() - 0.5) * 0.1,
       radius: 0.5 + Math.random() * 1.5,
       alpha: 0.03 + Math.random() * 0.06,
-      green: Math.random() < 0.3, // some are accent-colored
+      green: Math.random() < 0.3,
     });
   }
 }
 
 // ═══════════════════════════════════════════
 // Messages — travel along bezier curves
+// These represent actual actor messages (send/receive),
+// NOT supervision links.
 // ═══════════════════════════════════════════
-function sendMsg(fromIdx, toIdx, color, speed) {
+function sendMsg(fromIdx, toIdx, color, speed, isSignal) {
   const a = actors[fromIdx], b = actors[toIdx];
-  if (!a || !b || !a.alive || !b.alive) return;
+  if (!a || !b) return;
+  // For signals (:DOWN, restart), allow even if target is dead
+  if (!isSignal && (!a.alive || !b.alive)) return;
   const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
   const dx = b.x - a.x, dy = b.y - a.y;
   const perpX = -dy * 0.2 * (Math.random() - 0.3);
@@ -364,7 +420,16 @@ function sendMsg(fromIdx, toIdx, color, speed) {
     progress: 0,
     speed: speed || 0.012 + Math.random() * 0.006,
     color: color || ACCENT,
+    isSignal: !!isSignal,
   });
+}
+
+// Send a message along a realistic business route
+function sendBusinessMsg() {
+  const route = msgRoutes[Math.floor(Math.random() * msgRoutes.length)];
+  if (actors[route.from].alive && actors[route.to].alive) {
+    sendMsg(route.from, route.to, actors[route.from].color, 0.01 + Math.random() * 0.008);
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -384,9 +449,7 @@ function explode(x, y, color, count) {
       color: color || RED,
     });
   }
-  // Shockwave
   shockwaves.push({ x, y, radius: 0, maxRadius: Math.min(W,H) * 0.2, opacity: 0.6, color });
-  // Screen shake
   screenShake.intensity = 12;
 }
 
@@ -398,23 +461,45 @@ function spawnRing(x, y, color) {
 }
 
 // ═══════════════════════════════════════════
-// Phases
+// Phases — corrected for actor model accuracy
+//
+// Key corrections vs. original:
+// 1. Supervision tree is a MONITORING hierarchy, not a message path
+// 2. Messages flow between ANY actors (business logic), not along tree edges
+// 3. one_for_one: only the crashed child restarts, siblings unaffected
+// 4. Supervisor receives :DOWN signal, then restarts the specific child
+// 5. Mailbox visualization shows message queuing
 // ═══════════════════════════════════════════
 const phases = [
-  // Phase 0 — Spawn actors one by one with elastic pop-in
+  // Phase 0 — Spawn actors: supervisor starts children in order
   {
     duration: 5,
     label: '01', heading: 'Lightweight <span class="accent">Processes</span>',
-    sub: 'Each actor is an isolated process with its own heap, stack, and mailbox.',
-    code: `<span class="cm"># spawn lightweight actors</span>
+    sub: 'Each actor is an isolated process with its own heap, stack, and mailbox. Supervisors start and monitor their children.',
+    code: `<span class="cm"># each actor: own heap, own mailbox</span>
 <span class="kw">let</span> <span class="fn">sup</span>  <span class="op">=</span> <span class="kw">spawn</span><span class="op">(</span>AppSupervisor<span class="op">)</span>
+
+<span class="cm"># supervisor spawns child actors</span>
 <span class="kw">let</span> <span class="fn">http</span> <span class="op">=</span> <span class="kw">spawn</span><span class="op">(</span>http_handler<span class="op">)</span>
-<span class="kw">let</span> <span class="fn">auth</span> <span class="op">=</span> <span class="kw">spawn</span><span class="op">(</span>auth_worker<span class="op">)</span>
-<span class="kw">let</span> <span class="fn">pool</span> <span class="op">=</span> Pool<span class="op">.</span>open<span class="op">(</span>db_url<span class="op">,</span> <span class="num">1</span><span class="op">,</span> <span class="num">4</span><span class="op">,</span> <span class="num">5000</span><span class="op">)</span>`,
+<span class="kw">let</span> <span class="fn">auth</span> <span class="op">=</span> <span class="kw">spawn</span><span class="op">(</span>auth_service<span class="op">)</span>
+<span class="kw">let</span> <span class="fn">rtr</span>  <span class="op">=</span> <span class="kw">spawn</span><span class="op">(</span>router<span class="op">)</span>
+<span class="kw">let</span> <span class="fn">pool</span> <span class="op">=</span> <span class="kw">spawn</span><span class="op">(</span>db_pool<span class="op">)</span>`,
     enter(t) {
-      const order = [0,1,2,3,4,5,6,7,8,9,10];
-      order.forEach((idx, i) => {
-        const delay = 0.3 + i * 0.3;
+      // Supervisor spawns first, then it spawns its children in order
+      const spawnOrder = [
+        { idx: 0, delay: 0.3 },  // Supervisor itself
+        { idx: 1, delay: 0.9 },  // HTTP (child of supervisor)
+        { idx: 2, delay: 1.3 },  // Auth
+        { idx: 3, delay: 1.7 },  // Router
+        { idx: 4, delay: 2.1 },  // DB Pool
+        { idx: 5, delay: 2.5 },  // WS:1 (child of HTTP)
+        { idx: 6, delay: 2.7 },  // WS:2
+        { idx: 7, delay: 2.9 },  // Session (child of Auth)
+        { idx: 8, delay: 3.1 },  // Logger (child of Router)
+        { idx: 9, delay: 3.3 },  // Cache (child of DB Pool)
+        { idx: 10, delay: 3.5 }, // Query
+      ];
+      spawnOrder.forEach(({ idx, delay }) => {
         const a = actors[idx];
         if (t >= delay && !a.alive) {
           a.alive = true;
@@ -426,6 +511,7 @@ const phases = [
           a.spawnT = Math.min(1, a.spawnT + 0.025);
         }
       });
+      // Supervision links fade in as both ends are alive
       edges.forEach(e => {
         if (actors[e.from].alive && actors[e.to].alive)
           e.opacity = Math.min(1, e.opacity + 0.025);
@@ -433,64 +519,68 @@ const phases = [
     },
   },
 
-  // Phase 1 — Message passing
+  // Phase 1 — Message passing along business routes (not tree edges!)
   {
-    duration: 6.5,
+    duration: 7,
     label: '02', heading: 'Message <span class="accent">Passing</span>',
-    sub: 'No shared memory. Actors communicate exclusively through async messages.',
-    code: `<span class="cm"># actors communicate via messages</span>
-<span class="kw">actor</span> worker<span class="op">()</span> <span class="kw">do</span>
+    sub: 'No shared memory. Actors communicate by sending async messages to each other\'s mailbox. Any actor can message any other.',
+    code: `<span class="cm"># actors loop on their mailbox</span>
+<span class="kw">actor</span> <span class="fn">router</span><span class="op">()</span> <span class="kw">do</span>
   <span class="kw">receive</span> <span class="kw">do</span>
-    msg <span class="op">-></span> handle<span class="op">(</span>msg<span class="op">)</span>
+    msg <span class="op">-></span>
+      <span class="kw">send</span><span class="op">(</span>auth<span class="op">,</span> msg<span class="op">.</span>token<span class="op">)</span>
+      <span class="kw">send</span><span class="op">(</span>pool<span class="op">,</span> msg<span class="op">.</span>path<span class="op">)</span>
+      <span class="kw">send</span><span class="op">(</span>msg<span class="op">.</span>from<span class="op">,</span> result<span class="op">)</span>
   <span class="kw">end</span>
-<span class="kw">end</span>
-
-<span class="kw">send</span><span class="op">(</span>http<span class="op">,</span> <span class="str">"request"</span><span class="op">)</span>
-<span class="kw">send</span><span class="op">(</span>auth<span class="op">,</span> <span class="str">"verify"</span><span class="op">)</span>`,
+<span class="kw">end</span>`,
     enter(t) {
-      // Tree messages
-      if (Math.random() < 0.08) {
-        const e = edges[Math.floor(Math.random() * edges.length)];
-        const dir = Math.random() < 0.5;
-        sendMsg(dir ? e.from : e.to, dir ? e.to : e.from, actors[dir ? e.from : e.to].color);
+      // Business messages — flows between actors that logically communicate
+      if (Math.random() < 0.09) {
+        sendBusinessMsg();
       }
-      // Cross-tree
-      if (Math.random() < 0.03) {
-        const t1 = actors.filter(a => a.tier >= 1 && a.alive);
-        if (t1.length >= 2) {
-          const ai = Math.floor(Math.random() * t1.length);
-          let bi = Math.floor(Math.random() * t1.length);
-          if (ai !== bi) sendMsg(actors.indexOf(t1[ai]), actors.indexOf(t1[bi]), t1[ai].color, 0.008);
+      // Occasionally show cross-cutting concerns (logging)
+      if (Math.random() < 0.025) {
+        const loggers = [1, 2, 3, 4]; // tier1 actors sending to logger
+        const sender = loggers[Math.floor(Math.random() * loggers.length)];
+        if (actors[sender].alive && actors[8].alive) {
+          sendMsg(sender, 8, PURPLE, 0.008);
         }
       }
     },
   },
 
   // Phase 2 — Crash & isolation
+  // Only Router crashes. one_for_one means ONLY Router is affected.
+  // Supervisor receives :DOWN signal. Other actors keep running.
   {
-    duration: 5.5,
+    duration: 6,
     label: '03', heading: 'Fault <span class="accent">Isolation</span>',
-    sub: 'When a process crashes, it can\'t take down the system. The failure is contained.',
-    code: `<span class="cm"># a process crashes…</span>
-Router<span class="op">.</span>handle<span class="op">(</span>msg<span class="op">)</span>
-  <span class="op">|></span> <span class="err">** (CrashError)</span>
+    sub: 'A process crash is isolated. The supervisor receives a :DOWN signal. All other processes continue unaffected.',
+    code: `<span class="cm"># Router crashes on bad input</span>
+<span class="kw">receive</span> <span class="kw">do</span>
+  msg <span class="op">-></span> <span class="kw">case</span> msg <span class="kw">do</span>
+    <span class="type">None</span> <span class="op">-></span> <span class="err">panic("bad input")</span>
+  <span class="kw">end</span>
+<span class="kw">end</span>
 
-<span class="cm"># others continue unaffected</span>
-<span class="fn">HTTP</span>   <span class="op">→</span> <span class="ok">running</span>
-<span class="fn">Auth</span>   <span class="op">→</span> <span class="ok">running</span>
-<span class="fn">DB</span>     <span class="op">→</span> <span class="ok">running</span>`,
+<span class="cm"># supervisor detects crash</span>
+<span class="cm"># isolated — others unaffected</span>
+<span class="fn">HTTP</span>    <span class="op">→</span> <span class="ok">running ✓</span>
+<span class="fn">Auth</span>    <span class="op">→</span> <span class="ok">running ✓</span>
+<span class="fn">DB Pool</span> <span class="op">→</span> <span class="ok">running ✓</span>`,
     enter(t) {
-      const ri = 3; // router
-      const li = 8; // logger
+      const ri = 3; // router index
+      const si = 0; // supervisor index
 
-      // Pre-crash: shake the router
+      // Pre-crash: router shakes, turns red
       if (t >= 0.6 && t < 1.5 && !actors[ri].crash) {
         actors[ri].crashShake = Math.min(6, actors[ri].crashShake + 0.3);
-        // Flash red
         actors[ri].color = lerpColor(PURPLE, RED, Math.min(1, (t - 0.6) / 0.8));
       }
 
-      // Crash router
+      // Router crashes — only Router, not its children (Logger stays alive
+      // because in a real system Logger would be under its own supervisor
+      // or crash independently via linked process semantics)
       if (t >= 1.5 && actors[ri].alive && actors[ri].crash === false) {
         actors[ri].crash = true;
         explode(actors[ri].x, actors[ri].y, RED, 60);
@@ -498,25 +588,31 @@ Router<span class="op">.</span>handle<span class="op">(</span>msg<span class="op
         actors[ri].targetScale = 0;
         document.getElementById('statusPill').classList.add('crash');
         document.getElementById('statusText').textContent = 'Process Crashed';
+        downSignalSent = false;
       }
 
-      // Crash logger (child) slightly later
-      if (t >= 1.9 && actors[li].alive && !actors[li].crash) {
-        actors[li].crash = true;
-        explode(actors[li].x, actors[li].y, RED, 35);
-        actors[li].alive = false;
-        actors[li].targetScale = 0;
+      // :DOWN signal travels from crashed process location UP to supervisor
+      // This is the monitor notification — the supervisor is monitoring its children
+      if (t >= 2.0 && !downSignalSent && !actors[ri].alive) {
+        // Signal from crash site to supervisor (red/yellow signal particle)
+        sendMsg(ri, si, YELLOW, 0.02, true);
+        downSignalSent = true;
       }
 
-      // Other actors keep messaging
-      if (t > 2.5 && Math.random() < 0.04) {
-        const alive = edges.filter(e => actors[e.from].alive && actors[e.to].alive);
-        if (alive.length) {
-          const e = alive[Math.floor(Math.random() * alive.length)];
-          sendMsg(e.from, e.to, actors[e.from].color);
+      // Other actors keep sending messages — they're totally unaffected
+      if (t > 2.0 && Math.random() < 0.06) {
+        // Only routes that don't involve the crashed Router
+        const aliveRoutes = msgRoutes.filter(r =>
+          r.from !== ri && r.to !== ri &&
+          actors[r.from].alive && actors[r.to].alive
+        );
+        if (aliveRoutes.length) {
+          const route = aliveRoutes[Math.floor(Math.random() * aliveRoutes.length)];
+          sendMsg(route.from, route.to, actors[route.from].color);
         }
       }
 
+      // Fade supervision links where one end is dead
       edges.forEach(e => {
         if (!actors[e.from].alive || !actors[e.to].alive)
           e.opacity = Math.max(0, e.opacity - 0.04);
@@ -524,30 +620,39 @@ Router<span class="op">.</span>handle<span class="op">(</span>msg<span class="op
     },
   },
 
-  // Phase 3 — Supervisor restart
+  // Phase 3 — Supervisor restart (one_for_one)
+  // Supervisor received :DOWN, now it restarts ONLY the Router.
+  // This is the correct one_for_one behavior.
   {
-    duration: 5.5,
+    duration: 6,
     label: '04', heading: 'Supervisor <span class="accent">Restart</span>',
-    sub: 'The supervisor detects the failure and restarts the crashed processes automatically.',
-    code: `<span class="cm"># supervisor detects failure</span>
+    sub: 'one_for_one: the supervisor restarts only the failed process. Fresh state, same PID slot. System self-heals.',
+    code: `<span class="cm"># one_for_one strategy</span>
 <span class="kw">supervisor</span> AppSup <span class="kw">do</span>
   strategy<span class="op">:</span> one_for_one
   max_restarts<span class="op">:</span> <span class="num">3</span>
+  max_seconds<span class="op">:</span> <span class="num">5</span>
 
-  <span class="kw">child</span> router <span class="kw">do</span>
+  child http <span class="kw">do</span>
+    start<span class="op">:</span> <span class="kw">fn</span> <span class="op">-></span> <span class="kw">spawn</span><span class="op">(</span>http_handler<span class="op">)</span> <span class="kw">end</span>
+    restart<span class="op">:</span> permanent
+  <span class="kw">end</span>
+  child router <span class="kw">do</span>
     start<span class="op">:</span> <span class="kw">fn</span> <span class="op">-></span> <span class="kw">spawn</span><span class="op">(</span>router<span class="op">)</span> <span class="kw">end</span>
     restart<span class="op">:</span> permanent
   <span class="kw">end</span>
 <span class="kw">end</span>
-<span class="cm"># </span><span class="ok">✓ system restored</span>`,
+<span class="cm"># </span><span class="ok">✓ Router restarted, fresh state</span>`,
     enter(t) {
-      const ri = 3, li = 8, si = 0;
+      const ri = 3, si = 0;
 
-      // Supervisor sends signal
-      if (t >= 0.4 && t < 0.5) sendMsg(si, ri, ACCENT, 0.025);
+      // Supervisor "decides" to restart — brief glow on supervisor
+      if (t >= 0.3 && t < 0.6) {
+        actors[si].mailboxFlash = Math.max(actors[si].mailboxFlash, 0.8);
+      }
 
-      // Respawn router
-      if (t >= 1.4 && !actors[ri].alive) {
+      // Respawn ONLY the Router (one_for_one — siblings untouched)
+      if (t >= 1.2 && !actors[ri].alive) {
         actors[ri].alive = true;
         actors[ri].crash = false;
         actors[ri].crashShake = 0;
@@ -555,68 +660,57 @@ Router<span class="op">.</span>handle<span class="op">(</span>msg<span class="op
         actors[ri].spawnT = 0;
         actors[ri].respawnGlow = 1;
         actors[ri].color = PURPLE;
+        actors[ri].mailboxCount = 0;
         spawnRing(actors[ri].baseX, actors[ri].baseY, ACCENT);
       }
-      if (actors[ri].alive && actors[ri].spawnT < 1) actors[ri].spawnT = Math.min(1, actors[ri].spawnT + 0.025);
+      if (actors[ri].alive && actors[ri].spawnT < 1)
+        actors[ri].spawnT = Math.min(1, actors[ri].spawnT + 0.025);
 
-      // Respawn logger
-      if (t >= 1.9 && !actors[li].alive) {
-        actors[li].alive = true;
-        actors[li].crash = false;
-        actors[li].targetScale = 1;
-        actors[li].spawnT = 0;
-        actors[li].respawnGlow = 1;
-        actors[li].color = PURPLE;
-        spawnRing(actors[li].baseX, actors[li].baseY, ACCENT);
-      }
-      if (actors[li].alive && actors[li].spawnT < 1) actors[li].spawnT = Math.min(1, actors[li].spawnT + 0.025);
-
-      if (t >= 2.5) {
+      if (t >= 2.0) {
         document.getElementById('statusPill').classList.remove('crash');
         document.getElementById('statusText').textContent = 'System Restored';
       }
 
+      // Supervision links restore
       edges.forEach(e => {
         if (actors[e.from].alive && actors[e.to].alive)
           e.opacity = Math.min(1, e.opacity + 0.03);
       });
 
-      if (t > 3 && Math.random() < 0.06) {
-        const e = edges[Math.floor(Math.random() * edges.length)];
-        if (actors[e.from].alive && actors[e.to].alive)
-          sendMsg(e.from, e.to, actors[e.from].color);
+      // Resume normal messaging through Router
+      if (t > 2.5 && Math.random() < 0.07) {
+        sendBusinessMsg();
       }
     },
   },
 
-  // Phase 4 — Full system, heavy traffic
+  // Phase 4 — Full system, heavy traffic, show the beauty of the model
   {
-    duration: 5.5,
+    duration: 6,
     label: '05', heading: 'Self-Healing <span class="accent">Systems</span>',
-    sub: 'Millions of processes. Sub-millisecond spawns. Automatic fault recovery.',
-    code: `<span class="cm"># Mesh actor model</span>
-<span class="ok">✓</span> <span class="str">Isolated process memory</span>
-<span class="ok">✓</span> <span class="str">Async message passing</span>
+    sub: 'Millions of isolated processes. Async message passing. Supervision trees for automatic fault recovery.',
+    code: `<span class="cm"># the actor model</span>
+<span class="ok">✓</span> <span class="str">Isolated actor memory</span>
+<span class="ok">✓</span> <span class="str">Async mailbox messaging</span>
 <span class="ok">✓</span> <span class="str">Supervision trees</span>
-<span class="ok">✓</span> <span class="str">Automatic restart</span>
-<span class="ok">✓</span> <span class="str">140% faster than Elixir</span>`,
+<span class="ok">✓</span> <span class="str">one_for_one / one_for_all</span>
+<span class="ok">✓</span> <span class="str">Crash detection + auto restart</span>
+<span class="ok">✓</span> <span class="str">Let it crash philosophy</span>`,
     enter(t) {
       document.getElementById('statusPill').classList.remove('crash');
       document.getElementById('statusText').textContent = 'System Healthy';
 
+      // Heavy business traffic
       if (Math.random() < 0.14) {
-        const e = edges[Math.floor(Math.random() * edges.length)];
-        if (actors[e.from].alive && actors[e.to].alive) {
-          const dir = Math.random() < 0.5;
-          sendMsg(dir ? e.from : e.to, dir ? e.to : e.from, actors[dir ? e.from : e.to].color, 0.016);
-        }
+        sendBusinessMsg();
       }
-      if (Math.random() < 0.06) {
+      // Cross-cutting messages
+      if (Math.random() < 0.04) {
         const all = actors.filter(a => a.alive && a.tier >= 1);
         if (all.length >= 2) {
           const a = all[Math.floor(Math.random() * all.length)];
           const b = all[Math.floor(Math.random() * all.length)];
-          if (a !== b) sendMsg(actors.indexOf(a), actors.indexOf(b), a.color, 0.01);
+          if (a !== b) sendMsg(actors.indexOf(a), actors.indexOf(b), a.color, 0.013);
         }
       }
     },
@@ -664,14 +758,12 @@ function drawGrid() {
 }
 
 function drawAmbientGlows() {
-  // Center green glow
   const g1 = ctx.createRadialGradient(CX, CY, 0, CX, CY, Math.min(W,H) * 0.45);
   g1.addColorStop(0, 'rgba(89,193,132,0.04)');
   g1.addColorStop(1, 'rgba(89,193,132,0)');
   ctx.fillStyle = g1;
   ctx.fillRect(0, 0, W, H);
 
-  // Subtle top-right accent
   const g2 = ctx.createRadialGradient(W * 0.8, H * 0.15, 0, W * 0.8, H * 0.15, W * 0.25);
   g2.addColorStop(0, 'rgba(89,193,132,0.025)');
   g2.addColorStop(1, 'rgba(89,193,132,0)');
@@ -694,33 +786,50 @@ function drawAmbientParticles() {
   }
 }
 
+// ═══════════════════════════════════════════
+// Draw supervision tree links — dashed, dimmer,
+// visually distinct from messages. These are
+// monitoring links, not communication channels.
+// ═══════════════════════════════════════════
 function drawEdges() {
   for (const e of edges) {
     if (e.opacity < 0.005) continue;
     const a = actors[e.from], b = actors[e.to];
     const ax = a.x, ay = a.y, bx = b.x, by = b.y;
 
-    // Curved edge with control point offset
-    const mx = (ax + bx) / 2, my = (ay + by) / 2;
-    const dx = bx - ax, dy = by - ay;
-
     ctx.save();
-    // Main line — subtle
+    // Thin solid base line
     ctx.beginPath();
     ctx.moveTo(ax, ay);
     ctx.lineTo(bx, by);
-    ctx.strokeStyle = rgba(WHITE, e.opacity * 0.04);
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = rgba(WHITE, e.opacity * 0.03);
+    ctx.lineWidth = 0.8;
     ctx.stroke();
 
-    // Dashed accent
-    ctx.setLineDash([3, 7]);
+    // Dashed overlay — represents the supervision/monitor link
+    ctx.setLineDash([2, 6]);
     ctx.beginPath();
     ctx.moveTo(ax, ay);
     ctx.lineTo(bx, by);
     ctx.strokeStyle = rgba(ACCENT, e.opacity * 0.06);
     ctx.lineWidth = 0.5;
     ctx.stroke();
+
+    // Small diamond at midpoint to indicate "monitors" relationship
+    if (e.opacity > 0.3) {
+      const mx = (ax + bx) / 2, my = (ay + by) / 2;
+      const ds = 3;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(mx, my - ds);
+      ctx.lineTo(mx + ds, my);
+      ctx.lineTo(mx, my + ds);
+      ctx.lineTo(mx - ds, my);
+      ctx.closePath();
+      ctx.fillStyle = rgba(ACCENT, e.opacity * 0.15);
+      ctx.fill();
+    }
+
     ctx.restore();
   }
 }
@@ -738,7 +847,7 @@ function drawActor(a) {
   const y = a.y + (a.crashShake > 0.1 ? (Math.random()-0.5) * a.crashShake : 0);
   const alpha = a.opacity;
 
-  // Respawn glow — big expanding ring
+  // Respawn glow
   if (a.respawnGlow > 0.01) {
     const rr = r + 50 * (1 - a.respawnGlow);
     const g = ctx.createRadialGradient(x, y, r, x, y, rr);
@@ -797,14 +906,37 @@ function drawActor(a) {
   ctx.fillStyle = rgba(gc, alpha * 0.7);
   ctx.fill();
 
-  // Inner glow bloom on core
+  // Inner glow bloom
   const cg = ctx.createRadialGradient(x, y, 0, x, y, r * 0.4);
   cg.addColorStop(0, rgba(gc, alpha * 0.25));
   cg.addColorStop(1, rgba(gc, 0));
   ctx.beginPath(); ctx.arc(x, y, r * 0.4, 0, Math.PI * 2);
   ctx.fillStyle = cg; ctx.fill();
 
-  // Mailbox flash
+  // ─── Mailbox visualization ───
+  // Show queued messages as small dots orbiting or stacked near the actor
+  if (a.mailboxCount > 0 && alpha > 0.1) {
+    const count = Math.min(a.mailboxCount, 6); // cap visual at 6
+    const mbRadius = r * 1.35;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 / count) * i + time * 0.015;
+      const mx = x + Math.cos(angle) * mbRadius;
+      const my = y + Math.sin(angle) * mbRadius;
+      // Tiny envelope-like dot
+      ctx.beginPath();
+      ctx.arc(mx, my, 2, 0, Math.PI * 2);
+      ctx.fillStyle = rgba(ACCENT, alpha * 0.5 * Math.max(0.3, a.mailboxDecay));
+      ctx.fill();
+      // Glow
+      const mg = ctx.createRadialGradient(mx, my, 0, mx, my, 5);
+      mg.addColorStop(0, rgba(ACCENT, alpha * 0.15 * a.mailboxDecay));
+      mg.addColorStop(1, rgba(ACCENT, 0));
+      ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2);
+      ctx.fillStyle = mg; ctx.fill();
+    }
+  }
+
+  // Mailbox flash (on receive)
   if (a.mailboxFlash > 0.05) {
     const mr = r * (1.6 + (1 - a.mailboxFlash) * 0.5);
     ctx.beginPath();
@@ -835,20 +967,33 @@ function drawMessages() {
     const p = bezierPoint(m.ax, m.ay, m.cpx, m.cpy, m.bx, m.by, m.progress);
     const alpha = Math.sin(m.progress * Math.PI);
 
+    // Signal messages (:DOWN) get a distinctive look
+    const dotSize = m.isSignal ? 3.5 : 2.5;
+    const glowSize = m.isSignal ? 22 : 16;
+
     // Glow
-    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 16);
-    g.addColorStop(0, rgba(m.color, alpha * 0.5));
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowSize);
+    g.addColorStop(0, rgba(m.color, alpha * (m.isSignal ? 0.7 : 0.5)));
     g.addColorStop(1, rgba(m.color, 0));
-    ctx.beginPath(); ctx.arc(p.x, p.y, 16, 0, Math.PI * 2);
+    ctx.beginPath(); ctx.arc(p.x, p.y, glowSize, 0, Math.PI * 2);
     ctx.fillStyle = g; ctx.fill();
 
     // Core dot
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, dotSize, 0, Math.PI * 2);
     ctx.fillStyle = rgba(m.color, alpha * 0.95);
     ctx.fill();
 
-    // Trail — draw 6 previous points
+    // Signal messages get a pulsing outer ring
+    if (m.isSignal) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, dotSize + 4 + Math.sin(time * 0.1) * 2, 0, Math.PI * 2);
+      ctx.strokeStyle = rgba(m.color, alpha * 0.4);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Trail
     ctx.beginPath();
     let first = true;
     for (let i = 6; i >= 0; i--) {
@@ -858,8 +1003,15 @@ function drawMessages() {
       else ctx.lineTo(pt.x, pt.y);
     }
     ctx.strokeStyle = rgba(m.color, alpha * 0.35);
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx.lineWidth = m.isSignal ? 2.5 : 2;
+    if (m.isSignal) {
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.stroke();
+    }
   }
 }
 
@@ -903,7 +1055,6 @@ function drawVignette() {
 }
 
 function drawAccentLines() {
-  // Top
   const tg = ctx.createLinearGradient(W * 0.2, 0, W * 0.8, 0);
   tg.addColorStop(0, 'rgba(89,193,132,0)');
   tg.addColorStop(0.5, 'rgba(89,193,132,0.2)');
@@ -911,7 +1062,6 @@ function drawAccentLines() {
   ctx.fillStyle = tg;
   ctx.fillRect(W * 0.2, 0, W * 0.6, 1);
 
-  // Bottom
   const bg = ctx.createLinearGradient(W * 0.2, 0, W * 0.8, 0);
   bg.addColorStop(0, 'rgba(89,193,132,0)');
   bg.addColorStop(0.5, 'rgba(89,193,132,0.1)');
@@ -955,6 +1105,15 @@ function update() {
     else a.crashShake *= 0.92;
     a.respawnGlow *= 0.975;
     a.mailboxFlash *= 0.93;
+    // Mailbox processing: gradually drain queued messages
+    if (a.mailboxCount > 0 && a.alive) {
+      a.processTimer += dt;
+      if (a.processTimer > 0.3) { // process one message every 0.3s
+        a.mailboxCount = Math.max(0, a.mailboxCount - 1);
+        a.processTimer = 0;
+      }
+    }
+    a.mailboxDecay = a.mailboxCount > 0 ? Math.min(1, a.mailboxDecay + 0.05) : Math.max(0, a.mailboxDecay - 0.02);
     if (a.alive) alive++;
   }
   document.getElementById('procCount').textContent = alive;
@@ -964,7 +1123,10 @@ function update() {
     messages[i].progress += messages[i].speed;
     if (messages[i].progress >= 1) {
       const dest = actors[messages[i].toIdx];
-      if (dest) dest.mailboxFlash = 1;
+      if (dest && dest.alive) {
+        dest.mailboxFlash = 1;
+        dest.mailboxCount = Math.min(6, dest.mailboxCount + 1);
+      }
       messages.splice(i, 1);
     }
   }
@@ -974,7 +1136,7 @@ function update() {
     const p = explosions[i];
     p.x += p.vx; p.y += p.vy;
     p.vx *= 0.96; p.vy *= 0.96;
-    p.vy += 0.02; // gravity
+    p.vy += 0.02;
     p.life -= p.decay;
     if (p.life <= 0) explosions.splice(i, 1);
   }
@@ -1013,7 +1175,6 @@ function render() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.clearRect(0, 0, W, H);
 
-  // Apply screen shake
   ctx.translate(screenShake.x, screenShake.y);
 
   drawGrid();

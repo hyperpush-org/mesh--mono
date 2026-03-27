@@ -4,6 +4,7 @@ use axum::{
     Json,
 };
 use serde::Serialize;
+use sqlx::PgPool;
 use std::sync::Arc;
 
 #[derive(Serialize)]
@@ -53,6 +54,42 @@ pub struct LatestVersion {
     pub sha256: String,
 }
 
+async fn load_package_document(pool: &PgPool, name: &str) -> Result<serde_json::Value, AppError> {
+    let pkg = db::packages::get_package(pool, name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or(AppError::NotFound)?;
+
+    let latest_ver = pkg.latest_version.clone().ok_or_else(|| {
+        AppError::Internal(format!(
+            "Package {} is missing latest version metadata",
+            name
+        ))
+    })?;
+
+    let ver = db::packages::get_version(pool, name, &latest_ver)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| {
+            AppError::Internal(format!(
+                "Package {} latest version {} is missing version metadata",
+                name, latest_ver
+            ))
+        })?;
+
+    Ok(serde_json::json!({
+        "name": pkg.name,
+        "description": pkg.description,
+        "owner": pkg.owner_login,
+        "download_count": pkg.download_count,
+        "latest": {
+            "version": ver.version,
+            "sha256": ver.sha256,
+        },
+        "readme": ver.readme,
+    }))
+}
+
 /// GET /api/v1/packages/{owner}/{package}/{version}
 /// Returns {"sha256": "..."} — used by meshpkg install to verify
 pub async fn version_handler(
@@ -76,37 +113,102 @@ pub async fn package_handler(
     Path((owner, package)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let name = format!("{}/{}", owner, package);
-    let pkg = db::packages::get_package(&state.pool, &name)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .ok_or(AppError::NotFound)?;
+    Ok(Json(load_package_document(&state.pool, &name).await?))
+}
 
-    // Fetch the latest version record (for sha256 AND readme)
-    let (latest, readme) = if let Some(ref latest_ver) = pkg.latest_version {
-        let ver = db::packages::get_version(&state.pool, &name, latest_ver)
+#[cfg(test)]
+mod tests {
+    use super::load_package_document;
+    use crate::{db, error::AppError};
+    use sqlx::PgPool;
+    use uuid::Uuid;
+
+    async fn insert_user(pool: &PgPool, login: &str) -> sqlx::Result<Uuid> {
+        let id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO users (id, github_id, github_login, email) VALUES ($1, $2, $3, $4)",
+        )
+        .bind(id)
+        .bind(1_i64)
+        .bind(login)
+        .bind(format!("{login}@example.test"))
+        .execute(pool)
+        .await?;
+        Ok(id)
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn package_document_uses_highest_latest_version(pool: PgPool) -> sqlx::Result<()> {
+        let user_id = insert_user(&pool, "snowdamiz").await?;
+        let package_name = "snowdamiz/mesh-proof";
+        let newer = "0.34.0-20260327191246-2503";
+        let older = "0.34.0-20260327191241-2432";
+
+        db::packages::insert_version(
+            &pool,
+            package_name,
+            newer,
+            "sha-new",
+            128,
+            Some("# newer readme".to_string()),
+            "newest description",
+            "snowdamiz",
+            user_id,
+        )
+        .await?;
+
+        db::packages::insert_version(
+            &pool,
+            package_name,
+            older,
+            "sha-old",
+            64,
+            Some("# older readme".to_string()),
+            "refreshed package description",
+            "snowdamiz",
+            user_id,
+        )
+        .await?;
+
+        let payload = load_package_document(&pool, package_name)
             .await
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-        match ver {
-            Some(v) => {
-                let latest_json = serde_json::json!({
-                    "version": v.version,
-                    "sha256": v.sha256,
-                });
-                let readme = v.readme;
-                (Some(latest_json), readme)
-            }
-            None => (None, None),
-        }
-    } else {
-        (None, None)
-    };
+            .expect("package metadata should load");
+        assert_eq!(payload["latest"]["version"], newer);
+        assert_eq!(payload["latest"]["sha256"], "sha-new");
+        assert_eq!(payload["description"], "refreshed package description");
+        assert_eq!(payload["readme"], "# newer readme");
 
-    Ok(Json(serde_json::json!({
-        "name": pkg.name,
-        "description": pkg.description,
-        "owner": pkg.owner_login,
-        "download_count": pkg.download_count,
-        "latest": latest,
-        "readme": readme,   // Option<String>: null if no README was in tarball
-    })))
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn package_document_fails_when_latest_version_row_is_missing(
+        pool: PgPool,
+    ) -> sqlx::Result<()> {
+        sqlx::query(
+            r#"
+            INSERT INTO packages (name, owner_login, description, latest_version)
+            VALUES ($1, $2, $3, $4)
+            "#,
+        )
+        .bind("snowdamiz/mesh-proof")
+        .bind("snowdamiz")
+        .bind("description")
+        .bind("0.34.0-20260327191246-2503")
+        .execute(&pool)
+        .await?;
+
+        let error = load_package_document(&pool, "snowdamiz/mesh-proof")
+            .await
+            .expect_err("missing version row should be explicit");
+
+        match error {
+            AppError::Internal(message) => {
+                assert!(message.contains("missing version metadata"));
+            }
+            other => panic!("expected internal error, got {other:?}"),
+        }
+
+        Ok(())
+    }
 }
