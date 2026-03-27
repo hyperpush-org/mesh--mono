@@ -33,6 +33,14 @@ const path = require('path');
   await promoFlywheel.screenshot({ path: path.join(publicDir, 'promo-flywheel.png') });
   console.log('✓ promo-flywheel.png');
 
+  // 3. Sentry Swap promo (1200x675)
+  console.log('Capturing sentry swap...');
+  await page.goto(`file://${path.resolve(__dirname, 'sentry-swap.html')}`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1000);
+  const sentrySwap = await page.$('#sentry-swap');
+  await sentrySwap.screenshot({ path: path.join(publicDir, 'sentry-swap.png') });
+  console.log('✓ sentry-swap.png');
+
   await browser.close();
   console.log('\nDone! All images saved to public/');
 })();

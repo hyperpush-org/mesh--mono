@@ -130,6 +130,46 @@ test("hosted workflows consume the stronger shared contract and reject the old s
   assert.match(workflowVerifier, /Verify public surface contract step must call the shared helper/);
 });
 
+test("remote evidence resolves expected remote refs and records freshness failures", () => {
+  assert.match(s05Verifier, /def resolve_expected_ref\(entry, spec, slug\):/);
+  assert.match(s05Verifier, /\['git', 'ls-remote', '--quiet', 'origin', \*ref_candidates\]/);
+  assert.match(s05Verifier, /'expectedRef': 'refs\/heads\/main'/);
+  assert.match(s05Verifier, /'expectedRef': f'refs\/tags\/\{binary_tag\}'/);
+  assert.match(s05Verifier, /'expectedPeeledRef': f'refs\/tags\/\{binary_tag\}\^\{\{\}\}'/);
+  assert.match(s05Verifier, /'expectedPeeledRef': f'refs\/tags\/\{extension_tag\}\^\{\{\}\}'/);
+  assert.match(s05Verifier, /'expectedHeadSha': None/);
+  assert.match(s05Verifier, /'observedHeadSha': None/);
+  assert.match(s05Verifier, /'freshnessStatus': 'pending'/);
+  assert.match(s05Verifier, /entry\['expectedHeadSha'\] = expected_head_sha/);
+  assert.match(s05Verifier, /entry\['observedHeadSha'\] = observed_head_sha/);
+  assert.match(s05Verifier, /did not match expected \{resolved_ref!r\} sha \{expected_head_sha!r\}/);
+  assert.match(s05Verifier, /fail_entry\(entry, results, errors, reason, freshness_reason=reason\)/);
+  assert.match(s05Verifier, /'headShaMatchesExpected': None/);
+  assert.match(s05Verifier, /entry\['headShaMatchesExpected'\] = True/);
+});
+
+test("remote evidence keeps reusable workflow matching and caller-run extension proof semantics", () => {
+  const proofWorkflow = read(".github/workflows/extension-release-proof.yml");
+  const publishWorkflow = read(".github/workflows/publish-extension.yml");
+
+  assert.match(proofWorkflow, /\non:\n  workflow_call:\n/, "extension proof workflow should stay workflow_call-only");
+  assert.match(
+    publishWorkflow,
+    /uses: \.\/\.github\/workflows\/extension-release-proof\.yml/,
+    "publish workflow should call the reusable extension proof workflow",
+  );
+  assert.match(
+    s05Verifier,
+    /'workflowFile': 'extension-release-proof\.yml',[\s\S]*'queryWorkflowFile': 'publish-extension\.yml',[\s\S]*'requiredHeadBranch': extension_tag,[\s\S]*'expectedRef': f'refs\/tags\/\{extension_tag\}'[\s\S]*'requiredJobs': \['Verify extension release proof'\],[\s\S]*'successFromJobsOnly': True,/,
+    "S05 remote evidence should derive extension proof truth from the publish workflow caller run",
+  );
+  assert.match(
+    s05Verifier,
+    /def job_name_matches\(actual_name, required_name\):[\s\S]*reusable_suffix = f' \/ \{required_name\}'/,
+    "S05 verifier should tolerate reusable-workflow job name prefixes in gh run view output",
+  );
+});
+
 test("workflow triggers keep binary and extension tags separate", () => {
   assert.match(releaseWorkflow, /tags:\s*\['v\*'\]/, "release.yml must keep v* tags");
   assert.match(

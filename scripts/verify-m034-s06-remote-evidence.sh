@@ -180,14 +180,49 @@ candidate_tags, candidate_tags_error = load_json('candidate-tags.json')
 remote_runs, remote_runs_error = load_json('remote-runs.json')
 phase_report = (archive_stage_root / 'phase-report.txt').read_text().splitlines()
 remote_run_summaries = []
+manifest_errors = []
+required_freshness_fields = [
+    'workflowFile',
+    'status',
+    'requiredHeadBranch',
+    'expectedRef',
+    'expectedHeadSha',
+    'observedHeadSha',
+    'freshnessStatus',
+    'freshnessFailure',
+]
+
+if candidate_tags_error:
+    manifest_errors.append(candidate_tags_error)
+if remote_runs_error:
+    manifest_errors.append(remote_runs_error)
+if remote_runs is not None and not isinstance(remote_runs, dict):
+    manifest_errors.append('remote-runs.json must decode to a JSON object')
+
 if isinstance(remote_runs, dict):
     for workflow in remote_runs.get('workflows', []):
         if not isinstance(workflow, dict):
+            manifest_errors.append('remote-runs.json contains a non-object workflow entry')
             continue
+
+        missing_fields = [field for field in required_freshness_fields if field not in workflow]
+        if missing_fields:
+            workflow_name = workflow.get('workflowFile', '<unknown-workflow>')
+            manifest_errors.append(
+                f'{workflow_name} missing freshness fields in remote-runs.json: {missing_fields}'
+            )
+            continue
+
         summary = {
             'workflowFile': workflow.get('workflowFile'),
             'status': workflow.get('status'),
             'requiredHeadBranch': workflow.get('requiredHeadBranch'),
+            'expectedRef': workflow.get('expectedRef'),
+            'expectedHeadSha': workflow.get('expectedHeadSha'),
+            'observedHeadSha': workflow.get('observedHeadSha'),
+            'freshnessStatus': workflow.get('freshnessStatus'),
+            'freshnessFailure': workflow.get('freshnessFailure'),
+            'headShaMatchesExpected': workflow.get('headShaMatchesExpected'),
             'runUrl': None,
             'failure': workflow.get('failure'),
         }
@@ -197,11 +232,14 @@ if isinstance(remote_runs, dict):
             summary['headBranch'] = run_summary.get('headBranch')
             summary['runUrl'] = run_summary.get('url')
         latest_available = workflow.get('latestAvailableRun')
-        if isinstance(latest_available, dict) and summary['runUrl'] is None:
+        if isinstance(latest_available, dict):
             summary['latestAvailableHeadSha'] = latest_available.get('headSha')
             summary['latestAvailableHeadBranch'] = latest_available.get('headBranch')
             summary['latestAvailableRunUrl'] = latest_available.get('url')
         remote_run_summaries.append(summary)
+
+if manifest_errors:
+    raise SystemExit('archive manifest drift:\n- ' + '\n- '.join(manifest_errors))
 
 contents = sorted(path.relative_to(archive_stage_root).as_posix() for path in archive_stage_root.rglob('*') if path.is_file())
 contents_with_manifest = sorted(contents + ['manifest.json'])

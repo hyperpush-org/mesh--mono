@@ -264,7 +264,7 @@ export function Infrastructure() {
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-6 text-balance">
               Powered by Mesh.
               <br />
-              <span className="text-muted-foreground">Built for millions of errors.</span>
+              <span className="text-muted-foreground">Built for millions of events.</span>
             </h2>
             <p className="text-lg text-muted-foreground mb-4 text-pretty">
               hyperpush runs on <strong className="text-foreground">Mesh</strong> — a systems language with 

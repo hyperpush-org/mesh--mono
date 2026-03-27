@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0a0a;
+    color: #f5f5f5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .card {
+    width: 1200px;
+    height: 675px;
+    position: relative;
+    overflow: hidden;
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    padding: 0 80px;
+    gap: 64px;
+  }
+
+  .grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image: 
+      linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  .glow {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .top-line {
+    position: absolute;
+    top: 0; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(89,193,132,0.3), transparent);
+  }
+
+  .bottom-line {
+    position: absolute;
+    bottom: 0; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(89,193,132,0.15), transparent);
+  }
+
+  /* Left side — copy */
+  .copy {
+    position: relative;
+    z-index: 5;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 100px;
+    border: 1px solid rgba(89,193,132,0.25);
+    background: rgba(89,193,132,0.08);
+    font-size: 13px;
+    color: #59C184;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+
+  .pill .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #59C184;
+  }
+
+  h1 {
+    font-size: 50px;
+    font-weight: 800;
+    letter-spacing: -2.5px;
+    line-height: 1.08;
+    margin-bottom: 20px;
+  }
+
+  h1 .accent { color: #59C184; }
+  h1 .dim { color: rgba(255,255,255,0.35); }
+
+  .desc {
+    font-size: 18px;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.45);
+    max-width: 440px;
+    margin-bottom: 32px;
+  }
+
+  .perks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .perk {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    font-size: 13px;
+    color: rgba(255,255,255,0.55);
+    font-weight: 500;
+  }
+
+  .perk .icon { color: #59C184; font-size: 14px; }
+
+  /* Right side — code diff */
+  .code-panel {
+    position: relative;
+    z-index: 5;
+    width: 430px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .code-block {
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.025);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .code-block.old {
+    border-color: rgba(255,80,80,0.15);
+    opacity: 0.5;
+  }
+
+  .code-block.old .code-body {
+    position: relative;
+  }
+
+  .code-block.old .code-body::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    right: 12px;
+    height: 2px;
+    background: rgba(255,80,80,0.5);
+    transform: translateY(-50%);
+    z-index: 10;
+    border-radius: 1px;
+  }
+
+  .code-block.new {
+    border-color: rgba(89,193,132,0.25);
+    box-shadow: 0 0 40px rgba(89,193,132,0.08), 0 0 80px rgba(89,193,132,0.04);
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.015);
+  }
+
+  .code-header .dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .code-header .dot-r { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,95,87,0.55); }
+  .code-header .dot-y { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,189,46,0.55); }
+  .code-header .dot-g { width: 10px; height: 10px; border-radius: 50%; background: rgba(89,193,132,0.55); }
+
+  .code-header .file-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    font-weight: 500;
+  }
+
+  .code-body {
+    padding: 18px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: rgba(255,255,255,0.45);
+  }
+
+  .code-body .kw { color: #c792ea; }
+  .code-body .str { color: #c3e88d; }
+  .code-body .str-old { color: #f07178; }
+  .code-body .fn { color: #82aaff; }
+  .code-body .comment { color: rgba(255,255,255,0.2); font-style: italic; }
+  .code-body .accent { color: #59C184; }
+  .code-body .obj { color: #ffcb6b; }
+
+  /* Arrow between blocks */
+  .swap-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #59C184;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .swap-arrow .line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(89,193,132,0.25), transparent);
+  }
+
+  .swap-arrow svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  /* Logo row */
+  .logo-row {
+    position: absolute;
+    bottom: 36px;
+    left: 80px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 5;
+  }
+
+  .logo-row .name {
+    font-size: 20px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .logo-row .url {
+    font-size: 14px;
+    color: rgba(255,255,255,0.25);
+    margin-left: 8px;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="sentry-swap">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:700px;height:700px;background:radial-gradient(circle,rgba(89,193,132,0.09) 0%,transparent 70%);top:30%;right:-5%;transform:translateY(-50%)"></div>
+  <div class="glow" style="width:500px;height:500px;background:radial-gradient(circle,rgba(89,193,132,0.06) 0%,transparent 70%);bottom:-10%;left:20%"></div>
+  <div class="top-line"></div>
+  <div class="bottom-line"></div>
+
+  <!-- LEFT: Copy -->
+  <div class="copy">
+    <div class="pill">
+      <span class="dot"></span>
+      Drop-in Replacement
+    </div>
+    <h1>
+      Ditch Sentry.<br>
+      <span class="accent">One import.</span><br>
+      <span class="dim">Zero rewrites.</span>
+    </h1>
+    <p class="desc">
+      Same API surface. Same config patterns. Swap the import, redeploy, and you're running on a faster, open-source stack that actually pays for itself.
+    </p>
+    <div class="perks">
+      <div class="perk"><span class="icon">✓</span> Compatible SDK</div>
+      <div class="perk"><span class="icon">✓</span> Same init() pattern</div>
+      <div class="perk"><span class="icon">✓</span> AI root-cause analysis</div>
+      <div class="perk"><span class="icon">✓</span> Free &amp; open source</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Code diff -->
+  <div class="code-panel">
+    <!-- Old: Sentry -->
+    <div class="code-block old">
+      <div class="code-header">
+        <div class="dots">
+          <div class="dot-r"></div>
+          <div class="dot-y"></div>
+          <div class="dot-g"></div>
+        </div>
+        <span class="file-name">sentry.config.ts</span>
+      </div>
+      <div class="code-body">
+        <span class="kw">import</span> * <span class="kw">as</span> <span class="obj">Sentry</span> <span class="kw">from</span> <span class="str-old">"@sentry/node"</span>;<br>
+        <br>
+        <span class="obj">Sentry</span>.<span class="fn">init</span>({<br>
+        &nbsp;&nbsp;dsn: <span class="str-old">"https://...sentry.io"</span>,<br>
+        });
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div class="swap-arrow">
+      <span class="line"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14M19 12l-7 7-7-7"/>
+      </svg>
+      <span style="white-space:nowrap">swap it</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14M19 12l-7 7-7-7"/>
+      </svg>
+      <span class="line"></span>
+    </div>
+
+    <!-- New: Hyperpush -->
+    <div class="code-block new">
+      <div class="code-header">
+        <div class="dots">
+          <div class="dot-r"></div>
+          <div class="dot-y"></div>
+          <div class="dot-g"></div>
+        </div>
+        <span class="file-name">hyperpush.config.ts</span>
+      </div>
+      <div class="code-body">
+        <span class="kw">import</span> * <span class="kw">as</span> <span class="obj">Hyperpush</span> <span class="kw">from</span> <span class="str">"@hyperpush/node"</span>;<br>
+        <br>
+        <span class="obj">Hyperpush</span>.<span class="fn">init</span>({<br>
+        &nbsp;&nbsp;dsn: <span class="str">"https://...hyperpush.dev"</span>,<br>
+        }); <span class="comment">// that's it. you're done.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logo -->
+  <div class="logo-row">
+    <svg width="26" height="26" viewBox="0 0 256 256" fill="none">
+      <path d="M58.4637 127.026C49.371 111.277 54.767 91.1387 70.5159 82.0461L122.475 172.041C131.567 187.79 126.171 207.928 110.422 217.021L58.4637 127.026Z" fill="#59C184"/>
+      <path d="M79.1494 77.0625C95.0428 67.8864 115.366 73.3319 124.542 89.2253L152.938 138.409C137.044 147.585 116.722 142.139 107.545 126.246L79.1494 77.0625Z" fill="white"/>
+      <path d="M133.024 83.9788C123.931 68.2299 129.327 48.0919 145.076 38.9992L182.534 103.879C191.627 119.628 186.231 139.766 170.482 148.859L133.024 83.9788Z" fill="#59C184"/>
+    </svg>
+    <span class="name">hyperpush</span>
+
+  </div>
+</div>
+
+</body>
+</html>

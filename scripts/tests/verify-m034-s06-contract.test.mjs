@@ -9,7 +9,6 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptDir, "..", "..");
 const helperPath = path.join(root, "scripts", "verify-m034-s06-remote-evidence.sh");
-const s05VerifierPath = path.join(root, "scripts", "verify-m034-s05.sh");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -23,7 +22,45 @@ function runHelper(label, env) {
   });
 }
 
-function createStubHarness(t, { exitCode = 1, includeRemoteRuns = true, archiveLabel = "contract-red" } = {}) {
+function defaultRemoteRunsPayload() {
+  return {
+    repository: "snowdamiz/mesh-lang",
+    workflows: [
+      {
+        workflowFile: "deploy.yml",
+        status: "failed",
+        requiredHeadBranch: "main",
+        expectedRef: "refs/heads/main",
+        expectedHeadSha: "163f24009b868256d7a3d144dd3a68bddce5a660",
+        observedHeadSha: "5ddf3b2dce17abe08e1188d9b46e575d83525b50",
+        freshnessStatus: "failed",
+        freshnessFailure: "deploy.yml hosted run headSha '5ddf3b2dce17abe08e1188d9b46e575d83525b50' did not match expected 'refs/heads/main' sha '163f24009b868256d7a3d144dd3a68bddce5a660'",
+        headShaMatchesExpected: false,
+        failure: "deploy.yml hosted run headSha '5ddf3b2dce17abe08e1188d9b46e575d83525b50' did not match expected 'refs/heads/main' sha '163f24009b868256d7a3d144dd3a68bddce5a660'",
+        runSummary: {
+          headBranch: "main",
+          headSha: "5ddf3b2dce17abe08e1188d9b46e575d83525b50",
+          url: "https://github.com/snowdamiz/mesh-lang/actions/runs/23506361663",
+        },
+        latestAvailableRun: {
+          headBranch: "main",
+          headSha: "5ddf3b2dce17abe08e1188d9b46e575d83525b50",
+          url: "https://github.com/snowdamiz/mesh-lang/actions/runs/23506361663",
+        },
+      },
+    ],
+  };
+}
+
+function createStubHarness(
+  t,
+  {
+    exitCode = 1,
+    includeRemoteRuns = true,
+    archiveLabel = "contract-red",
+    remoteRunsPayload = defaultRemoteRunsPayload(),
+  } = {},
+) {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "verify-m034-s06-"));
   t.after(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
 
@@ -33,27 +70,8 @@ function createStubHarness(t, { exitCode = 1, includeRemoteRuns = true, archiveL
   const stubPath = path.join(tmpRoot, "stub-verify-m034-s05.sh");
 
   const remoteRunsBlock = includeRemoteRuns
-    ? `cat >"$VERIFY_ROOT/remote-runs.json" <<'JSON'\n${JSON.stringify(
-        {
-          repository: "snowdamiz/mesh-lang",
-          workflows: [
-            {
-              workflowFile: "deploy.yml",
-              status: "failed",
-              requiredHeadBranch: "main",
-              failure: "deploy.yml hosted run is missing required steps",
-              runSummary: {
-                headBranch: "main",
-                headSha: "5ddf3b2dce17abe08e1188d9b46e575d83525b50",
-                url: "https://github.com/snowdamiz/mesh-lang/actions/runs/23506361663",
-              },
-            },
-          ],
-        },
-        null,
-        2,
-      )}\nJSON`
-    : "rm -f \"$VERIFY_ROOT/remote-runs.json\"";
+    ? `cat >"$VERIFY_ROOT/remote-runs.json" <<'JSON'\n${JSON.stringify(remoteRunsPayload, null, 2)}\nJSON`
+    : 'rm -f "$VERIFY_ROOT/remote-runs.json"';
 
   fs.writeFileSync(
     stubPath,
@@ -122,29 +140,6 @@ test("verify-m034-s05 exposes an explicit stop-after remote-evidence boundary", 
   );
 });
 
-test("verify-m034-s05 derives reusable extension proof from the publish workflow surface", () => {
-  const script = read("scripts/verify-m034-s05.sh");
-  const proofWorkflow = read(".github/workflows/extension-release-proof.yml");
-  const publishWorkflow = read(".github/workflows/publish-extension.yml");
-
-  assert.match(proofWorkflow, /\non:\n  workflow_call:\n/, "extension proof workflow should stay workflow_call-only");
-  assert.match(
-    publishWorkflow,
-    /uses: \.\/\.github\/workflows\/extension-release-proof\.yml/,
-    "publish workflow should call the reusable extension proof workflow",
-  );
-  assert.match(
-    script,
-    /'workflowFile': 'extension-release-proof\.yml',\n\s+'queryWorkflowFile': 'publish-extension\.yml',\n\s+'requiredEvent': 'push',\n\s+'requiredHeadBranch': extension_tag,\n\s+'requiredJobs': \['Verify extension release proof'\],\n\s+'requiredJobSuccesses': \['Verify extension release proof'\],\n\s+'successFromJobsOnly': True,/,
-    "S05 remote evidence should derive extension proof truth from the publish workflow caller run",
-  );
-  assert.match(
-    script,
-    /def job_name_matches\(actual_name, required_name\):[\s\S]*reusable_suffix = f' \/ \{required_name\}'/,
-    "S05 verifier should tolerate reusable-workflow job name prefixes in gh run view output",
-  );
-});
-
 test("remote-evidence helper archives a red hosted bundle and returns the verifier exit code", (t) => {
   const harness = createStubHarness(t, { exitCode: 1, includeRemoteRuns: true, archiveLabel: "contract-red" });
   const result = runHelper(harness.archiveLabel, {
@@ -174,6 +169,13 @@ test("remote-evidence helper archives a red hosted bundle and returns the verifi
     "manifest should inventory the copied bundle contents",
   );
   assert.equal(manifest.remoteRunsSummary[0].workflowFile, "deploy.yml");
+  assert.equal(manifest.remoteRunsSummary[0].expectedRef, "refs/heads/main");
+  assert.equal(manifest.remoteRunsSummary[0].expectedHeadSha, "163f24009b868256d7a3d144dd3a68bddce5a660");
+  assert.equal(manifest.remoteRunsSummary[0].observedHeadSha, "5ddf3b2dce17abe08e1188d9b46e575d83525b50");
+  assert.equal(manifest.remoteRunsSummary[0].freshnessStatus, "failed");
+  assert.match(manifest.remoteRunsSummary[0].freshnessFailure, /did not match expected/);
+  assert.equal(manifest.remoteRunsSummary[0].headShaMatchesExpected, false);
+  assert.equal(manifest.remoteRunsSummary[0].latestAvailableHeadSha, "5ddf3b2dce17abe08e1188d9b46e575d83525b50");
   assert.match(result.stdout, new RegExp(`archive: .*${harness.archiveLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
 });
 
@@ -188,6 +190,31 @@ test("remote-evidence helper fails closed when required hosted artifacts are mis
   assert.notEqual(result.status, 0, "archive contract should fail when remote-runs.json is missing");
   assert.match(result.stderr, /missing remote runs artifact/);
   assert.ok(!fs.existsSync(path.join(harness.evidenceRoot, harness.archiveLabel)), "failed archive contracts must not leave a destination bundle behind");
+});
+
+test("remote-evidence helper fails closed when freshness fields are missing from remote-runs.json", (t) => {
+  const payload = defaultRemoteRunsPayload();
+  delete payload.workflows[0].expectedHeadSha;
+  delete payload.workflows[0].observedHeadSha;
+  delete payload.workflows[0].freshnessStatus;
+  delete payload.workflows[0].freshnessFailure;
+
+  const harness = createStubHarness(t, {
+    exitCode: 1,
+    includeRemoteRuns: true,
+    archiveLabel: "missing-freshness-fields",
+    remoteRunsPayload: payload,
+  });
+  const result = runHelper(harness.archiveLabel, {
+    M034_S05_VERIFY_SCRIPT: harness.stubPath,
+    M034_S05_VERIFY_ROOT: harness.verifyRoot,
+    M034_S06_EVIDENCE_ROOT: harness.evidenceRoot,
+  });
+
+  assert.notEqual(result.status, 0, "archive contract should fail when freshness fields are missing");
+  assert.match(result.stderr, /archive manifest drift:/);
+  assert.match(result.stderr, /missing freshness fields in remote-runs\.json/);
+  assert.ok(!fs.existsSync(path.join(harness.evidenceRoot, harness.archiveLabel)), "freshness drift must not create a final archive directory");
 });
 
 test("remote-evidence helper refuses to overwrite an existing label directory", (t) => {

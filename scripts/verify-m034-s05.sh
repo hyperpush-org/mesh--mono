@@ -465,7 +465,7 @@ def write_command_log(command, stdout_path: Path, stderr_path: Path, log_path: P
             handle.write(stderr_path.read_text())
 
 
-def run_json_command(command, slug: str, suffix: str, timeout_seconds: int = 45):
+def run_text_command(command, slug: str, suffix: str, timeout_seconds: int = 45):
     stdout_path = verify_root / f'remote-{slug}-{suffix}.stdout'
     stderr_path = verify_root / f'remote-{slug}-{suffix}.stderr'
     log_path = verify_root / f'remote-{slug}-{suffix}.log'
@@ -497,14 +497,6 @@ def run_json_command(command, slug: str, suffix: str, timeout_seconds: int = 45)
     stderr_path.write_text(stderr_text)
     write_command_log(command, stdout_path, stderr_path, log_path)
 
-    parsed = None
-    parse_error = None
-    if stdout_text.strip():
-        try:
-            parsed = json.loads(stdout_text)
-        except json.JSONDecodeError as exc:
-            parse_error = str(exc)
-
     return {
         'command': shell_join(command),
         'exitCode': exit_code,
@@ -514,9 +506,52 @@ def run_json_command(command, slug: str, suffix: str, timeout_seconds: int = 45)
         'logPath': relative(log_path),
         'stdout': stdout_text,
         'stderr': stderr_text,
-        'parsed': parsed,
-        'parseError': parse_error,
     }
+
+
+def run_json_command(command, slug: str, suffix: str, timeout_seconds: int = 45):
+    result = run_text_command(command, slug, suffix, timeout_seconds=timeout_seconds)
+    parsed = None
+    parse_error = None
+    if result['stdout'].strip():
+        try:
+            parsed = json.loads(result['stdout'])
+        except json.JSONDecodeError as exc:
+            parse_error = str(exc)
+    result['parsed'] = parsed
+    result['parseError'] = parse_error
+    return result
+
+
+def record_query_result(result):
+    payload = {
+        'command': result['command'],
+        'exitCode': result['exitCode'],
+        'timedOut': result['timedOut'],
+        'stdoutPath': result['stdoutPath'],
+        'stderrPath': result['stderrPath'],
+        'logPath': result['logPath'],
+    }
+    if result.get('parseError'):
+        payload['parseError'] = result['parseError']
+    return payload
+
+
+def fail_entry(entry, results, errors, reason, *, freshness_reason=None):
+    entry['status'] = 'failed'
+    entry['failure'] = reason
+    if freshness_reason is not None:
+        entry['freshnessStatus'] = 'failed'
+        entry['freshnessFailure'] = freshness_reason
+        if entry.get('headShaMatchesExpected') is None:
+            entry['headShaMatchesExpected'] = False
+    elif entry.get('freshnessStatus') != 'ok':
+        entry['freshnessStatus'] = 'failed'
+        entry['freshnessFailure'] = reason
+        if entry.get('headShaMatchesExpected') is None:
+            entry['headShaMatchesExpected'] = False
+    results.append(entry)
+    errors.append(reason)
 
 
 def job_name_matches(actual_name, required_name):
@@ -535,11 +570,75 @@ def find_matching_job(jobs, required_name):
     return None
 
 
+def resolve_expected_ref(entry, spec, slug):
+    ref_candidates = [spec['expectedRef']]
+    peeled_ref = spec.get('expectedPeeledRef')
+    if peeled_ref:
+        ref_candidates.append(peeled_ref)
+
+    command = ['git', 'ls-remote', '--quiet', 'origin', *ref_candidates]
+    result = run_text_command(command, slug, 'expected-ref', timeout_seconds=20)
+    entry['expectedRefQuery'] = record_query_result(result)
+    entry['expectedRefCandidates'] = ref_candidates
+
+    if result['exitCode'] != 0:
+        if result['timedOut']:
+            reason = f"{spec['workflowFile']} expected ref resolution timed out for {spec['expectedRef']!r}"
+        else:
+            reason = f"{spec['workflowFile']} expected ref resolution failed for {spec['expectedRef']!r}"
+        return None, None, reason
+
+    parsed_lines = []
+    malformed_lines = []
+    for raw_line in result['stdout'].splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) != 2:
+            malformed_lines.append(raw_line)
+            continue
+        sha, ref_name = parts
+        parsed_lines.append((sha, ref_name))
+
+    if malformed_lines:
+        reason = f"{spec['workflowFile']} expected ref resolution returned malformed git ls-remote output"
+        return None, None, reason
+
+    ref_map = {}
+    duplicate_refs = []
+    for sha, ref_name in parsed_lines:
+        if ref_name in ref_map and ref_map[ref_name] != sha:
+            duplicate_refs.append(ref_name)
+            continue
+        ref_map[ref_name] = sha
+
+    if duplicate_refs:
+        reason = f"{spec['workflowFile']} expected ref resolution returned ambiguous refs: {sorted(set(duplicate_refs))}"
+        return None, None, reason
+
+    resolved_ref = None
+    expected_head_sha = None
+    if peeled_ref and ref_map.get(peeled_ref):
+        resolved_ref = peeled_ref
+        expected_head_sha = ref_map[peeled_ref]
+    elif ref_map.get(spec['expectedRef']):
+        resolved_ref = spec['expectedRef']
+        expected_head_sha = ref_map[spec['expectedRef']]
+
+    if not expected_head_sha:
+        reason = f"{spec['workflowFile']} could not resolve expected remote ref {spec['expectedRef']!r}"
+        return None, None, reason
+
+    return resolved_ref, expected_head_sha, None
+
+
 workflow_specs = [
     {
         'workflowFile': 'deploy.yml',
         'requiredEvent': 'push',
         'requiredHeadBranch': 'main',
+        'expectedRef': 'refs/heads/main',
         'requiredJobs': ['build', 'deploy'],
         'requiredSteps': {
             'build': ['Verify public docs contract'],
@@ -549,6 +648,8 @@ workflow_specs = [
         'workflowFile': 'deploy-services.yml',
         'requiredEvent': 'push',
         'requiredHeadBranch': binary_tag,
+        'expectedRef': f'refs/tags/{binary_tag}',
+        'expectedPeeledRef': f'refs/tags/{binary_tag}^{{}}',
         'requiredJobs': [
             'Deploy mesh-registry',
             'Deploy mesh-packages website',
@@ -564,12 +665,15 @@ workflow_specs = [
         'workflowFile': 'authoritative-verification.yml',
         'requiredEvent': 'push',
         'requiredHeadBranch': 'main',
+        'expectedRef': 'refs/heads/main',
         'requiredJobs': ['Authoritative live proof'],
     },
     {
         'workflowFile': 'release.yml',
         'requiredEvent': 'push',
         'requiredHeadBranch': binary_tag,
+        'expectedRef': f'refs/tags/{binary_tag}',
+        'expectedPeeledRef': f'refs/tags/{binary_tag}^{{}}',
         'requiredJobs': ['Authoritative live proof', 'Create Release'],
         'requiredJobPrefixes': ['Build (', 'Build meshpkg (', 'Verify release assets ('],
     },
@@ -578,6 +682,8 @@ workflow_specs = [
         'queryWorkflowFile': 'publish-extension.yml',
         'requiredEvent': 'push',
         'requiredHeadBranch': extension_tag,
+        'expectedRef': f'refs/tags/{extension_tag}',
+        'expectedPeeledRef': f'refs/tags/{extension_tag}^{{}}',
         'requiredJobs': ['Verify extension release proof'],
         'requiredJobSuccesses': ['Verify extension release proof'],
         'successFromJobsOnly': True,
@@ -586,6 +692,8 @@ workflow_specs = [
         'workflowFile': 'publish-extension.yml',
         'requiredEvent': 'push',
         'requiredHeadBranch': extension_tag,
+        'expectedRef': f'refs/tags/{extension_tag}',
+        'expectedPeeledRef': f'refs/tags/{extension_tag}^{{}}',
         'requiredJobs': ['Verify extension release proof', 'Publish verified extension'],
         'requiredJobSuccesses': ['Verify extension release proof', 'Publish verified extension'],
     },
@@ -603,11 +711,25 @@ for spec in workflow_specs:
         'repository': repo,
         'requiredEvent': spec['requiredEvent'],
         'requiredHeadBranch': spec['requiredHeadBranch'],
+        'expectedRef': spec['expectedRef'],
+        'expectedResolvedRef': None,
+        'expectedHeadSha': None,
+        'observedHeadSha': None,
+        'headShaMatchesExpected': None,
+        'freshnessStatus': 'pending',
+        'freshnessFailure': None,
         'requiredJobs': spec.get('requiredJobs', []),
         'requiredJobPrefixes': spec.get('requiredJobPrefixes', []),
         'requiredSteps': spec.get('requiredSteps', {}),
         'status': 'pending',
     }
+
+    resolved_ref, expected_head_sha, expected_ref_error = resolve_expected_ref(entry, spec, slug)
+    if expected_ref_error:
+        fail_entry(entry, results, errors, expected_ref_error)
+        continue
+    entry['expectedResolvedRef'] = resolved_ref
+    entry['expectedHeadSha'] = expected_head_sha
 
     list_command = [
         'gh', 'run', 'list',
@@ -619,14 +741,7 @@ for spec in workflow_specs:
         '--json', 'databaseId,workflowName,event,status,conclusion,headBranch,headSha,displayTitle,createdAt,url',
     ]
     list_result = run_json_command(list_command, slug, 'list')
-    entry['listQuery'] = {
-        'command': list_result['command'],
-        'exitCode': list_result['exitCode'],
-        'timedOut': list_result['timedOut'],
-        'stdoutPath': list_result['stdoutPath'],
-        'stderrPath': list_result['stderrPath'],
-        'logPath': list_result['logPath'],
-    }
+    entry['listQuery'] = record_query_result(list_result)
 
     if list_result['exitCode'] != 0:
         reason = f"{spec['workflowFile']} gh run list failed"
@@ -635,18 +750,12 @@ for spec in workflow_specs:
             reason = f"{spec['workflowFile']} gh run list timed out"
         elif 'HTTP 404' in stderr_text or 'workflow' in stderr_text.lower() and 'not found' in stderr_text.lower():
             reason = f"{spec['workflowFile']} is missing on the remote default branch"
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     if list_result['parseError']:
         reason = f"{spec['workflowFile']} gh run list output was not valid JSON: {list_result['parseError']}"
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     runs = list_result['parsed']
@@ -663,26 +772,16 @@ for spec in workflow_specs:
             '--json', 'databaseId,workflowName,event,status,conclusion,headBranch,headSha,displayTitle,createdAt,url',
         ]
         fallback_result = run_json_command(fallback_command, slug, 'latest-available')
-        entry['latestAvailableQuery'] = {
-            'command': fallback_result['command'],
-            'exitCode': fallback_result['exitCode'],
-            'timedOut': fallback_result['timedOut'],
-            'stdoutPath': fallback_result['stdoutPath'],
-            'stderrPath': fallback_result['stderrPath'],
-            'logPath': fallback_result['logPath'],
-        }
+        entry['latestAvailableQuery'] = record_query_result(fallback_result)
         if fallback_result['exitCode'] == 0 and not fallback_result['parseError'] and isinstance(fallback_result['parsed'], list) and fallback_result['parsed']:
             entry['latestAvailableRun'] = fallback_result['parsed'][0]
-        elif fallback_result['parseError']:
-            entry['latestAvailableQuery']['parseError'] = fallback_result['parseError']
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     run_summary = runs[0]
     entry['runSummary'] = run_summary
+    entry['latestAvailableRun'] = run_summary
+    entry['observedHeadSha'] = run_summary.get('headSha')
 
     view_command = [
         'gh', 'run', 'view', str(run_summary['databaseId']),
@@ -690,54 +789,53 @@ for spec in workflow_specs:
         '--json', 'databaseId,workflowName,event,status,conclusion,headBranch,headSha,displayTitle,url,jobs',
     ]
     view_result = run_json_command(view_command, slug, 'view', timeout_seconds=60)
-    entry['viewQuery'] = {
-        'command': view_result['command'],
-        'exitCode': view_result['exitCode'],
-        'timedOut': view_result['timedOut'],
-        'stdoutPath': view_result['stdoutPath'],
-        'stderrPath': view_result['stderrPath'],
-        'logPath': view_result['logPath'],
-    }
+    entry['viewQuery'] = record_query_result(view_result)
 
     if view_result['exitCode'] != 0:
         reason = f"{spec['workflowFile']} gh run view failed for run {run_summary['databaseId']}"
         if view_result['timedOut']:
             reason = f"{spec['workflowFile']} gh run view timed out for run {run_summary['databaseId']}"
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     if view_result['parseError']:
         reason = f"{spec['workflowFile']} gh run view output was not valid JSON: {view_result['parseError']}"
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     run_view = view_result['parsed']
     jobs = run_view.get('jobs') if isinstance(run_view, dict) else None
     if not isinstance(run_view, dict) or not isinstance(jobs, list):
         reason = f"{spec['workflowFile']} gh run view did not include the jobs payload"
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     entry['runView'] = run_view
+    observed_head_sha = run_view.get('headSha') or run_summary.get('headSha')
+    entry['observedHeadSha'] = observed_head_sha
+
+    if not observed_head_sha:
+        reason = f"{spec['workflowFile']} hosted run omitted headSha for {spec['requiredHeadBranch']!r}"
+        fail_entry(entry, results, errors, reason)
+        continue
+
+    if observed_head_sha != expected_head_sha:
+        reason = (
+            f"{spec['workflowFile']} hosted run headSha {observed_head_sha!r} "
+            f"did not match expected {resolved_ref!r} sha {expected_head_sha!r}"
+        )
+        fail_entry(entry, results, errors, reason, freshness_reason=reason)
+        continue
+
+    entry['headShaMatchesExpected'] = True
+    entry['freshnessStatus'] = 'ok'
 
     if run_summary.get('event') != spec['requiredEvent']:
         reason = (
             f"{spec['workflowFile']} latest hosted run event {run_summary.get('event')!r} "
             f"did not match required {spec['requiredEvent']!r}"
         )
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     if run_summary.get('headBranch') != spec['requiredHeadBranch']:
@@ -745,10 +843,7 @@ for spec in workflow_specs:
             f"{spec['workflowFile']} latest hosted run branch {run_summary.get('headBranch')!r} "
             f"did not match required {spec['requiredHeadBranch']!r}"
         )
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     if not spec.get('successFromJobsOnly', False):
@@ -757,20 +852,14 @@ for spec in workflow_specs:
                 f"{spec['workflowFile']} latest hosted run concluded {run_summary.get('status')!r}/"
                 f"{run_summary.get('conclusion')!r} instead of completed/success"
             )
-            entry['status'] = 'failed'
-            entry['failure'] = reason
-            results.append(entry)
-            errors.append(reason)
+            fail_entry(entry, results, errors, reason)
             continue
 
     job_names = [job.get('name') for job in jobs if isinstance(job, dict)]
     missing_jobs = [job_name for job_name in spec.get('requiredJobs', []) if find_matching_job(jobs, job_name) is None]
     if missing_jobs:
         reason = f"{spec['workflowFile']} hosted run is missing required jobs: {missing_jobs}"
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     missing_prefixes = [
@@ -779,10 +868,7 @@ for spec in workflow_specs:
     ]
     if missing_prefixes:
         reason = f"{spec['workflowFile']} hosted run is missing required job prefixes: {missing_prefixes}"
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     required_job_successes = spec.get('requiredJobSuccesses', spec.get('requiredJobs', []))
@@ -799,10 +885,7 @@ for spec in workflow_specs:
         entry['matchedJobs'] = matched_jobs
     if failing_jobs:
         reason = f"{spec['workflowFile']} hosted run has non-green required jobs: {failing_jobs}"
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     jobs_by_name = {
@@ -823,13 +906,12 @@ for spec in workflow_specs:
                 missing_steps.append(f'{job_name}: {step_name}')
     if missing_steps:
         reason = f"{spec['workflowFile']} hosted run is missing required steps: {missing_steps}"
-        entry['status'] = 'failed'
-        entry['failure'] = reason
-        results.append(entry)
-        errors.append(reason)
+        fail_entry(entry, results, errors, reason)
         continue
 
     entry['status'] = 'ok'
+    entry['freshnessStatus'] = 'ok'
+    entry['freshnessFailure'] = None
     results.append(entry)
 
 artifact = {
@@ -849,6 +931,10 @@ print(f'extension tag: {extension_tag}')
 print(f'artifact: {relative(output_path)}')
 for entry in results:
     print(f"{entry['workflowFile']}: {entry['status']}")
+    print(
+        f"  freshness: {entry['freshnessStatus']} "
+        f"expected={entry.get('expectedHeadSha')!r} observed={entry.get('observedHeadSha')!r}"
+    )
     if entry.get('failure'):
         print(f"  reason: {entry['failure']}")
 
