@@ -41,7 +41,15 @@ const path = require('path');
   await sentrySwap.screenshot({ path: path.join(publicDir, 'sentry-swap.png') });
   console.log('✓ sentry-swap.png');
 
-  // 4. VS Sentry Pricing comparison (1200x675)
+  // 4. Package Challenge (1200x675)
+  console.log('Capturing package challenge...');
+  await page.goto(`file://${path.resolve(__dirname, 'package-challenge.html')}`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1000);
+  const pkgChallenge = await page.$('#package-challenge');
+  await pkgChallenge.screenshot({ path: path.join(publicDir, 'package-challenge.png') });
+  console.log('✓ package-challenge.png');
+
+  // 5. VS Sentry Pricing comparison (1200x675)
   console.log('Capturing vs-sentry pricing...');
   await page.goto(`file://${path.resolve(__dirname, 'vs-sentry-pricing.html')}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1000);

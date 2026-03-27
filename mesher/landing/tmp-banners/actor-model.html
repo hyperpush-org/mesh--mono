@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mesh Actor Model</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0a0a;
+    color: #f5f5f5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .scene {
+    position: relative;
+    width: 100vw;
+    height: calc(100vh - 200px);
+    min-height: 500px;
+    overflow: hidden;
+  }
+
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ─── Overlays ─── */
+  .overlay {
+    position: absolute;
+    z-index: 20;
+    pointer-events: none;
+  }
+
+  /* Logo — top left */
+  .logo-area {
+    top: 28px; left: 36px;
+    display: flex; align-items: center; gap: 10px;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+  .logo-area.visible { opacity: 1; }
+  .logo-area svg { width: 26px; height: 26px; }
+  .logo-area .name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+  .logo-area .tag {
+    font-size: 10px; font-weight: 600;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 1.8px; text-transform: uppercase;
+    margin-left: 10px; padding-left: 10px;
+    border-left: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* Status pill — top right */
+  .status-pill {
+    top: 26px; right: 36px;
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 16px; border-radius: 100px;
+    border: 1px solid rgba(89,193,132,0.2);
+    background: rgba(89,193,132,0.05);
+    font: 600 10px/1 'JetBrains Mono', monospace;
+    letter-spacing: 0.8px; text-transform: uppercase;
+    color: #59C184;
+    opacity: 0;
+    transition: opacity 0.5s ease, border-color 0.5s ease, color 0.5s ease, background 0.5s ease;
+  }
+  .status-pill.visible { opacity: 1; }
+  .status-pill .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #59C184;
+    box-shadow: 0 0 6px rgba(89,193,132,0.6);
+    transition: background 0.4s, box-shadow 0.4s;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 4px rgba(89,193,132,0.4); }
+    50% { box-shadow: 0 0 10px rgba(89,193,132,0.8); }
+  }
+  .status-pill.crash {
+    border-color: rgba(255,70,70,0.35);
+    background: rgba(255,70,70,0.07);
+    color: #ff5050;
+  }
+  .status-pill.crash .dot {
+    background: #ff5050;
+    box-shadow: 0 0 8px rgba(255,70,70,0.7);
+    animation: pulse-dot-red 0.6s ease-in-out infinite;
+  }
+  @keyframes pulse-dot-red {
+    0%, 100% { box-shadow: 0 0 4px rgba(255,70,70,0.4); }
+    50% { box-shadow: 0 0 14px rgba(255,70,70,1); }
+  }
+
+  /* Process counter */
+  .process-counter {
+    top: 56px; right: 42px;
+    font: 500 10px/1 'JetBrains Mono', monospace;
+    color: rgba(255,255,255,0.18);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  .process-counter.visible { opacity: 1; }
+  .process-counter span { color: rgba(255,255,255,0.45); font-weight: 600; }
+
+  /* Phase title — bottom left */
+  .phase-title {
+    bottom: 28px; left: 44px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1);
+  }
+  .phase-title.visible { opacity: 1; transform: translateY(0); }
+  .phase-title .label {
+    font: 600 10px/1 'JetBrains Mono', monospace;
+    letter-spacing: 2.5px; text-transform: uppercase;
+    color: #59C184; margin-bottom: 10px;
+    opacity: 0.7;
+  }
+  .phase-title .heading {
+    font-size: 26px; font-weight: 800;
+    letter-spacing: -1px; line-height: 1.15;
+    color: #f5f5f5;
+  }
+  .phase-title .heading .accent { color: #59C184; }
+  .phase-title .sub {
+    font-size: 13px; color: rgba(255,255,255,0.3);
+    margin-top: 6px; max-width: 360px; line-height: 1.5;
+  }
+
+  /* Code snippet — bottom right */
+  .code-snippet {
+    bottom: 28px; right: 44px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1);
+    font: 400 11px/1.7 'JetBrains Mono', monospace;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 10px;
+    padding: 16px 20px;
+    white-space: pre;
+    backdrop-filter: blur(16px);
+    max-width: 380px;
+  }
+  .code-snippet.visible { opacity: 1; transform: translateY(0); }
+  .code-snippet .kw  { color: #59C184; }
+  .code-snippet .fn  { color: #e8e8e8; }
+  .code-snippet .str { color: rgba(255,255,255,0.45); }
+  .code-snippet .cm  { color: rgba(255,255,255,0.18); }
+  .code-snippet .op  { color: rgba(255,255,255,0.35); }
+  .code-snippet .num { color: #c4a7e7; }
+  .code-snippet .err { color: #ff5050; }
+  .code-snippet .ok  { color: #59C184; }
+</style>
+</head>
+<body>
+
+<div class="scene" id="scene">
+<canvas id="c"></canvas>
+
+<div class="overlay logo-area" id="logo">
+  <svg viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M58.4637 127.026C49.371 111.277 54.767 91.1387 70.5159 82.0461L122.475 172.041C131.567 187.79 126.171 207.928 110.422 217.021L58.4637 127.026Z" fill="#59C184"/>
+    <path d="M79.1494 77.0625C95.0428 67.8864 115.366 73.3319 124.542 89.2253L152.938 138.409C137.044 147.585 116.722 142.139 107.545 126.246L79.1494 77.0625Z" fill="white"/>
+    <path d="M133.024 83.9788C123.931 68.2299 129.327 48.0919 145.076 38.9992L182.534 103.879C191.627 119.628 186.231 139.766 170.482 148.859L133.024 83.9788Z" fill="#59C184"/>
+  </svg>
+  <span class="name">Mesh</span>
+  <span class="tag">Actor Model</span>
+</div>
+
+<div class="overlay status-pill" id="statusPill">
+  <span class="dot"></span>
+  <span id="statusText">System Healthy</span>
+</div>
+
+<div class="overlay process-counter" id="processCounter">
+  Processes: <span id="procCount">0</span>
+</div>
+
+<div class="overlay phase-title" id="phaseTitle">
+  <div class="label" id="phaseLabel"></div>
+  <div class="heading" id="phaseHeading"></div>
+  <div class="sub" id="phaseSub"></div>
+</div>
+
+<div class="overlay code-snippet" id="codeSnippet"></div>
+
+</div><!-- .scene -->
+
+<script>
+// ═══════════════════════════════════════════
+// Canvas setup — fill viewport, respect DPR
+// ═══════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const sceneEl = document.getElementById('scene');
+let W, H, DPR, CX, CY;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = sceneEl.getBoundingClientRect();
+  W = rect.width;
+  H = rect.height;
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  CX = W * 0.5;
+  CY = H * 0.35;
+  layoutActors();
+}
+
+// ═══════════════════════════════════════════
+// Color helpers
+// ═══════════════════════════════════════════
+const ACCENT = [89, 193, 132];
+const RED    = [255, 70, 70];
+const ORANGE = [255, 165, 50];
+const BLUE   = [100, 155, 255];
+const PURPLE = [175, 130, 255];
+const WHITE  = [255, 255, 255];
+
+function rgba(c, a) { return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+function lerpColor(a, b, t) {
+  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+}
+
+// ═══════════════════════════════════════════
+// Easing
+// ═══════════════════════════════════════════
+function easeOutBack(t) {
+  const c1 = 1.70158, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+function easeOutElastic(t) {
+  if (t === 0 || t === 1) return t;
+  return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI / 3)) + 1;
+}
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3) / 2;
+}
+
+// ═══════════════════════════════════════════
+// Actor definitions — positions set in layoutActors()
+// ═══════════════════════════════════════════
+const actorDefs = [
+  { id: 'supervisor', label: 'Supervisor', tier: 0, color: ACCENT, r: 0.032, ox: 0, oy: -0.22 },
+  { id: 'http',     label: 'HTTP',      tier: 1, color: ACCENT, r: 0.025, ox: -0.24, oy: 0.02 },
+  { id: 'auth',     label: 'Auth',      tier: 1, color: BLUE,   r: 0.025, ox: -0.08, oy: 0.05 },
+  { id: 'router',   label: 'Router',    tier: 1, color: PURPLE, r: 0.025, ox: 0.08,  oy: 0.05 },
+  { id: 'dbpool',   label: 'DB Pool',   tier: 1, color: ORANGE, r: 0.025, ox: 0.24,  oy: 0.02 },
+  { id: 'ws1',      label: 'WS:1',      tier: 2, color: ACCENT, r: 0.017, ox: -0.30, oy: 0.24 },
+  { id: 'ws2',      label: 'WS:2',      tier: 2, color: ACCENT, r: 0.017, ox: -0.18, oy: 0.26 },
+  { id: 'session',  label: 'Session',   tier: 2, color: BLUE,   r: 0.017, ox: -0.04, oy: 0.27 },
+  { id: 'logger',   label: 'Logger',    tier: 2, color: PURPLE, r: 0.017, ox: 0.08,  oy: 0.28 },
+  { id: 'cache',    label: 'Cache',     tier: 2, color: ORANGE, r: 0.017, ox: 0.19,  oy: 0.26 },
+  { id: 'query',    label: 'Query',     tier: 2, color: ORANGE, r: 0.017, ox: 0.30,  oy: 0.24 },
+];
+
+const treeEdges = [
+  [0,1],[0,2],[0,3],[0,4], // supervisor -> tier1
+  [1,5],[1,6],             // http -> ws
+  [2,7],                    // auth -> session
+  [3,8],                    // router -> logger
+  [4,9],[4,10],            // dbpool -> cache, query
+];
+
+// ═══════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════
+let actors = [];
+let edges = [];
+let messages = [];
+let particles = [];    // ambient
+let explosions = [];
+let shockwaves = [];
+let ringPulses = [];   // expanding ring effect on spawn
+let time = 0;
+let phase = -1;
+let phaseTime = 0;
+let screenShake = { x: 0, y: 0, intensity: 0 };
+
+function layoutActors() {
+  const scale = Math.min(W, H);
+  actors.forEach((a, i) => {
+    const def = actorDefs[i];
+    a.baseX = CX + def.ox * scale;
+    a.baseY = CY + def.oy * scale;
+    a.baseRadius = def.r * scale;
+  });
+}
+
+function initActors() {
+  actors = actorDefs.map(def => ({
+    ...def, x: 0, y: 0, baseX: 0, baseY: 0,
+    baseRadius: 0, radius: 0,
+    alive: false, opacity: 0, scale: 0, targetScale: 0,
+    spawnT: 0, // 0..1 spawn animation progress
+    pulsePhase: Math.random() * Math.PI * 2,
+    floatSeedX: Math.random() * 100,
+    floatSeedY: Math.random() * 100,
+    crash: false, crashShake: 0,
+    respawnGlow: 0,
+    mailboxFlash: 0,
+    ringPhase: 0, // rotating ring
+  }));
+  edges = treeEdges.map(([f, t]) => ({ from: f, to: t, opacity: 0 }));
+  messages = [];
+  particles = [];
+  explosions = [];
+  shockwaves = [];
+  ringPulses = [];
+  layoutActors();
+  initAmbientParticles();
+}
+
+// ═══════════════════════════════════════════
+// Ambient particles — drifting dots
+// ═══════════════════════════════════════════
+function initAmbientParticles() {
+  particles = [];
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.15,
+      vy: (Math.random() - 0.5) * 0.1,
+      radius: 0.5 + Math.random() * 1.5,
+      alpha: 0.03 + Math.random() * 0.06,
+      green: Math.random() < 0.3, // some are accent-colored
+    });
+  }
+}
+
+// ═══════════════════════════════════════════
+// Messages — travel along bezier curves
+// ═══════════════════════════════════════════
+function sendMsg(fromIdx, toIdx, color, speed) {
+  const a = actors[fromIdx], b = actors[toIdx];
+  if (!a || !b || !a.alive || !b.alive) return;
+  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const perpX = -dy * 0.2 * (Math.random() - 0.3);
+  const perpY =  dx * 0.2 * (Math.random() - 0.3);
+  messages.push({
+    fromIdx, toIdx,
+    ax: a.x, ay: a.y,
+    cpx: mx + perpX, cpy: my + perpY,
+    bx: b.x, by: b.y,
+    progress: 0,
+    speed: speed || 0.012 + Math.random() * 0.006,
+    color: color || ACCENT,
+  });
+}
+
+// ═══════════════════════════════════════════
+// Explosions
+// ═══════════════════════════════════════════
+function explode(x, y, color, count) {
+  for (let i = 0; i < (count || 50); i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1.5 + Math.random() * 5;
+    explosions.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      decay: 0.008 + Math.random() * 0.015,
+      radius: 1 + Math.random() * 3.5,
+      color: color || RED,
+    });
+  }
+  // Shockwave
+  shockwaves.push({ x, y, radius: 0, maxRadius: Math.min(W,H) * 0.2, opacity: 0.6, color });
+  // Screen shake
+  screenShake.intensity = 12;
+}
+
+// ═══════════════════════════════════════════
+// Ring pulse — expanding ring on actor spawn
+// ═══════════════════════════════════════════
+function spawnRing(x, y, color) {
+  ringPulses.push({ x, y, radius: 0, maxRadius: 60, opacity: 0.5, color: color || ACCENT });
+}
+
+// ═══════════════════════════════════════════
+// Phases
+// ═══════════════════════════════════════════
+const phases = [
+  // Phase 0 — Spawn actors one by one with elastic pop-in
+  {
+    duration: 5,
+    label: '01', heading: 'Lightweight <span class="accent">Processes</span>',
+    sub: 'Each actor is an isolated process with its own heap, stack, and mailbox.',
+    code: `<span class="cm">// spawn lightweight actors</span>
+<span class="kw">let</span> <span class="fn">sup</span>  <span class="op">=</span> <span class="kw">spawn</span> Supervisor<span class="op">.</span>start<span class="op">()</span>
+<span class="kw">let</span> <span class="fn">http</span> <span class="op">=</span> <span class="kw">spawn</span> HTTP<span class="op">.</span>listen<span class="op">(</span><span class="num">8080</span><span class="op">)</span>
+<span class="kw">let</span> <span class="fn">auth</span> <span class="op">=</span> <span class="kw">spawn</span> Auth<span class="op">.</span>init<span class="op">()</span>
+<span class="kw">let</span> <span class="fn">pool</span> <span class="op">=</span> <span class="kw">spawn</span> DB<span class="op">.</span>pool<span class="op">(</span><span class="num">10</span><span class="op">)</span>`,
+    enter(t) {
+      const order = [0,1,2,3,4,5,6,7,8,9,10];
+      order.forEach((idx, i) => {
+        const delay = 0.3 + i * 0.3;
+        const a = actors[idx];
+        if (t >= delay && !a.alive) {
+          a.alive = true;
+          a.targetScale = 1;
+          a.spawnT = 0;
+          spawnRing(a.baseX, a.baseY, a.color);
+        }
+        if (a.alive && a.spawnT < 1) {
+          a.spawnT = Math.min(1, a.spawnT + 0.025);
+        }
+      });
+      edges.forEach(e => {
+        if (actors[e.from].alive && actors[e.to].alive)
+          e.opacity = Math.min(1, e.opacity + 0.025);
+      });
+    },
+  },
+
+  // Phase 1 — Message passing
+  {
+    duration: 6.5,
+    label: '02', heading: 'Message <span class="accent">Passing</span>',
+    sub: 'No shared memory. Actors communicate exclusively through async messages.',
+    code: `<span class="cm">// actors communicate via messages</span>
+<span class="kw">send</span> http <span class="op">←</span> <span class="str">{:request, conn}</span>
+<span class="kw">send</span> auth <span class="op">←</span> <span class="str">{:verify, token}</span>
+<span class="kw">send</span> pool <span class="op">←</span> <span class="str">{:query, sql}</span>
+
+<span class="kw">receive</span> <span class="op">{</span>
+  <span class="str">{:ok, data}</span> <span class="op">→</span> handle<span class="op">(</span>data<span class="op">)</span>
+<span class="op">}</span>`,
+    enter(t) {
+      // Tree messages
+      if (Math.random() < 0.08) {
+        const e = edges[Math.floor(Math.random() * edges.length)];
+        const dir = Math.random() < 0.5;
+        sendMsg(dir ? e.from : e.to, dir ? e.to : e.from, actors[dir ? e.from : e.to].color);
+      }
+      // Cross-tree
+      if (Math.random() < 0.03) {
+        const t1 = actors.filter(a => a.tier >= 1 && a.alive);
+        if (t1.length >= 2) {
+          const ai = Math.floor(Math.random() * t1.length);
+          let bi = Math.floor(Math.random() * t1.length);
+          if (ai !== bi) sendMsg(actors.indexOf(t1[ai]), actors.indexOf(t1[bi]), t1[ai].color, 0.008);
+        }
+      }
+    },
+  },
+
+  // Phase 2 — Crash & isolation
+  {
+    duration: 5.5,
+    label: '03', heading: 'Fault <span class="accent">Isolation</span>',
+    sub: 'When a process crashes, it can\'t take down the system. The failure is contained.',
+    code: `<span class="cm">// a process crashes…</span>
+<span class="fn">Router</span><span class="op">.</span>handle<span class="op">(</span>msg<span class="op">)</span>
+  <span class="op">|></span> <span class="err">** (CrashError)</span>
+
+<span class="cm">// others continue unaffected</span>
+<span class="fn">HTTP</span>   <span class="op">→</span> <span class="ok">running</span>
+<span class="fn">Auth</span>   <span class="op">→</span> <span class="ok">running</span>
+<span class="fn">DB</span>     <span class="op">→</span> <span class="ok">running</span>`,
+    enter(t) {
+      const ri = 3; // router
+      const li = 8; // logger
+
+      // Pre-crash: shake the router
+      if (t >= 0.6 && t < 1.5 && !actors[ri].crash) {
+        actors[ri].crashShake = Math.min(6, actors[ri].crashShake + 0.3);
+        // Flash red
+        actors[ri].color = lerpColor(PURPLE, RED, Math.min(1, (t - 0.6) / 0.8));
+      }
+
+      // Crash router
+      if (t >= 1.5 && actors[ri].alive && actors[ri].crash === false) {
+        actors[ri].crash = true;
+        explode(actors[ri].x, actors[ri].y, RED, 60);
+        actors[ri].alive = false;
+        actors[ri].targetScale = 0;
+        document.getElementById('statusPill').classList.add('crash');
+        document.getElementById('statusText').textContent = 'Process Crashed';
+      }
+
+      // Crash logger (child) slightly later
+      if (t >= 1.9 && actors[li].alive && !actors[li].crash) {
+        actors[li].crash = true;
+        explode(actors[li].x, actors[li].y, RED, 35);
+        actors[li].alive = false;
+        actors[li].targetScale = 0;
+      }
+
+      // Other actors keep messaging
+      if (t > 2.5 && Math.random() < 0.04) {
+        const alive = edges.filter(e => actors[e.from].alive && actors[e.to].alive);
+        if (alive.length) {
+          const e = alive[Math.floor(Math.random() * alive.length)];
+          sendMsg(e.from, e.to, actors[e.from].color);
+        }
+      }
+
+      edges.forEach(e => {
+        if (!actors[e.from].alive || !actors[e.to].alive)
+          e.opacity = Math.max(0, e.opacity - 0.04);
+      });
+    },
+  },
+
+  // Phase 3 — Supervisor restart
+  {
+    duration: 5.5,
+    label: '04', heading: 'Supervisor <span class="accent">Restart</span>',
+    sub: 'The supervisor detects the failure and restarts the crashed processes automatically.',
+    code: `<span class="cm">// supervisor detects failure</span>
+<span class="kw">receive</span> <span class="op">{</span>
+  <span class="str">{:DOWN, pid, reason}</span> <span class="op">→</span>
+    <span class="kw">spawn</span> Router<span class="op">.</span>init<span class="op">()</span>
+    <span class="kw">spawn</span> Logger<span class="op">.</span>init<span class="op">()</span>
+<span class="op">}</span>
+<span class="cm">// </span><span class="ok">✓ system restored</span>`,
+    enter(t) {
+      const ri = 3, li = 8, si = 0;
+
+      // Supervisor sends signal
+      if (t >= 0.4 && t < 0.5) sendMsg(si, ri, ACCENT, 0.025);
+
+      // Respawn router
+      if (t >= 1.4 && !actors[ri].alive) {
+        actors[ri].alive = true;
+        actors[ri].crash = false;
+        actors[ri].crashShake = 0;
+        actors[ri].targetScale = 1;
+        actors[ri].spawnT = 0;
+        actors[ri].respawnGlow = 1;
+        actors[ri].color = PURPLE;
+        spawnRing(actors[ri].baseX, actors[ri].baseY, ACCENT);
+      }
+      if (actors[ri].alive && actors[ri].spawnT < 1) actors[ri].spawnT = Math.min(1, actors[ri].spawnT + 0.025);
+
+      // Respawn logger
+      if (t >= 1.9 && !actors[li].alive) {
+        actors[li].alive = true;
+        actors[li].crash = false;
+        actors[li].targetScale = 1;
+        actors[li].spawnT = 0;
+        actors[li].respawnGlow = 1;
+        actors[li].color = PURPLE;
+        spawnRing(actors[li].baseX, actors[li].baseY, ACCENT);
+      }
+      if (actors[li].alive && actors[li].spawnT < 1) actors[li].spawnT = Math.min(1, actors[li].spawnT + 0.025);
+
+      if (t >= 2.5) {
+        document.getElementById('statusPill').classList.remove('crash');
+        document.getElementById('statusText').textContent = 'System Restored';
+      }
+
+      edges.forEach(e => {
+        if (actors[e.from].alive && actors[e.to].alive)
+          e.opacity = Math.min(1, e.opacity + 0.03);
+      });
+
+      if (t > 3 && Math.random() < 0.06) {
+        const e = edges[Math.floor(Math.random() * edges.length)];
+        if (actors[e.from].alive && actors[e.to].alive)
+          sendMsg(e.from, e.to, actors[e.from].color);
+      }
+    },
+  },
+
+  // Phase 4 — Full system, heavy traffic
+  {
+    duration: 5.5,
+    label: '05', heading: 'Self-Healing <span class="accent">Systems</span>',
+    sub: 'Millions of processes. Sub-millisecond spawns. Automatic fault recovery.',
+    code: `<span class="cm">// Mesh actor model</span>
+<span class="ok">✓</span> <span class="str">Isolated process memory</span>
+<span class="ok">✓</span> <span class="str">Async message passing</span>
+<span class="ok">✓</span> <span class="str">Supervision trees</span>
+<span class="ok">✓</span> <span class="str">Automatic restart</span>
+<span class="ok">✓</span> <span class="str">140% faster than Elixir</span>`,
+    enter(t) {
+      document.getElementById('statusPill').classList.remove('crash');
+      document.getElementById('statusText').textContent = 'System Healthy';
+
+      if (Math.random() < 0.14) {
+        const e = edges[Math.floor(Math.random() * edges.length)];
+        if (actors[e.from].alive && actors[e.to].alive) {
+          const dir = Math.random() < 0.5;
+          sendMsg(dir ? e.from : e.to, dir ? e.to : e.from, actors[dir ? e.from : e.to].color, 0.016);
+        }
+      }
+      if (Math.random() < 0.06) {
+        const all = actors.filter(a => a.alive && a.tier >= 1);
+        if (all.length >= 2) {
+          const a = all[Math.floor(Math.random() * all.length)];
+          const b = all[Math.floor(Math.random() * all.length)];
+          if (a !== b) sendMsg(actors.indexOf(a), actors.indexOf(b), a.color, 0.01);
+        }
+      }
+    },
+  },
+];
+
+// ═══════════════════════════════════════════
+// Phase management
+// ═══════════════════════════════════════════
+function setPhase(idx) {
+  if (idx === phase) return;
+  phase = idx;
+  phaseTime = 0;
+  const p = phases[idx];
+  const title = document.getElementById('phaseTitle');
+  const code = document.getElementById('codeSnippet');
+
+  title.classList.remove('visible');
+  code.classList.remove('visible');
+
+  setTimeout(() => {
+    document.getElementById('phaseLabel').textContent = p.label;
+    document.getElementById('phaseHeading').innerHTML = p.heading;
+    document.getElementById('phaseSub').textContent = p.sub;
+    code.innerHTML = p.code;
+    title.classList.add('visible');
+    code.classList.add('visible');
+  }, 350);
+}
+
+// ═══════════════════════════════════════════
+// Drawing
+// ═══════════════════════════════════════════
+
+function drawGrid() {
+  const size = 64;
+  ctx.strokeStyle = 'rgba(255,255,255,0.018)';
+  ctx.lineWidth = 0.5;
+  for (let x = size; x < W; x += size) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = size; y < H; y += size) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+}
+
+function drawAmbientGlows() {
+  // Center green glow
+  const g1 = ctx.createRadialGradient(CX, CY, 0, CX, CY, Math.min(W,H) * 0.45);
+  g1.addColorStop(0, 'rgba(89,193,132,0.04)');
+  g1.addColorStop(1, 'rgba(89,193,132,0)');
+  ctx.fillStyle = g1;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle top-right accent
+  const g2 = ctx.createRadialGradient(W * 0.8, H * 0.15, 0, W * 0.8, H * 0.15, W * 0.25);
+  g2.addColorStop(0, 'rgba(89,193,132,0.025)');
+  g2.addColorStop(1, 'rgba(89,193,132,0)');
+  ctx.fillStyle = g2;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawAmbientParticles() {
+  for (const p of particles) {
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.x < 0) p.x = W;
+    if (p.x > W) p.x = 0;
+    if (p.y < 0) p.y = H;
+    if (p.y > H) p.y = 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fillStyle = p.green ? rgba(ACCENT, p.alpha) : rgba(WHITE, p.alpha * 0.6);
+    ctx.fill();
+  }
+}
+
+function drawEdges() {
+  for (const e of edges) {
+    if (e.opacity < 0.005) continue;
+    const a = actors[e.from], b = actors[e.to];
+    const ax = a.x, ay = a.y, bx = b.x, by = b.y;
+
+    // Curved edge with control point offset
+    const mx = (ax + bx) / 2, my = (ay + by) / 2;
+    const dx = bx - ax, dy = by - ay;
+
+    ctx.save();
+    // Main line — subtle
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.strokeStyle = rgba(WHITE, e.opacity * 0.04);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Dashed accent
+    ctx.setLineDash([3, 7]);
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.strokeStyle = rgba(ACCENT, e.opacity * 0.06);
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawActor(a) {
+  if (a.scale < 0.005 && !a.alive) return;
+
+  const spawnEase = easeOutElastic(a.spawnT);
+  const s = a.alive ? spawnEase : a.scale;
+  if (s < 0.005) return;
+
+  const pulse = 1 + Math.sin(a.pulsePhase) * 0.04;
+  const r = a.baseRadius * s * pulse;
+  const x = a.x + (a.crashShake > 0.1 ? (Math.random()-0.5) * a.crashShake : 0);
+  const y = a.y + (a.crashShake > 0.1 ? (Math.random()-0.5) * a.crashShake : 0);
+  const alpha = a.opacity;
+
+  // Respawn glow — big expanding ring
+  if (a.respawnGlow > 0.01) {
+    const rr = r + 50 * (1 - a.respawnGlow);
+    const g = ctx.createRadialGradient(x, y, r, x, y, rr);
+    g.addColorStop(0, rgba(ACCENT, 0.25 * a.respawnGlow));
+    g.addColorStop(1, 'rgba(89,193,132,0)');
+    ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+
+  // Outer glow
+  const glowR = r * 3;
+  const gc = a.crash ? RED : a.color;
+  const gg = ctx.createRadialGradient(x, y, r * 0.3, x, y, glowR);
+  gg.addColorStop(0, rgba(gc, alpha * 0.1));
+  gg.addColorStop(1, rgba(gc, 0));
+  ctx.beginPath(); ctx.arc(x, y, glowR, 0, Math.PI * 2);
+  ctx.fillStyle = gg; ctx.fill();
+
+  // Rotating ring segments (only tier 0 & 1)
+  if (a.tier <= 1 && alpha > 0.1) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(a.ringPhase);
+    const segCount = a.tier === 0 ? 6 : 4;
+    const gap = 0.15;
+    const segAngle = (Math.PI * 2) / segCount - gap;
+    for (let i = 0; i < segCount; i++) {
+      const startAngle = i * (segAngle + gap);
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.15, startAngle, startAngle + segAngle);
+      ctx.strokeStyle = rgba(gc, alpha * 0.2);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Outer ring
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = rgba(gc, alpha * 0.3);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Fill gradient
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.88, 0, Math.PI * 2);
+  const fg = ctx.createRadialGradient(x, y - r * 0.3, 0, x, y, r);
+  fg.addColorStop(0, rgba(gc, alpha * 0.18));
+  fg.addColorStop(1, rgba(gc, alpha * 0.03));
+  ctx.fillStyle = fg; ctx.fill();
+
+  // Core — brighter center dot
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.18, 0, Math.PI * 2);
+  ctx.fillStyle = rgba(gc, alpha * 0.7);
+  ctx.fill();
+
+  // Inner glow bloom on core
+  const cg = ctx.createRadialGradient(x, y, 0, x, y, r * 0.4);
+  cg.addColorStop(0, rgba(gc, alpha * 0.25));
+  cg.addColorStop(1, rgba(gc, 0));
+  ctx.beginPath(); ctx.arc(x, y, r * 0.4, 0, Math.PI * 2);
+  ctx.fillStyle = cg; ctx.fill();
+
+  // Mailbox flash
+  if (a.mailboxFlash > 0.05) {
+    const mr = r * (1.6 + (1 - a.mailboxFlash) * 0.5);
+    ctx.beginPath();
+    ctx.arc(x, y, mr, 0, Math.PI * 2);
+    ctx.strokeStyle = rgba(ACCENT, a.mailboxFlash * 0.4);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Label
+  const fontSize = a.tier === 0 ? 11 : a.tier === 1 ? 10 : 9;
+  ctx.font = `500 ${fontSize}px 'JetBrains Mono', monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = rgba(WHITE, alpha * (a.tier === 0 ? 0.6 : 0.4));
+  ctx.fillText(a.label, x, y + r + 15);
+}
+
+function bezierPoint(ax, ay, cpx, cpy, bx, by, t) {
+  const u = 1 - t;
+  return {
+    x: u*u*ax + 2*u*t*cpx + t*t*bx,
+    y: u*u*ay + 2*u*t*cpy + t*t*by,
+  };
+}
+
+function drawMessages() {
+  for (const m of messages) {
+    const p = bezierPoint(m.ax, m.ay, m.cpx, m.cpy, m.bx, m.by, m.progress);
+    const alpha = Math.sin(m.progress * Math.PI);
+
+    // Glow
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 16);
+    g.addColorStop(0, rgba(m.color, alpha * 0.5));
+    g.addColorStop(1, rgba(m.color, 0));
+    ctx.beginPath(); ctx.arc(p.x, p.y, 16, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+
+    // Core dot
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = rgba(m.color, alpha * 0.95);
+    ctx.fill();
+
+    // Trail — draw 6 previous points
+    ctx.beginPath();
+    let first = true;
+    for (let i = 6; i >= 0; i--) {
+      const tp = Math.max(0, m.progress - i * 0.015);
+      const pt = bezierPoint(m.ax, m.ay, m.cpx, m.cpy, m.bx, m.by, tp);
+      if (first) { ctx.moveTo(pt.x, pt.y); first = false; }
+      else ctx.lineTo(pt.x, pt.y);
+    }
+    ctx.strokeStyle = rgba(m.color, alpha * 0.35);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+function drawExplosions() {
+  for (const p of explosions) {
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius * 2);
+    g.addColorStop(0, rgba(p.color, p.life * 0.6));
+    g.addColorStop(1, rgba(p.color, 0));
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius * (1 + (1-p.life) * 0.5), 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+function drawShockwaves() {
+  for (const s of shockwaves) {
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = rgba(s.color || RED, s.opacity * 0.4);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+function drawRingPulses() {
+  for (const r of ringPulses) {
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = rgba(r.color, r.opacity * 0.5);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+function drawVignette() {
+  const g = ctx.createRadialGradient(CX, H * 0.35, Math.min(W,H) * 0.25, CX, H * 0.35, Math.max(W,H) * 0.8);
+  g.addColorStop(0, 'rgba(10,10,10,0)');
+  g.addColorStop(1, 'rgba(10,10,10,0.5)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawAccentLines() {
+  // Top
+  const tg = ctx.createLinearGradient(W * 0.2, 0, W * 0.8, 0);
+  tg.addColorStop(0, 'rgba(89,193,132,0)');
+  tg.addColorStop(0.5, 'rgba(89,193,132,0.2)');
+  tg.addColorStop(1, 'rgba(89,193,132,0)');
+  ctx.fillStyle = tg;
+  ctx.fillRect(W * 0.2, 0, W * 0.6, 1);
+
+  // Bottom
+  const bg = ctx.createLinearGradient(W * 0.2, 0, W * 0.8, 0);
+  bg.addColorStop(0, 'rgba(89,193,132,0)');
+  bg.addColorStop(0.5, 'rgba(89,193,132,0.1)');
+  bg.addColorStop(1, 'rgba(89,193,132,0)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(W * 0.2, H - 1, W * 0.6, 1);
+}
+
+// ═══════════════════════════════════════════
+// Update
+// ═══════════════════════════════════════════
+function update() {
+  time++;
+  const dt = 1 / 60;
+
+  // Phase
+  if (phase >= 0 && phase < phases.length) {
+    phaseTime += dt;
+    phases[phase].enter(phaseTime);
+    if (phaseTime >= phases[phase].duration) {
+      const next = (phase + 1) % phases.length;
+      if (next === 0) {
+        initActors();
+        document.getElementById('statusPill').classList.remove('crash');
+        document.getElementById('statusText').textContent = 'System Healthy';
+      }
+      setPhase(next);
+    }
+  }
+
+  // Actors
+  let alive = 0;
+  for (const a of actors) {
+    a.scale += (a.targetScale - a.scale) * 0.06;
+    a.opacity += ((a.alive ? 1 : 0) - a.opacity) * 0.05;
+    a.pulsePhase += 0.025;
+    a.ringPhase += a.tier === 0 ? 0.008 : 0.005;
+    a.x = a.baseX + Math.sin(time * 0.004 + a.floatSeedX) * 4;
+    a.y = a.baseY + Math.cos(time * 0.003 + a.floatSeedY) * 3;
+    if (a.crash && a.alive) a.crashShake = Math.min(8, a.crashShake + 0.4);
+    else a.crashShake *= 0.92;
+    a.respawnGlow *= 0.975;
+    a.mailboxFlash *= 0.93;
+    if (a.alive) alive++;
+  }
+  document.getElementById('procCount').textContent = alive;
+
+  // Messages
+  for (let i = messages.length - 1; i >= 0; i--) {
+    messages[i].progress += messages[i].speed;
+    if (messages[i].progress >= 1) {
+      const dest = actors[messages[i].toIdx];
+      if (dest) dest.mailboxFlash = 1;
+      messages.splice(i, 1);
+    }
+  }
+
+  // Explosions
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    const p = explosions[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.96; p.vy *= 0.96;
+    p.vy += 0.02; // gravity
+    p.life -= p.decay;
+    if (p.life <= 0) explosions.splice(i, 1);
+  }
+
+  // Shockwaves
+  for (let i = shockwaves.length - 1; i >= 0; i--) {
+    const s = shockwaves[i];
+    s.radius += 3;
+    s.opacity *= 0.96;
+    if (s.opacity < 0.01) shockwaves.splice(i, 1);
+  }
+
+  // Ring pulses
+  for (let i = ringPulses.length - 1; i >= 0; i--) {
+    const r = ringPulses[i];
+    r.radius += 1.5;
+    r.opacity *= 0.96;
+    if (r.opacity < 0.01) ringPulses.splice(i, 1);
+  }
+
+  // Screen shake
+  if (screenShake.intensity > 0.1) {
+    screenShake.x = (Math.random() - 0.5) * screenShake.intensity;
+    screenShake.y = (Math.random() - 0.5) * screenShake.intensity;
+    screenShake.intensity *= 0.9;
+  } else {
+    screenShake.x = 0; screenShake.y = 0;
+  }
+}
+
+// ═══════════════════════════════════════════
+// Render
+// ═══════════════════════════════════════════
+function render() {
+  ctx.save();
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  // Apply screen shake
+  ctx.translate(screenShake.x, screenShake.y);
+
+  drawGrid();
+  drawAmbientGlows();
+  drawAmbientParticles();
+  drawAccentLines();
+  drawEdges();
+  drawRingPulses();
+  drawMessages();
+  drawExplosions();
+  drawShockwaves();
+
+  // Actors — back-to-front
+  const sorted = actors.map((a,i) => ({a, i})).sort((a,b) => b.a.tier - a.a.tier);
+  for (const {a} of sorted) drawActor(a);
+
+  drawVignette();
+
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════
+// Main loop
+// ═══════════════════════════════════════════
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize', resize);
+initActors();
+resize();
+
+setTimeout(() => document.getElementById('logo').classList.add('visible'), 200);
+setTimeout(() => document.getElementById('statusPill').classList.add('visible'), 500);
+setTimeout(() => document.getElementById('processCounter').classList.add('visible'), 700);
+setTimeout(() => setPhase(0), 900);
+
+loop();
+</script>
+</body>
+</html>

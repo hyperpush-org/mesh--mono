@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-03-27T18:56:08.138Z",
+  "exported_at": "2026-03-27T19:23:55.363Z",
   "milestones": [
     {
       "id": "M001",
@@ -3963,19 +3963,37 @@
       "milestone_id": "M034",
       "slice_id": "S09",
       "id": "T05",
-      "title": "Roll the repaired SHA onto the approved refs and capture all-green hosted evidence",
-      "status": "pending",
-      "one_liner": "",
-      "narrative": "",
-      "verification_result": "",
+      "title": "Rolled `main`, `v0.1.0`, and `ext-v0.3.0` to repaired SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635` and captured the new authoritative-verification blocker.",
+      "status": "complete",
+      "one_liner": "Rolled `main`, `v0.1.0`, and `ext-v0.3.0` to repaired SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635` and captured the new authoritative-verification blocker.",
+      "narrative": "Recomputed the repaired rollout against live remote state, recorded a new approval payload for SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635`, and after explicit approval moved `main`, `v0.1.0`, and `ext-v0.3.0` from `c443270a8fe17419e9ca99b4755b90f3cb7af3a0` to that repaired commit. The reroll retired the old deploy-services and duplicate extension blockers, but the hosted monitor stopped on a new `authoritative-verification.yml` failure. The saved failed log shows `scripts/verify-m034-s01.sh` got through publish, metadata, search, download, and install, then failed because the package-level `latest` metadata still pointed at the previous proof version instead of the version just published by the run. I persisted the ref maps, workflow status/URL artifacts, and a failed-job bundle under `.tmp/m034-s09/rollout/failed-jobs/`, and recorded the new registry-latest propagation gotcha in `.gsd/KNOWLEDGE.md` so the next unit can resume from the correct blocker surface.",
+      "verification_result": "Confirmed that `.tmp/m034-s09/rollout/target-sha.txt`, `remote-refs.before.txt`, `remote-refs.after.txt`, `workflow-status.json`, and `workflow-urls.txt` exist and are non-empty after the reroll. Re-ran the task-plan all-green assertion against `workflow-status.json`; it failed because `authoritative-verification.yml` is `completed/failure` on the repaired SHA and the later release/extension lanes were still in progress when the monitor stopped. Confirmed that `failed-jobs/` contains the authoritative-verification run URL, status snapshot, and `gh run view --log-failed` output for the new blocker.",
       "duration": "",
-      "completed_at": null,
-      "blocker_discovered": false,
-      "deviations": "",
-      "known_issues": "",
-      "key_files": [],
-      "key_decisions": [],
-      "full_summary_md": "",
+      "completed_at": "2026-03-27T19:23:54.380Z",
+      "blocker_discovered": true,
+      "deviations": "Adjusted the repaired rollout seam to fast-forward from the live remote refs already on `c443270a8fe17419e9ca99b4755b90f3cb7af3a0` instead of recomputing from the pre-T03 `origin/main` snapshot. Added `.tmp/m034-s09/rollout/target-metadata.json` plus failed-job artifact capture in the temp monitor so the reroll leaves a deterministic commit recipe and durable blocker evidence.",
+      "known_issues": "`authoritative-verification.yml` failed on repaired SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635` because the package-level `latest` metadata lagged the version just published by the hosted proof run. `release.yml`, `extension-release-proof.yml`, and `publish-extension.yml` were still in progress when the monitor stopped on that red lane, so the task does not claim an all-green hosted evidence set. T06 remains blocked until that new hosted failure is fixed.",
+      "key_files": [
+        ".tmp/m034-s09/rollout/target-sha.txt",
+        ".tmp/m034-s09/rollout/remote-refs.before.txt",
+        ".tmp/m034-s09/rollout/plan.md",
+        ".tmp/m034-s09/rollout/target-metadata.json",
+        ".tmp/m034-s09/rollout/apply_rollout.py",
+        ".tmp/m034-s09/rollout/monitor_workflows.py",
+        ".tmp/m034-s09/rollout/remote-refs.after.txt",
+        ".tmp/m034-s09/rollout/workflow-status.json",
+        ".tmp/m034-s09/rollout/workflow-urls.txt",
+        ".tmp/m034-s09/rollout/failed-jobs/index.json",
+        ".tmp/m034-s09/rollout/failed-jobs/authoritative-verification.url.txt",
+        ".tmp/m034-s09/rollout/failed-jobs/authoritative-verification.json",
+        ".tmp/m034-s09/rollout/failed-jobs/authoritative-verification.log",
+        ".gsd/KNOWLEDGE.md"
+      ],
+      "key_decisions": [
+        "Treat the repaired T05 rollout as a fast-forward from the already-shipped `c443270a8fe17419e9ca99b4755b90f3cb7af3a0` remote state and ship only `.github/workflows/publish-extension.yml`, `scripts/verify-m034-s01.sh`, and `scripts/verify-m034-s03.ps1`.",
+        "Extend the temp rollout monitor so a red hosted lane writes `failed-jobs/*.url.txt`, `failed-jobs/*.json`, and `failed-jobs/*.log` before stopping."
+      ],
+      "full_summary_md": "---\nid: T05\nparent: S09\nmilestone: M034\nkey_files:\n  - .tmp/m034-s09/rollout/target-sha.txt\n  - .tmp/m034-s09/rollout/remote-refs.before.txt\n  - .tmp/m034-s09/rollout/plan.md\n  - .tmp/m034-s09/rollout/target-metadata.json\n  - .tmp/m034-s09/rollout/apply_rollout.py\n  - .tmp/m034-s09/rollout/monitor_workflows.py\n  - .tmp/m034-s09/rollout/remote-refs.after.txt\n  - .tmp/m034-s09/rollout/workflow-status.json\n  - .tmp/m034-s09/rollout/workflow-urls.txt\n  - .tmp/m034-s09/rollout/failed-jobs/index.json\n  - .tmp/m034-s09/rollout/failed-jobs/authoritative-verification.url.txt\n  - .tmp/m034-s09/rollout/failed-jobs/authoritative-verification.json\n  - .tmp/m034-s09/rollout/failed-jobs/authoritative-verification.log\n  - .gsd/KNOWLEDGE.md\nkey_decisions:\n  - Treat the repaired T05 rollout as a fast-forward from the already-shipped `c443270a8fe17419e9ca99b4755b90f3cb7af3a0` remote state and ship only `.github/workflows/publish-extension.yml`, `scripts/verify-m034-s01.sh`, and `scripts/verify-m034-s03.ps1`.\n  - Extend the temp rollout monitor so a red hosted lane writes `failed-jobs/*.url.txt`, `failed-jobs/*.json`, and `failed-jobs/*.log` before stopping.\nduration: \"\"\nverification_result: mixed\ncompleted_at: 2026-03-27T19:23:54.390Z\nblocker_discovered: true\n---\n\n# T05: Rolled `main`, `v0.1.0`, and `ext-v0.3.0` to repaired SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635` and captured the new authoritative-verification blocker.\n\n**Rolled `main`, `v0.1.0`, and `ext-v0.3.0` to repaired SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635` and captured the new authoritative-verification blocker.**\n\n## What Happened\n\nRecomputed the repaired rollout against live remote state, recorded a new approval payload for SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635`, and after explicit approval moved `main`, `v0.1.0`, and `ext-v0.3.0` from `c443270a8fe17419e9ca99b4755b90f3cb7af3a0` to that repaired commit. The reroll retired the old deploy-services and duplicate extension blockers, but the hosted monitor stopped on a new `authoritative-verification.yml` failure. The saved failed log shows `scripts/verify-m034-s01.sh` got through publish, metadata, search, download, and install, then failed because the package-level `latest` metadata still pointed at the previous proof version instead of the version just published by the run. I persisted the ref maps, workflow status/URL artifacts, and a failed-job bundle under `.tmp/m034-s09/rollout/failed-jobs/`, and recorded the new registry-latest propagation gotcha in `.gsd/KNOWLEDGE.md` so the next unit can resume from the correct blocker surface.\n\n## Verification\n\nConfirmed that `.tmp/m034-s09/rollout/target-sha.txt`, `remote-refs.before.txt`, `remote-refs.after.txt`, `workflow-status.json`, and `workflow-urls.txt` exist and are non-empty after the reroll. Re-ran the task-plan all-green assertion against `workflow-status.json`; it failed because `authoritative-verification.yml` is `completed/failure` on the repaired SHA and the later release/extension lanes were still in progress when the monitor stopped. Confirmed that `failed-jobs/` contains the authoritative-verification run URL, status snapshot, and `gh run view --log-failed` output for the new blocker.\n\n## Verification Evidence\n\n| # | Command | Exit Code | Verdict | Duration |\n|---|---------|-----------|---------|----------|\n| 1 | `python3 .tmp/m034-s09/rollout/apply_rollout.py` | 0 | ✅ pass | 2000ms |\n| 2 | `python3 .tmp/m034-s09/rollout/monitor_workflows.py 30 5400` | 1 | ❌ fail | 552300ms |\n| 3 | `bash -c 'set -euo pipefail; test -s .tmp/m034-s09/rollout/target-sha.txt; test -s .tmp/m034-s09/rollout/remote-refs.before.txt; test -s .tmp/m034-s09/rollout/remote-refs.after.txt; test -s .tmp/m034-s09/rollout/workflow-status.json; test -s .tmp/m034-s09/rollout/workflow-urls.txt'` | 0 | ✅ pass | 1000ms |\n| 4 | `python3 - <<'PY' ... assert workflow-status.json entries are completed/success on target-sha.txt ... PY` | 1 | ❌ fail | 1000ms |\n\n\n## Deviations\n\nAdjusted the repaired rollout seam to fast-forward from the live remote refs already on `c443270a8fe17419e9ca99b4755b90f3cb7af3a0` instead of recomputing from the pre-T03 `origin/main` snapshot. Added `.tmp/m034-s09/rollout/target-metadata.json` plus failed-job artifact capture in the temp monitor so the reroll leaves a deterministic commit recipe and durable blocker evidence.\n\n## Known Issues\n\n`authoritative-verification.yml` failed on repaired SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635` because the package-level `latest` metadata lagged the version just published by the hosted proof run. `release.yml`, `extension-release-proof.yml`, and `publish-extension.yml` were still in progress when the monitor stopped on that red lane, so the task does not claim an all-green hosted evidence set. T06 remains blocked until that new hosted failure is fixed.\n\n## Files Created/Modified\n\n- `.tmp/m034-s09/rollout/target-sha.txt`\n- `.tmp/m034-s09/rollout/remote-refs.before.txt`\n- `.tmp/m034-s09/rollout/plan.md`\n- `.tmp/m034-s09/rollout/target-metadata.json`\n- `.tmp/m034-s09/rollout/apply_rollout.py`\n- `.tmp/m034-s09/rollout/monitor_workflows.py`\n- `.tmp/m034-s09/rollout/remote-refs.after.txt`\n- `.tmp/m034-s09/rollout/workflow-status.json`\n- `.tmp/m034-s09/rollout/workflow-urls.txt`\n- `.tmp/m034-s09/rollout/failed-jobs/index.json`\n- `.tmp/m034-s09/rollout/failed-jobs/authoritative-verification.url.txt`\n- `.tmp/m034-s09/rollout/failed-jobs/authoritative-verification.json`\n- `.tmp/m034-s09/rollout/failed-jobs/authoritative-verification.log`\n- `.gsd/KNOWLEDGE.md`\n",
       "description": "Once the local reroll blockers are repaired, produce one new rollout target and rerun the hosted evidence set on that exact commit.\n- Recompute the minimal repaired rollout commit relative to `origin/main`, record the exact target SHA plus before-state ref map under `.tmp/m034-s09/rollout/`, and update the approval payload with the new diff and ref moves.\n- Show the recorded summary and get explicit user confirmation before any outward GitHub action.\n- Move `main`, `v0.1.0`, and `ext-v0.3.0` onto the repaired SHA using the least-destructive path the remote state allows, then record the resulting after-state ref map.\n- Monitor `deploy.yml`, `authoritative-verification.yml`, `release.yml`, `deploy-services.yml`, `extension-release-proof.yml`, and `publish-extension.yml` until they are completed/success on the expected refs and `headSha`.\n- If any lane still fails, persist the failing job URLs plus `gh run view --log-failed` output under `.tmp/m034-s09/rollout/failed-jobs/` before stopping so the next blocker is self-explanatory rather than just 'workflow red'.",
       "estimate": "1h 30m",
       "files": [
@@ -8497,6 +8515,50 @@
       "verdict": "✅ pass",
       "duration_ms": 157,
       "created_at": "2026-03-27T18:56:07.893Z"
+    },
+    {
+      "id": 293,
+      "task_id": "T05",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "python3 .tmp/m034-s09/rollout/apply_rollout.py",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 2000,
+      "created_at": "2026-03-27T19:23:54.380Z"
+    },
+    {
+      "id": 294,
+      "task_id": "T05",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "python3 .tmp/m034-s09/rollout/monitor_workflows.py 30 5400",
+      "exit_code": 1,
+      "verdict": "❌ fail",
+      "duration_ms": 552300,
+      "created_at": "2026-03-27T19:23:54.381Z"
+    },
+    {
+      "id": 295,
+      "task_id": "T05",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "bash -c 'set -euo pipefail; test -s .tmp/m034-s09/rollout/target-sha.txt; test -s .tmp/m034-s09/rollout/remote-refs.before.txt; test -s .tmp/m034-s09/rollout/remote-refs.after.txt; test -s .tmp/m034-s09/rollout/workflow-status.json; test -s .tmp/m034-s09/rollout/workflow-urls.txt'",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 1000,
+      "created_at": "2026-03-27T19:23:54.381Z"
+    },
+    {
+      "id": 296,
+      "task_id": "T05",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "python3 - <<'PY' ... assert workflow-status.json entries are completed/success on target-sha.txt ... PY",
+      "exit_code": 1,
+      "verdict": "❌ fail",
+      "duration_ms": 1000,
+      "created_at": "2026-03-27T19:23:54.381Z"
     }
   ]
 }

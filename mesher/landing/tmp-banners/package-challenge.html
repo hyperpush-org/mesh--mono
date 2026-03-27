@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0a0a;
+    color: #f5f5f5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .card {
+    width: 1200px;
+    height: 675px;
+    position: relative;
+    overflow: hidden;
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    padding: 0 80px;
+    gap: 64px;
+  }
+
+  /* ——— Background ——— */
+  .grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  .glow {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .top-line {
+    position: absolute;
+    top: 0; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(89,193,132,0.35), transparent);
+  }
+
+  .bottom-line {
+    position: absolute;
+    bottom: 0; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(89,193,132,0.15), transparent);
+  }
+
+  /* ——— Left: copy ——— */
+  .copy {
+    position: relative;
+    z-index: 5;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 22px;
+    border-radius: 100px;
+    border: 1px solid rgba(89,193,132,0.3);
+    background: rgba(89,193,132,0.08);
+    font-size: 15px;
+    color: #59C184;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    width: fit-content;
+  }
+
+  .pill .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #59C184;
+    box-shadow: 0 0 8px rgba(89,193,132,0.5);
+  }
+
+  h1 {
+    font-size: 68px;
+    font-weight: 900;
+    letter-spacing: -3.5px;
+    line-height: 1.0;
+  }
+
+  h1 .accent { color: #59C184; }
+  h1 .dim { color: rgba(255,255,255,0.3); }
+
+  .subtitle {
+    font-size: 20px;
+    line-height: 1.55;
+    color: rgba(255,255,255,0.45);
+    max-width: 520px;
+  }
+
+  .subtitle strong {
+    color: rgba(255,255,255,0.75);
+    font-weight: 600;
+  }
+
+  /* ——— Stats row ——— */
+  .stats {
+    display: flex;
+    gap: 36px;
+    margin-top: 4px;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat .val {
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    color: #59C184;
+  }
+
+  .stat .val .white { color: rgba(255,255,255,0.85); }
+
+  .stat .label {
+    font-size: 14px;
+    color: rgba(255,255,255,0.35);
+    font-weight: 500;
+  }
+
+  .stat-divider {
+    width: 1px;
+    align-self: stretch;
+    background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.08), transparent);
+  }
+
+  /* ——— Right: reward cards ——— */
+  .rewards {
+    position: relative;
+    z-index: 5;
+    width: 360px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .reward-card {
+    border-radius: 14px;
+    padding: 24px 26px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .reward-card.prize {
+    border: 1px solid rgba(89,193,132,0.25);
+    background: rgba(89,193,132,0.04);
+  }
+
+  .reward-card.badge {
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .reward-card.rules {
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.015);
+  }
+
+  .reward-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    flex-shrink: 0;
+  }
+
+  .reward-card.prize .reward-icon {
+    background: rgba(89,193,132,0.12);
+    border: 1px solid rgba(89,193,132,0.2);
+  }
+
+  .reward-card.badge .reward-icon {
+    background: rgba(255,200,80,0.1);
+    border: 1px solid rgba(255,200,80,0.15);
+  }
+
+  .reward-card.rules .reward-icon {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .reward-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .reward-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: -0.3px;
+  }
+
+  .reward-card.prize .reward-title { color: #59C184; }
+
+  .reward-desc {
+    font-size: 13px;
+    color: rgba(255,255,255,0.35);
+    line-height: 1.4;
+  }
+
+  /* ——— Logo ——— */
+  .logo-row {
+    position: absolute;
+    top: 36px;
+    right: 80px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 5;
+  }
+
+  .logo-row .name {
+    font-size: 24px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .mesh-tag {
+    position: absolute;
+    bottom: 36px;
+    left: 80px;
+    z-index: 5;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: rgba(255,255,255,0.2);
+    font-weight: 500;
+  }
+
+  .mesh-tag strong {
+    color: rgba(255,255,255,0.4);
+    font-weight: 600;
+  }
+
+  .bottom-url {
+    position: absolute;
+    bottom: 36px;
+    right: 80px;
+    z-index: 5;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: rgba(89,193,132,0.4);
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="package-challenge">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:700px;height:700px;background:radial-gradient(circle,rgba(89,193,132,0.1) 0%,transparent 70%);top:-20%;left:25%"></div>
+  <div class="glow" style="width:500px;height:500px;background:radial-gradient(circle,rgba(89,193,132,0.06) 0%,transparent 70%);bottom:-15%;right:15%"></div>
+  <div class="top-line"></div>
+  <div class="bottom-line"></div>
+
+  <!-- Logo top-right -->
+  <div class="logo-row">
+    <svg width="30" height="30" viewBox="0 0 256 256" fill="none">
+      <path d="M58.4637 127.026C49.371 111.277 54.767 91.1387 70.5159 82.0461L122.475 172.041C131.567 187.79 126.171 207.928 110.422 217.021L58.4637 127.026Z" fill="#59C184"/>
+      <path d="M79.1494 77.0625C95.0428 67.8864 115.366 73.3319 124.542 89.2253L152.938 138.409C137.044 147.585 116.722 142.139 107.545 126.246L79.1494 77.0625Z" fill="white"/>
+      <path d="M133.024 83.9788C123.931 68.2299 129.327 48.0919 145.076 38.9992L182.534 103.879C191.627 119.628 186.231 139.766 170.482 148.859L133.024 83.9788Z" fill="#59C184"/>
+    </svg>
+    <span class="name">hyperpush</span>
+  </div>
+
+  <!-- LEFT: copy -->
+  <div class="copy">
+    <div class="pill">
+      <span class="dot"></span>
+      Mesh Package Challenge
+    </div>
+
+    <h1>
+      10 packages.<br>
+      <span class="accent">$500 each.</span>
+    </h1>
+
+    <p class="subtitle">
+      We pick the packages — <strong>you build the best one.</strong>
+      Top submission per package wins cash and a permanent badge on the registry.
+    </p>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="val"><span class="white">$</span>5,000</span>
+        <span class="label">Total prize pool</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="val">10</span>
+        <span class="label">Packages to build</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="val">Mesh</span>
+        <span class="label">Language required</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: reward cards -->
+  <div class="rewards">
+    <div class="reward-card prize">
+      <div class="reward-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#59C184" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M15 9.5c0-1.38-1.34-2.5-3-2.5S9 8.12 9 9.5c0 1.38 1.34 2.5 3 2.5s3 1.12 3 2.5c0 1.38-1.34 2.5-3 2.5s-3-1.12-3-2.5"/>
+          <path d="M12 5.5v1.5M12 15.5V17"/>
+        </svg>
+      </div>
+      <div class="reward-text">
+        <span class="reward-title">$500 per winner</span>
+        <span class="reward-desc">Best submission for each of the 10 packages wins $500</span>
+      </div>
+    </div>
+
+    <div class="reward-card badge">
+      <div class="reward-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f0c050" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+          <path d="M4 22h16"/>
+          <path d="M10 22V14.5a2 2 0 0 1 4 0V22"/>
+          <path d="M18 9H6l1.5 5.5a4 4 0 0 0 3.86 3h1.28a4 4 0 0 0 3.86-3L18 9Z"/>
+        </svg>
+      </div>
+      <div class="reward-text">
+        <span class="reward-title">Founding OSS Badge</span>
+        <span class="reward-desc">Permanent contributor badge on packages.meshlang.dev</span>
+      </div>
+    </div>
+
+    <div class="reward-card rules">
+      <div class="reward-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+          <path d="m3.3 7 8.7 5 8.7-5"/>
+          <path d="M12 22V12"/>
+        </svg>
+      </div>
+      <div class="reward-text">
+        <span class="reward-title">Pick any of the 10</span>
+        <span class="reward-desc">Choose which package to implement and submit your best work</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom -->
+  <div class="mesh-tag">Built with <strong>Mesh</strong> · meshlang.dev</div>
+  <div class="bottom-url">packages.meshlang.dev</div>
+</div>
+
+</body>
+</html>

@@ -61,7 +61,7 @@ Done when: the remote refs and the saved hosted-workflow status payloads all agr
   - Verify: bash scripts/verify-m034-s04-workflows.sh all
 pwsh -NoProfile -File scripts/tests/verify-m034-s03-last-exitcode.ps1
 bash scripts/tests/verify-m034-s01-fetch-retry.sh
-- [ ] **T05: Roll the repaired SHA onto the approved refs and capture all-green hosted evidence** — Once the local reroll blockers are repaired, produce one new rollout target and rerun the hosted evidence set on that exact commit.
+- [x] **T05: Rolled `main`, `v0.1.0`, and `ext-v0.3.0` to repaired SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635` and captured the new authoritative-verification blocker.** — Once the local reroll blockers are repaired, produce one new rollout target and rerun the hosted evidence set on that exact commit.
 - Recompute the minimal repaired rollout commit relative to `origin/main`, record the exact target SHA plus before-state ref map under `.tmp/m034-s09/rollout/`, and update the approval payload with the new diff and ref moves.
 - Show the recorded summary and get explicit user confirmation before any outward GitHub action.
 - Move `main`, `v0.1.0`, and `ext-v0.3.0` onto the repaired SHA using the least-destructive path the remote state allows, then record the resulting after-state ref map.
@@ -90,6 +90,7 @@ for name in required:
     assert entry['conclusion'] == 'success', (name, entry)
 print('workflow-status.json matches repaired rollout target and all-green hosted evidence')
 PY
+  - Blocker: `authoritative-verification.yml` failed on repaired SHA `8e6d49dacc4f4cd64824b032078ae45aabfe9635` because the package-level `latest` metadata lagged the version just published by the hosted proof run. `release.yml`, `extension-release-proof.yml`, and `publish-extension.yml` were still in progress when the monitor stopped on that red lane, so the task does not claim an all-green hosted evidence set. T06 remains blocked until that new hosted failure is fixed.
 - [ ] **T06: Archive first-green exactly once and rerun the full assembled verifier** — With the repaired hosted evidence set green on the fresh rollout SHA, close the slice with the canonical assembled proof.
 - Load `.env`, rerun the stop-after `remote-evidence` preflight, and confirm it is green on the repaired refs and `headSha`.
 - If `.tmp/m034-s06/evidence/first-green/` is still absent, capture it exactly once through `scripts/verify-m034-s06-remote-evidence.sh` and validate the archived manifest plus remote-run summary.
