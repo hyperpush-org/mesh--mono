@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-03-27T17:57:08.203Z",
+  "exported_at": "2026-03-27T18:03:55.525Z",
   "milestones": [
     {
       "id": "M001",
@@ -3798,19 +3798,27 @@
       "milestone_id": "M034",
       "slice_id": "S09",
       "id": "T02",
-      "title": "Isolate the exact rollout target and approval payload",
-      "status": "pending",
-      "one_liner": "",
-      "narrative": "",
-      "verification_result": "",
+      "title": "Recorded the exact synthetic rollout target SHA and approval payload for the S09 hosted reroll.",
+      "status": "complete",
+      "one_liner": "Recorded the exact synthetic rollout target SHA and approval payload for the S09 hosted reroll.",
+      "narrative": "Compared `origin/main..HEAD` and confirmed the current branch tip was not a truthful rollout target because it bundled unrelated `mesher/landing/...` changes and local verifier churn alongside the hosted failure repairs. Built a synthetic local commit object on top of `origin/main` using a temporary index and only the two rollout-critical file versions from `HEAD` (`packages-website/Dockerfile` and `.github/workflows/release.yml`). Recorded that concrete target SHA in `.tmp/m034-s09/rollout/target-sha.txt`, preserved the current remote ref map in `.tmp/m034-s09/rollout/remote-refs.before.txt`, and wrote `.tmp/m034-s09/rollout/plan.md` with the approval payload describing the exact `main`, `v0.1.0`, and `ext-v0.3.0` moves T03 should present before any GitHub mutation. Added one project-knowledge note documenting the synthetic `git commit-tree` pattern for future rollout-target isolation work.",
+      "verification_result": "Passed the task-plan artifact existence check, the SHA/plan-content contract check, and an exactness guard proving the selected target differs from `origin/main` by only `.github/workflows/release.yml` and `packages-website/Dockerfile` while the recorded before-state still contains `main`, `v0.1.0`, and `ext-v0.3.0`. Full slice closeout verification was intentionally deferred because this is an intermediate task; T04 remains responsible for the hosted reroll and assembled S05 replay.",
       "duration": "",
-      "completed_at": null,
+      "completed_at": "2026-03-27T18:03:55.034Z",
       "blocker_discovered": false,
-      "deviations": "",
-      "known_issues": "",
-      "key_files": [],
-      "key_decisions": [],
-      "full_summary_md": "",
+      "deviations": "Used a synthetic local commit object as the rollout target instead of selecting an existing commit from `origin/main..HEAD`, because no existing commit isolated the hosted-failure repairs without also pulling unrelated landing-page or local verification changes.",
+      "known_issues": "The chosen rollout SHA currently exists only in the local repository object database. T03 still needs explicit user approval before pushing that SHA to `main` and retargeting `v0.1.0` / `ext-v0.3.0` on GitHub.",
+      "key_files": [
+        ".tmp/m034-s09/rollout/target-sha.txt",
+        ".tmp/m034-s09/rollout/remote-refs.before.txt",
+        ".tmp/m034-s09/rollout/plan.md",
+        ".gsd/KNOWLEDGE.md",
+        ".gsd/milestones/M034/slices/S09/tasks/T02-SUMMARY.md"
+      ],
+      "key_decisions": [
+        "Use a synthetic local commit derived from `origin/main` with only `.github/workflows/release.yml` and `packages-website/Dockerfile` changed, instead of shipping current `HEAD`, so the rollout target matches the hosted failure repairs without pulling unrelated landing-page or local verifier churn."
+      ],
+      "full_summary_md": "---\nid: T02\nparent: S09\nmilestone: M034\nkey_files:\n  - .tmp/m034-s09/rollout/target-sha.txt\n  - .tmp/m034-s09/rollout/remote-refs.before.txt\n  - .tmp/m034-s09/rollout/plan.md\n  - .gsd/KNOWLEDGE.md\n  - .gsd/milestones/M034/slices/S09/tasks/T02-SUMMARY.md\nkey_decisions:\n  - Use a synthetic local commit derived from `origin/main` with only `.github/workflows/release.yml` and `packages-website/Dockerfile` changed, instead of shipping current `HEAD`, so the rollout target matches the hosted failure repairs without pulling unrelated landing-page or local verifier churn.\nduration: \"\"\nverification_result: passed\ncompleted_at: 2026-03-27T18:03:55.035Z\nblocker_discovered: false\n---\n\n# T02: Recorded the exact synthetic rollout target SHA and approval payload for the S09 hosted reroll.\n\n**Recorded the exact synthetic rollout target SHA and approval payload for the S09 hosted reroll.**\n\n## What Happened\n\nCompared `origin/main..HEAD` and confirmed the current branch tip was not a truthful rollout target because it bundled unrelated `mesher/landing/...` changes and local verifier churn alongside the hosted failure repairs. Built a synthetic local commit object on top of `origin/main` using a temporary index and only the two rollout-critical file versions from `HEAD` (`packages-website/Dockerfile` and `.github/workflows/release.yml`). Recorded that concrete target SHA in `.tmp/m034-s09/rollout/target-sha.txt`, preserved the current remote ref map in `.tmp/m034-s09/rollout/remote-refs.before.txt`, and wrote `.tmp/m034-s09/rollout/plan.md` with the approval payload describing the exact `main`, `v0.1.0`, and `ext-v0.3.0` moves T03 should present before any GitHub mutation. Added one project-knowledge note documenting the synthetic `git commit-tree` pattern for future rollout-target isolation work.\n\n## Verification\n\nPassed the task-plan artifact existence check, the SHA/plan-content contract check, and an exactness guard proving the selected target differs from `origin/main` by only `.github/workflows/release.yml` and `packages-website/Dockerfile` while the recorded before-state still contains `main`, `v0.1.0`, and `ext-v0.3.0`. Full slice closeout verification was intentionally deferred because this is an intermediate task; T04 remains responsible for the hosted reroll and assembled S05 replay.\n\n## Verification Evidence\n\n| # | Command | Exit Code | Verdict | Duration |\n|---|---------|-----------|---------|----------|\n| 1 | `bash -c 'set -euo pipefail; test -s .tmp/m034-s09/rollout/target-sha.txt; test -s .tmp/m034-s09/rollout/remote-refs.before.txt; test -s .tmp/m034-s09/rollout/plan.md'` | 0 | ✅ pass | 50ms |\n| 2 | `python3 - <<'PY'\nfrom pathlib import Path\nimport re\nsha = Path('.tmp/m034-s09/rollout/target-sha.txt').read_text().strip()\nassert re.fullmatch(r'[0-9a-f]{40}', sha), sha\nplan = Path('.tmp/m034-s09/rollout/plan.md').read_text()\nfor needle in ['main', 'v0.1.0', 'ext-v0.3.0']:\n    assert needle in plan, needle\nPY` | 0 | ✅ pass | 156ms |\n| 3 | `python3 - <<'PY'\nfrom pathlib import Path\nimport subprocess\nsha = Path('.tmp/m034-s09/rollout/target-sha.txt').read_text().strip()\ndiff_files = subprocess.run(['git', 'diff', '--name-only', 'origin/main..' + sha], check=True, text=True, capture_output=True).stdout.strip().splitlines()\nassert diff_files == ['.github/workflows/release.yml', 'packages-website/Dockerfile'], diff_files\nrefs = Path('.tmp/m034-s09/rollout/remote-refs.before.txt').read_text().splitlines()\nfor needle in ['refs/heads/main', 'refs/tags/v0.1.0', 'refs/tags/ext-v0.3.0']:\n    assert any(needle in line for line in refs), needle\nPY` | 0 | ✅ pass | 262ms |\n\n\n## Deviations\n\nUsed a synthetic local commit object as the rollout target instead of selecting an existing commit from `origin/main..HEAD`, because no existing commit isolated the hosted-failure repairs without also pulling unrelated landing-page or local verification changes.\n\n## Known Issues\n\nThe chosen rollout SHA currently exists only in the local repository object database. T03 still needs explicit user approval before pushing that SHA to `main` and retargeting `v0.1.0` / `ext-v0.3.0` on GitHub.\n\n## Files Created/Modified\n\n- `.tmp/m034-s09/rollout/target-sha.txt`\n- `.tmp/m034-s09/rollout/remote-refs.before.txt`\n- `.tmp/m034-s09/rollout/plan.md`\n- `.gsd/KNOWLEDGE.md`\n- `.gsd/milestones/M034/slices/S09/tasks/T02-SUMMARY.md`\n",
       "description": "Why: S08 proved that local `HEAD` contains more than the two original rollout-fix commits, so S09 needs one deliberate target SHA before any outward GitHub action.\n\nFiles: `packages-website/Dockerfile`, `.github/workflows/release.yml`, `scripts/verify-m034-s05.sh`, `.tmp/m034-s09/rollout/target-sha.txt`, `.tmp/m034-s09/rollout/remote-refs.before.txt`, `.tmp/m034-s09/rollout/plan.md`\n\nDo:\n- Compare `origin/main..HEAD` and isolate the exact commit set that must be shipped for the hosted `release.yml`, `deploy-services.yml`, and freshness-gated `remote-evidence` path.\n- Record the current remote refs and the proposed target SHA / tag moves under `.tmp/m034-s09/rollout/`.\n- Write the exact outward-action summary the executor will show the user for approval, including which refs move and why, then stop before mutating GitHub.\n\nVerify: `test -s .tmp/m034-s09/rollout/target-sha.txt && test -s .tmp/m034-s09/rollout/remote-refs.before.txt && test -s .tmp/m034-s09/rollout/plan.md`\n\nDone when: the executor has one concrete rollout SHA, a recorded before-state for remote refs, and an unambiguous approval payload that says exactly what will be shipped.",
       "estimate": "45m",
       "files": [
@@ -8227,6 +8235,39 @@
       "verdict": "✅ pass (same first failing phase: remote-evidence)",
       "duration_ms": 141115,
       "created_at": "2026-03-27T17:57:07.691Z"
+    },
+    {
+      "id": 283,
+      "task_id": "T02",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "bash -c 'set -euo pipefail; test -s .tmp/m034-s09/rollout/target-sha.txt; test -s .tmp/m034-s09/rollout/remote-refs.before.txt; test -s .tmp/m034-s09/rollout/plan.md'",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 50,
+      "created_at": "2026-03-27T18:03:55.034Z"
+    },
+    {
+      "id": 284,
+      "task_id": "T02",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "python3 - <<'PY'\nfrom pathlib import Path\nimport re\nsha = Path('.tmp/m034-s09/rollout/target-sha.txt').read_text().strip()\nassert re.fullmatch(r'[0-9a-f]{40}', sha), sha\nplan = Path('.tmp/m034-s09/rollout/plan.md').read_text()\nfor needle in ['main', 'v0.1.0', 'ext-v0.3.0']:\n    assert needle in plan, needle\nPY",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 156,
+      "created_at": "2026-03-27T18:03:55.034Z"
+    },
+    {
+      "id": 285,
+      "task_id": "T02",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "python3 - <<'PY'\nfrom pathlib import Path\nimport subprocess\nsha = Path('.tmp/m034-s09/rollout/target-sha.txt').read_text().strip()\ndiff_files = subprocess.run(['git', 'diff', '--name-only', 'origin/main..' + sha], check=True, text=True, capture_output=True).stdout.strip().splitlines()\nassert diff_files == ['.github/workflows/release.yml', 'packages-website/Dockerfile'], diff_files\nrefs = Path('.tmp/m034-s09/rollout/remote-refs.before.txt').read_text().splitlines()\nfor needle in ['refs/heads/main', 'refs/tags/v0.1.0', 'refs/tags/ext-v0.3.0']:\n    assert any(needle in line for line in refs), needle\nPY",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 262,
+      "created_at": "2026-03-27T18:03:55.034Z"
     }
   ]
 }

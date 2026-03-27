@@ -19,7 +19,7 @@ Done when: stop-after `remote-evidence` can fail closed on stale hosted runs eve
   - Estimate: 1h
   - Files: scripts/verify-m034-s05.sh, scripts/verify-m034-s06-remote-evidence.sh, scripts/tests/verify-m034-s05-contract.test.mjs, scripts/tests/verify-m034-s06-contract.test.mjs
   - Verify: node --test scripts/tests/verify-m034-s05-contract.test.mjs scripts/tests/verify-m034-s06-contract.test.mjs
-- [ ] **T02: Isolate the exact rollout target and approval payload** — Why: S08 proved that local `HEAD` contains more than the two original rollout-fix commits, so S09 needs one deliberate target SHA before any outward GitHub action.
+- [x] **T02: Recorded the exact synthetic rollout target SHA and approval payload for the S09 hosted reroll.** — Why: S08 proved that local `HEAD` contains more than the two original rollout-fix commits, so S09 needs one deliberate target SHA before any outward GitHub action.
 
 Files: `packages-website/Dockerfile`, `.github/workflows/release.yml`, `scripts/verify-m034-s05.sh`, `.tmp/m034-s09/rollout/target-sha.txt`, `.tmp/m034-s09/rollout/remote-refs.before.txt`, `.tmp/m034-s09/rollout/plan.md`
 
