@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-03-27T18:03:55.525Z",
+  "exported_at": "2026-03-27T18:37:24.367Z",
   "milestones": [
     {
       "id": "M001",
@@ -3848,19 +3848,31 @@
       "milestone_id": "M034",
       "slice_id": "S09",
       "id": "T03",
-      "title": "Roll approved refs onto GitHub and wait for hosted green",
-      "status": "pending",
-      "one_liner": "",
-      "narrative": "",
-      "verification_result": "",
+      "title": "Retargeted `main`, `v0.1.0`, and `ext-v0.3.0` to the approved rollout SHA and captured hosted workflow evidence up to the red `publish-extension.yml` blocker.",
+      "status": "complete",
+      "one_liner": "Retargeted `main`, `v0.1.0`, and `ext-v0.3.0` to the approved rollout SHA and captured hosted workflow evidence up to the red `publish-extension.yml` blocker.",
+      "narrative": "Presented the recorded rollout plan, obtained explicit approval, and discovered that recreating the local synthetic rollout commit through GitHub's Git data API changed the hash because the API normalized the author/committer timestamp to UTC. After a second explicit approval for the equivalent GitHub-created commit, updated the rollout artifacts to the approved SHA `c443270a8fe17419e9ca99b4755b90f3cb7af3a0`, moved `main`, `v0.1.0`, and `ext-v0.3.0` onto that commit, and persisted the resulting ref map. Then polled the six required hosted workflows into durable status/URL artifacts. The reroll succeeded for `deploy.yml`, `deploy-services.yml`, `authoritative-verification.yml`, and the reusable `extension-release-proof.yml` evidence on the correct head SHA, but the caller workflow `publish-extension.yml` completed red and `release.yml` was still in progress when the monitor stopped. That makes the remaining slice plan invalid as written: waiting longer is not enough, and the failing hosted lane now needs follow-up work or replan.",
+      "verification_result": "Confirmed that `.tmp/m034-s09/rollout/remote-refs.after.txt`, `.tmp/m034-s09/rollout/workflow-status.json`, and `.tmp/m034-s09/rollout/workflow-urls.txt` exist. Confirmed that the after-state ref map shows `main`, `v0.1.0`, and `ext-v0.3.0` on `c443270a8fe17419e9ca99b4755b90f3cb7af3a0`. Ran the task-plan status assertion against `workflow-status.json`; it failed because `release.yml` was still `in_progress` and `publish-extension.yml` completed with `conclusion: failure`. The bounded workflow monitor preserved the exact run URLs and final blocker state in the rollout artifacts.",
       "duration": "",
-      "completed_at": null,
-      "blocker_discovered": false,
-      "deviations": "",
-      "known_issues": "",
-      "key_files": [],
-      "key_decisions": [],
-      "full_summary_md": "",
+      "completed_at": "2026-03-27T18:37:23.895Z",
+      "blocker_discovered": true,
+      "deviations": "Switched the rollout target from the local synthetic SHA `05ab52f6353c0b44824f66edff0f41da1d625b9b` to the user-approved GitHub-created equivalent SHA `c443270a8fe17419e9ca99b4755b90f3cb7af3a0`, because T03 had to avoid `git push` and GitHub's commit API rewrote the timestamp enough to change the hash. Added temporary rollout helper scripts under `.tmp/m034-s09/rollout/` so the remote mutation and hosted polling stayed reproducible and left durable status files behind.",
+      "known_issues": "`publish-extension.yml` completed with `conclusion: failure` on the correct rollout SHA (`c443270a8fe17419e9ca99b4755b90f3cb7af3a0`), so the slice cannot claim an all-green hosted evidence set. `release.yml` was still `in_progress` when the monitor stopped on the red extension caller lane, so its final conclusion was not captured by this task. Because the all-green hosted contract did not pass, T04’s planned `first-green` archive and full S05 replay are blocked pending investigation and likely replan of the failing hosted workflow lane.",
+      "key_files": [
+        ".tmp/m034-s09/rollout/target-sha.txt",
+        ".tmp/m034-s09/rollout/plan.md",
+        ".tmp/m034-s09/rollout/apply_rollout.py",
+        ".tmp/m034-s09/rollout/monitor_workflows.py",
+        ".tmp/m034-s09/rollout/remote-refs.after.txt",
+        ".tmp/m034-s09/rollout/workflow-status.json",
+        ".tmp/m034-s09/rollout/workflow-urls.txt",
+        ".gsd/KNOWLEDGE.md",
+        ".gsd/milestones/M034/slices/S09/tasks/T03-SUMMARY.md"
+      ],
+      "key_decisions": [
+        "Use the GitHub-created equivalent commit `c443270a8fe17419e9ca99b4755b90f3cb7af3a0` as the rollout target after the GitHub commit API normalized the local synthetic commit timestamp to UTC and changed the SHA."
+      ],
+      "full_summary_md": "---\nid: T03\nparent: S09\nmilestone: M034\nkey_files:\n  - .tmp/m034-s09/rollout/target-sha.txt\n  - .tmp/m034-s09/rollout/plan.md\n  - .tmp/m034-s09/rollout/apply_rollout.py\n  - .tmp/m034-s09/rollout/monitor_workflows.py\n  - .tmp/m034-s09/rollout/remote-refs.after.txt\n  - .tmp/m034-s09/rollout/workflow-status.json\n  - .tmp/m034-s09/rollout/workflow-urls.txt\n  - .gsd/KNOWLEDGE.md\n  - .gsd/milestones/M034/slices/S09/tasks/T03-SUMMARY.md\nkey_decisions:\n  - Use the GitHub-created equivalent commit `c443270a8fe17419e9ca99b4755b90f3cb7af3a0` as the rollout target after the GitHub commit API normalized the local synthetic commit timestamp to UTC and changed the SHA.\nduration: \"\"\nverification_result: mixed\ncompleted_at: 2026-03-27T18:37:23.897Z\nblocker_discovered: true\n---\n\n# T03: Retargeted `main`, `v0.1.0`, and `ext-v0.3.0` to the approved rollout SHA and captured hosted workflow evidence up to the red `publish-extension.yml` blocker.\n\n**Retargeted `main`, `v0.1.0`, and `ext-v0.3.0` to the approved rollout SHA and captured hosted workflow evidence up to the red `publish-extension.yml` blocker.**\n\n## What Happened\n\nPresented the recorded rollout plan, obtained explicit approval, and discovered that recreating the local synthetic rollout commit through GitHub's Git data API changed the hash because the API normalized the author/committer timestamp to UTC. After a second explicit approval for the equivalent GitHub-created commit, updated the rollout artifacts to the approved SHA `c443270a8fe17419e9ca99b4755b90f3cb7af3a0`, moved `main`, `v0.1.0`, and `ext-v0.3.0` onto that commit, and persisted the resulting ref map. Then polled the six required hosted workflows into durable status/URL artifacts. The reroll succeeded for `deploy.yml`, `deploy-services.yml`, `authoritative-verification.yml`, and the reusable `extension-release-proof.yml` evidence on the correct head SHA, but the caller workflow `publish-extension.yml` completed red and `release.yml` was still in progress when the monitor stopped. That makes the remaining slice plan invalid as written: waiting longer is not enough, and the failing hosted lane now needs follow-up work or replan.\n\n## Verification\n\nConfirmed that `.tmp/m034-s09/rollout/remote-refs.after.txt`, `.tmp/m034-s09/rollout/workflow-status.json`, and `.tmp/m034-s09/rollout/workflow-urls.txt` exist. Confirmed that the after-state ref map shows `main`, `v0.1.0`, and `ext-v0.3.0` on `c443270a8fe17419e9ca99b4755b90f3cb7af3a0`. Ran the task-plan status assertion against `workflow-status.json`; it failed because `release.yml` was still `in_progress` and `publish-extension.yml` completed with `conclusion: failure`. The bounded workflow monitor preserved the exact run URLs and final blocker state in the rollout artifacts.\n\n## Verification Evidence\n\n| # | Command | Exit Code | Verdict | Duration |\n|---|---------|-----------|---------|----------|\n| 1 | `python3 - <<'PY' ... bash -c 'set -euo pipefail; test -s .tmp/m034-s09/rollout/remote-refs.after.txt; test -s .tmp/m034-s09/rollout/workflow-status.json; test -s .tmp/m034-s09/rollout/workflow-urls.txt' ... PY` | 0 | ✅ pass | 28ms |\n| 2 | `python3 - <<'PY' ... assert workflow-status.json entries are completed/success on target-sha.txt ... PY` | 1 | ❌ fail | 198ms |\n| 3 | `python3 .tmp/m034-s09/rollout/monitor_workflows.py 30 3600` | 1 | ❌ fail | 567600ms |\n\n\n## Deviations\n\nSwitched the rollout target from the local synthetic SHA `05ab52f6353c0b44824f66edff0f41da1d625b9b` to the user-approved GitHub-created equivalent SHA `c443270a8fe17419e9ca99b4755b90f3cb7af3a0`, because T03 had to avoid `git push` and GitHub's commit API rewrote the timestamp enough to change the hash. Added temporary rollout helper scripts under `.tmp/m034-s09/rollout/` so the remote mutation and hosted polling stayed reproducible and left durable status files behind.\n\n## Known Issues\n\n`publish-extension.yml` completed with `conclusion: failure` on the correct rollout SHA (`c443270a8fe17419e9ca99b4755b90f3cb7af3a0`), so the slice cannot claim an all-green hosted evidence set. `release.yml` was still `in_progress` when the monitor stopped on the red extension caller lane, so its final conclusion was not captured by this task. Because the all-green hosted contract did not pass, T04’s planned `first-green` archive and full S05 replay are blocked pending investigation and likely replan of the failing hosted workflow lane.\n\n## Files Created/Modified\n\n- `.tmp/m034-s09/rollout/target-sha.txt`\n- `.tmp/m034-s09/rollout/plan.md`\n- `.tmp/m034-s09/rollout/apply_rollout.py`\n- `.tmp/m034-s09/rollout/monitor_workflows.py`\n- `.tmp/m034-s09/rollout/remote-refs.after.txt`\n- `.tmp/m034-s09/rollout/workflow-status.json`\n- `.tmp/m034-s09/rollout/workflow-urls.txt`\n- `.gsd/KNOWLEDGE.md`\n- `.gsd/milestones/M034/slices/S09/tasks/T03-SUMMARY.md`\n",
       "description": "Why: the verifier hardening in T01 only matters if `main`, `v0.1.0`, and `ext-v0.3.0` are actually rerun on the intended rollout SHA, and `R047` still depends on the extension lane staying inside that hosted evidence set.\n\nFiles: `scripts/verify-m034-s05.sh`, `.tmp/m034-s09/rollout/plan.md`, `.tmp/m034-s09/rollout/remote-refs.after.txt`, `.tmp/m034-s09/rollout/workflow-status.json`, `.tmp/m034-s09/rollout/workflow-urls.txt`\n\nDo:\n- Show the recorded rollout summary and get explicit user confirmation before any remote mutation.\n- Push or retarget `main`, `v0.1.0`, and `ext-v0.3.0` onto the approved SHA using the least-destructive path allowed by the current remote state, then record the resulting ref map.\n- Monitor `deploy.yml`, `authoritative-verification.yml`, `release.yml`, `deploy-services.yml`, `extension-release-proof.yml`, and `publish-extension.yml` until they are green on the expected refs and `headSha`, persisting the final URLs and status payloads.\n\nVerify: `python3 - <<'PY' ... workflow-status.json ... PY` plus `git ls-remote` checks for the updated refs.\n\nDone when: the remote refs and the saved hosted-workflow status payloads all agree on the intended SHA, and every required workflow is completed/success on the correct ref.",
       "estimate": "1h 30m",
       "files": [
@@ -5130,6 +5142,18 @@
       "rationale": "S09's remaining trust gap is not missing local proof surfaces; it is stale hosted runs still satisfying branch/tag checks after the repo-side fixes landed. Enforcing ref-SHA freshness in remote-evidence turns rollout freshness from operator folklore into a mechanical contract and directly supports R045's requirement to prove shipped release/deploy surfaces rather than infer them from artifact presence.",
       "revisable": "Yes",
       "made_by": "agent",
+      "superseded_by": null
+    },
+    {
+      "seq": 3410,
+      "id": "D101",
+      "when_context": "M034/S09/T03",
+      "scope": "release-rollout",
+      "decision": "Rollout SHA used for hosted S09 ref retarget",
+      "choice": "Use the GitHub-created commit c443270a8fe17419e9ca99b4755b90f3cb7af3a0 as the approved rollout target instead of the local synthetic commit 05ab52f6353c0b44824f66edff0f41da1d625b9b.",
+      "rationale": "T03 had to avoid git push, so the rollout used the GitHub Git data API. That API reproduced the same parent, tree, and message as the local synthetic commit but normalized the author/committer timestamp to UTC, which changed the commit hash. The user explicitly approved retargeting main, v0.1.0, and ext-v0.3.0 to the GitHub-created equivalent SHA.",
+      "revisable": "Yes",
+      "made_by": "collaborative",
       "superseded_by": null
     }
   ],
@@ -8268,6 +8292,39 @@
       "verdict": "✅ pass",
       "duration_ms": 262,
       "created_at": "2026-03-27T18:03:55.034Z"
+    },
+    {
+      "id": 286,
+      "task_id": "T03",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "python3 - <<'PY' ... bash -c 'set -euo pipefail; test -s .tmp/m034-s09/rollout/remote-refs.after.txt; test -s .tmp/m034-s09/rollout/workflow-status.json; test -s .tmp/m034-s09/rollout/workflow-urls.txt' ... PY",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 28,
+      "created_at": "2026-03-27T18:37:23.896Z"
+    },
+    {
+      "id": 287,
+      "task_id": "T03",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "python3 - <<'PY' ... assert workflow-status.json entries are completed/success on target-sha.txt ... PY",
+      "exit_code": 1,
+      "verdict": "❌ fail",
+      "duration_ms": 198,
+      "created_at": "2026-03-27T18:37:23.896Z"
+    },
+    {
+      "id": 288,
+      "task_id": "T03",
+      "slice_id": "S09",
+      "milestone_id": "M034",
+      "command": "python3 .tmp/m034-s09/rollout/monitor_workflows.py 30 3600",
+      "exit_code": 1,
+      "verdict": "❌ fail",
+      "duration_ms": 567600,
+      "created_at": "2026-03-27T18:37:23.896Z"
     }
   ]
 }

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0a0a;
+    color: #f5f5f5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .card {
+    width: 1200px;
+    height: 675px;
+    position: relative;
+    overflow: hidden;
+    background: #0a0a0a;
+    display: flex;
+    flex-direction: column;
+    padding: 48px 64px 44px;
+  }
+
+  /* ——— Background layers ——— */
+  .grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  .glow {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .top-line {
+    position: absolute;
+    top: 0; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(89,193,132,0.3), transparent);
+  }
+
+  .bottom-line {
+    position: absolute;
+    bottom: 0; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(89,193,132,0.15), transparent);
+  }
+
+  /* ——— Header row ——— */
+  .header {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  .header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    border-radius: 100px;
+    border: 1px solid rgba(89,193,132,0.25);
+    background: rgba(89,193,132,0.08);
+    font-size: 12px;
+    color: #59C184;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    width: fit-content;
+  }
+
+  .pill .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #59C184;
+  }
+
+  .header h1 {
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1.1;
+  }
+
+  .header h1 .accent { color: #59C184; }
+  .header h1 .dim { color: rgba(255,255,255,0.3); }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    align-self: flex-start;
+    padding-top: 2px;
+  }
+
+  .logo-mark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-mark .name {
+    font-size: 26px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* ——— Comparison table ——— */
+  .table-wrap {
+    position: relative;
+    z-index: 5;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .table-row {
+    display: grid;
+    grid-template-columns: 170px 1fr 1fr;
+    gap: 0;
+    align-items: stretch;
+  }
+
+  .table-row.header-row {
+    margin-bottom: 2px;
+  }
+
+  /* Column headers */
+  .col-head {
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .col-head.tier-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .col-head .brand {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .col-head .brand.sentry { color: rgba(255,255,255,0.45); }
+  .col-head .brand.hp { color: #59C184; }
+
+  .col-head .tag {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .col-head .tag.sentry-tag {
+    color: rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .col-head .tag.hp-tag {
+    color: #59C184;
+    background: rgba(89,193,132,0.08);
+    border: 1px solid rgba(89,193,132,0.2);
+  }
+
+  /* Data rows */
+  .data-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+  }
+
+  .table-row.data {
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .cell {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .cell.label-cell {
+    background: rgba(255,255,255,0.02);
+    border-right: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .cell.sentry-cell {
+    background: rgba(255,255,255,0.015);
+    border-right: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .cell.hp-cell {
+    background: rgba(89,193,132,0.03);
+  }
+
+  .cell .tier-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.65);
+    letter-spacing: -0.2px;
+  }
+
+  .cell .tier-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    font-weight: 500;
+  }
+
+  .cell .price {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .cell .price.sentry-price { color: rgba(255,255,255,0.5); }
+  .cell .price.hp-price { color: #59C184; }
+
+  .cell .volume {
+    font-size: 12px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .cell .volume.sentry-vol { color: rgba(255,255,255,0.3); }
+  .cell .volume.hp-vol { color: rgba(89,193,132,0.7); }
+
+  .cell .multiplier {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #59C184;
+    background: rgba(89,193,132,0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    width: fit-content;
+  }
+
+  .cell .extra {
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    margin-top: 2px;
+    line-height: 1.3;
+  }
+
+  .cell .extra.warn {
+    color: rgba(255,120,100,0.5);
+  }
+
+  .cell .extra.good {
+    color: rgba(89,193,132,0.5);
+  }
+
+  /* ——— Bottom callout row ——— */
+  .callout-row {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .callout {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(89,193,132,0.15);
+    background: rgba(89,193,132,0.04);
+  }
+
+  .callout .icon {
+    font-size: 20px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(89,193,132,0.1);
+    border: 1px solid rgba(89,193,132,0.15);
+    flex-shrink: 0;
+  }
+
+  .callout .callout-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .callout .callout-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.8);
+    letter-spacing: -0.2px;
+  }
+
+  .callout .callout-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.35);
+    line-height: 1.3;
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="vs-sentry-pricing">
+  <div class="grid-bg"></div>
+  <div class="glow" style="width:700px;height:700px;background:radial-gradient(circle,rgba(89,193,132,0.08) 0%,transparent 70%);top:-15%;right:-10%"></div>
+  <div class="glow" style="width:500px;height:500px;background:radial-gradient(circle,rgba(89,193,132,0.05) 0%,transparent 70%);bottom:-10%;left:5%"></div>
+  <div class="top-line"></div>
+  <div class="bottom-line"></div>
+
+  <!-- ——— Header ——— -->
+  <div class="header">
+    <div class="header-left">
+      <div class="pill">
+        <span class="dot"></span>
+        Pricing Comparison
+      </div>
+      <h1>More events. <span class="accent">Less money.</span><br><span class="dim">AI included.</span></h1>
+    </div>
+    <div class="header-right">
+      <div class="logo-mark">
+        <svg width="34" height="34" viewBox="0 0 256 256" fill="none">
+          <path d="M58.4637 127.026C49.371 111.277 54.767 91.1387 70.5159 82.0461L122.475 172.041C131.567 187.79 126.171 207.928 110.422 217.021L58.4637 127.026Z" fill="#59C184"/>
+          <path d="M79.1494 77.0625C95.0428 67.8864 115.366 73.3319 124.542 89.2253L152.938 138.409C137.044 147.585 116.722 142.139 107.545 126.246L79.1494 77.0625Z" fill="white"/>
+          <path d="M133.024 83.9788C123.931 68.2299 129.327 48.0919 145.076 38.9992L182.534 103.879C191.627 119.628 186.231 139.766 170.482 148.859L133.024 83.9788Z" fill="#59C184"/>
+        </svg>
+        <span class="name">hyperpush</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ——— Table ——— -->
+  <div class="table-wrap">
+    <!-- Column heads -->
+    <div class="table-row header-row">
+      <div class="col-head tier-label">Tier</div>
+      <div class="col-head">
+        <span class="brand sentry">Sentry</span>
+        <span class="tag sentry-tag">Incumbent</span>
+      </div>
+      <div class="col-head">
+        <span class="brand hp">Hyperpush</span>
+        <span class="tag hp-tag">You're here</span>
+      </div>
+    </div>
+
+    <div class="data-rows">
+      <!-- Free -->
+      <div class="table-row data">
+        <div class="cell label-cell">
+          <span class="tier-label">Free</span>
+          <span class="tier-sub">Solo / OSS</span>
+        </div>
+        <div class="cell sentry-cell">
+          <span class="price sentry-price">Free</span>
+          <span class="volume sentry-vol">5K errors/mo</span>
+          <span class="extra">1 user limit</span>
+        </div>
+        <div class="cell hp-cell">
+          <span class="price hp-price">Free</span>
+          <span class="volume hp-vol">10K events/mo</span>
+          <span class="multiplier">2× more events</span>
+        </div>
+      </div>
+
+      <!-- Mid -->
+      <div class="table-row data">
+        <div class="cell label-cell">
+          <span class="tier-label">Mid</span>
+          <span class="tier-sub">Growing teams</span>
+        </div>
+        <div class="cell sentry-cell">
+          <span class="price sentry-price">$26<span style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.3)">/mo</span></span>
+          <span class="volume sentry-vol">50K errors/mo</span>
+          <span class="extra warn">+ $40/seat for AI (Seer)</span>
+        </div>
+        <div class="cell hp-cell">
+          <span class="price hp-price">$29<span style="font-size:13px;font-weight:500;color:rgba(89,193,132,0.5)">/mo</span></span>
+          <span class="volume hp-vol">100K events/mo</span>
+          <span class="multiplier">2× events · AI included</span>
+        </div>
+      </div>
+
+      <!-- High -->
+      <div class="table-row data">
+        <div class="cell label-cell">
+          <span class="tier-label">Scale</span>
+          <span class="tier-sub">High volume</span>
+        </div>
+        <div class="cell sentry-cell">
+          <span class="price sentry-price">$80<span style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.3)">/mo</span></span>
+          <span class="volume sentry-vol">100K errors/mo</span>
+          <span class="extra warn">+ $40/seat for AI · PAYG overages</span>
+        </div>
+        <div class="cell hp-cell">
+          <span class="price hp-price">$100<span style="font-size:13px;font-weight:500;color:rgba(89,193,132,0.5)">/mo</span></span>
+          <span class="volume hp-vol">1M events/mo</span>
+          <span class="multiplier">10× more events · AI included</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ——— Bottom callouts ——— -->
+  <div class="callout-row">
+    <div class="callout">
+      <div class="icon">🤖</div>
+      <div class="callout-text">
+        <span class="callout-title">AI is bundled, not bolted on</span>
+        <span class="callout-desc">Root-cause analysis &amp; fix suggestions in every paid plan. Sentry charges $40/seat extra.</span>
+      </div>
+    </div>
+    <div class="callout">
+      <div class="icon">🪙</div>
+      <div class="callout-text">
+        <span class="callout-title">Token unlock → free forever</span>
+        <span class="callout-desc">Hit $1M market cap → Pro free. $10M → Pro+ free. No equivalent in Sentry.</span>
+      </div>
+    </div>
+    <div class="callout">
+      <div class="icon">📈</div>
+      <div class="callout-text">
+        <span class="callout-title">No surprise overages</span>
+        <span class="callout-desc">Simple, predictable pricing. No per-event PAYG charges eating your budget.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

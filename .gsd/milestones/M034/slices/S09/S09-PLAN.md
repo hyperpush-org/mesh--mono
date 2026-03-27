@@ -34,7 +34,7 @@ Done when: the executor has one concrete rollout SHA, a recorded before-state fo
   - Estimate: 45m
   - Files: packages-website/Dockerfile, .github/workflows/release.yml, scripts/verify-m034-s05.sh, .tmp/m034-s09/rollout/target-sha.txt, .tmp/m034-s09/rollout/remote-refs.before.txt, .tmp/m034-s09/rollout/plan.md
   - Verify: bash -c 'set -euo pipefail; test -s .tmp/m034-s09/rollout/target-sha.txt; test -s .tmp/m034-s09/rollout/remote-refs.before.txt; test -s .tmp/m034-s09/rollout/plan.md'
-- [ ] **T03: Roll approved refs onto GitHub and wait for hosted green** — Why: the verifier hardening in T01 only matters if `main`, `v0.1.0`, and `ext-v0.3.0` are actually rerun on the intended rollout SHA, and `R047` still depends on the extension lane staying inside that hosted evidence set.
+- [x] **T03: Retargeted `main`, `v0.1.0`, and `ext-v0.3.0` to the approved rollout SHA and captured hosted workflow evidence up to the red `publish-extension.yml` blocker.** — Why: the verifier hardening in T01 only matters if `main`, `v0.1.0`, and `ext-v0.3.0` are actually rerun on the intended rollout SHA, and `R047` still depends on the extension lane staying inside that hosted evidence set.
 
 Files: `scripts/verify-m034-s05.sh`, `.tmp/m034-s09/rollout/plan.md`, `.tmp/m034-s09/rollout/remote-refs.after.txt`, `.tmp/m034-s09/rollout/workflow-status.json`, `.tmp/m034-s09/rollout/workflow-urls.txt`
 
@@ -49,6 +49,7 @@ Done when: the remote refs and the saved hosted-workflow status payloads all agr
   - Estimate: 1h 30m
   - Files: scripts/verify-m034-s05.sh, .tmp/m034-s09/rollout/plan.md, .tmp/m034-s09/rollout/remote-refs.after.txt, .tmp/m034-s09/rollout/workflow-status.json, .tmp/m034-s09/rollout/workflow-urls.txt
   - Verify: bash -c 'set -euo pipefail; test -s .tmp/m034-s09/rollout/remote-refs.after.txt; test -s .tmp/m034-s09/rollout/workflow-status.json; test -s .tmp/m034-s09/rollout/workflow-urls.txt'
+  - Blocker: `publish-extension.yml` completed with `conclusion: failure` on the correct rollout SHA (`c443270a8fe17419e9ca99b4755b90f3cb7af3a0`), so the slice cannot claim an all-green hosted evidence set. `release.yml` was still `in_progress` when the monitor stopped on the red extension caller lane, so its final conclusion was not captured by this task. Because the all-green hosted contract did not pass, T04’s planned `first-green` archive and full S05 replay are blocked pending investigation and likely replan of the failing hosted workflow lane.
 - [ ] **T04: Archive first-green exactly once and rerun the full assembled verifier** — Why: `R046` and the slice demo are only satisfied when the canonical wrapper proves the live package-manager path, public HTTP surfaces, and extension lane together on the fresh hosted rollout state.
 
 Files: `scripts/verify-m034-s05.sh`, `scripts/verify-m034-s06-remote-evidence.sh`, `.tmp/m034-s06/evidence/first-green/manifest.json`, `.tmp/m034-s05/verify/status.txt`, `.tmp/m034-s05/verify/phase-report.txt`, `.tmp/m034-s05/verify/public-http.log`

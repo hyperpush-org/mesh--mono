@@ -41,6 +41,14 @@ const path = require('path');
   await sentrySwap.screenshot({ path: path.join(publicDir, 'sentry-swap.png') });
   console.log('✓ sentry-swap.png');
 
+  // 4. VS Sentry Pricing comparison (1200x675)
+  console.log('Capturing vs-sentry pricing...');
+  await page.goto(`file://${path.resolve(__dirname, 'vs-sentry-pricing.html')}`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1000);
+  const vsSentry = await page.$('#vs-sentry-pricing');
+  await vsSentry.screenshot({ path: path.join(publicDir, 'vs-sentry-pricing.png') });
+  console.log('✓ vs-sentry-pricing.png');
+
   await browser.close();
   console.log('\nDone! All images saved to public/');
 })();
