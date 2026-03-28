@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T02",
+  "unitId": "M034/S12/T02",
+  "timestamp": 1774655274983,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "cargo test -p mesh-codegen link -- --nocapture\ncargo test -p meshc --test e2e_m034_s12 -- --nocapture\npwsh -NoProfile -File scripts/tests/verify-m034-s03-last-exitcode.ps1\npwsh -NoProfile -File scripts/tests/verify-m034-s03-installed-build.ps1\nbash scripts/verify-m034-s02-workflows.sh",
+      "exitCode": 0,
+      "durationMs": 12718,
+      "verdict": "pass"
+    }
+  ]
+}

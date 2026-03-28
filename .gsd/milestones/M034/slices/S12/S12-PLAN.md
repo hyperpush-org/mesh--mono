@@ -24,7 +24,7 @@ cargo test -p meshc --test e2e_m034_s12 -- --nocapture
 pwsh -NoProfile -File scripts/tests/verify-m034-s03-last-exitcode.ps1
 pwsh -NoProfile -File scripts/tests/verify-m034-s03-installed-build.ps1
 bash scripts/verify-m034-s02-workflows.sh
-- [ ] **T03: Rerun hosted release smoke and refresh rollout evidence** — After explicit user confirmation, rerun the approved hosted release lane and refresh the authoritative remote-evidence bundle.
+- [x] **T03: Reran the approved hosted `release.yml` lane on `v0.1.0`, refreshed `remote-evidence`, and preserved a fresh Windows diagnostics bundle for the still-red release smoke.** — After explicit user confirmation, rerun the approved hosted release lane and refresh the authoritative remote-evidence bundle.
 - Why: R007 is about hosted delivery truth, not repo-local confidence.
 - Do: reuse the repaired verifier path, refresh `remote-runs.json`, and download new Windows diagnostics only if the hosted lane stays red.
 - Done when: the approved `v0.1.0` release lane is green in fresh evidence or the remaining hosted blocker is re-captured with new artifacts.
