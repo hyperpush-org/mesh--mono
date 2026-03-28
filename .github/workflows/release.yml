@@ -118,6 +118,28 @@ jobs:
 
       # ── Platform dependencies ─────────────────────────────────────
 
+      - name: Provide libxml2 for Windows LLVM link
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # llvm-config --system-libs demands libxml2s.lib but the LLVM
+          # tarball doesn't ship it. Install via vcpkg and copy the .lib
+          # into the LLVM prefix lib dir so the linker finds it without
+          # a global LIB override (which previously caused duplicate symbols).
+          vcpkg install libxml2:x64-windows-static
+          $src = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows-static\lib\libxml2s.lib"
+          $dest = "$env:USERPROFILE\llvm\lib\libxml2s.lib"
+          if (-not (Test-Path $src)) {
+            # Fallback: try the non-static triplet
+            $src = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\lib\libxml2s.lib"
+          }
+          if (-not (Test-Path $src)) {
+            Write-Error "libxml2s.lib not found after vcpkg install"
+            exit 1
+          }
+          Copy-Item $src $dest -Force
+          Write-Host "Copied libxml2s.lib to $dest"
+
       # ── Rust Toolchain ────────────────────────────────────────────
 
       - name: Install Rust
