@@ -120,6 +120,23 @@ pub(crate) fn link_with_plan(
         }
         LinkTargetKind::WindowsMsvc => {
             cmd.arg(&plan.rt_path).arg("-o").arg(output_path);
+            // mesh_rt.lib is a Rust staticlib whose transitive deps (ureq/TLS,
+            // sqlite, crossbeam, rand, std) need these Windows system libraries.
+            // Pass via -Wl, so clang forwards them to link.exe.
+            for lib in &[
+                "ws2_32.lib",
+                "userenv.lib",
+                "advapi32.lib",
+                "bcrypt.lib",
+                "ntdll.lib",
+                "kernel32.lib",
+                "msvcrt.lib",
+                "synchronization.lib",
+            ] {
+                cmd.arg(lib);
+            }
+            // Verbose mode so link failures show the full link.exe invocation.
+            cmd.arg("-v");
         }
     }
 
