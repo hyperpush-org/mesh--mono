@@ -14,8 +14,9 @@ use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range, Url}
 use mesh_common::module_graph::{self, ModuleGraph, ModuleId};
 use mesh_parser::ast::item::{Item, SourceFile};
 use mesh_pkg::manifest::{
-    build_clustered_export_surface, collect_source_cluster_declarations,
+    build_clustered_export_surface, collect_source_cluster_declarations, resolve_entrypoint,
     validate_cluster_declarations_with_source, ClusteredDeclarationError, Manifest,
+    DEFAULT_ENTRYPOINT,
 };
 use mesh_typeck::error::{ConstraintOrigin, TypeError};
 use mesh_typeck::ty::Ty;
@@ -34,7 +35,8 @@ pub struct AnalysisResult {
 /// Analyze a Mesh document: parse, type-check, and produce diagnostics.
 ///
 /// This is the main entry point called by the LSP server on didOpen/didChange.
-/// When the URI belongs to a Mesh project (an ancestor contains `main.mpl`),
+/// When the URI belongs to a Mesh project (an ancestor contains `mesh.toml`, or
+/// a legacy ancestor contains `main.mpl` when no manifest root exists),
 /// analysis uses project-aware import resolution with open-document overlays so
 /// backend-shaped files behave like the real compiler path instead of isolated
 /// single-file snippets.
@@ -43,8 +45,10 @@ pub fn analyze_document(
     source: &str,
     open_documents: &[(String, String)],
 ) -> AnalysisResult {
-    analyze_project_document(uri, source, open_documents)
-        .unwrap_or_else(|| analyze_single_document(source))
+    match analyze_project_document(uri, source, open_documents) {
+        ProjectAnalysis::Success(result) | ProjectAnalysis::Failed(result) => result,
+        ProjectAnalysis::NotProject => analyze_single_document(source),
+    }
 }
 
 fn analyze_single_document(source: &str) -> AnalysisResult {
@@ -57,6 +61,18 @@ fn analyze_single_document(source: &str) -> AnalysisResult {
         parse,
         typeck,
     }
+}
+
+enum ProjectAnalysis {
+    Success(AnalysisResult),
+    Failed(AnalysisResult),
+    NotProject,
+}
+
+fn project_failure_analysis(source: &str, message: impl Into<String>) -> AnalysisResult {
+    let mut result = analyze_single_document(source);
+    result.diagnostics.insert(0, project_diagnostic(message));
+    result
 }
 
 /// Convert a byte offset to an LSP Position (0-based line, 0-based UTF-16 character offset).
@@ -295,10 +311,26 @@ fn analyze_project_document(
     uri: &str,
     source: &str,
     open_documents: &[(String, String)],
-) -> Option<AnalysisResult> {
-    let doc_path = canonical_file_path(uri)?;
-    let project_root = find_project_root(&doc_path)?;
-    let relative_path = doc_path.strip_prefix(&project_root).ok()?.to_path_buf();
+) -> ProjectAnalysis {
+    let Some(doc_path) = canonical_file_path(uri) else {
+        return ProjectAnalysis::NotProject;
+    };
+    let Some(project_root) = find_project_root(&doc_path) else {
+        return ProjectAnalysis::NotProject;
+    };
+    let relative_path = match doc_path.strip_prefix(&project_root) {
+        Ok(relative_path) => relative_path.to_path_buf(),
+        Err(_) => {
+            return ProjectAnalysis::Failed(project_failure_analysis(
+                source,
+                format!(
+                    "Document '{}' is not contained within discovered project root '{}'",
+                    doc_path.display(),
+                    project_root.display()
+                ),
+            ));
+        }
+    };
 
     let mut overlays = HashMap::new();
     for (open_uri, open_source) in open_documents {
@@ -306,21 +338,52 @@ fn analyze_project_document(
             overlays.insert(path, open_source.clone());
         }
     }
-    overlays.insert(doc_path, source.to_string());
+    overlays.insert(doc_path.clone(), source.to_string());
 
-    let project = build_project_with_overlays(&project_root, &overlays).ok()?;
-    let current_id = project
+    let manifest_path = project_root.join("mesh.toml");
+    let manifest = if manifest_path.exists() {
+        match Manifest::from_file(&manifest_path) {
+            Ok(manifest) => Some(manifest),
+            Err(error) => {
+                return ProjectAnalysis::Failed(project_failure_analysis(source, error));
+            }
+        }
+    } else {
+        None
+    };
+
+    let entry_relative_path = match resolve_entrypoint(&project_root, manifest.as_ref()) {
+        Ok(entry_relative_path) => entry_relative_path,
+        Err(error) => {
+            return ProjectAnalysis::Failed(project_failure_analysis(source, error));
+        }
+    };
+
+    let project = match build_project_with_overlays(&project_root, &entry_relative_path, &overlays)
+    {
+        Ok(project) => project,
+        Err(error) => {
+            return ProjectAnalysis::Failed(project_failure_analysis(source, error));
+        }
+    };
+    let current_id = match project
         .graph
         .modules
         .iter()
         .find(|module| module.path == relative_path)
-        .map(|module| module.id)?;
-
-    let manifest_path = project_root.join("mesh.toml");
-    let manifest = if manifest_path.exists() {
-        Some(Manifest::from_file(&manifest_path).map_err(|error| vec![project_diagnostic(error)]))
-    } else {
-        None
+        .map(|module| module.id)
+    {
+        Some(current_id) => current_id,
+        None => {
+            return ProjectAnalysis::Failed(project_failure_analysis(
+                source,
+                format!(
+                    "Document '{}' was not discovered under project root '{}'",
+                    doc_path.display(),
+                    project_root.display()
+                ),
+            ));
+        }
     };
 
     let module_count = project.graph.module_count();
@@ -351,15 +414,33 @@ fn analyze_project_document(
             .any(|typeck| !typeck.errors.is_empty());
 
     let current_idx = current_id.0 as usize;
-    let current_source = project.module_sources.get(current_idx)?.clone();
-    let current_typeck = all_typeck.into_iter().nth(current_idx).flatten()?;
+    let Some(current_source) = project.module_sources.get(current_idx).cloned() else {
+        return ProjectAnalysis::Failed(project_failure_analysis(
+            source,
+            format!(
+                "Project analysis for '{}' resolved an invalid module index {}",
+                doc_path.display(),
+                current_idx
+            ),
+        ));
+    };
+    let Some(current_typeck) = all_typeck.into_iter().nth(current_idx).flatten() else {
+        return ProjectAnalysis::Failed(project_failure_analysis(
+            source,
+            format!(
+                "Project analysis for '{}' did not produce type-check data for '{}'",
+                doc_path.display(),
+                relative_path.display()
+            ),
+        ));
+    };
     let current_parse = mesh_parser::parse(&current_source);
     let mut diagnostics =
         diagnostics_from_parse_and_typeck(&current_source, &current_parse, &current_typeck);
 
     if !has_project_errors {
         if let Some(cluster_diagnostics) = cluster_diagnostics(
-            manifest,
+            manifest.map(Ok),
             &source_cluster_declarations,
             &project.graph,
             &project.module_parses,
@@ -369,11 +450,9 @@ fn analyze_project_document(
         ) {
             diagnostics.extend(cluster_diagnostics);
         }
-    } else if let Some(Err(manifest_errors)) = manifest {
-        diagnostics.extend(manifest_errors);
     }
 
-    Some(AnalysisResult {
+    ProjectAnalysis::Success(AnalysisResult {
         diagnostics,
         parse: current_parse,
         typeck: current_typeck,
@@ -485,9 +564,36 @@ struct ProjectAnalysisData {
 
 fn build_project_with_overlays(
     project_root: &Path,
+    entry_relative_path: &Path,
     overlays: &HashMap<PathBuf, String>,
 ) -> Result<ProjectAnalysisData, String> {
+    if entry_relative_path.as_os_str().is_empty()
+        || entry_relative_path.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        return Err(format!(
+            "Resolved entrypoint '{}' must stay within project '{}'",
+            entry_relative_path.display(),
+            project_root.display()
+        ));
+    }
+
     let files = discover_mesh_files(project_root)?;
+    if !files
+        .iter()
+        .any(|relative_path| relative_path == entry_relative_path)
+    {
+        return Err(format!(
+            "Resolved entrypoint '{}' was not found under project '{}'",
+            entry_relative_path.display(),
+            project_root.display()
+        ));
+    }
+
     let mut graph = ModuleGraph::new();
     let mut module_sources = Vec::new();
     let mut module_parses = Vec::new();
@@ -495,8 +601,8 @@ fn build_project_with_overlays(
     for relative_path in &files {
         let full_path = project_root.join(relative_path);
         let source = read_source_with_overlays(&full_path, overlays)?;
-        let is_entry = relative_path == Path::new("main.mpl");
-        let name = if is_entry {
+        let is_entry = relative_path == entry_relative_path;
+        let name = if relative_path == Path::new(DEFAULT_ENTRYPOINT) {
             "Main".to_string()
         } else {
             path_to_module_name(relative_path).ok_or_else(|| {
@@ -585,13 +691,17 @@ fn find_project_root(path: &Path) -> Option<PathBuf> {
     } else {
         path.parent()?.to_path_buf()
     };
+    let mut legacy_root = None;
 
     loop {
-        if current.join("main.mpl").exists() {
-            return Some(std::fs::canonicalize(&current).unwrap_or(current));
+        if current.join("mesh.toml").exists() {
+            return Some(std::fs::canonicalize(&current).unwrap_or_else(|_| current.clone()));
+        }
+        if legacy_root.is_none() && current.join(DEFAULT_ENTRYPOINT).exists() {
+            legacy_root = Some(std::fs::canonicalize(&current).unwrap_or_else(|_| current.clone()));
         }
         if !current.pop() {
-            return None;
+            return legacy_root;
         }
     }
 }
@@ -826,6 +936,53 @@ mod tests {
             .to_string()
     }
 
+    fn entrypoint_manifest(name: &str, entrypoint: &str) -> String {
+        format!(
+            "[package]\nname = \"{name}\"\nversion = \"1.0.0\"\nentrypoint = \"{entrypoint}\"\n\n[dependencies]\n"
+        )
+    }
+
+    fn write_mesh_project(
+        manifest: Option<&str>,
+        files: &[(&str, &str)],
+        open_relative_path: &str,
+    ) -> (tempfile::TempDir, PathBuf, PathBuf, String) {
+        let tmp = tempfile::tempdir().unwrap();
+        let project_dir = tmp.path().join("project");
+        std::fs::create_dir_all(&project_dir).unwrap();
+
+        if let Some(manifest) = manifest {
+            std::fs::write(project_dir.join("mesh.toml"), manifest).unwrap();
+        }
+
+        for (relative_path, contents) in files {
+            let full_path = project_dir.join(relative_path);
+            if let Some(parent) = full_path.parent() {
+                std::fs::create_dir_all(parent).unwrap();
+            }
+            std::fs::write(&full_path, contents).unwrap();
+        }
+
+        let open_path = project_dir.join(open_relative_path);
+        let source = std::fs::read_to_string(&open_path).unwrap();
+        (tmp, project_dir, open_path, source)
+    }
+
+    fn diagnostic_messages(result: &AnalysisResult) -> Vec<&str> {
+        result
+            .diagnostics
+            .iter()
+            .map(|diag| diag.message.as_str())
+            .collect()
+    }
+
+    fn entry_module<'a>(graph: &'a ModuleGraph) -> &'a mesh_common::module_graph::ModuleInfo {
+        graph.modules
+            .iter()
+            .find(|module| module.is_entry)
+            .expect("project graph should contain an entry module")
+    }
+
     fn clustered_project_main_source() -> &'static str {
         "from Services import Jobs\nfrom Work import handle_submit\n\nfn main() do\n  let pid = Jobs.start(0)\n  let _ = Jobs.submit(pid, \"demo\")\n  let _ = handle_submit(\"demo\")\nend\n"
     }
@@ -937,6 +1094,216 @@ mod tests {
                 || diag.range.end.character > diag.range.start.character,
             "expected clustered diagnostic to cover a non-empty decorator span, got {:?}",
             diag.range
+        );
+    }
+
+    // ── M048 entrypoint-aware project analysis ──────────────────────────
+
+    #[test]
+    fn m048_s02_find_project_root_prefers_manifest_before_legacy_main_marker() {
+        let manifest = entrypoint_manifest("manifest-root", "app.mpl");
+        let (_tmp, project_dir, open_path, _source) = write_mesh_project(
+            Some(&manifest),
+            &[
+                ("app.mpl", "fn main() do\n  0\nend\n"),
+                ("legacy/main.mpl", "fn main() do\n  1\nend\n"),
+                (
+                    "legacy/support.mpl",
+                    "pub fn label() -> String do\n  \"legacy\"\nend\n",
+                ),
+            ],
+            "legacy/support.mpl",
+        );
+
+        let detected_root = find_project_root(&open_path).expect("manifest root should resolve");
+
+        assert_eq!(
+            detected_root,
+            std::fs::canonicalize(&project_dir).unwrap(),
+            "manifest marker should win before a nearer legacy main.mpl"
+        );
+    }
+
+    #[test]
+    fn m048_s02_override_only_project_marks_nested_entry_executable_and_analyzes_cleanly() {
+        let manifest = entrypoint_manifest("override-only", "lib/start.mpl");
+        let (_tmp, project_dir, open_path, source) = write_mesh_project(
+            Some(&manifest),
+            &[
+                (
+                    "lib/start.mpl",
+                    "from Lib.Support import label\n\nfn main() do\n  println(label())\nend\n",
+                ),
+                (
+                    "lib/support.mpl",
+                    "pub fn label() -> String do\n  \"nested-support\"\nend\n",
+                ),
+            ],
+            "lib/start.mpl",
+        );
+
+        let manifest = Manifest::from_file(&project_dir.join("mesh.toml")).unwrap();
+        let entry_relative_path = resolve_entrypoint(&project_dir, Some(&manifest)).unwrap();
+        let project =
+            build_project_with_overlays(&project_dir, &entry_relative_path, &HashMap::new())
+                .unwrap();
+        let entry = entry_module(&project.graph);
+
+        assert_eq!(entry_relative_path, PathBuf::from("lib/start.mpl"));
+        assert_eq!(entry.path, PathBuf::from("lib/start.mpl"));
+        assert_eq!(entry.name, "Lib.Start");
+        assert_eq!(project.graph.modules.iter().filter(|module| module.is_entry).count(), 1);
+
+        let result = analyze_document(&file_uri(&open_path), &source, &[]);
+        let messages = diagnostic_messages(&result);
+        assert!(
+            messages.is_empty(),
+            "override-only project should analyze cleanly without a root main.mpl, got: {:?}",
+            messages
+        );
+    }
+
+    #[test]
+    fn m048_s02_override_precedence_keeps_root_main_path_derived_but_not_executable() {
+        let manifest = entrypoint_manifest("override-precedence", "lib/start.mpl");
+        let (_tmp, project_dir, open_path, source) = write_mesh_project(
+            Some(&manifest),
+            &[
+                ("main.mpl", "fn main() do\n  0\nend\n"),
+                (
+                    "lib/start.mpl",
+                    "from App import label\n\nfn main() do\n  println(label())\nend\n",
+                ),
+                (
+                    "app.mpl",
+                    "pub fn label() -> String do\n  \"override-app\"\nend\n",
+                ),
+            ],
+            "lib/start.mpl",
+        );
+
+        let manifest = Manifest::from_file(&project_dir.join("mesh.toml")).unwrap();
+        let entry_relative_path = resolve_entrypoint(&project_dir, Some(&manifest)).unwrap();
+        let project =
+            build_project_with_overlays(&project_dir, &entry_relative_path, &HashMap::new())
+                .unwrap();
+        let entry = entry_module(&project.graph);
+        let root_main = project
+            .graph
+            .modules
+            .iter()
+            .find(|module| module.path == PathBuf::from(DEFAULT_ENTRYPOINT))
+            .expect("root main.mpl should still be discovered");
+
+        assert_eq!(entry.path, PathBuf::from("lib/start.mpl"));
+        assert_eq!(entry.name, "Lib.Start");
+        assert_eq!(project.graph.modules.iter().filter(|module| module.is_entry).count(), 1);
+        assert_eq!(root_main.name, "Main");
+        assert!(!root_main.is_entry, "root main.mpl should not stay executable");
+
+        let result = analyze_document(&file_uri(&open_path), &source, &[]);
+        let messages = diagnostic_messages(&result);
+        assert!(
+            messages.is_empty(),
+            "override-precedence project should analyze cleanly, got: {:?}",
+            messages
+        );
+    }
+
+    #[test]
+    fn m048_s02_legacy_manifestless_project_keeps_root_main_as_main_entry() {
+        let (_tmp, project_dir, open_path, source) = write_mesh_project(
+            None,
+            &[
+                (
+                    "main.mpl",
+                    "from Support import label\n\nfn main() do\n  println(label())\nend\n",
+                ),
+                (
+                    "support.mpl",
+                    "pub fn label() -> String do\n  \"default-support\"\nend\n",
+                ),
+            ],
+            "main.mpl",
+        );
+
+        let entry_relative_path = resolve_entrypoint(&project_dir, None).unwrap();
+        let project =
+            build_project_with_overlays(&project_dir, &entry_relative_path, &HashMap::new())
+                .unwrap();
+        let entry = entry_module(&project.graph);
+
+        assert_eq!(entry_relative_path, PathBuf::from(DEFAULT_ENTRYPOINT));
+        assert_eq!(entry.path, PathBuf::from(DEFAULT_ENTRYPOINT));
+        assert_eq!(entry.name, "Main");
+        assert!(entry.is_entry);
+
+        let result = analyze_document(&file_uri(&open_path), &source, &[]);
+        let messages = diagnostic_messages(&result);
+        assert!(
+            messages.is_empty(),
+            "legacy manifest-less projects should still analyze cleanly, got: {:?}",
+            messages
+        );
+    }
+
+    #[test]
+    fn m048_s02_missing_configured_entry_reports_project_diagnostic() {
+        let manifest = entrypoint_manifest("broken-entry", "lib/start.mpl");
+        let (_tmp, _project_dir, open_path, source) = write_mesh_project(
+            Some(&manifest),
+            &[(
+                "app.mpl",
+                "pub fn label() -> String do\n  \"still-clean-alone\"\nend\n",
+            )],
+            "app.mpl",
+        );
+
+        let result = analyze_document(&file_uri(&open_path), &source, &[]);
+        let messages = diagnostic_messages(&result);
+
+        assert!(
+            messages
+                .iter()
+                .any(|message| message.contains("Entrypoint 'lib/start.mpl'")),
+            "missing configured entry should surface as a project diagnostic, got: {:?}",
+            messages
+        );
+        assert_eq!(
+            messages.len(),
+            1,
+            "clean standalone files should only receive the project diagnostic, got: {:?}",
+            messages
+        );
+    }
+
+    #[test]
+    fn m048_s02_invalid_manifest_entrypoint_reports_project_diagnostic() {
+        let manifest = entrypoint_manifest("escaping-entry", "../escape.mpl");
+        let (_tmp, _project_dir, open_path, source) = write_mesh_project(
+            Some(&manifest),
+            &[(
+                "lib/support.mpl",
+                "pub fn label() -> String do\n  \"still-clean-alone\"\nend\n",
+            )],
+            "lib/support.mpl",
+        );
+
+        let result = analyze_document(&file_uri(&open_path), &source, &[]);
+        let messages = diagnostic_messages(&result);
+
+        assert!(
+            messages
+                .iter()
+                .any(|message| message.contains("stay within the project root")),
+            "invalid manifest entrypoint should surface as a project diagnostic, got: {:?}",
+            messages
+        );
+        assert_eq!(
+            messages.len(),
+            1,
+            "clean standalone files should only receive the project diagnostic, got: {:?}",
+            messages
         );
     }
 

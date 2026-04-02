@@ -4,9 +4,9 @@
 
 Mesh is a programming language and backend application platform repository aimed at being trustworthy for real backend and distributed-systems work, not just toy examples. The repo contains the compiler, runtime, formatter, LSP, REPL, package tooling, docs site, package registry, packages website, landing site, and dogfood applications used to pressure-test the language.
 
-M047 is complete. The repo now has a truthful clustered-route wrapper implementation plus native and Docker proof that the Todo starter's selected read routes execute through explicit-count clustered route wrappers end to end. No new milestone has been started in this worktree yet.
+M047 is complete. The repo now has a truthful clustered-route wrapper implementation plus native and Docker proof that the Todo starter's selected read routes execute through explicit-count clustered route wrappers end to end. M048 is active, and S01 has already closed the first reset seam: compiler build, discovery, and `meshc test` now honor an optional manifest-selected executable entrypoint while keeping root `main.mpl` as the default.
 
-The next planned wave is a public-surface reset aimed at new evaluators: configurable entrypoints, toolchain self-update, editor and init-skill parity, a cleaner scaffold/example story, evaluator-facing docs instead of a proof-maze, Mesher as the deeper real reference app, and deploy truth that matches what the site claims.
+The current wave is a public-surface reset aimed at new evaluators: configurable entrypoints, toolchain self-update, editor and init-skill parity, a cleaner scaffold/example story, evaluator-facing docs instead of a proof-maze, Mesher as the deeper real reference app, and deploy truth that matches what the site claims.
 
 ## Core Value
 
@@ -35,7 +35,7 @@ Recent distributed-runtime state:
 - M047 completed the public cutover to source-first `@cluster`, carried replication counts through runtime truth, shipped `HTTP.clustered(...)`, and updated the Todo scaffold, docs, and closeout rails around that shipped route wrapper
 
 Public docs and repo teaching surfaces are still uneven in ways the next wave needs to fix:
-- compiler, discovery, tests, LSP, editor root detection, and package surfaces still hardcode `main.mpl` in several places
+- compiler build, discovery, and `meshc test` now honor `[package].entrypoint`, but LSP, editor root detection, and package-facing discovery surfaces still need the same override-entry contract
 - `meshc` / `meshpkg` do not yet expose explicit binary self-update commands
 - editor syntax and init-time Mesh skills lag the current clustered/runtime model
 - public docs still expose proof-heavy surfaces centered on `reference-backend/`, `tiny-cluster/`, and `cluster-proof/`
