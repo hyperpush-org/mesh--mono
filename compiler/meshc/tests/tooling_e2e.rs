@@ -5,8 +5,8 @@
 //! - `meshc fmt` formats files, `meshc fmt --check` verifies formatting
 //! - `meshc init` creates a compilable project
 //! - `meshc init --clustered` creates a clustered project using only public clustered-app surfaces
-//! - `meshc init --template todo-api` creates the current clustered SQLite Todo API starter
-//! - `meshc init --template todo-api --db ...` validates the typed DB-selection seam and fail-closed paths
+//! - `meshc init --template todo-api` creates the current local SQLite Todo API starter
+//! - `meshc init --template todo-api --db ...` validates the typed DB-selection seam and the SQLite-local vs Postgres-clustered split
 //! - `meshc repl --help` confirms REPL subcommand availability
 //! - `meshc lsp --help` confirms LSP subcommand availability
 
@@ -66,7 +66,7 @@ fn write_override_entry_test_project(root: &Path) -> (PathBuf, PathBuf, PathBuf)
     (project_dir, tests_dir, test_file)
 }
 
-fn assert_meshc_test_target_succeeds(target: &Path) {
+fn assert_meshc_test_target_reports_passes(target: &Path, expected_summary: &str) {
     let output = Command::new(meshc_bin())
         .args(["test", target.to_str().unwrap()])
         .output()
@@ -80,11 +80,177 @@ fn assert_meshc_test_target_succeeds(target: &Path) {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(
-        String::from_utf8_lossy(&output.stdout).contains("1 passed"),
-        "expected one passing test file for target {}, got:\n{}",
+        String::from_utf8_lossy(&output.stdout).contains(expected_summary),
+        "expected '{}' for target {}, got:\n{}",
+        expected_summary,
         target.display(),
         String::from_utf8_lossy(&output.stdout)
     );
+}
+
+fn assert_meshc_test_target_succeeds(target: &Path) {
+    assert_meshc_test_target_reports_passes(target, "1 passed");
+}
+
+fn assert_local_sqlite_todo_template(project_dir: &Path, starter_name: &str) {
+    let manifest_path = project_dir.join("mesh.toml");
+    let main_path = project_dir.join("main.mpl");
+    let config_path = project_dir.join("config.mpl");
+    let work_path = project_dir.join("work.mpl");
+    let readme_path = project_dir.join("README.md");
+    let dockerfile_path = project_dir.join("Dockerfile");
+    let dockerignore_path = project_dir.join(".dockerignore");
+    let router_path = project_dir.join("api/router.mpl");
+    let todos_path = project_dir.join("api/todos.mpl");
+    let health_path = project_dir.join("api/health.mpl");
+    let registry_path = project_dir.join("runtime/registry.mpl");
+    let limiter_path = project_dir.join("services/rate_limiter.mpl");
+    let storage_path = project_dir.join("storage/todos.mpl");
+    let todo_type_path = project_dir.join("types/todo.mpl");
+    let config_test_path = project_dir.join("tests/config.test.mpl");
+    let storage_test_path = project_dir.join("tests/storage.test.mpl");
+
+    for path in [
+        &manifest_path,
+        &main_path,
+        &config_path,
+        &readme_path,
+        &dockerfile_path,
+        &dockerignore_path,
+        &router_path,
+        &todos_path,
+        &health_path,
+        &registry_path,
+        &limiter_path,
+        &storage_path,
+        &todo_type_path,
+        &config_test_path,
+        &storage_test_path,
+    ] {
+        assert!(path.exists(), "missing generated file {}", path.display());
+    }
+    assert!(
+        !work_path.exists(),
+        "sqlite starter should not emit work.mpl at {}",
+        work_path.display()
+    );
+
+    let manifest = std::fs::read_to_string(&manifest_path).unwrap();
+    assert!(manifest.contains("[package]"));
+    assert!(manifest.contains(starter_name));
+    assert!(!manifest.contains("[cluster]"));
+
+    let main = std::fs::read_to_string(&main_path).unwrap();
+    assert!(main.contains("todo_db_path_key()"));
+    assert!(main.contains("start_rate_limiter"));
+    assert!(main.contains("start_registry"));
+    assert!(main.contains("ensure_schema"));
+    assert!(main.contains("[todo-api] local config loaded"));
+    assert!(main.contains("[todo-api] SQLite schema ready"));
+    assert!(main.contains("[todo-api] local runtime ready"));
+    assert!(main.contains("[todo-api] HTTP server starting on"));
+    assert!(main.contains("resolve_db_path()"));
+    assert!(main.contains("todo_rate_limit_window_seconds_key()"));
+    assert!(main.contains("todo_rate_limit_max_requests_key()"));
+    assert!(!main.contains("Node.start_from_env()"));
+    assert!(!main.contains("BootstrapStatus"));
+    assert!(!main.contains("runtime bootstrap"));
+    assert!(!main.contains("HTTP.clustered("));
+    assert!(!main.contains("MESH_CLUSTER_"));
+    assert!(!main.contains("Work.sync_todos"));
+
+    let config = std::fs::read_to_string(&config_path).unwrap();
+    assert!(config.contains("todo_db_path_key"));
+    assert!(config.contains("default_todo_db_path"));
+    assert!(config.contains("invalid_positive_int"));
+    assert!(config.contains("invalid_db_path"));
+    assert!(config.contains("invalid_todo_id_message"));
+    assert!(config.contains("title_required_message"));
+    assert!(config.contains("todo_not_found_message"));
+
+    let router = std::fs::read_to_string(&router_path).unwrap();
+    assert!(router.contains("HTTP.on_get(\"/health\", handle_health)"));
+    assert!(router.contains("HTTP.on_get(\"/todos\", handle_list_todos)"));
+    assert!(router.contains("HTTP.on_get(\"/todos/:id\", handle_get_todo)"));
+    assert!(router.contains("HTTP.on_post(\"/todos\", handle_create_todo)"));
+    assert!(router.contains("HTTP.on_put(\"/todos/:id\", handle_toggle_todo)"));
+    assert!(router.contains("HTTP.on_delete(\"/todos/:id\", handle_delete_todo)"));
+    assert!(!router.contains("HTTP.clustered("));
+
+    let todos = std::fs::read_to_string(&todos_path).unwrap();
+    assert!(todos.contains("allow_write("));
+    assert!(todos.contains("todo_error_response"));
+    assert!(todos.contains("invalid_todo_id_message"));
+    assert!(todos.contains("title_required_message"));
+    assert!(todos.contains("pub fn handle_list_todos(_request :: Request) -> Response do"));
+    assert!(todos.contains("pub fn handle_get_todo(request :: Request) -> Response do"));
+    assert!(todos.contains("bad_request_response"));
+    assert!(!todos.contains("HTTP.clustered("));
+    assert!(!todos.contains("Work.sync_todos"));
+
+    let health = std::fs::read_to_string(&health_path).unwrap();
+    assert!(health.contains("mode : \"local\""));
+    assert!(health.contains("db_backend : \"sqlite\""));
+    assert!(health.contains("storage_mode : \"single-node\""));
+    assert!(health.contains("db_path : get_db_path()"));
+    assert!(!health.contains("clustered_handler"));
+
+    let registry = std::fs::read_to_string(&registry_path).unwrap();
+    assert!(registry.contains("Process.register(\"todo_api_registry\""));
+
+    let limiter = std::fs::read_to_string(&limiter_path).unwrap();
+    assert!(limiter.contains("service TodoWriteRateLimiter do"));
+    assert!(limiter.contains("spawn(rate_window_ticker"));
+
+    let storage = std::fs::read_to_string(&storage_path).unwrap();
+    assert!(storage.contains("Todo.from_row(row)"));
+    assert!(storage.contains("String.to_int(trimmed)"));
+    assert!(storage.contains("CREATE TABLE IF NOT EXISTS todos"));
+    assert!(storage.contains("completed INTEGER NOT NULL DEFAULT 0"));
+    assert!(storage.contains("title_required_message()"));
+    assert!(storage.contains("invalid_todo_id_message()"));
+    assert!(storage.contains("todo_not_found_message()"));
+    assert!(!storage.contains("Map.get(row,"));
+
+    let todo_type = std::fs::read_to_string(&todo_type_path).unwrap();
+    assert!(todo_type.contains("end deriving(Json, Row)"));
+
+    let config_test = std::fs::read_to_string(&config_test_path).unwrap();
+    assert!(config_test.contains("describe(\"SQLite todo-api config\")"));
+    assert!(config_test.contains("TODO_DB_PATH"));
+    assert!(config_test.contains("Invalid TODO_DB_PATH: expected a non-empty path"));
+
+    let storage_test = std::fs::read_to_string(&storage_test_path).unwrap();
+    assert!(storage_test.contains("describe(\"SQLite todo storage\")"));
+    assert!(storage_test.contains("cleanup_db"));
+    assert!(storage_test.contains("create_todo"));
+    assert!(storage_test.contains("toggle_todo"));
+    assert!(storage_test.contains("todo_not_found_message()"));
+
+    let readme = std::fs::read_to_string(&readme_path).unwrap();
+    assert!(readme.contains("single-node SQLite Todo API"));
+    assert!(readme.contains("meshc test ."));
+    assert!(readme.contains("meshc init --template todo-api --db postgres my-shared-todo"));
+    assert!(readme.contains("meshc init --clustered my-clustered-app"));
+    assert!(readme.contains("there is no `work.mpl`, `HTTP.clustered(...)`, or `meshc cluster` story in this starter"));
+    assert!(readme.contains("TODO_DB_PATH"));
+    assert!(readme.contains(&format!("docker build -t {} .", starter_name)));
+    assert!(!readme.contains("Node.start_from_env()"));
+    assert!(!readme.contains("Work.sync_todos"));
+    assert!(!readme.contains("meshc cluster status"));
+    assert!(!readme.contains("MESH_CLUSTER_"));
+
+    let dockerfile = std::fs::read_to_string(&dockerfile_path).unwrap();
+    assert!(dockerfile.contains("FROM ubuntu:24.04"));
+    assert!(dockerfile.contains(&format!("COPY output /usr/local/bin/{}", starter_name)));
+    assert!(dockerfile.contains(&format!("ENTRYPOINT [\"/usr/local/bin/{}\"]", starter_name)));
+    assert!(dockerfile.contains("EXPOSE 8080"));
+    assert!(!dockerfile.contains("4370"));
+    assert!(!dockerfile.contains("MESH_CLUSTER_PORT"));
+
+    let dockerignore = std::fs::read_to_string(&dockerignore_path).unwrap();
+    assert!(dockerignore.contains("*.sqlite3"));
+    assert!(dockerignore.contains("target"));
 }
 
 // ── Error messages (--json) ──────────────────────────────────────────
@@ -585,7 +751,7 @@ fn test_init_clustered_rejects_existing_directory() {
 }
 
 #[test]
-fn test_init_clustered_todo_template_creates_project() {
+fn test_init_todo_template_db_sqlite_default_without_flag_stays_local() {
     let dir = tempfile::tempdir().unwrap();
 
     let output = Command::new(meshc_bin())
@@ -601,139 +767,12 @@ fn test_init_clustered_todo_template_creates_project() {
     );
 
     let project_dir = dir.path().join("todo-starter");
-    let manifest_path = project_dir.join("mesh.toml");
-    let main_path = project_dir.join("main.mpl");
-    let work_path = project_dir.join("work.mpl");
-    let readme_path = project_dir.join("README.md");
-    let dockerfile_path = project_dir.join("Dockerfile");
-    let dockerignore_path = project_dir.join(".dockerignore");
-    let router_path = project_dir.join("api/router.mpl");
-    let todos_path = project_dir.join("api/todos.mpl");
-    let health_path = project_dir.join("api/health.mpl");
-    let registry_path = project_dir.join("runtime/registry.mpl");
-    let limiter_path = project_dir.join("services/rate_limiter.mpl");
-    let storage_path = project_dir.join("storage/todos.mpl");
-    let todo_type_path = project_dir.join("types/todo.mpl");
-
-    for path in [
-        &manifest_path,
-        &main_path,
-        &work_path,
-        &readme_path,
-        &dockerfile_path,
-        &dockerignore_path,
-        &router_path,
-        &todos_path,
-        &health_path,
-        &registry_path,
-        &limiter_path,
-        &storage_path,
-        &todo_type_path,
-    ] {
-        assert!(path.exists(), "missing generated file {}", path.display());
-    }
-
-    let manifest = std::fs::read_to_string(&manifest_path).unwrap();
-    assert!(manifest.contains("[package]"));
-    assert!(manifest.contains("todo-starter"));
-    assert!(!manifest.contains("[cluster]"));
-
-    let main = std::fs::read_to_string(&main_path).unwrap();
-    assert!(main.contains("Node.start_from_env()"));
-    assert!(main.contains("start_rate_limiter"));
-    assert!(main.contains("start_registry"));
-    assert!(main.contains("ensure_schema"));
-    assert!(main.contains("HTTP.serve(router, port)"));
-    assert!(main.contains("TODO_DB_PATH"));
-    assert!(main.contains("TODO_RATE_LIMIT_WINDOW_SECONDS"));
-    assert!(main.contains("TODO_RATE_LIMIT_MAX_REQUESTS"));
-    assert!(!main.contains("execute_declared_work"));
-    assert!(!main.contains("HTTP.clustered("));
-
-    let work = std::fs::read_to_string(&work_path).unwrap();
-    assert!(work.contains("@cluster pub fn sync_todos()"));
-    assert!(!work.contains("execute_declared_work"));
-    assert!(!work.contains("request_key"));
-    assert!(!work.contains("attempt_id"));
-
-    let router = std::fs::read_to_string(&router_path).unwrap();
-    assert!(router.contains("HTTP.on_get(\"/health\", handle_health)"));
-    assert!(router.contains("HTTP.on_get(\"/todos\", HTTP.clustered(1, handle_list_todos))"));
-    assert!(router.contains("HTTP.on_get(\"/todos/:id\", HTTP.clustered(1, handle_get_todo))"));
-    assert!(router.contains("HTTP.on_post(\"/todos\", handle_create_todo)"));
-    assert!(router.contains("HTTP.on_put(\"/todos/:id\", handle_toggle_todo)"));
-    assert!(router.contains("HTTP.on_delete(\"/todos/:id\", handle_delete_todo)"));
-    assert!(!router.contains("HTTP.on_get(\"/health\", HTTP.clustered("));
-    assert!(!router.contains("HTTP.on_post(\"/todos\", HTTP.clustered("));
-    assert!(!router.contains("HTTP.on_put(\"/todos/:id\", HTTP.clustered("));
-    assert!(!router.contains("HTTP.on_delete(\"/todos/:id\", HTTP.clustered("));
-    assert!(!router.contains("HTTP.clustered(handle_list_todos)"));
-    assert!(!router.contains("HTTP.clustered(handle_get_todo)"));
-
-    let todos = std::fs::read_to_string(&todos_path).unwrap();
-    assert!(todos.contains("allow_write("));
-    assert!(todos.contains("title is required"));
-    assert!(todos.contains("rate limited"));
-    assert!(todos.contains("Json.encode(todo)"));
-    assert!(todos.contains("pub fn handle_list_todos(_request :: Request) -> Response do"));
-    assert!(todos.contains("pub fn handle_get_todo(request :: Request) -> Response do"));
-
-    let health = std::fs::read_to_string(&health_path).unwrap();
-    assert!(health.contains("clustered_handler : \"Work.sync_todos\""));
-
-    let registry = std::fs::read_to_string(&registry_path).unwrap();
-    assert!(registry.contains("Process.register(\"todo_api_registry\""));
-
-    let limiter = std::fs::read_to_string(&limiter_path).unwrap();
-    assert!(limiter.contains("service TodoWriteRateLimiter do"));
-    assert!(limiter.contains("spawn(rate_window_ticker"));
-
-    let storage = std::fs::read_to_string(&storage_path).unwrap();
-    assert!(storage.contains("Sqlite.open"));
-    assert!(storage.contains("CREATE TABLE IF NOT EXISTS todos"));
-    assert!(storage.contains("last_insert_rowid()"));
-
-    let todo_type = std::fs::read_to_string(&todo_type_path).unwrap();
-    assert!(todo_type.contains("pub struct Todo do"));
-    assert!(todo_type.contains("end deriving(Json)"));
-
-    let readme = std::fs::read_to_string(&readme_path).unwrap();
-    assert!(readme.contains("meshc init --template todo-api"));
-    assert!(readme.contains("@cluster pub fn sync_todos()"));
-    assert!(readme.contains("Work.sync_todos"));
-    assert!(readme.contains("GET /health"));
-    assert!(readme.contains("GET /todos"));
-    assert!(readme.contains("POST /todos"));
-    assert!(readme.contains("PUT /todos/:id"));
-    assert!(readme.contains("DELETE /todos/:id"));
-    assert!(readme.contains("`GET /todos` and `GET /todos/:id` use `HTTP.clustered(1, ...)`"));
-    assert!(readme.contains("`GET /health` — local runtime + rate-limit configuration snapshot"));
-    assert!(readme.contains("list todos through `HTTP.clustered(1, ...)`"));
-    assert!(readme.contains("fetch one todo through `HTTP.clustered(1, ...)`"));
-    assert!(readme.contains("Mutating routes (`POST`, `PUT`, `DELETE`) stay local"));
-    assert!(readme.contains("TODO_DB_PATH"));
-    assert!(readme.contains("TODO_RATE_LIMIT_WINDOW_SECONDS"));
-    assert!(readme.contains("TODO_RATE_LIMIT_MAX_REQUESTS"));
-    assert!(readme.contains("meshc cluster status"));
-    assert!(readme.contains("docker build -t todo-starter ."));
-    assert!(readme.contains("packages the binary produced by `meshc build .`"));
-    assert!(readme.contains("the Dockerfile copies the already-compiled `./output` binary"));
-    assert!(!readme.contains("execute_declared_work"));
-    assert!(!readme.contains("does **not** pretend `HTTP.clustered(...)` exists yet"));
-
-    let dockerfile = std::fs::read_to_string(&dockerfile_path).unwrap();
-    assert!(dockerfile.contains("FROM ubuntu:24.04"));
-    assert!(dockerfile.contains("COPY output /usr/local/bin/todo-starter"));
-    assert!(dockerfile.contains("ENTRYPOINT [\"/usr/local/bin/todo-starter\"]"));
-    assert!(dockerfile.contains("EXPOSE 8080 4370"));
-
-    let dockerignore = std::fs::read_to_string(&dockerignore_path).unwrap();
-    assert!(dockerignore.contains("*.sqlite3"));
-    assert!(dockerignore.contains("target"));
+    assert_local_sqlite_todo_template(&project_dir, "todo-starter");
+    assert_meshc_test_target_reports_passes(&project_dir, "2 passed");
 }
 
 #[test]
-fn test_init_clustered_todo_template_rejects_existing_directory() {
+fn test_init_todo_template_db_sqlite_rejects_existing_directory() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(dir.path().join("todo-starter")).unwrap();
 
@@ -759,7 +798,7 @@ fn test_init_clustered_todo_template_rejects_existing_directory() {
 }
 
 #[test]
-fn test_init_todo_template_db_sqlite_explicit_flag_preserves_current_starter() {
+fn test_init_todo_template_db_sqlite_explicit_flag_matches_local_default_contract() {
     let dir = tempfile::tempdir().unwrap();
 
     let output = Command::new(meshc_bin())
@@ -782,17 +821,11 @@ fn test_init_todo_template_db_sqlite_explicit_flag_preserves_current_starter() {
     );
 
     let project_dir = dir.path().join("todo-starter");
-    let main = std::fs::read_to_string(project_dir.join("main.mpl")).unwrap();
-    let storage = std::fs::read_to_string(project_dir.join("storage/todos.mpl")).unwrap();
-
-    assert!(main.contains("TODO_DB_PATH"));
-    assert!(main.contains("ensure_schema"));
-    assert!(storage.contains("Sqlite.open"));
-    assert!(storage.contains("CREATE TABLE IF NOT EXISTS todos"));
+    assert_local_sqlite_todo_template(&project_dir, "todo-starter");
 }
 
 #[test]
-fn test_init_todo_template_db_rejects_usage_without_todo_template() {
+fn test_init_todo_template_db_sqlite_rejects_usage_without_todo_template() {
     let dir = tempfile::tempdir().unwrap();
     let project_dir = dir.path().join("plain-project");
 
@@ -810,6 +843,7 @@ fn test_init_todo_template_db_rejects_usage_without_todo_template() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("`--db` is only supported"), "{}", stderr);
     assert!(stderr.contains("--template todo-api"), "{}", stderr);
+    assert!(stderr.contains("sqlite stays the local default"), "{}", stderr);
     assert!(
         !project_dir.exists(),
         "unexpected project created at {}",
@@ -818,7 +852,7 @@ fn test_init_todo_template_db_rejects_usage_without_todo_template() {
 }
 
 #[test]
-fn test_init_todo_template_db_rejects_clustered_todo_template_conflict() {
+fn test_init_todo_template_db_sqlite_rejects_clustered_todo_template_conflict() {
     let dir = tempfile::tempdir().unwrap();
     let project_dir = dir.path().join("todo-starter");
 
@@ -847,7 +881,8 @@ fn test_init_todo_template_db_rejects_clustered_todo_template_conflict() {
         "{}",
         stderr
     );
-    assert!(stderr.contains("--template todo-api"), "{}", stderr);
+    assert!(stderr.contains("--template todo-api --db postgres"), "{}", stderr);
+    assert!(stderr.contains("meshc init --clustered <name>"), "{}", stderr);
     assert!(
         !project_dir.exists(),
         "unexpected project created at {}",

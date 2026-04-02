@@ -3,7 +3,7 @@
 //! Provides the `meshc` command with the following subcommands:
 //!
 //! - `meshc build <dir>` - Compile a Mesh project to a native binary
-//! - `meshc init [--clustered] [--template <name>] [--db <sqlite|postgres>] <name>` - Initialize a new Mesh project
+//! - `meshc init [--clustered] [--template <name>] [--db <sqlite|postgres>] <name>` - Initialize a new Mesh project (`todo-api` defaults to local SQLite; `--db postgres` opts into the clustered/deployable starter)
 //! - `meshc cluster <status|continuity|diagnostics> ...` - Inspect runtime-owned clustered operator surfaces
 //! - `meshc deps [dir]` - Resolve and fetch dependencies
 //! - `meshc update` - Refresh installed `meshc` and `meshpkg` through the canonical installer path
@@ -87,15 +87,15 @@ enum Commands {
     },
     /// Initialize a new Mesh project
     Init {
-        /// Generate the clustered app scaffold instead of the hello-world app
+        /// Generate the minimal clustered app scaffold instead of the hello-world app
         #[arg(long)]
         clustered: bool,
 
-        /// Generate a named starter template (currently: todo-api)
+        /// Generate a named starter template (currently: todo-api; default SQLite is local-only)
         #[arg(long)]
         template: Option<String>,
 
-        /// Select the todo-api database backend (sqlite, postgres)
+        /// Select the todo-api database backend (sqlite = local default, postgres = clustered/deployable)
         #[arg(long, value_enum)]
         db: Option<InitTodoDb>,
 
@@ -216,14 +216,14 @@ fn resolve_init_target(
 
     if db.is_some() && template != Some("todo-api") {
         return Err(
-            "`--db` is only supported with `meshc init --template todo-api <name>`; omit `--db` for the current starter or add `--template todo-api`."
+            "`--db` is only supported with `meshc init --template todo-api <name>`; omit `--db` for hello-world or `--clustered`, or add `--template todo-api` (sqlite stays the local default, postgres opts into the clustered/deployable starter)."
                 .to_string(),
         );
     }
 
     if clustered && template == Some("todo-api") {
         return Err(
-            "`meshc init --clustered` cannot be combined with `--template todo-api` or `--db`; use `meshc init --template todo-api <name>` for the current SQLite starter."
+            "`meshc init --clustered` cannot be combined with `--template todo-api` or `--db`; use `meshc init --template todo-api <name>` for the local SQLite starter, `meshc init --template todo-api --db postgres <name>` for the clustered/deployable Todo starter, or `meshc init --clustered <name>` for the minimal clustered scaffold."
                 .to_string(),
         );
     }

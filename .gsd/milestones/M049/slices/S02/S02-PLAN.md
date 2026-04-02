@@ -41,7 +41,7 @@
   - Files: scripts/fixtures/m047-s05-clustered-todo/mesh.toml, scripts/fixtures/m047-s05-clustered-todo/main.mpl, scripts/fixtures/m047-s05-clustered-todo/work.mpl, scripts/fixtures/m047-s05-clustered-todo/api/router.mpl, compiler/meshc/tests/support/m047_todo_scaffold.rs, compiler/meshc/tests/e2e_m047_s05.rs, scripts/verify-m047-s05.sh
   - Verify: - `cargo test -p meshc --test e2e_m047_s05 -- --nocapture`
 - `bash scripts/verify-m047-s05.sh`
-- [ ] **T02: Rewrite the public SQLite todo-api scaffold as a local-only starter** — Use S01's typed DB seam to replace the public SQLite branch with an explicitly local contract. Remove the old clustered runtime surfaces, keep the real SQLite path on `Sqlite.*`, and add generated package tests so the default starter stops being a zero-proof branch.
+- [x] **T02: Rewrote the public SQLite todo-api scaffold toward a local-only contract, but the generated storage package test still fails under meshc test.** — Use S01's typed DB seam to replace the public SQLite branch with an explicitly local contract. Remove the old clustered runtime surfaces, keep the real SQLite path on `Sqlite.*`, and add generated package tests so the default starter stops being a zero-proof branch.
 
 ## Failure Modes
 
