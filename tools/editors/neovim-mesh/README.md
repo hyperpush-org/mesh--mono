@@ -9,7 +9,7 @@ This pack is installed through Neovim's native package runtime under `pack/*/sta
 ## What this pack does
 
 - Detects `*.mpl` as `filetype=mesh` through native runtime package loading.
-- Applies classic Vim syntax highlighting for the audited Mesh interpolation/string contract proven in M036/S02.
+- Applies classic Vim syntax highlighting for the audited Mesh interpolation/string plus `@cluster` / `@cluster(N)` decorator contract proven in this repository.
 - Auto-enables a native `vim.lsp` config named `mesh` on Neovim 0.11+ without `nvim-lspconfig`.
 - Starts `meshc lsp` with repo-local discovery that favors local dogfooding builds before falling back to well-known install paths or `PATH`.
 
@@ -17,7 +17,7 @@ This pack is installed through Neovim's native package runtime under `pack/*/sta
 
 - No Tree-sitter grammar.
 - No plugin-manager-specific setup.
-- No claims beyond the classic syntax plus native `meshc lsp` path proven in `scripts/verify-m036-s02.sh`.
+- No claims beyond the classic interpolation plus `@cluster` decorator syntax and native `meshc lsp` path proven in `scripts/verify-m036-s02.sh`.
 
 ## Install
 
@@ -82,6 +82,8 @@ The command exits `0` only after these named phases pass:
 2. `shared-grammar` — replay `bash scripts/verify-m036-s01.sh`
 3. `upstream-lsp` — replay `cargo test -q -p meshc --test e2e_lsp -- --nocapture`
 4. `neovim` — install this pack through a real `pack/*/start/mesh-nvim` path and run the headless Neovim smoke covering syntax plus LSP attach/root-resolution assertions for `reference-backend/`, a manifest-first override-entry fixture, and honest single-file mode
+
+The syntax side of phase 4 stays intentionally bounded: it replays the shared S01 interpolation corpus and then opens `scripts/fixtures/m048-s04-cluster-decorators.mpl` to prove `@cluster`, `@cluster(3)`, and bare `cluster` boundaries with explicit line/column synstack output.
 
 The verifier emits phase-local logs and leaves artifacts under `.tmp/m036-s02/` so failures stay attributable by phase and case.
 

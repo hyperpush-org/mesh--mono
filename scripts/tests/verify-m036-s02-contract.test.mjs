@@ -17,7 +17,7 @@ function readText(filePath, label) {
   return fs.readFileSync(filePath, 'utf8')
 }
 
-test('README documents the pack-local install and manifest-first root contract', () => {
+test('README documents the pack-local install, bounded syntax proof, and manifest-first root contract', () => {
   const readme = readText(readmePath, 'Neovim README')
 
   assert.match(readme, /Neovim 0\.11\+/)
@@ -26,13 +26,16 @@ test('README documents the pack-local install and manifest-first root contract',
   assert.match(readme, /require\('mesh'\)\.setup\(\{ lsp_path = '\/absolute\/path\/to\/meshc' \}\)/)
   assert.match(readme, /NEOVIM_BIN="\$\{NEOVIM_BIN:-nvim\}" bash scripts\/verify-m036-s02\.sh/)
   assert.match(readme, /No Tree-sitter grammar\./)
+  assert.match(readme, /@cluster/)
+  assert.match(readme, /shared S01 interpolation corpus/)
+  assert.match(readme, /scripts\/fixtures\/m048-s04-cluster-decorators\.mpl/)
   assert.match(readme, /workspace root prefers `mesh\.toml`/)
   assert.match(readme, /then falls back to root `main\.mpl`/)
   assert.match(readme, /then falls back to `\.git`/)
   assert.match(readme, /manifest-first override-entry fixture/)
 })
 
-test('Neovim runtime and exported LSP config stay synchronized on manifest-first root markers', () => {
+test('Neovim runtime and exported LSP config stay synchronized on manifest-first roots and bounded syntax probes', () => {
   const runtime = readText(runtimePath, 'Neovim runtime')
   const lspConfig = readText(lspConfigPath, 'Neovim LSP config')
   const smokeScript = readText(smokeScriptPath, 'M036 S02 smoke runner')
@@ -41,6 +44,10 @@ test('Neovim runtime and exported LSP config stay synchronized on manifest-first
   assert.match(runtime, /for _, marker in ipairs\(M\.root_markers\) do/)
   assert.match(runtime, /if marker == '\.git' then/)
   assert.match(lspConfig, /root_markers = mesh\.root_markers/)
+  assert.match(smokeScript, /m048-s04-cluster-decorators\.mpl/)
+  assert.match(smokeScript, /plain-decorator-name/)
+  assert.match(smokeScript, /bare-cluster-identifier/)
+  assert.match(smokeScript, /decorator_probes=/)
   assert.match(smokeScript, /case=override-entry materialized/)
   assert.match(smokeScript, /marker_path=/)
   assert.match(smokeScript, /checked_cases=4/)

@@ -5,7 +5,7 @@ endif
 syntax case match
 syntax sync fromstart
 
-syntax cluster meshTop contains=meshDocModuleComment,meshDocComment,meshComment,meshCommentBlock,meshRegex,meshAtom,meshStringTriple,meshStringDouble,meshNumberHex,meshNumberBinary,meshNumberOctal,meshNumberFloat,meshNumberInteger,meshModuleCall,meshModuleAccessor,meshModuleFunctionCall,meshControlKeyword,meshDeclarationKeyword,meshWordOperator,meshBoolean,meshBuiltinType,meshBuiltinConstructor,meshType,meshRangeOperator,meshDiamondOperator,meshConcatOperator,meshFatArrowOperator,meshTryOperator,meshLogicalAndOperator,meshLogicalOrOperator,meshPipeOperator,meshArrowOperator,meshAnnotationOperator,meshComparisonOperator,meshArithmeticOperator,meshAssignmentOperator,meshFunctionDeclaration,meshFunctionName,meshVariable
+syntax cluster meshTop contains=meshDocModuleComment,meshDocComment,meshComment,meshCommentBlock,meshRegex,meshAtom,meshStringTriple,meshStringDouble,meshNumberHex,meshNumberBinary,meshNumberOctal,meshNumberFloat,meshNumberInteger,meshClusterDecorator,meshModuleCall,meshModuleAccessor,meshModuleFunctionCall,meshControlKeyword,meshDeclarationKeyword,meshWordOperator,meshBoolean,meshBuiltinType,meshBuiltinConstructor,meshType,meshRangeOperator,meshDiamondOperator,meshConcatOperator,meshFatArrowOperator,meshTryOperator,meshLogicalAndOperator,meshLogicalOrOperator,meshPipeOperator,meshArrowOperator,meshAnnotationOperator,meshComparisonOperator,meshArithmeticOperator,meshAssignmentOperator,meshFunctionDeclaration,meshFunctionName,meshVariable
 
 syntax match meshDocModuleComment /##!.*$/
 syntax match meshDocComment /##[^!].*$/
@@ -27,6 +27,7 @@ syntax match meshNumberOctal /\<0[oO][0-7_]\+\>/
 syntax match meshNumberFloat /\v<[0-9][0-9_]*(\.[0-9][0-9_]*)?[eE][+-]?[0-9_]+>/
 syntax match meshNumberFloat /\v<[0-9][0-9_]*\.[0-9][0-9_]*>/
 syntax match meshNumberInteger /\<[0-9][0-9_]*\>/
+syntax match meshClusterDecorator /@cluster\>/
 
 syntax match meshRegex +\~r/[^/\r\n]*/[ims]*+
 syntax match meshAtom /:[a-zA-Z_][a-zA-Z0-9_]*/
@@ -75,6 +76,7 @@ highlight default link meshNumberBinary Number
 highlight default link meshNumberOctal Number
 highlight default link meshNumberFloat Float
 highlight default link meshNumberInteger Number
+highlight default link meshClusterDecorator PreProc
 highlight default link meshRegex String
 highlight default link meshAtom Constant
 highlight default link meshModuleCall Identifier

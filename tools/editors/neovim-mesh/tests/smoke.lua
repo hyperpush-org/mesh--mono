@@ -199,6 +199,145 @@ local function find_plain_string_column(lines, start_line, end_line)
   return nil, nil
 end
 
+local function find_literal_position(lines, literal)
+  for line_nr, text in ipairs(lines) do
+    local col = string.find(text, literal, 1, true)
+    if col then
+      return line_nr, col
+    end
+  end
+  return nil, nil
+end
+
+local function find_literal_position_or_fail(case_id, file_path, lines, literal, label)
+  local line_nr, col = find_literal_position(lines, literal)
+  if not line_nr or not col then
+    fail('syntax', string.format('case=%s file=%s reason=missing_probe_literal label=%s literal=%s', case_id, rel(file_path), label, literal))
+  end
+  return line_nr, col
+end
+
+local function assert_mesh_syntax_fixture(case_id, file_path)
+  if vim.fn.filereadable(file_path) ~= 1 then
+    fail('syntax', string.format('case=%s file=%s reason=missing_fixture', case_id, rel(file_path)))
+  end
+
+  open_buffer(file_path)
+
+  local filetype = vim.bo.filetype
+  local current_syntax = vim.b.current_syntax or ''
+  io.stdout:write(string.format(
+    '[m036-s02] phase=syntax case=%s fixture=%s filetype=%s syntax=%s\n',
+    case_id,
+    rel(file_path),
+    filetype,
+    current_syntax
+  ))
+
+  if filetype ~= 'mesh' then
+    fail('syntax', string.format('case=%s file=%s reason=wrong_filetype expected=mesh actual=%s', case_id, rel(file_path), filetype))
+  end
+  if current_syntax ~= 'mesh' then
+    fail('syntax', string.format('case=%s file=%s reason=missing_mesh_syntax actual=%s', case_id, rel(file_path), current_syntax))
+  end
+
+  return vim.api.nvim_buf_get_lines(0, 0, -1, false)
+end
+
+local function assert_named_syntax_probe(case_id, file_path, probe, line_nr, col, opts)
+  local info = syntax_info(line_nr, col)
+  local detail = names_text(info)
+
+  io.stdout:write(string.format(
+    '[m036-s02] phase=syntax case=%s file=%s line=%d col=%d probe=%s %s\n',
+    case_id,
+    rel(file_path),
+    line_nr,
+    col,
+    probe,
+    detail
+  ))
+
+  if detail == '' then
+    fail('syntax', string.format('case=%s file=%s line=%d col=%d probe=%s reason=no_syntax_group', case_id, rel(file_path), line_nr, col, probe))
+  end
+
+  if opts.expected_prefix and not has_group_prefix(info, opts.expected_prefix) then
+    fail('syntax', string.format(
+      'case=%s file=%s line=%d col=%d probe=%s reason=missing_%s_group %s',
+      case_id,
+      rel(file_path),
+      line_nr,
+      col,
+      probe,
+      opts.expected_label or opts.expected_prefix,
+      detail
+    ))
+  end
+
+  if opts.unexpected_prefix and has_group_prefix(info, opts.unexpected_prefix) then
+    fail('syntax', string.format(
+      'case=%s file=%s line=%d col=%d probe=%s reason=unexpected_%s_group %s',
+      case_id,
+      rel(file_path),
+      line_nr,
+      col,
+      probe,
+      opts.unexpected_label or opts.unexpected_prefix,
+      detail
+    ))
+  end
+end
+
+local function run_cluster_decorator_syntax_case()
+  local case_id = 'cluster-decorators'
+  local fixture_path = vim.fs.joinpath(repo_root, 'scripts', 'fixtures', 'm048-s04-cluster-decorators.mpl')
+  local lines = assert_mesh_syntax_fixture(case_id, fixture_path)
+
+  local plain_line, plain_col = find_literal_position_or_fail(case_id, fixture_path, lines, '@cluster pub fn add()', 'plain-decorator')
+  local counted_line, counted_col = find_literal_position_or_fail(case_id, fixture_path, lines, '@cluster(3) pub fn sync_todos()', 'counted-decorator')
+  local bare_line, bare_col = find_literal_position_or_fail(case_id, fixture_path, lines, 'let cluster = 1', 'bare-identifier')
+
+  assert_named_syntax_probe(case_id, fixture_path, 'plain-decorator-sigil', plain_line, plain_col, {
+    expected_prefix = 'meshCluster',
+    expected_label = 'cluster',
+    unexpected_prefix = 'meshVariable',
+    unexpected_label = 'variable',
+  })
+  assert_named_syntax_probe(case_id, fixture_path, 'plain-decorator-name', plain_line, plain_col + 1, {
+    expected_prefix = 'meshCluster',
+    expected_label = 'cluster',
+    unexpected_prefix = 'meshVariable',
+    unexpected_label = 'variable',
+  })
+  assert_named_syntax_probe(case_id, fixture_path, 'counted-decorator-sigil', counted_line, counted_col, {
+    expected_prefix = 'meshCluster',
+    expected_label = 'cluster',
+    unexpected_prefix = 'meshVariable',
+    unexpected_label = 'variable',
+  })
+  assert_named_syntax_probe(case_id, fixture_path, 'counted-decorator-name', counted_line, counted_col + 1, {
+    expected_prefix = 'meshCluster',
+    expected_label = 'cluster',
+    unexpected_prefix = 'meshVariable',
+    unexpected_label = 'variable',
+  })
+  assert_named_syntax_probe(case_id, fixture_path, 'counted-decorator-count', counted_line, counted_col + #'@cluster(', {
+    expected_prefix = 'meshNumberInteger',
+    expected_label = 'number',
+    unexpected_prefix = 'meshVariable',
+    unexpected_label = 'variable',
+  })
+  assert_named_syntax_probe(case_id, fixture_path, 'bare-cluster-identifier', bare_line, bare_col + #'let ', {
+    expected_prefix = 'meshVariable',
+    expected_label = 'variable',
+    unexpected_prefix = 'meshCluster',
+    unexpected_label = 'cluster',
+  })
+
+  return 6
+end
+
 local function load_syntax_cases()
   local corpus_path = assert(os.getenv('MESH_NVIM_CASES_JSON'), 'MESH_NVIM_CASES_JSON is required for syntax smoke')
   local corpus = decode_json_file(corpus_path)
@@ -328,7 +467,9 @@ local function run_syntax_phase()
     end
   end
 
-  io.stdout:write(string.format('[m036-s02] phase=syntax result=pass checked_cases=%d\n', #selected_cases))
+  local decorator_probe_count = run_cluster_decorator_syntax_case()
+
+  io.stdout:write(string.format('[m036-s02] phase=syntax result=pass checked_cases=%d decorator_probes=%d\n', #selected_cases, decorator_probe_count))
 end
 
 local function mesh_clients(bufnr, include_uninitialized)
