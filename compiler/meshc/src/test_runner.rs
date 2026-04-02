@@ -24,6 +24,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 
+use mesh_pkg::manifest::{
+    resolve_entrypoint, rewrite_manifest_entrypoint_source, Manifest, DEFAULT_ENTRYPOINT,
+};
 use mesh_typeck::diagnostics::DiagnosticOptions;
 
 const GREEN: &str = "\x1b[32m";
@@ -56,22 +59,40 @@ fn resolve_target_path(target: &Path) -> Result<PathBuf, String> {
     }
 }
 
+struct ResolvedTestProject {
+    project_dir: PathBuf,
+    manifest_source: Option<String>,
+    entry_relative_path: PathBuf,
+}
+
 fn find_project_dir_for_target(target: &Path) -> Option<PathBuf> {
     let mut dir = if target.is_dir() {
         target.to_path_buf()
     } else {
         target.parent()?.to_path_buf()
     };
+    let mut legacy_root = None;
 
     loop {
-        if dir.join("main.mpl").exists() {
+        if dir.join("mesh.toml").is_file() {
             return Some(dir);
+        }
+        if legacy_root.is_none() && dir.join(DEFAULT_ENTRYPOINT).is_file() {
+            legacy_root = Some(dir.clone());
         }
         match dir.parent() {
             Some(parent) => dir = parent.to_path_buf(),
-            None => return None,
+            None => return legacy_root,
         }
     }
+}
+
+fn project_root_resolution_error(target: &Path) -> String {
+    format!(
+        "Could not resolve a Mesh project root for test target '{}'; expected an ancestor with 'mesh.toml' or legacy root '{}'.",
+        target.display(),
+        DEFAULT_ENTRYPOINT
+    )
 }
 
 fn resolve_project_dir(target: Option<&Path>) -> Result<PathBuf, String> {
@@ -81,14 +102,35 @@ fn resolve_project_dir(target: Option<&Path>) -> Result<PathBuf, String> {
     match target {
         Some(target) => {
             let abs = resolve_target_path(target)?;
-            if abs.is_dir() {
-                Ok(find_project_dir_for_target(&abs).unwrap_or(abs))
-            } else {
-                Ok(find_project_dir_for_target(&abs).unwrap_or(cwd))
-            }
+            find_project_dir_for_target(&abs).ok_or_else(|| project_root_resolution_error(&abs))
         }
-        None => Ok(cwd),
+        None => Ok(find_project_dir_for_target(&cwd).unwrap_or(cwd)),
     }
+}
+
+fn resolve_test_project(target: Option<&Path>) -> Result<ResolvedTestProject, String> {
+    let project_dir = resolve_project_dir(target)?;
+    let manifest_path = project_dir.join("mesh.toml");
+    let manifest_source = if manifest_path.exists() {
+        Some(
+            std::fs::read_to_string(&manifest_path)
+                .map_err(|e| format!("Failed to read '{}': {}", manifest_path.display(), e))?,
+        )
+    } else {
+        None
+    };
+    let manifest = if manifest_path.exists() {
+        Some(Manifest::from_file(&manifest_path)?)
+    } else {
+        None
+    };
+    let entry_relative_path = resolve_entrypoint(&project_dir, manifest.as_ref())?;
+
+    Ok(ResolvedTestProject {
+        project_dir,
+        manifest_source,
+        entry_relative_path,
+    })
 }
 
 fn resolve_test_files(target: Option<&Path>) -> Result<Vec<PathBuf>, String> {
@@ -119,6 +161,77 @@ fn resolve_test_files(target: Option<&Path>) -> Result<Vec<PathBuf>, String> {
     }
 }
 
+fn synthetic_test_manifest_source(test_project: &ResolvedTestProject) -> Result<String, String> {
+    match &test_project.manifest_source {
+        Some(source) => rewrite_manifest_entrypoint_source(source, Path::new(DEFAULT_ENTRYPOINT)),
+        None => Ok(format!(
+            "[package]\nname = \"mesh-test-project\"\nversion = \"0.0.0\"\nentrypoint = \"{}\"\n",
+            DEFAULT_ENTRYPOINT
+        )),
+    }
+}
+
+fn prepare_temp_test_project(
+    test_project: &ResolvedTestProject,
+    tmp_dir: &Path,
+    preprocessed_source: &str,
+) -> Result<(), String> {
+    copy_project_sources_to_tmp(
+        &test_project.project_dir,
+        tmp_dir,
+        &test_project.entry_relative_path,
+    )?;
+
+    let copied_entry_path = tmp_dir.join(&test_project.entry_relative_path);
+    if copied_entry_path.exists() {
+        return Err(format!(
+            "Synthetic test project unexpectedly retained executable entry '{}' from '{}'; aborting to avoid copied-entry contamination.",
+            test_project.entry_relative_path.display(),
+            test_project.project_dir.display()
+        ));
+    }
+
+    let manifest_source = synthetic_test_manifest_source(test_project).map_err(|e| {
+        format!(
+            "Invalid synthetic test manifest state for '{}': {}",
+            test_project.project_dir.display(),
+            e
+        )
+    })?;
+    let manifest_path = tmp_dir.join("mesh.toml");
+    std::fs::write(&manifest_path, manifest_source)
+        .map_err(|e| format!("Failed to write '{}': {}", manifest_path.display(), e))?;
+
+    let main_path = tmp_dir.join(DEFAULT_ENTRYPOINT);
+    std::fs::write(&main_path, preprocessed_source)
+        .map_err(|e| format!("Failed to write preprocessed source: {}", e))?;
+
+    let manifest = Manifest::from_file(&manifest_path).map_err(|e| {
+        format!(
+            "Invalid synthetic test manifest state for '{}': {}",
+            test_project.project_dir.display(),
+            e
+        )
+    })?;
+    let synthetic_entry = resolve_entrypoint(tmp_dir, Some(&manifest)).map_err(|e| {
+        format!(
+            "Invalid synthetic test manifest state for '{}': {}",
+            test_project.project_dir.display(),
+            e
+        )
+    })?;
+    if synthetic_entry != PathBuf::from(DEFAULT_ENTRYPOINT) {
+        return Err(format!(
+            "Invalid synthetic test manifest state for '{}': resolved '{}' instead of '{}'.",
+            test_project.project_dir.display(),
+            synthetic_entry.display(),
+            DEFAULT_ENTRYPOINT
+        ));
+    }
+
+    Ok(())
+}
+
 /// Run tests from the current project, a project root, a test directory, or a specific test file.
 ///
 /// - `target`: optional project root, directory, or specific `*.test.mpl` file.
@@ -136,7 +249,8 @@ pub fn run_tests(
         );
     }
 
-    let project_dir = resolve_project_dir(target)?;
+    let test_project = resolve_test_project(target)?;
+    let project_dir = &test_project.project_dir;
     let test_files = resolve_test_files(target)?;
 
     if test_files.is_empty() {
@@ -152,9 +266,13 @@ pub fn run_tests(
     let mut failed = 0usize;
 
     for test_file in &test_files {
-        let rel = test_file
-            .strip_prefix(&project_dir)
-            .unwrap_or(test_file.as_path());
+        let rel = test_file.strip_prefix(project_dir).map_err(|_| {
+            format!(
+                "Resolved test file '{}' is not under project root '{}'; aborting to avoid a wrong-root test run.",
+                test_file.display(),
+                project_dir.display()
+            )
+        })?;
         let label = rel.display().to_string();
 
         // Read the .test.mpl source and preprocess it into a valid Mesh program.
@@ -168,15 +286,18 @@ pub fn run_tests(
             tempfile::tempdir().map_err(|e| format!("Failed to create temp dir: {}", e))?;
         let bin_path = tmp_dir.path().join("test_bin");
 
-        // Copy project source modules into the temp dir so cross-module imports resolve.
-        // The test file is compiled as main.mpl; all other .mpl sources (excluding *.test.mpl
-        // and the project's own main.mpl) are copied relative to their position in the project.
-        // This enables `from Ingestion.Fingerprint import ...` to resolve at compile time.
-        copy_project_sources_to_tmp(&project_dir, tmp_dir.path());
-
-        let main_path = tmp_dir.path().join("main.mpl");
-        std::fs::write(&main_path, &preprocessed)
-            .map_err(|e| format!("Failed to write preprocessed source: {}", e))?;
+        if let Err(e) = prepare_temp_test_project(&test_project, tmp_dir.path(), &preprocessed) {
+            if quiet {
+                print!("{RED}F{RESET}");
+                use std::io::Write;
+                std::io::stdout().flush().ok();
+            } else {
+                println!("{RED}{BOLD}SETUP ERROR{RESET}: {label}");
+                println!("  {}", e);
+            }
+            failed += 1;
+            continue;
+        }
 
         let diag_opts = DiagnosticOptions {
             color: true,
@@ -1078,23 +1199,27 @@ fn split_assert_receive_args(rest: &str) -> (String, String) {
 ///
 /// Files excluded from copying:
 /// - `*.test.mpl` files (they are test DSL, not regular Mesh modules)
-/// - `main.mpl` at the project root (the test's preprocessed source replaces it)
+/// - The resolved executable entry file for the original project (replaced by synthetic `main.mpl`)
 /// - Hidden directories (names starting with `.`)
 /// - The `target` directory (build artifacts)
-///
-/// Errors during copy are silently ignored — if a source file cannot be copied,
-/// the compiler will emit a "module not found" error for the affected import,
-/// which is the correct behaviour.
-fn copy_project_sources_to_tmp(project_dir: &Path, tmp_dir: &Path) {
-    copy_sources_recursive(project_dir, project_dir, tmp_dir);
+fn copy_project_sources_to_tmp(
+    project_dir: &Path,
+    tmp_dir: &Path,
+    excluded_entry_relative_path: &Path,
+) -> Result<(), String> {
+    copy_sources_recursive(project_dir, project_dir, tmp_dir, excluded_entry_relative_path)
 }
 
-fn copy_sources_recursive(project_root: &Path, dir: &Path, tmp_dir: &Path) {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    for entry in entries.flatten() {
+fn copy_sources_recursive(
+    project_root: &Path,
+    dir: &Path,
+    tmp_dir: &Path,
+    excluded_entry_relative_path: &Path,
+) -> Result<(), String> {
+    let entries = std::fs::read_dir(dir)
+        .map_err(|e| format!("Failed to read '{}': {}", dir.display(), e))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read '{}': {}", dir.display(), e))?;
         let path = entry.path();
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
@@ -1105,28 +1230,38 @@ fn copy_sources_recursive(project_root: &Path, dir: &Path, tmp_dir: &Path) {
         }
 
         if path.is_dir() {
-            copy_sources_recursive(project_root, &path, tmp_dir);
+            copy_sources_recursive(project_root, &path, tmp_dir, excluded_entry_relative_path)?;
         } else if path.extension().and_then(|e| e.to_str()) == Some("mpl") {
-            // Skip test files and the project entry point (main.mpl at root)
             if name_str.ends_with(".test.mpl") {
                 continue;
             }
-            let relative = match path.strip_prefix(project_root) {
-                Ok(r) => r,
-                Err(_) => continue,
-            };
-            // Skip the project's main.mpl — the test's preprocessed source replaces it
-            if relative == std::path::Path::new("main.mpl") {
+            let relative = path.strip_prefix(project_root).map_err(|e| {
+                format!(
+                    "Failed to map '{}' under project root '{}': {}",
+                    path.display(),
+                    project_root.display(),
+                    e
+                )
+            })?;
+            if relative == excluded_entry_relative_path {
                 continue;
             }
             let dest = tmp_dir.join(relative);
-            // Ensure destination directory exists
             if let Some(parent) = dest.parent() {
-                let _ = std::fs::create_dir_all(parent);
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create '{}': {}", parent.display(), e))?;
             }
-            let _ = std::fs::copy(&path, &dest);
+            std::fs::copy(&path, &dest).map_err(|e| {
+                format!(
+                    "Failed to copy '{}' to '{}': {}",
+                    path.display(),
+                    dest.display(),
+                    e
+                )
+            })?;
         }
     }
+    Ok(())
 }
 
 // ── Recursively discover all *.test.mpl files in a directory ─────────────
@@ -1161,4 +1296,132 @@ fn discover_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> std::io::Result<(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn write_file(path: &Path, contents: &str) {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(path, contents).unwrap();
+    }
+
+    #[test]
+    fn resolve_project_dir_prefers_nearest_manifest_for_override_entry_file_targets() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_dir = temp.path().join("override-project");
+        let test_file = project_dir.join("tests").join("feature.test.mpl");
+
+        write_file(
+            &project_dir.join("mesh.toml"),
+            "[package]\nname = \"override-project\"\nversion = \"0.1.0\"\nentrypoint = \"lib/start.mpl\"\n",
+        );
+        write_file(
+            &project_dir.join("lib/start.mpl"),
+            "fn main() do\n  println(\"app\")\nend\n",
+        );
+        write_file(&test_file, "test(\"ok\") do\n  assert(true)\nend\n");
+
+        let resolved = resolve_project_dir(Some(&test_file)).unwrap();
+
+        assert_eq!(resolved, project_dir);
+    }
+
+    #[test]
+    fn resolve_project_dir_falls_back_to_legacy_root_main_when_manifest_is_missing() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_dir = temp.path().join("legacy-project");
+        let tests_dir = project_dir.join("tests");
+
+        write_file(
+            &project_dir.join("main.mpl"),
+            "fn main() do\n  println(\"legacy\")\nend\n",
+        );
+        write_file(
+            &tests_dir.join("legacy.test.mpl"),
+            "test(\"legacy\") do\n  assert(true)\nend\n",
+        );
+
+        let resolved = resolve_project_dir(Some(&tests_dir)).unwrap();
+
+        assert_eq!(resolved, project_dir);
+    }
+
+    #[test]
+    fn resolve_project_dir_rejects_orphan_test_file_instead_of_falling_back() {
+        let temp = tempfile::tempdir().unwrap();
+        let orphan = temp.path().join("orphan.test.mpl");
+        write_file(&orphan, "test(\"orphan\") do\n  assert(true)\nend\n");
+
+        let err = resolve_project_dir(Some(&orphan)).unwrap_err();
+
+        assert!(err.contains("Could not resolve a Mesh project root"), "{err}");
+        assert!(err.contains(&orphan.display().to_string()), "{err}");
+    }
+
+    #[test]
+    fn copy_project_sources_to_tmp_excludes_resolved_override_entry_and_keeps_support_modules() {
+        let temp = tempfile::tempdir().unwrap();
+        let tmp = tempfile::tempdir().unwrap();
+        let project_dir = temp.path().join("override-project");
+
+        write_file(
+            &project_dir.join("lib/start.mpl"),
+            "fn main() do\n  println(\"app\")\nend\n",
+        );
+        write_file(
+            &project_dir.join("app.mpl"),
+            "pub fn answer() -> Int do\n  42\nend\n",
+        );
+        write_file(
+            &project_dir.join("tests/support.mpl"),
+            "pub fn check() -> String do\n  \"support\"\nend\n",
+        );
+        write_file(
+            &project_dir.join("tests/feature.test.mpl"),
+            "test(\"skip\") do\n  assert(true)\nend\n",
+        );
+
+        copy_project_sources_to_tmp(&project_dir, tmp.path(), Path::new("lib/start.mpl")).unwrap();
+
+        assert!(!tmp.path().join("lib/start.mpl").exists());
+        assert!(tmp.path().join("app.mpl").exists());
+        assert!(tmp.path().join("tests/support.mpl").exists());
+        assert!(!tmp.path().join("tests/feature.test.mpl").exists());
+    }
+
+    #[test]
+    fn prepare_temp_test_project_rewrites_entrypoint_to_synthetic_main_and_preserves_dependencies() {
+        let temp = tempfile::tempdir().unwrap();
+        let tmp = tempfile::tempdir().unwrap();
+        let project_dir = temp.path().join("override-project");
+
+        write_file(
+            &project_dir.join("mesh.toml"),
+            "[package]\nname = \"override-project\"\nversion = \"0.1.0\"\nentrypoint = \"lib/start.mpl\"\n\n[dependencies]\nshared = { path = \"../shared\" }\n",
+        );
+        write_file(
+            &project_dir.join("lib/start.mpl"),
+            "fn main() do\n  println(\"app\")\nend\n",
+        );
+        write_file(
+            &project_dir.join("app.mpl"),
+            "pub fn answer() -> Int do\n  42\nend\n",
+        );
+
+        let test_project = resolve_test_project(Some(&project_dir)).unwrap();
+        prepare_temp_test_project(&test_project, tmp.path(), "fn main() do\n  println(\"tests\")\nend\n")
+            .unwrap();
+
+        let manifest = Manifest::from_file(&tmp.path().join("mesh.toml")).unwrap();
+        let entrypoint = resolve_entrypoint(tmp.path(), Some(&manifest)).unwrap();
+
+        assert_eq!(entrypoint, PathBuf::from(DEFAULT_ENTRYPOINT));
+        assert!(manifest.dependencies.contains_key("shared"));
+        assert!(!tmp.path().join("lib/start.mpl").exists());
+        assert!(tmp.path().join(DEFAULT_ENTRYPOINT).exists());
+    }
 }

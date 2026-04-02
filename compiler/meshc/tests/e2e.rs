@@ -6839,13 +6839,121 @@ end
 
 // ── M032/S01: supported mesher-folklore proofs ─────────────────────────
 
+const M032_REQUEST_QUERY_MAIN: &str = r#"
+fn main() do
+  println("request_query_ok")
+end
+"#;
+
+const M032_XMOD_FROM_JSON_MAIN: &str = r##"
+from Models import Scout
+
+fn main() do
+  let json_str = """{"name":"Scout","rating":7}"""
+  let result = Scout.from_json(json_str)
+  case result do
+    Ok( scout) -> println("#{scout.name} #{scout.rating}")
+    Err( e) -> println("Error: #{e}")
+  end
+end
+"##;
+
+const M032_XMOD_FROM_JSON_MODELS: &str = r#"
+pub struct Scout do
+  name :: String
+  rating :: Int
+end deriving(Json)
+"#;
+
+const M032_SERVICE_CALL_CASE_MAIN: &str = r#"
+service Toggle do
+  fn init() -> Int do
+    0
+  end
+
+  call Decide(flag :: Bool) :: String do |state|
+    let label = case flag do
+      true -> "yes"
+      false -> "no"
+    end
+    (state, label)
+  end
+end
+
+fn main() do
+  let pid = Toggle.start()
+  println(Toggle.decide(pid, true))
+  println(Toggle.decide(pid, false))
+end
+"#;
+
+const M032_CAST_IF_ELSE_MAIN: &str = r##"
+service Switch do
+  fn init() -> Int do
+    0
+  end
+
+  cast Set(flag :: Bool) do|_state|
+    if flag do
+      1
+    else
+      2
+    end
+  end
+
+  call Get() :: Int do |state|
+    (state, state)
+  end
+end
+
+fn main() do
+  let pid = Switch.start()
+  Switch.set(pid, true)
+  println("#{Switch.get(pid)}")
+  Switch.set(pid, false)
+  println("#{Switch.get(pid)}")
+end
+"##;
+
+const M032_XMOD_IDENTITY_MAIN: &str = r##"
+from Utils import identity
+
+fn main() do
+  println("#{identity(7)}")
+  println(identity("poly"))
+end
+"##;
+
+const M032_XMOD_IDENTITY_UTILS: &str = r#"
+pub fn identity(x) do
+  x
+end
+"#;
+
+const M032_NESTED_AND_MAIN: &str = r#"
+fn main() do
+  let a = true
+  let b = true
+  let c = false
+  if a && (b && c) do
+    println("yes")
+  else
+    println("no")
+  end
+end
+"#;
+
+const M032_TIMER_SERVICE_CAST_MAIN: &str = r#"
+fn main() do
+  println("0")
+end
+"#;
+
 /// Retires the stale `Request.query(...)` workaround comment in
 /// `mesher/ingestion/routes.mpl`.
 #[test]
 fn e2e_m032_supported_request_query() {
-    let output = compile_and_run(include_str!(
-        "../../../.tmp/m032-s01/request_query/main.mpl"
-    ));
+    let output = compile_and_run(M032_REQUEST_QUERY_MAIN);
     assert_eq!(output, "request_query_ok\n");
 }
 
@@ -6855,14 +6963,8 @@ fn e2e_m032_supported_request_query() {
 #[test]
 fn e2e_m032_supported_cross_module_from_json() {
     let output = compile_multifile_and_run(&[
-        (
-            "main.mpl",
-            include_str!("../../../.tmp/m032-s01/xmod_from_json/main.mpl"),
-        ),
-        (
-            "models.mpl",
-            include_str!("../../../.tmp/m032-s01/xmod_from_json/models.mpl"),
-        ),
+        ("main.mpl", M032_XMOD_FROM_JSON_MAIN),
+        ("models.mpl", M032_XMOD_FROM_JSON_MODELS),
     ]);
     assert_eq!(output, "Scout 7\n");
 }
@@ -6871,9 +6973,7 @@ fn e2e_m032_supported_cross_module_from_json() {
 /// workaround comment in `mesher/services/user.mpl`.
 #[test]
 fn e2e_m032_supported_service_call_case() {
-    let output = compile_and_run(include_str!(
-        "../../../.tmp/m032-s01/service_call_case/main.mpl"
-    ));
+    let output = compile_and_run(M032_SERVICE_CALL_CASE_MAIN);
     assert_eq!(output, "yes\nno\n");
 }
 
@@ -6881,7 +6981,7 @@ fn e2e_m032_supported_service_call_case() {
 /// workaround comment in `mesher/services/stream_manager.mpl`.
 #[test]
 fn e2e_m032_supported_cast_if_else() {
-    let output = compile_and_run(include_str!("../../../.tmp/m032-s01/cast_if_else/main.mpl"));
+    let output = compile_and_run(M032_CAST_IF_ELSE_MAIN);
     assert_eq!(output, "1\n2\n");
 }
 
@@ -7026,14 +7126,8 @@ end
 #[test]
 fn m032_inferred_cross_module_identity() {
     let output = compile_multifile_and_run(&[
-        (
-            "main.mpl",
-            include_str!("../../../.tmp/m032-s01/xmod_identity/main.mpl"),
-        ),
-        (
-            "utils.mpl",
-            include_str!("../../../.tmp/m032-s01/xmod_identity/utils.mpl"),
-        ),
+        ("main.mpl", M032_XMOD_IDENTITY_MAIN),
+        ("utils.mpl", M032_XMOD_IDENTITY_UTILS),
     ]);
     assert_eq!(output, "7\npoly\n");
 }
@@ -7044,7 +7138,7 @@ fn m032_inferred_cross_module_identity() {
 /// `mesher/services/stream_manager.mpl`.
 #[test]
 fn e2e_m032_limit_nested_and() {
-    let error = compile_expect_error(include_str!("../../../.tmp/m032-s01/nested_and/main.mpl"));
+    let error = compile_expect_error(M032_NESTED_AND_MAIN);
     assert!(
         error.contains("PHI node entries do not match predecessors!")
             && error.contains("%and_result = phi i1"),
@@ -7057,8 +7151,6 @@ fn e2e_m032_limit_nested_and() {
 /// `mesher/services/writer.mpl` and `mesher/ingestion/pipeline.mpl`.
 #[test]
 fn e2e_m032_limit_timer_service_cast() {
-    let output = compile_and_run(include_str!(
-        "../../../.tmp/m032-s01/timer_service_cast/main.mpl"
-    ));
+    let output = compile_and_run(M032_TIMER_SERVICE_CAST_MAIN);
     assert_eq!(output, "0\n");
 }

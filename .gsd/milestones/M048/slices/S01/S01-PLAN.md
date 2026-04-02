@@ -8,7 +8,7 @@
   - Estimate: 90m
   - Files: compiler/mesh-pkg/src/manifest.rs, compiler/meshc/src/main.rs, compiler/meshc/src/discovery.rs
   - Verify: cargo test -p mesh-pkg entrypoint -- --nocapture && cargo test -p meshc build_project_ -- --nocapture
-- [ ] **T02: Make test root discovery and temp project synthesis honor the resolved entry contract** — Fix `meshc test` so project-dir, tests-dir, and specific-file targets all resolve the same project root and configured entrypoint, then replace that resolved executable with the synthetic test `main.mpl` instead of assuming root `main.mpl` is the only executable file.
+- [x] **T02: Made `meshc test` honor resolved entrypoints across project-dir, tests-dir, and specific-file targets, and removed the stale compile-time fixture dependency blocking the package verification rail.** — Fix `meshc test` so project-dir, tests-dir, and specific-file targets all resolve the same project root and configured entrypoint, then replace that resolved executable with the synthetic test `main.mpl` instead of assuming root `main.mpl` is the only executable file.
   - Estimate: 90m
   - Files: compiler/meshc/src/test_runner.rs, compiler/meshc/tests/tooling_e2e.rs, compiler/mesh-pkg/src/manifest.rs
   - Verify: cargo test -p meshc --test tooling_e2e test_test_ -- --nocapture

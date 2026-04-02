@@ -402,6 +402,38 @@ pub fn resolve_entrypoint(
     Ok(entrypoint)
 }
 
+pub fn rewrite_manifest_entrypoint_source(
+    manifest_source: &str,
+    entrypoint: &Path,
+) -> Result<String, String> {
+    let entrypoint_str = entrypoint.to_str().ok_or_else(|| {
+        format!(
+            "`[package].entrypoint` must be valid UTF-8, got '{}'",
+            entrypoint.display()
+        )
+    })?;
+    let normalized_entrypoint = normalize_entrypoint(entrypoint_str)?;
+    let mut manifest_value: toml::Value = toml::from_str(manifest_source)
+        .map_err(|error| format!("Failed to parse manifest for rewrite: {}", error))?;
+    let manifest_table = manifest_value
+        .as_table_mut()
+        .ok_or_else(|| "Manifest root must be a TOML table".to_string())?;
+    let package_value = manifest_table
+        .get_mut("package")
+        .ok_or_else(|| "Manifest must contain a [package] table to rewrite entrypoint".to_string())?;
+    let package_table = package_value
+        .as_table_mut()
+        .ok_or_else(|| "Manifest [package] section must be a TOML table".to_string())?;
+
+    package_table.insert(
+        "entrypoint".to_string(),
+        toml::Value::String(normalized_entrypoint.to_string_lossy().into_owned()),
+    );
+
+    toml::to_string_pretty(&manifest_value)
+        .map_err(|error| format!("Failed to serialize manifest rewrite: {}", error))
+}
+
 fn legacy_cluster_section_error(source_path: Option<&Path>) -> String {
     let message = "`[cluster]` manifest sections are no longer supported; move clustered declarations into source with `@cluster` or `@cluster(N)`";
     match source_path {
@@ -1412,6 +1444,31 @@ entrypoint = "lib/start.mpl"
         let err = resolve_entrypoint(temp.path(), Some(&manifest)).unwrap_err();
 
         assert!(err.contains("lib/start.mpl"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn rewrite_manifest_entrypoint_source_preserves_dependencies_and_overrides_entrypoint() {
+        let rewritten = rewrite_manifest_entrypoint_source(
+            r#"
+[package]
+name = "custom-entry"
+version = "0.1.0"
+entrypoint = "lib/start.mpl"
+
+[dependencies]
+shared = { path = "../shared" }
+"#,
+            Path::new(DEFAULT_ENTRYPOINT),
+        )
+        .expect("manifest rewrite should succeed");
+
+        let manifest = Manifest::from_str(&rewritten).expect("rewritten manifest should parse");
+
+        assert_eq!(
+            manifest.package.entrypoint,
+            Some(PathBuf::from(DEFAULT_ENTRYPOINT))
+        );
+        assert!(manifest.dependencies.contains_key("shared"));
     }
 
     #[test]

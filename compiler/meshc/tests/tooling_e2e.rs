@@ -9,7 +9,7 @@
 //! - `meshc repl --help` confirms REPL subcommand availability
 //! - `meshc lsp --help` confirms LSP subcommand availability
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Locate the repository root from the meshc package manifest directory.
@@ -27,6 +27,63 @@ fn meshc_bin() -> PathBuf {
     // CARGO_BIN_EXE_meshc is set by cargo when running integration tests
     // for the meshc package.
     PathBuf::from(env!("CARGO_BIN_EXE_meshc"))
+}
+
+fn write_file(path: &Path, contents: &str) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap();
+    }
+    std::fs::write(path, contents).unwrap();
+}
+
+fn write_override_entry_test_project(root: &Path) -> (PathBuf, PathBuf, PathBuf) {
+    let project_dir = root.join("override-entry-project");
+    let tests_dir = project_dir.join("tests");
+    let test_file = tests_dir.join("override_entry.test.mpl");
+
+    write_file(
+        &project_dir.join("mesh.toml"),
+        "[package]\nname = \"override-entry-project\"\nversion = \"0.1.0\"\nentrypoint = \"lib/start.mpl\"\n",
+    );
+    write_file(
+        &project_dir.join("lib/start.mpl"),
+        "from App import answer\n\nfn main() do\n  println(\"app=#{answer()}\")\nend\n",
+    );
+    write_file(
+        &project_dir.join("app.mpl"),
+        "pub fn answer() -> Int do\n  42\nend\n",
+    );
+    write_file(
+        &tests_dir.join("support.mpl"),
+        "pub fn label() -> String do\n  \"support\"\nend\n",
+    );
+    write_file(
+        &test_file,
+        "from App import answer\nfrom Tests.Support import label\n\ntest(\"override entry roots all targets the same way\") do\n  assert(answer() == 42)\n  assert(label() == \"support\")\nend\n",
+    );
+
+    (project_dir, tests_dir, test_file)
+}
+
+fn assert_meshc_test_target_succeeds(target: &Path) {
+    let output = Command::new(meshc_bin())
+        .args(["test", target.to_str().unwrap()])
+        .output()
+        .expect("failed to run meshc test target");
+
+    assert!(
+        output.status.success(),
+        "meshc test {} failed:\nstdout: {}\nstderr: {}",
+        target.display(),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("1 passed"),
+        "expected one passing test file for target {}, got:\n{}",
+        target.display(),
+        String::from_utf8_lossy(&output.stdout)
+    );
 }
 
 // ── Error messages (--json) ──────────────────────────────────────────
@@ -250,6 +307,60 @@ fn test_test_runs_tests_directory_target() {
         "expected a passing file-level summary for directory-target execution, got:\n{}",
         stdout
     );
+}
+
+#[test]
+fn test_test_project_directory_target_succeeds_for_override_entry_without_root_main() {
+    let dir = tempfile::tempdir().unwrap();
+    let (project_dir, _, _) = write_override_entry_test_project(dir.path());
+
+    assert_meshc_test_target_succeeds(&project_dir);
+}
+
+#[test]
+fn test_test_tests_directory_target_succeeds_for_override_entry_without_root_main() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, tests_dir, _) = write_override_entry_test_project(dir.path());
+
+    assert_meshc_test_target_succeeds(&tests_dir);
+}
+
+#[test]
+fn test_test_specific_file_target_succeeds_for_override_entry_without_root_main() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, _, test_file) = write_override_entry_test_project(dir.path());
+
+    assert_meshc_test_target_succeeds(&test_file);
+}
+
+#[test]
+fn test_test_specific_file_target_fails_closed_when_no_project_root_exists() {
+    let dir = tempfile::tempdir().unwrap();
+    let orphan = dir.path().join("orphan.test.mpl");
+    write_file(
+        &orphan,
+        "test(\"orphan\") do\n  assert(true)\nend\n",
+    );
+
+    let output = Command::new(meshc_bin())
+        .args(["test", orphan.to_str().unwrap()])
+        .output()
+        .expect("failed to run meshc test on orphan test file");
+
+    assert!(
+        !output.status.success(),
+        "meshc test should fail closed for orphan file target:\nstdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Could not resolve a Mesh project root"),
+        "expected truthful wrong-root error, got:\n{}",
+        stderr
+    );
+    assert!(stderr.contains(orphan.to_str().unwrap()), "{}", stderr);
 }
 
 #[test]
