@@ -12,7 +12,7 @@
   - Estimate: 90m
   - Files: compiler/meshc/tests/e2e_lsp.rs, compiler/meshc/tests/e2e_m048_s01.rs
   - Verify: cargo test -p meshc --test e2e_lsp -- --nocapture
-- [ ] **T03: Align Neovim and VS Code host proof with manifest-first root detection** — Even with a fixed server, editor hosts still lie if they keep `main.mpl` as the only root marker or never open override-entry workspaces in smoke. Update the Neovim pack to prefer `mesh.toml` roots, extend both Neovim and VS Code smoke to open one override-entry project cleanly, and sync the README/contract assertions to the new host behavior.
+- [x] **T03: Made the Neovim and VS Code editor-host proofs honor manifest-first Mesh roots, including override-entry smoke coverage.** — Even with a fixed server, editor hosts still lie if they keep `main.mpl` as the only root marker or never open override-entry workspaces in smoke. Update the Neovim pack to prefer `mesh.toml` roots, extend both Neovim and VS Code smoke to open one override-entry project cleanly, and sync the README/contract assertions to the new host behavior.
   - Estimate: 2h
   - Files: tools/editors/neovim-mesh/lua/mesh.lua, tools/editors/neovim-mesh/lsp/mesh.lua, tools/editors/neovim-mesh/tests/smoke.lua, tools/editors/neovim-mesh/README.md, scripts/tests/verify-m036-s02-contract.test.mjs, tools/editors/vscode-mesh/src/test/suite/extension.test.ts, tools/editors/vscode-mesh/src/test/runTest.ts
   - Verify: NEOVIM_BIN="${NEOVIM_BIN:-nvim}" bash scripts/verify-m036-s02.sh lsp && node --test scripts/tests/verify-m036-s02-contract.test.mjs && npm --prefix tools/editors/vscode-mesh run test:smoke

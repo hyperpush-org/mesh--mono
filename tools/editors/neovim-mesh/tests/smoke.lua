@@ -37,6 +37,14 @@ local function fail(phase, message)
     if type(last_error) == 'string' and last_error ~= '' then
       io.stderr:write(string.format('[m036-s02] phase=lsp last_error=%s\n', last_error:gsub('\n', ' | ')))
     end
+
+    local last_resolution = vim.g.mesh_lsp_last_resolution
+    if type(last_resolution) == 'table' then
+      local ok, encoded = pcall(vim.json.encode, last_resolution)
+      if ok and type(encoded) == 'string' and encoded ~= '' then
+        io.stderr:write(string.format('[m036-s02] phase=lsp last_resolution=%s\n', encoded))
+      end
+    end
   end
   vim.cmd('cquit 1')
 end
@@ -54,6 +62,21 @@ local function open_buffer(path)
   vim.cmd('silent! %bwipeout!')
   vim.cmd('edit ' .. vim.fn.fnameescape(path))
   return vim.api.nvim_get_current_buf()
+end
+
+local function ensure_clean_dir(path)
+  vim.fn.delete(path, 'rf')
+  if vim.fn.mkdir(path, 'p') ~= 1 then
+    fail('lsp', string.format('reason=failed_to_create_dir path=%s', path))
+  end
+end
+
+local function write_file(path, lines)
+  local parent = vim.fs.dirname(path)
+  if parent and parent ~= '' and vim.fn.mkdir(parent, 'p') ~= 1 then
+    fail('lsp', string.format('reason=failed_to_create_parent path=%s', parent))
+  end
+  vim.fn.writefile(lines, path)
 end
 
 local function syntax_info(line, col)
@@ -367,16 +390,104 @@ local function summarize_client(bufnr, client, label)
   local resolved = client.config._mesh_resolved or {}
   local root_dir = client.config.root_dir
   io.stdout:write(string.format(
-    '[m036-s02] phase=lsp case=%s client=%s client_id=%d buffer=%s root=%s marker=%s meshc_class=%s meshc_path=%s\n',
+    '[m036-s02] phase=lsp case=%s client=%s client_id=%d buffer=%s root=%s marker=%s marker_path=%s meshc_class=%s meshc_path=%s\n',
     label,
     client.name,
     client.id,
     rel(vim.api.nvim_buf_get_name(bufnr)),
     rel(root_dir),
     detected_root.marker,
+    rel(detected_root.marker_path),
     resolved.class or '<unknown>',
     rel(resolved.path)
   ))
+end
+
+local function materialize_override_entry_project()
+  local project_dir = vim.fs.joinpath(repo_root, '.tmp', 'm036-s02', requested_phase, 'override-entry-project')
+  local manifest_path = vim.fs.joinpath(project_dir, 'mesh.toml')
+  local entry_path = vim.fs.joinpath(project_dir, 'lib', 'start.mpl')
+  local support_path = vim.fs.joinpath(project_dir, 'lib', 'support', 'message.mpl')
+
+  ensure_clean_dir(project_dir)
+  write_file(manifest_path, {
+    '[package]',
+    'name = "override-entry-project"',
+    'version = "0.1.0"',
+    'entrypoint = "lib/start.mpl"',
+  })
+  write_file(entry_path, {
+    'from Lib.Support.Message import message',
+    '',
+    'fn main() do',
+    '  let rendered = message()',
+    '  println("proof=#{rendered}")',
+    'end',
+  })
+  write_file(support_path, {
+    'pub fn message() -> String do',
+    '  "nested-support"',
+    'end',
+  })
+
+  io.stdout:write(string.format(
+    '[m036-s02] phase=lsp case=override-entry materialized project=%s manifest=%s entry=%s support=%s\n',
+    rel(project_dir),
+    rel(manifest_path),
+    rel(entry_path),
+    rel(support_path)
+  ))
+
+  return {
+    project_dir = project_dir,
+    manifest_path = manifest_path,
+    entry_path = entry_path,
+    support_path = support_path,
+  }
+end
+
+local function assert_override_entry_project_attach()
+  local fixture = materialize_override_entry_project()
+  local entry_buf = open_buffer(fixture.entry_path)
+  local entry_client = wait_for_mesh_client(entry_buf, 8000)
+  if not entry_client then
+    fail('lsp', string.format('reason=attach_timeout case=override-entry-entry buffer=%s root_marker=%s last_error=%s', rel(fixture.entry_path), mesh.detect_root(entry_buf).marker, current_mesh_error()))
+  end
+  summarize_client(entry_buf, entry_client, 'override-entry-entry')
+
+  local detected_root = mesh.detect_root(entry_buf)
+  if canonical(detected_root.root_dir) ~= canonical(fixture.project_dir)
+    or detected_root.marker ~= 'mesh.toml'
+    or canonical(detected_root.marker_path) ~= canonical(fixture.manifest_path)
+  then
+    fail('lsp', string.format(
+      'reason=wrong_root case=override-entry expected_root=%s actual_root=%s expected_marker=mesh.toml actual_marker=%s expected_marker_path=%s actual_marker_path=%s',
+      rel(fixture.project_dir),
+      rel(detected_root.root_dir),
+      detected_root.marker,
+      rel(fixture.manifest_path),
+      rel(detected_root.marker_path)
+    ))
+  end
+
+  if canonical(entry_client.config.root_dir) ~= canonical(fixture.project_dir) then
+    fail('lsp', string.format(
+      'reason=wrong_client_root case=override-entry expected=%s actual=%s',
+      rel(fixture.project_dir),
+      rel(entry_client.config.root_dir)
+    ))
+  end
+
+  local support_buf = open_buffer(fixture.support_path)
+  local support_client = wait_for_mesh_client(support_buf, 8000)
+  if not support_client then
+    fail('lsp', string.format('reason=attach_timeout case=override-entry-support buffer=%s root_marker=%s last_error=%s', rel(fixture.support_path), mesh.detect_root(support_buf).marker, current_mesh_error()))
+  end
+  summarize_client(support_buf, support_client, 'override-entry-support')
+
+  if support_client.id ~= entry_client.id then
+    fail('lsp', string.format('reason=duplicate_client case=override-entry expected_reuse_of=%d actual=%d', entry_client.id, support_client.id))
+  end
 end
 
 local function assert_real_project_reuses_client()
@@ -472,9 +583,10 @@ local function run_lsp_phase()
 
   assert_missing_override_fails(vim.fs.joinpath(repo_root, 'reference-backend', 'api', 'health.mpl'))
   assert_real_project_reuses_client()
+  assert_override_entry_project_attach()
   assert_single_file_attach()
 
-  io.stdout:write('[m036-s02] phase=lsp result=pass checked_cases=3\n')
+  io.stdout:write('[m036-s02] phase=lsp result=pass checked_cases=4\n')
 end
 
 if not run_syntax and not run_lsp then

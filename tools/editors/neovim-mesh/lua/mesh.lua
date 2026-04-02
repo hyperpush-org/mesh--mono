@@ -1,7 +1,7 @@
 local M = {}
 
 M._options = {}
-M.root_markers = { 'main.mpl', '.git' }
+M.root_markers = { 'mesh.toml', 'main.mpl', '.git' }
 
 local uv = vim.uv or vim.loop
 
@@ -45,6 +45,13 @@ local function parent_dir(path)
     return nil
   end
   return parent
+end
+
+local function root_marker_type(marker)
+  if marker == '.git' then
+    return nil
+  end
+  return 'file'
 end
 
 local function ancestors(path)
@@ -139,33 +146,26 @@ function M.detect_root(bufnr)
 
   local start = parent_dir(path) or path
 
-  local main_match = vim.fs.find('main.mpl', {
-    path = start,
-    upward = true,
-    limit = 1,
-    type = 'file',
-  })[1]
-  if main_match then
-    return {
-      root_dir = normalize(parent_dir(main_match) or main_match),
-      marker = 'main.mpl',
-      marker_path = normalize(main_match),
-      buffer_path = path,
+  for _, marker in ipairs(M.root_markers) do
+    local find_opts = {
+      path = start,
+      upward = true,
+      limit = 1,
     }
-  end
+    local marker_type = root_marker_type(marker)
+    if marker_type then
+      find_opts.type = marker_type
+    end
 
-  local git_match = vim.fs.find('.git', {
-    path = start,
-    upward = true,
-    limit = 1,
-  })[1]
-  if git_match then
-    return {
-      root_dir = normalize(parent_dir(git_match) or git_match),
-      marker = '.git',
-      marker_path = normalize(git_match),
-      buffer_path = path,
-    }
+    local match = vim.fs.find(marker, find_opts)[1]
+    if match then
+      return {
+        root_dir = normalize(parent_dir(match) or match),
+        marker = marker,
+        marker_path = normalize(match),
+        buffer_path = path,
+      }
+    end
   end
 
   return {

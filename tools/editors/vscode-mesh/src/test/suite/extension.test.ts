@@ -8,6 +8,14 @@ interface MeshExtensionApi {
   resolutionSource: string;
 }
 
+interface OverrideEntryFixture {
+  projectDir: string;
+  manifestPath: string;
+  entryPath: string;
+  supportPath: string;
+  entrySource: string;
+}
+
 function requiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -181,6 +189,75 @@ async function openDocument(filePath: string, label: string) {
   return document;
 }
 
+function resetDir(dirPath: string) {
+  fs.rmSync(dirPath, { recursive: true, force: true });
+  fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function writeFixtureFile(filePath: string, contents: string) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, contents, "utf8");
+}
+
+function materializeOverrideEntryFixture(): OverrideEntryFixture {
+  const workspaceDir = path.dirname(workspaceFile);
+  const projectDir = path.join(workspaceDir, "override-entry-project");
+  const manifestPath = path.join(projectDir, "mesh.toml");
+  const entryPath = path.join(projectDir, "lib", "start.mpl");
+  const supportPath = path.join(projectDir, "lib", "support", "message.mpl");
+  const entrySource = [
+    "from Lib.Support.Message import message",
+    "",
+    "fn main() do",
+    "  let rendered = message()",
+    '  println("proof=#{rendered}")',
+    "end",
+    "",
+  ].join("\n");
+  const supportSource = [
+    "pub fn message() -> String do",
+    '  "nested-support"',
+    "end",
+    "",
+  ].join("\n");
+
+  resetDir(projectDir);
+  writeFixtureFile(
+    manifestPath,
+    ['[package]', 'name = "override-entry-project"', 'version = "0.1.0"', 'entrypoint = "lib/start.mpl"', ''].join("\n")
+  );
+  writeFixtureFile(entryPath, entrySource);
+  writeFixtureFile(supportPath, supportSource);
+
+  log(
+    `Materialized override-entry fixture project=${projectDir} manifest=${manifestPath} entry=${entryPath} support=${supportPath}`
+  );
+
+  return {
+    projectDir,
+    manifestPath,
+    entryPath,
+    supportPath,
+    entrySource,
+  };
+}
+
+async function assertCleanDiagnostics(
+  diagnostics: DiagnosticsTracker,
+  document: vscode.TextDocument,
+  label: string
+) {
+  log(`Waiting for clean diagnostics on ${document.uri.fsPath}`);
+  const entries = await diagnostics.waitFor(document.uri, label);
+  assert.equal(
+    entries.length,
+    0,
+    `[${label}] Expected no diagnostics for ${document.uri.fsPath}, got ${entries
+      .map((diagnostic) => diagnostic.message)
+      .join(" | ")}.`
+  );
+}
+
 export async function runSmokeSuite(): Promise<void> {
   const diagnostics = new DiagnosticsTracker();
 
@@ -227,31 +304,30 @@ export async function runSmokeSuite(): Promise<void> {
     );
     log(`Extension resolved meshc from ${api.resolutionSource}: ${api.resolvedMeshcPath}`);
 
-    log(`Waiting for clean diagnostics on ${healthDocument.uri.fsPath}`);
-    const healthDiagnostics = await diagnostics.waitFor(
-      healthDocument.uri,
-      "diagnostics/health"
-    );
-    assert.equal(
-      healthDiagnostics.length,
-      0,
-      `[diagnostics/health] Expected no diagnostics for ${healthDocument.uri.fsPath}, got ${healthDiagnostics
-        .map((diagnostic) => diagnostic.message)
-        .join(" | ")}.`
-    );
+    await assertCleanDiagnostics(diagnostics, healthDocument, "diagnostics/health");
 
     const jobsDocument = await openDocument(jobsPath, "jobs");
-    log(`Waiting for clean diagnostics on ${jobsDocument.uri.fsPath}`);
-    const jobsDiagnostics = await diagnostics.waitFor(
-      jobsDocument.uri,
-      "diagnostics/jobs"
+    await assertCleanDiagnostics(diagnostics, jobsDocument, "diagnostics/jobs");
+
+    const overrideFixture = materializeOverrideEntryFixture();
+    const overrideEntryDocument = await openDocument(
+      overrideFixture.entryPath,
+      "override-entry-entry"
     );
-    assert.equal(
-      jobsDiagnostics.length,
-      0,
-      `[diagnostics/jobs] Expected no diagnostics for ${jobsDocument.uri.fsPath}, got ${jobsDiagnostics
-        .map((diagnostic) => diagnostic.message)
-        .join(" | ")}.`
+    await assertCleanDiagnostics(
+      diagnostics,
+      overrideEntryDocument,
+      "diagnostics/override-entry-entry"
+    );
+
+    const overrideSupportDocument = await openDocument(
+      overrideFixture.supportPath,
+      "override-entry-support"
+    );
+    await assertCleanDiagnostics(
+      diagnostics,
+      overrideSupportDocument,
+      "diagnostics/override-entry-support"
     );
 
     const jobsSource = fs.readFileSync(jobsPath, "utf8");
@@ -321,6 +397,33 @@ export async function runSmokeSuite(): Promise<void> {
     log(
       `Definition probe resolved to ${jobsPath}:${createJobDefinitionPosition.line}`
     );
+
+    const overrideMessageCallPosition = sourcePosition(
+      overrideFixture.entrySource,
+      "message()",
+      0
+    );
+    log(
+      `Probing override-entry hover at ${overrideEntryDocument.uri.fsPath}:${overrideMessageCallPosition.line}:${overrideMessageCallPosition.character}`
+    );
+    const overrideHovers = await withTimeout(
+      "probe/override-hover",
+      vscode.commands.executeCommand<vscode.Hover[]>(
+        "vscode.executeHoverProvider",
+        overrideEntryDocument.uri,
+        overrideMessageCallPosition
+      )
+    );
+    const overrideHoverSummary = hoverText(overrideHovers).trim();
+    assert.ok(
+      overrideHoverSummary.length > 0,
+      `[probe/override-hover] Hover returned no content for ${overrideEntryDocument.uri.fsPath}.`
+    );
+    assert.ok(
+      overrideHoverSummary.includes("String"),
+      `[probe/override-hover] Expected imported nested helper type information for ${overrideEntryDocument.uri.fsPath}, got ${overrideHoverSummary}`
+    );
+    log(`Override-entry hover probe returned ${JSON.stringify(overrideHoverSummary)}`);
   } finally {
     diagnostics.dispose();
   }

@@ -55,7 +55,8 @@ The LSP transport starts `meshc lsp` and resolves the binary in this order:
 
 Root detection is separate from binary discovery:
 
-- workspace root prefers `main.mpl`
+- workspace root prefers `mesh.toml`
+- then falls back to root `main.mpl`
 - then falls back to `.git`
 - otherwise Mesh attaches in honest single-file mode (`root_dir = nil`)
 
@@ -80,7 +81,7 @@ The command exits `0` only after these named phases pass:
 1. `corpus` — materialize the shared S01 interpolation corpus, including markdown-backed docs snippets, into temporary `.mpl` files under `.tmp/m036-s02/`
 2. `shared-grammar` — replay `bash scripts/verify-m036-s01.sh`
 3. `upstream-lsp` — replay `cargo test -q -p meshc --test e2e_lsp -- --nocapture`
-4. `neovim` — install this pack through a real `pack/*/start/mesh-nvim` path and run the headless Neovim smoke covering both syntax and LSP assertions
+4. `neovim` — install this pack through a real `pack/*/start/mesh-nvim` path and run the headless Neovim smoke covering syntax plus LSP attach/root-resolution assertions for `reference-backend/`, a manifest-first override-entry fixture, and honest single-file mode
 
 The verifier emits phase-local logs and leaves artifacts under `.tmp/m036-s02/` so failures stay attributable by phase and case.
 
