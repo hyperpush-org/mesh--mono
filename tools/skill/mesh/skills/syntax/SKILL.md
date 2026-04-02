@@ -30,6 +30,20 @@ fn main() do
 end
 ```
 
+## Decorator-Style Clustered Declarations
+Rules:
+1. `@cluster` and `@cluster(N)` are decorator forms attached directly to function declarations.
+2. Use them in source (`work.mpl`) for the canonical clustered-runtime surface rather than treating clustering as manifest-owned config.
+3. `Node.start_from_env()` is the matching bootstrap entrypoint for packages that participate in the clustered runtime.
+4. For scaffold, operator, or routed clustered-runtime guidance, load `skills/clustering`; this syntax skill only calls out the decorator surface.
+
+Code example:
+```mesh
+@cluster pub fn add() -> Int do
+  1 + 1
+end
+```
+
 ## Closures
 1. Anonymous functions: `fn(params) -> expr end` (single expression) or `fn(params) do ... end`.
 2. Closures capture variables from the enclosing scope (lexical capture).

@@ -1,6 +1,6 @@
 ---
 name: mesh-http
-description: Mesh HTTP: server routing (HTTP.router/route/serve), middleware (HTTP.use), path parameters, HTTP client v14 fluent builder (Http.build/send/stream), legacy HTTP.get, and WebSocket.
+description: Mesh HTTP: server routing (`HTTP.router`, `HTTP.route`, `HTTP.on_get`/`HTTP.on_post`/`HTTP.on_put`/`HTTP.on_delete`, `HTTP.clustered`), middleware (`HTTP.use`), path parameters, HTTP client v14 fluent builder (`Http.build`/`send`/`stream`), legacy `HTTP.get`, and WebSocket.
 ---
 
 ## HTTP Server Basics
@@ -8,10 +8,11 @@ description: Mesh HTTP: server routing (HTTP.router/route/serve), middleware (HT
 Rules:
 1. `HTTP.router()` creates a new router instance.
 2. `HTTP.route(router, path, handler)` registers a handler for a path — returns updated router (rebind).
-3. `HTTP.serve(router, port)` starts the HTTP server on the given port (blocks).
-4. Handler signature: `fn handler(request) do ... HTTP.response(status, body) end`.
-5. `HTTP.response(status_code, body_string)` creates a Response — return this from handlers.
-6. For JSON responses, use `json { }` literals — they are type-safe and auto-coerce to String: `HTTP.response(200, json { status: "ok", id: record_id })`.
+3. `HTTP.on_get`, `HTTP.on_post`, `HTTP.on_put`, and `HTTP.on_delete` register method-specific handlers — each returns updated router (rebind).
+4. `HTTP.serve(router, port)` starts the HTTP server on the given port (blocks).
+5. Handler signature: `fn handler(request) do ... HTTP.response(status, body) end`.
+6. `HTTP.response(status_code, body_string)` creates a Response — return this from handlers.
+7. For JSON responses, use `json { }` literals — they are type-safe and auto-coerce to String: `HTTP.response(200, json { status: "ok", id: record_id })`.
 
 Code example (from tests/e2e/stdlib_http_server_runtime.mpl):
 ```mesh
@@ -23,6 +24,28 @@ fn main() do
   let r = HTTP.router()
   let r = HTTP.route(r, "/health", handler)
   HTTP.serve(r, 8080)
+end
+```
+
+## Method-Specific Route Helpers
+
+Rules:
+1. `HTTP.on_get(router, path, handler)`, `HTTP.on_post(router, path, handler)`, `HTTP.on_put(router, path, handler)`, and `HTTP.on_delete(router, path, handler)` register handlers for a specific HTTP method.
+2. They compose naturally with `|>` pipelines and keep the method visible at the callsite.
+3. `HTTP.route(...)` remains the generic route API and is still valid when you do not want method-specific helpers.
+4. The shipped Todo starter uses `HTTP.on_get`, `HTTP.on_post`, `HTTP.on_put`, and `HTTP.on_delete` while keeping clustered read routes bounded and mutating routes local.
+
+Code example (from `compiler/mesh-pkg/src/scaffold.rs`):
+```mesh
+pub fn build_router() do
+  let router = HTTP.router()
+    |> HTTP.on_get("/health", handle_health)
+    |> HTTP.on_get("/todos", HTTP.clustered(1, handle_list_todos))
+    |> HTTP.on_get("/todos/:id", HTTP.clustered(1, handle_get_todo))
+    |> HTTP.on_post("/todos", handle_create_todo)
+    |> HTTP.on_put("/todos/:id", handle_toggle_todo)
+    |> HTTP.on_delete("/todos/:id", handle_delete_todo)
+  router
 end
 ```
 
@@ -61,6 +84,23 @@ Code example (from tests/e2e/stdlib_http_response.mpl):
 fn handler(request :: Request) -> Response do
   HTTP.response(200, "hello world")
 end
+```
+
+## Clustered Route Wrappers
+
+Rules:
+1. `HTTP.clustered(handler)` wraps a bare public handler reference with the default replication count.
+2. `HTTP.clustered(1, handler)` sets an explicit replication count; the shipped Todo starter uses explicit-count `HTTP.clustered(1, ...)` on `GET /todos` and `GET /todos/:id`.
+3. Keep route-free `@cluster` declarations as the canonical clustered surface. `HTTP.clustered(...)` is a routed HTTP wrapper, not a replacement for source-first clustered work.
+4. `GET /health` and mutating routes stay local in the shipped Todo starter.
+5. `HTTP.clustered(...)` must appear in route-handler position and wrap a bare handler reference.
+6. For clustered-runtime bootstrap, scaffold, or operator guidance, also load `skills/clustering`.
+
+Code example — accepted forms (grounded in `compiler/mesh-typeck/tests/http_clustered_routes.rs`):
+```mesh
+let router = HTTP.router()
+  |> HTTP.on_get("/todos", HTTP.clustered(handle_list_todos))
+  |> HTTP.on_get("/todos/:id", HTTP.clustered(1, handle_get_todo))
 ```
 
 ## Middleware
