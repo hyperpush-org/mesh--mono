@@ -43,7 +43,7 @@
   - Files: README.md, website/docs/docs/tooling/index.md, tools/editors/vscode-mesh/README.md, scripts/tests/verify-m048-s05-contract.test.mjs
   - Verify: - `node --test scripts/tests/verify-m048-s05-contract.test.mjs`
 - `npm --prefix website run build`
-- [ ] **T02: Assemble the retained S01-S04 rails into `scripts/verify-m048-s05.sh` with diagnosable proof artifacts** — Once the public text is truthful, the slice still needs one named closeout entrypoint that proves the assembled contract without rediscovering product behavior. This task adds the retained S05 verifier as an orchestration layer over the existing S01-S04 rails, with M047-style phase bookkeeping and artifact retention so the first failing seam is inspectable.
+- [x] **T02: Added scripts/verify-m048-s05.sh to replay the retained S01-S04 rails with phase bookkeeping and a retained proof bundle.** — Once the public text is truthful, the slice still needs one named closeout entrypoint that proves the assembled contract without rediscovering product behavior. This task adds the retained S05 verifier as an orchestration layer over the existing S01-S04 rails, with M047-style phase bookkeeping and artifact retention so the first failing seam is inspectable.
 
 ## Failure Modes
 
