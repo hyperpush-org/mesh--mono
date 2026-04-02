@@ -16,7 +16,7 @@
   - Estimate: 2h
   - Files: tools/editors/neovim-mesh/lua/mesh.lua, tools/editors/neovim-mesh/lsp/mesh.lua, tools/editors/neovim-mesh/tests/smoke.lua, tools/editors/neovim-mesh/README.md, scripts/tests/verify-m036-s02-contract.test.mjs, tools/editors/vscode-mesh/src/test/suite/extension.test.ts, tools/editors/vscode-mesh/src/test/runTest.ts
   - Verify: NEOVIM_BIN="${NEOVIM_BIN:-nvim}" bash scripts/verify-m036-s02.sh lsp && node --test scripts/tests/verify-m036-s02-contract.test.mjs && npm --prefix tools/editors/vscode-mesh run test:smoke
-- [ ] **T04: Make `meshpkg publish` archive nested Mesh source trees instead of root-only executables** — Package publishing is still the remaining package-surface hardcode. Replace `meshpkg publish`'s root-only `.mpl` plus `src/` tarball logic with a recursive project-root walk that matches Mesh source-discovery rules, preserves relative paths, excludes hidden/test-only content, and proves override-entry tarballs contain their real nested entry/support files.
+- [x] **T04: Made `meshpkg publish` archive nested Mesh source trees relative to project root and pinned the behavior with direct tarball-member regression tests.** — Package publishing is still the remaining package-surface hardcode. Replace `meshpkg publish`'s root-only `.mpl` plus `src/` tarball logic with a recursive project-root walk that matches Mesh source-discovery rules, preserves relative paths, excludes hidden/test-only content, and proves override-entry tarballs contain their real nested entry/support files.
   - Estimate: 90m
   - Files: compiler/meshpkg/src/publish.rs
   - Verify: cargo test -p meshpkg -- --nocapture
