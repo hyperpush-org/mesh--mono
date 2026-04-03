@@ -9,28 +9,18 @@ const { theme } = useData()
 
 const highlightedHtml = ref('')
 
-const heroCode = `# Add @cluster — Mesh handles placement, replication, failover
-@cluster pub fn process_order(order_id :: String) -> String do
-  let order = Repo.find(pool, Order, order_id)
-  let _ = Payment.charge(order)
-  "Done on \#{Node.self()}"
+const heroCode = `# work.mpl
+@cluster pub fn add() -> Int do
+  1 + 1
 end
 
-fn main() do
-  let pool = Postgres.open(Env.get("DATABASE_URL"))
-  # Clustering, failover, load balancing — one call
-  let _ = Node.start_from_env()
+# api/router.mpl
+from Api.Todos import handle_get_todo, handle_list_todos
 
-  HTTP.serve(HTTP.router()
-    |> HTTP.on_post("/orders", fn(req) do
-      let id = Request.json(req)["id"]
-      let _ = Continuity.submit(id, process_order)
-      HTTP.response(202, "accepted")
-    end)
-    |> HTTP.on_get("/orders/:id", fn(req) do
-      let s = Continuity.status(Request.param(req, "id"))
-      HTTP.response(200, Json.encode(s))
-    end), 8080)
+pub fn build_router() do
+  HTTP.router()
+    |> HTTP.on_get("/todos", HTTP.clustered(handle_list_todos))
+    |> HTTP.on_get("/todos/:id", HTTP.clustered(handle_get_todo))
 end`
 
 onMounted(async () => {
@@ -99,7 +89,7 @@ onMounted(async () => {
                 <div class="size-3 rounded-full bg-[#febc2e] shadow-[inset_0_-1px_0_rgba(0,0,0,0.12)]" />
                 <div class="size-3 rounded-full bg-[#28c840] shadow-[inset_0_-1px_0_rgba(0,0,0,0.12)]" />
               </div>
-              <span class="ml-2 text-xs text-muted-foreground font-medium">main.mpl</span>
+              <span class="ml-2 text-xs text-muted-foreground font-medium">clustered starter</span>
             </div>
             <!-- Code content -->
             <div v-if="highlightedHtml" v-html="highlightedHtml" class="vp-code [&_pre]:px-5 [&_pre]:py-4 [&_pre]:!bg-transparent" />

@@ -18,46 +18,35 @@ const features: Feature[] = [
     number: '01',
     title: 'Cluster-Native Distribution',
     description:
-      'Add @cluster to any function and Mesh handles placement, replication, and retry across your fleet. No queue infrastructure, no orchestrator — distribution is built into the language itself.',
-    filename: 'orders.mpl',
+      'Keep clustered work source-first with @cluster, wrap the routes you want with HTTP.clustered(...), and let the runtime handle placement and failover. No manual submit/status plumbing in app code.',
+    filename: 'api/router.mpl',
     badge: 'Distribution',
-    code: `# One annotation — Mesh routes work across nodes
-@cluster pub fn process_order(order_id :: String) -> String do
-  let order = Repo.find(pool, Order, order_id)
-  let _ = Payment.charge(order)
-  "Done on \#{Node.self()}"
-end
+    code: `from Api.Health import handle_health
+from Api.Todos import handle_create_todo, handle_get_todo, handle_list_todos
 
-# Submit from any node — Mesh picks the best target
-let _ = Continuity.submit("order-42", process_order)
-
-# Query progress from anywhere in the cluster
-let status = Continuity.status("order-42")
-# {phase: "executing", owner_node: "worker-2@10.0.1.4"}
-# {phase: "completed", execution_node: "worker-2@10.0.1.4"}`,
+pub fn build_router() do
+  HTTP.router()
+    |> HTTP.on_get("/health", handle_health)
+    |> HTTP.on_get("/todos", HTTP.clustered(handle_list_todos))
+    |> HTTP.on_get("/todos/:id", HTTP.clustered(handle_get_todo))
+    |> HTTP.on_post("/todos", handle_create_todo)
+end`,
   },
   {
     number: '02',
-    title: 'Zero-Config Failover',
+    title: 'Runtime-Owned Failover',
     description:
-      'Set two environment variables and your nodes discover each other automatically. If the primary fails mid-task, the standby promotes and resumes work without any intervention — no external coordinator needed.',
+      'Boot through Node.start_from_env() and let the runtime handle discovery, promotion, and recovery across the same app code. No package-owned cluster control plane or external coordinator.',
     filename: 'main.mpl',
     badge: 'Resilience',
     code: `fn main() do
-  # MESH_NODE_NAME=api-1@10.0.1.2:4370
-  # MESH_DISCOVERY_SEED=myapp.internal
-  let boot = Node.start_from_env()
+  let _ = Node.start_from_env()
+  HTTP.serve(build_router(), 8080)
+end
 
-  case boot.role do
-    "primary" -> println("Primary ready, replicating to standby")
-    "standby" -> println("Standby watching primary")
-  end
-
-  # If primary disappears:
-  #  → standby auto-promotes to primary
-  #  → in-flight work resumes on the new primary
-  #  → no manual retry, no external queue needed
-end`,
+# same app on every node
+# primary executes the work
+# standby mirrors and resumes if the primary disappears`,
   },
   {
     number: '03',

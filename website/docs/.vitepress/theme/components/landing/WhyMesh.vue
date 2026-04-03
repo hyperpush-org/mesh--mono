@@ -21,7 +21,7 @@ const comparisons = [
     label: 'vs Go',
     tagline: 'Distribution built-in',
     description:
-      'Go\'s goroutines are fast but distribution still requires Redis, queues, or external systems. In Mesh, @cluster and Continuity are language primitives — failover, load balancing, and exactly-once semantics with zero infrastructure.',
+      'Go\'s goroutines are fast but distribution still requires Redis, queues, or external systems. In Mesh, @cluster and HTTP.clustered(...) are built in — failover, load balancing, and exactly-once semantics with zero infrastructure.',
     pros: ['@cluster decorator', 'Auto-failover', 'No external queue'],
     featured: false,
   },

@@ -7,7 +7,7 @@ const { observe } = useScrollReveal()
 const items = ref<HTMLElement[]>([])
 
 const capabilities = [
-  { icon: Network, stat: 'Auto-Failover', description: 'Zero-config recovery', detail: 'Built-in continuity' },
+  { icon: Network, stat: 'Auto-Failover', description: 'Runtime-owned recovery', detail: 'No manual retries' },
   { icon: Cpu, stat: 'LLVM Native', description: 'Compiled binaries', detail: 'No VM overhead' },
   { icon: Shield, stat: 'Type-Safe', description: 'Full inference', detail: 'Hindley-Milner' },
   { icon: Package, stat: 'Batteries Included', description: 'HTTP, Postgres, WS', detail: 'Full server stdlib' },
