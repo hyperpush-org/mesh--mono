@@ -2,14 +2,6 @@
 
 import { useEffect, useRef } from "react"
 import { motion, useInView } from "framer-motion"
-import { Zap, Shield, Cpu, Activity } from "lucide-react"
-
-const stats = [
-  { icon: Zap, value: "140%", label: "Faster than Elixir", sublabel: "on equivalent workloads" },
-  { icon: Shield, value: "Actor", label: "Fault-Tolerant Model", sublabel: "processes that self-heal" },
-  { icon: Cpu, value: "<1ms", label: "Process Spawn Time", sublabel: "lightweight by design" },
-  { icon: Activity, value: "M:N", label: "Concurrency Model", sublabel: "millions of concurrent tasks" },
-]
 
 function MeshBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -244,14 +236,14 @@ function MeshBackground() {
 
 export function Infrastructure() {
   return (
-    <section className="relative py-32 border-t border-border overflow-hidden">
+    <section className="relative py-20 sm:py-32 border-t border-border overflow-hidden">
       {/* Full-bleed mesh background */}
       <MeshBackground />
 
       {/* Soft ambient glow behind the cluster center */}
       <div className="absolute top-[38%] right-[12%] -translate-y-1/2 w-[500px] h-[500px] bg-accent/[0.04] rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
           {/* Left — copy */}
           <motion.div
@@ -277,25 +269,6 @@ export function Infrastructure() {
               of concurrent processes, sub-millisecond spawn times, and automatic supervision trees 
               that self-heal on failure.
             </p>
-
-            {/* Stats grid */}
-            <div className="grid grid-cols-2 gap-px bg-border rounded-lg overflow-hidden">
-              {stats.map((stat, index) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="bg-background/80 backdrop-blur-sm p-4 sm:p-5"
-                >
-                  <stat.icon className="w-4 h-4 text-accent mb-3" />
-                  <p className="text-2xl font-bold text-foreground mb-0.5">{stat.value}</p>
-                  <p className="text-sm font-medium text-foreground/80">{stat.label}</p>
-                  <p className="text-xs text-muted-foreground">{stat.sublabel}</p>
-                </motion.div>
-              ))}
-            </div>
           </motion.div>
 
           {/* Right — empty space where the mesh renders through */}
