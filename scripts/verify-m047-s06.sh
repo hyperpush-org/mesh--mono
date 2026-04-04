@@ -407,8 +407,78 @@ PY
 
 record_phase contract-guards started
 printf 'contract-guards\n' >"$CURRENT_PHASE_PATH"
-for surface in \
+assert_file_contains_regex \
+  contract-sidebar-proof-surfaces \
+  website/docs/.vitepress/config.mts \
+  "text: 'Proof Surfaces'" \
+  'docs sidebar lost the public-secondary proof group'
+assert_file_contains_regex \
+  contract-sidebar-distributed-proof-link \
+  website/docs/.vitepress/config.mts \
+  "link: '/docs/distributed-proof/'" \
+  'docs sidebar lost the Distributed Proof public link'
+assert_file_contains_regex \
+  contract-sidebar-production-proof-link \
+  website/docs/.vitepress/config.mts \
+  "link: '/docs/production-backend-proof/'" \
+  'docs sidebar lost the Production Backend Proof public link'
+assert_file_contains_regex \
+  contract-sidebar-proof-footer-opt-out \
+  website/docs/.vitepress/config.mts \
+  'includeInFooter: false' \
+  'docs sidebar lost the proof-page footer opt-out marker'
+assert_file_contains_regex \
+  contract-readme-todo-postgres \
   README.md \
+  'examples/todo-postgres/README\.md' \
+  'README lost the public PostgreSQL starter reference'
+assert_file_contains_regex \
+  contract-readme-todo-sqlite \
+  README.md \
+  'examples/todo-sqlite/README\.md' \
+  'README lost the public SQLite starter reference'
+assert_file_contains_regex \
+  contract-readme-reference-backend \
+  README.md \
+  'reference-backend/README\.md' \
+  'README lost the deeper backend proof reference'
+assert_file_contains_regex \
+  contract-readme-distributed-proof-link \
+  README.md \
+  'https://meshlang\.dev/docs/distributed-proof/' \
+  'README lost the public distributed-proof link'
+assert_file_contains_regex \
+  contract-readme-production-proof-link \
+  README.md \
+  'https://meshlang\.dev/docs/production-backend-proof/' \
+  'README lost the public production-proof link'
+assert_file_contains_regex \
+  contract-readme-scaffold \
+  README.md \
+  'meshc init --clustered' \
+  'README lost the scaffold-first clustered entrypoint'
+assert_file_omits_regex \
+  contract-readme-proof-rail-commands \
+  README.md \
+  'scripts/verify-m047-s04\.sh|scripts/verify-m047-s05\.sh|scripts/verify-m047-s06\.sh|e2e_m047_s07|tiny-cluster/README\.md|cluster-proof/README\.md' \
+  'README still presents retained proof rails as first-contact onboarding text'
+assert_file_omits_regex \
+  contract-readme-stale-generic-template \
+  README.md \
+  'meshc init --template todo-api(?! --db (sqlite|postgres))' \
+  'README still uses the unsplit generic todo template command'
+assert_file_omits_regex \
+  contract-readme-stale-sqlite-clustered \
+  README.md \
+  'adding a SQLite HTTP app|local SQLite/HTTP routes plus explicit-count `HTTP\.clustered\(1, \.\.\.\)`' \
+  'README still presents the SQLite starter as part of the clustered wrapper story'
+assert_file_omits_regex \
+  contract-readme-stale-non-goal \
+  README.md \
+  'HTTP\.clustered\(\.\.\.\) is still not shipped' \
+  'README still claims HTTP.clustered(...) is unshipped'
+
+for surface in \
   website/docs/docs/tooling/index.md \
   website/docs/docs/getting-started/clustered-example/index.md \
   website/docs/docs/distributed-proof/index.md \
@@ -485,11 +555,6 @@ for surface in \
     'HTTP\.clustered\(\.\.\.\) is still not shipped' \
     "$surface still claims HTTP.clustered(...) is unshipped"
 done
-assert_file_contains_regex \
-  contract-readme-scaffold \
-  README.md \
-  'meshc init --clustered' \
-  'README lost the scaffold-first clustered entrypoint'
 assert_file_contains_regex \
   contract-clustered-example-scaffold \
   website/docs/docs/getting-started/clustered-example/index.md \

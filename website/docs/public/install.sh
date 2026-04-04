@@ -4,7 +4,7 @@
 # Or: sh install.sh [--version VERSION] [--uninstall] [--yes] [--help]
 set -eu
 
-REPO="snowdamiz/mesh-lang"
+REPO="hyperpush-org/hyperpush-mono"
 INSTALL_DIR="$HOME/.mesh/bin"
 ENV_FILE="$HOME/.mesh/env"
 VERSION_FILE="$HOME/.mesh/version"

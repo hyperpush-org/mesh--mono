@@ -7,6 +7,9 @@ use support::m046_route_free as route_free;
 const TODO_POSTGRES_README: &str = "examples/todo-postgres/README.md";
 const TODO_SQLITE_README: &str = "examples/todo-sqlite/README.md";
 const REFERENCE_BACKEND_RUNBOOK: &str = "reference-backend/README.md";
+const DISTRIBUTED_PROOF_SITE_URL: &str = "https://meshlang.dev/docs/distributed-proof/";
+const PRODUCTION_BACKEND_PROOF_DOC_LINK: &str = "/docs/production-backend-proof/";
+const PRODUCTION_BACKEND_PROOF_SITE_URL: &str = "https://meshlang.dev/docs/production-backend-proof/";
 const CUTOVER_RAIL: &str = "bash scripts/verify-m047-s04.sh";
 const CLOSEOUT_RAIL: &str = "bash scripts/verify-m047-s06.sh";
 const HISTORICAL_M046_CLOSEOUT_ALIAS: &str = "bash scripts/verify-m046-s06.sh";
@@ -239,6 +242,22 @@ fn m047_s04_authoritative_cutover_rail_replays_source_first_contract_and_snapsho
             "cargo test -p meshc --test tooling_e2e test_init_clustered_creates_project -- --nocapture",
             "examples/todo-postgres/README.md",
             "examples/todo-sqlite/README.md",
+            "contract-sidebar-proof-surfaces",
+            "contract-sidebar-distributed-proof-link",
+            "contract-sidebar-production-proof-link",
+            "contract-sidebar-proof-footer-opt-out",
+            "contract-todo-postgres-init",
+            "contract-todo-postgres-clustered-source",
+            "contract-todo-postgres-clustered-route",
+            "contract-todo-postgres-health",
+            "contract-todo-postgres-cluster-status",
+            "contract-todo-postgres-env",
+            "contract-todo-sqlite-init",
+            "contract-todo-sqlite-tests",
+            "contract-todo-sqlite-health",
+            "contract-todo-sqlite-db-path",
+            "contract-todo-sqlite-postgres-branch",
+            "contract-todo-sqlite-clustered-branch",
             "cargo run -q -p meshc -- test scripts/fixtures/clustered/tiny-cluster/tests",
             "cargo run -q -p meshc -- build scripts/fixtures/clustered/tiny-cluster",
             "cargo run -q -p meshc -- test scripts/fixtures/clustered/cluster-proof/tests",
@@ -312,43 +331,67 @@ fn m047_s04_public_surfaces_keep_the_m050_onboarding_graph_and_proof_rails_disco
         &sources.docs_config,
     );
 
-    for (path_label, source) in [
-        ("README.md", &sources.readme),
-        (
-            "website/docs/docs/distributed-proof/index.md",
-            &sources.distributed_proof,
-        ),
-    ] {
-        assert_contains_all(
-            path_label,
-            source,
-            &[
-                TODO_POSTGRES_README,
-                TODO_SQLITE_README,
-                REFERENCE_BACKEND_RUNBOOK,
-                CUTOVER_RAIL,
-                CLOSEOUT_RAIL,
-                HISTORICAL_M046_CLOSEOUT_ALIAS,
-                HISTORICAL_M046_EQUAL_SURFACE_ALIAS,
-                HISTORICAL_M046_PACKAGE_ALIAS,
-                HISTORICAL_M045_CLOSEOUT_ALIAS,
-                HISTORICAL_M045_ASSEMBLED_ALIAS,
-                HISTORICAL_FAILOVER_SUBRAIL,
-            ],
-        );
-        assert_omits_all(
-            path_label,
-            source,
-            &[
-                STALE_M046_AUTHORITY,
-                "`bash scripts/verify-m046-s05.sh` — the lower-level equal-surface subrail",
-                "`bash scripts/verify-m045-s05.sh` — the historical wrapper name retained for replay and transition into the S06 closeout rail",
-                "tiny-cluster/README.md",
-                "cluster-proof/README.md",
-            ],
-        );
-        assert_clustered_surface_omits_routeful_drift(path_label, source);
-    }
+    assert_contains_all(
+        "README.md",
+        &sources.readme,
+        &[
+            TODO_POSTGRES_README,
+            TODO_SQLITE_README,
+            REFERENCE_BACKEND_RUNBOOK,
+            DISTRIBUTED_PROOF_SITE_URL,
+            PRODUCTION_BACKEND_PROOF_SITE_URL,
+        ],
+    );
+    assert_omits_all(
+        "README.md",
+        &sources.readme,
+        &[
+            CUTOVER_RAIL,
+            CLOSEOUT_RAIL,
+            HISTORICAL_M046_CLOSEOUT_ALIAS,
+            HISTORICAL_M046_EQUAL_SURFACE_ALIAS,
+            HISTORICAL_M046_PACKAGE_ALIAS,
+            HISTORICAL_M045_CLOSEOUT_ALIAS,
+            HISTORICAL_M045_ASSEMBLED_ALIAS,
+            HISTORICAL_FAILOVER_SUBRAIL,
+            STALE_M046_AUTHORITY,
+            "tiny-cluster/README.md",
+            "cluster-proof/README.md",
+        ],
+    );
+
+    assert_contains_all(
+        "website/docs/docs/distributed-proof/index.md",
+        &sources.distributed_proof,
+        &[
+            TODO_POSTGRES_README,
+            TODO_SQLITE_README,
+            REFERENCE_BACKEND_RUNBOOK,
+            CUTOVER_RAIL,
+            CLOSEOUT_RAIL,
+            HISTORICAL_M046_CLOSEOUT_ALIAS,
+            HISTORICAL_M046_EQUAL_SURFACE_ALIAS,
+            HISTORICAL_M046_PACKAGE_ALIAS,
+            HISTORICAL_M045_CLOSEOUT_ALIAS,
+            HISTORICAL_M045_ASSEMBLED_ALIAS,
+            HISTORICAL_FAILOVER_SUBRAIL,
+        ],
+    );
+    assert_omits_all(
+        "website/docs/docs/distributed-proof/index.md",
+        &sources.distributed_proof,
+        &[
+            STALE_M046_AUTHORITY,
+            "`bash scripts/verify-m046-s05.sh` — the lower-level equal-surface subrail",
+            "`bash scripts/verify-m045-s05.sh` — the historical wrapper name retained for replay and transition into the S06 closeout rail",
+            "tiny-cluster/README.md",
+            "cluster-proof/README.md",
+        ],
+    );
+    assert_clustered_surface_omits_routeful_drift(
+        "website/docs/docs/distributed-proof/index.md",
+        &sources.distributed_proof,
+    );
 }
 
 #[test]
@@ -398,6 +441,12 @@ fn m047_s04_clustered_runbooks_keep_example_readmes_and_secondary_proof_surfaces
         );
         assert_clustered_surface_omits_routeful_drift(path_label, source);
     }
+
+    assert_contains(
+        "website/docs/docs/tooling/index.md",
+        &sources.tooling,
+        PRODUCTION_BACKEND_PROOF_DOC_LINK,
+    );
 }
 
 #[test]

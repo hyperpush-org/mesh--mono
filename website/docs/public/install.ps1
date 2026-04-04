@@ -11,7 +11,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$Repo = "snowdamiz/mesh-lang"
+$Repo = "hyperpush-org/hyperpush-mono"
 $MeshHome = "$env:USERPROFILE\.mesh"
 $BinDir = "$MeshHome\bin"
 $VersionFile = "$MeshHome\version"

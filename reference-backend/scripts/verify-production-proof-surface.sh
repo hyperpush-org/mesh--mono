@@ -9,6 +9,13 @@ RUNBOOK_FILE="reference-backend/README.md"
 SIDEBAR_FILE="website/docs/.vitepress/config.mts"
 GETTING_STARTED_FILE="website/docs/docs/getting-started/index.md"
 PROOF_LINK="/docs/production-backend-proof/"
+PROOF_URL="https://meshlang.dev/docs/production-backend-proof/"
+CLUSTERED_EXAMPLE_LINK="/docs/getting-started/clustered-example/"
+CLUSTERED_EXAMPLE_URL="https://meshlang.dev/docs/getting-started/clustered-example/"
+README_CLUSTERED_EXAMPLE_NEXT_STEP='- **Clustered walkthrough:** use `meshc init --clustered` and then follow https://meshlang.dev/docs/getting-started/clustered-example/'
+README_PROOF_NEXT_STEP='- **Production Backend Proof:** https://meshlang.dev/docs/production-backend-proof/'
+GETTING_STARTED_CLUSTERED_EXAMPLE_NEXT_STEP='- [Clustered Example](/docs/getting-started/clustered-example/)'
+GETTING_STARTED_PROOF_NEXT_STEP='- [Production Backend Proof](/docs/production-backend-proof/)'
 RUNBOOK_REF="reference-backend/README.md"
 RUNBOOK_LINK="https://github.com/snowdamiz/mesh-lang/blob/main/reference-backend/README.md"
 CANONICAL_PUBLIC_PROOF_COMMANDS=(
@@ -88,6 +95,38 @@ require_not_contains() {
   fi
 }
 
+require_order() {
+  local relative_path="$1"
+  local first="$2"
+  local second="$3"
+  local description="$4"
+  local output
+  if ! output=$(python3 - "$ROOT/$relative_path" "$first" "$second" "$description" 2>&1 <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+first = sys.argv[2]
+second = sys.argv[3]
+description = sys.argv[4]
+text = path.read_text(errors='replace')
+first_index = text.find(first)
+if first_index == -1:
+    raise SystemExit(f"{description}: missing first marker {first!r} in {path}")
+second_index = text.find(second)
+if second_index == -1:
+    raise SystemExit(f"{description}: missing second marker {second!r} in {path}")
+if first_index >= second_index:
+    raise SystemExit(
+        f"{description}: expected {first!r} before {second!r} in {path}, got indexes {first_index} >= {second_index}"
+    )
+print(f"{description}: {first!r} precedes {second!r}")
+PY
+); then
+    fail "$output"
+  fi
+}
+
 phase "checking prerequisites"
 require_command rg
 require_command python3
@@ -99,9 +138,24 @@ require_file "$RUNBOOK_FILE"
 require_file "$SIDEBAR_FILE"
 require_file "$GETTING_STARTED_FILE"
 
-phase "checking the landing page keeps the production proof surface public"
-require_contains "$README_FILE" "$PROOF_LINK" "production proof link"
+phase "checking public entrypoints keep the production proof surface discoverable but secondary"
+require_contains "$README_FILE" "$PROOF_URL" "production proof link"
 require_contains "$README_FILE" "$RUNBOOK_REF" "reference backend runbook reference"
+require_contains "$README_FILE" "$CLUSTERED_EXAMPLE_URL" "clustered example link"
+require_order \
+  "$README_FILE" \
+  "$README_CLUSTERED_EXAMPLE_NEXT_STEP" \
+  "$README_PROOF_NEXT_STEP" \
+  'README keeps the clustered example ahead of the production proof path'
+
+require_contains "$GETTING_STARTED_FILE" "$PROOF_LINK" "production proof link"
+require_contains "$GETTING_STARTED_FILE" "$RUNBOOK_REF" "reference backend runbook reference"
+require_contains "$GETTING_STARTED_FILE" "$CLUSTERED_EXAMPLE_LINK" "clustered example link"
+require_order \
+  "$GETTING_STARTED_FILE" \
+  "$GETTING_STARTED_CLUSTERED_EXAMPLE_NEXT_STEP" \
+  "$GETTING_STARTED_PROOF_NEXT_STEP" \
+  'Getting Started keeps Clustered Example ahead of Production Backend Proof'
 
 phase "checking the sidebar keeps the production proof surface public but secondary"
 if ! python3 - "$ROOT/$SIDEBAR_FILE" "$PROOF_LINK" <<'PY'

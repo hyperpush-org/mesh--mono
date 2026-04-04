@@ -9,6 +9,10 @@ const POSTGRES_STARTER_COMMAND: &str = "meshc init --template todo-api --db post
 const TODO_POSTGRES_README: &str = "examples/todo-postgres/README.md";
 const TODO_SQLITE_README: &str = "examples/todo-sqlite/README.md";
 const REFERENCE_BACKEND_RUNBOOK: &str = "reference-backend/README.md";
+const DISTRIBUTED_PROOF_SITE_URL: &str = "https://meshlang.dev/docs/distributed-proof/";
+const PRODUCTION_BACKEND_PROOF_DOC_LINK: &str = "/docs/production-backend-proof/";
+const PRODUCTION_BACKEND_PROOF_SITE_URL: &str = "https://meshlang.dev/docs/production-backend-proof/";
+const CLUSTERED_EXAMPLE_DOC_LINK: &str = "/docs/getting-started/clustered-example/";
 const CUTOVER_RAIL: &str = "bash scripts/verify-m047-s04.sh";
 const TODO_SUBRAIL: &str = "bash scripts/verify-m047-s05.sh";
 const CLOSEOUT_RAIL: &str = "bash scripts/verify-m047-s06.sh";
@@ -22,6 +26,7 @@ const STALE_INTERNAL_FIXTURE_RUNBOOKS: &[&str] = &["tiny-cluster/README.md", "cl
 
 struct ContractSources {
     readme: String,
+    getting_started: String,
     tooling: String,
     clustered_example: String,
     distributed_proof: String,
@@ -111,6 +116,10 @@ fn load_contract_sources(artifacts: &Path) -> ContractSources {
             &repo_root().join("README.md"),
             &contract_artifacts.join("README.md"),
         ),
+        getting_started: route_free::read_and_archive(
+            &repo_root().join("website/docs/docs/getting-started/index.md"),
+            &contract_artifacts.join("getting-started.index.md"),
+        ),
         tooling: route_free::read_and_archive(
             &repo_root().join("website/docs/docs/tooling/index.md"),
             &contract_artifacts.join("tooling.index.md"),
@@ -148,8 +157,38 @@ fn m047_s06_public_docs_split_sqlite_local_from_postgres_clustered_starters() {
         &sources.docs_config,
     );
 
+    assert_contains_all(
+        "README.md",
+        &sources.readme,
+        &[
+            CLUSTERED_SCAFFOLD_COMMAND,
+            SQLITE_STARTER_COMMAND,
+            POSTGRES_STARTER_COMMAND,
+            TODO_POSTGRES_README,
+            TODO_SQLITE_README,
+            REFERENCE_BACKEND_RUNBOOK,
+            DISTRIBUTED_PROOF_SITE_URL,
+            PRODUCTION_BACKEND_PROOF_SITE_URL,
+        ],
+    );
+    assert_omits_all(
+        "README.md",
+        &sources.readme,
+        &[
+            CUTOVER_RAIL,
+            TODO_SUBRAIL,
+            CLOSEOUT_RAIL,
+            S07_RAIL_COMMAND,
+            STALE_CLUSTERED_NON_GOAL,
+            STALE_GENERIC_TODO_COMMAND,
+            STALE_SQLITE_CLUSTERED_GUIDANCE,
+            STALE_SQLITE_CLUSTERED_ROUTES,
+            STALE_INTERNAL_FIXTURE_RUNBOOKS[0],
+            STALE_INTERNAL_FIXTURE_RUNBOOKS[1],
+        ],
+    );
+
     for (path_label, source) in [
-        ("README.md", &sources.readme),
         ("website/docs/docs/tooling/index.md", &sources.tooling),
         (
             "website/docs/docs/getting-started/clustered-example/index.md",
@@ -193,6 +232,34 @@ fn m047_s06_public_docs_split_sqlite_local_from_postgres_clustered_starters() {
         );
     }
 
+    assert_contains(
+        "website/docs/docs/tooling/index.md",
+        &sources.tooling,
+        PRODUCTION_BACKEND_PROOF_DOC_LINK,
+    );
+    assert_contains_all(
+        "website/docs/docs/getting-started/index.md",
+        &sources.getting_started,
+        &[
+            REFERENCE_BACKEND_RUNBOOK,
+            PRODUCTION_BACKEND_PROOF_DOC_LINK,
+            CLUSTERED_EXAMPLE_DOC_LINK,
+        ],
+    );
+
+    let getting_started_clustered_example_index = sources
+        .getting_started
+        .find("- [Clustered Example](/docs/getting-started/clustered-example/)")
+        .expect("missing Getting Started Clustered Example next-step marker");
+    let getting_started_production_proof_index = sources
+        .getting_started
+        .find("- [Production Backend Proof](/docs/production-backend-proof/)")
+        .expect("missing Getting Started Production Backend Proof next-step marker");
+    assert!(
+        getting_started_clustered_example_index < getting_started_production_proof_index,
+        "expected website/docs/docs/getting-started/index.md to keep Clustered Example ahead of Production Backend Proof in the onboarding path"
+    );
+
     for (path_label, source) in [
         ("README.md", &sources.readme),
         ("website/docs/docs/tooling/index.md", &sources.tooling),
@@ -225,8 +292,31 @@ fn m047_s06_docs_layer_s04_s05_s06_and_s07_truthfully() {
     let artifacts = artifact_dir("rail-layering-contract");
     let sources = load_contract_sources(&artifacts);
 
+    assert_contains_all(
+        "README.md",
+        &sources.readme,
+        &[
+            TODO_POSTGRES_README,
+            TODO_SQLITE_README,
+            REFERENCE_BACKEND_RUNBOOK,
+            DISTRIBUTED_PROOF_SITE_URL,
+            PRODUCTION_BACKEND_PROOF_SITE_URL,
+        ],
+    );
+    assert_omits_all(
+        "README.md",
+        &sources.readme,
+        &[
+            CUTOVER_RAIL,
+            TODO_SUBRAIL,
+            CLOSEOUT_RAIL,
+            S07_RAIL_COMMAND,
+            STALE_INTERNAL_FIXTURE_RUNBOOKS[0],
+            STALE_INTERNAL_FIXTURE_RUNBOOKS[1],
+        ],
+    );
+
     for (path_label, source) in [
-        ("README.md", &sources.readme),
         ("website/docs/docs/tooling/index.md", &sources.tooling),
         (
             "website/docs/docs/getting-started/clustered-example/index.md",
@@ -287,6 +377,10 @@ fn m047_s06_verifier_contract_wraps_s05_and_owns_retained_bundle() {
             "npm --prefix website run build",
             "assert_file_contains_regex",
             "assert_file_omits_regex",
+            "contract-sidebar-proof-surfaces",
+            "contract-sidebar-distributed-proof-link",
+            "contract-sidebar-production-proof-link",
+            "contract-sidebar-proof-footer-opt-out",
             "examples/todo-postgres/README\\.md",
             "examples/todo-sqlite/README\\.md",
             "reference-backend/README\\.md",

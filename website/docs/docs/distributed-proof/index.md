@@ -10,9 +10,9 @@ next: false
 Mesh exposes one clustered-work story through two public clustered layers, plus one intentionally local starter:
 
 - [Clustered Example](/docs/getting-started/clustered-example/) — the public scaffold-first walkthrough for `meshc init --clustered`
-- [`examples/todo-postgres/README.md`](https://github.com/snowdamiz/mesh-lang/blob/main/examples/todo-postgres/README.md) — the serious shared/deployable PostgreSQL starter
-- [`examples/todo-sqlite/README.md`](https://github.com/snowdamiz/mesh-lang/blob/main/examples/todo-sqlite/README.md) — the honest local single-node SQLite starter
-- [`reference-backend/README.md`](https://github.com/snowdamiz/mesh-lang/blob/main/reference-backend/README.md) — the deeper backend proof surface once you need the heavier runbook
+- [`examples/todo-postgres/README.md`](https://github.com/hyperpush-org/hyperpush-mono/blob/main/examples/todo-postgres/README.md) — the serious shared/deployable PostgreSQL starter
+- [`examples/todo-sqlite/README.md`](https://github.com/hyperpush-org/hyperpush-mono/blob/main/examples/todo-sqlite/README.md) — the honest local single-node SQLite starter
+- [`reference-backend/README.md`](https://github.com/hyperpush-org/hyperpush-mono/blob/main/reference-backend/README.md) — the deeper backend proof surface once you need the heavier runbook
 
 The clustered public surfaces keep the same source-first runtime-owned contract, and the PostgreSQL Todo starter adds one bounded read-route adoption on top of it:
 
@@ -29,9 +29,9 @@ If you are migrating older clustered code, move `clustered(work)` into source-fi
 ## Public surfaces and verifier rails
 
 - [Clustered Example](/docs/getting-started/clustered-example/) — first stop for the public scaffold surface
-- [`examples/todo-postgres/README.md`](https://github.com/snowdamiz/mesh-lang/blob/main/examples/todo-postgres/README.md) — the fuller shared/deployable starter that keeps the same source-first contract while adding PostgreSQL, selected read-route `HTTP.clustered(1, ...)`, and Docker packaging
-- [`examples/todo-sqlite/README.md`](https://github.com/snowdamiz/mesh-lang/blob/main/examples/todo-sqlite/README.md) — the honest local single-node SQLite starter, not a clustered/operator proof surface
-- [`reference-backend/README.md`](https://github.com/snowdamiz/mesh-lang/blob/main/reference-backend/README.md) — the deeper backend proof surface after the starter examples
+- [`examples/todo-postgres/README.md`](https://github.com/hyperpush-org/hyperpush-mono/blob/main/examples/todo-postgres/README.md) — the fuller shared/deployable starter that keeps the same source-first contract while adding PostgreSQL, selected read-route `HTTP.clustered(1, ...)`, and Docker packaging
+- [`examples/todo-sqlite/README.md`](https://github.com/hyperpush-org/hyperpush-mono/blob/main/examples/todo-sqlite/README.md) — the honest local single-node SQLite starter, not a clustered/operator proof surface
+- [`reference-backend/README.md`](https://github.com/hyperpush-org/hyperpush-mono/blob/main/reference-backend/README.md) — the deeper backend proof surface after the starter examples
 - `bash scripts/verify-m047-s04.sh` — the authoritative cutover rail for the source-first route-free clustered contract
 - `bash scripts/verify-m047-s05.sh` — the retained historical clustered Todo subrail kept behind fixture-backed rails instead of the public starter contract
 - `cargo test -p meshc --test e2e_m047_s07 -- --nocapture` — the repo S07 rail for default-count and two-node `HTTP.clustered(...)` behavior beyond the PostgreSQL Todo starter's explicit-count read routes

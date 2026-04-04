@@ -62,8 +62,8 @@ You should see the Mesh version number printed for each command.
 If you are contributing to Mesh or targeting an environment outside the public installer coverage, build from source instead. Treat this as an alternative workflow, not the primary public install path:
 
 ```bash
-git clone https://github.com/snowdamiz/mesh-lang.git
-cd mesh-lang
+git clone https://github.com/hyperpush-org/hyperpush-mono.git
+cd hyperpush-mono
 cargo install --path compiler/meshc
 cargo install --path compiler/meshpkg
 ```

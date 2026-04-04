@@ -352,8 +352,64 @@ assert_path_absent \
   cluster-proof \
   'repo root still contains the retired cluster-proof proof package directory'
 
-for surface in \
+assert_file_contains_regex \
+  contract-sidebar-proof-surfaces \
+  website/docs/.vitepress/config.mts \
+  "text: 'Proof Surfaces'" \
+  'docs sidebar lost the public-secondary proof group'
+assert_file_contains_regex \
+  contract-sidebar-distributed-proof-link \
+  website/docs/.vitepress/config.mts \
+  "link: '/docs/distributed-proof/'" \
+  'docs sidebar lost the Distributed Proof public link'
+assert_file_contains_regex \
+  contract-sidebar-production-proof-link \
+  website/docs/.vitepress/config.mts \
+  "link: '/docs/production-backend-proof/'" \
+  'docs sidebar lost the Production Backend Proof public link'
+assert_file_contains_regex \
+  contract-sidebar-proof-footer-opt-out \
+  website/docs/.vitepress/config.mts \
+  'includeInFooter: false' \
+  'docs sidebar lost the proof-page footer opt-out marker'
+
+assert_file_contains_regex \
+  contract-readme-todo-postgres \
   README.md \
+  'examples/todo-postgres/README\.md' \
+  'README lost the public PostgreSQL starter reference'
+assert_file_contains_regex \
+  contract-readme-todo-sqlite \
+  README.md \
+  'examples/todo-sqlite/README\.md' \
+  'README lost the public SQLite starter reference'
+assert_file_contains_regex \
+  contract-readme-reference-backend \
+  README.md \
+  'reference-backend/README\.md' \
+  'README lost the deeper backend proof reference'
+assert_file_contains_regex \
+  contract-readme-distributed-proof-link \
+  README.md \
+  'https://meshlang\.dev/docs/distributed-proof/' \
+  'README lost the public distributed-proof link'
+assert_file_contains_regex \
+  contract-readme-production-proof-link \
+  README.md \
+  'https://meshlang\.dev/docs/production-backend-proof/' \
+  'README lost the public production-proof link'
+assert_file_lacks_regex \
+  contract-readme-proof-rail-commands \
+  README.md \
+  'scripts/verify-m047-s04\.sh|scripts/verify-m047-s06\.sh|scripts/verify-m046-s06\.sh|scripts/verify-m046-s05\.sh|scripts/verify-m046-s04\.sh|scripts/verify-m045-s05\.sh|scripts/verify-m045-s04\.sh|scripts/verify-m045-s03\.sh' \
+  'README still presents retained proof-rail commands as first-contact onboarding text'
+assert_file_lacks_regex \
+  contract-readme-stale-fixtures \
+  README.md \
+  'tiny-cluster/README\.md|cluster-proof/README\.md' \
+  'README still presents retained proof fixtures as public onboarding surfaces'
+
+for surface in \
   website/docs/docs/distributed-proof/index.md \
   website/docs/docs/tooling/index.md \
   website/docs/docs/getting-started/clustered-example/index.md \
@@ -427,20 +483,70 @@ for surface in \
 done
 
 assert_file_contains_regex \
-  contract-todo-postgres \
+  contract-todo-postgres-init \
   examples/todo-postgres/README.md \
-  'meshc init --template todo-api --db postgres|@cluster pub fn sync_todos\(\)|HTTP\.clustered\(1, \.\.\.\)|meshc cluster status|DATABASE_URL' \
-  'todo-postgres README lost the serious shared/deployable starter contract'
+  'meshc init --template todo-api --db postgres' \
+  'todo-postgres README lost the explicit PostgreSQL starter command'
+assert_file_contains_regex \
+  contract-todo-postgres-clustered-source \
+  examples/todo-postgres/README.md \
+  '@cluster pub fn sync_todos\(\)' \
+  'todo-postgres README lost the source-first clustered work marker'
+assert_file_contains_regex \
+  contract-todo-postgres-clustered-route \
+  examples/todo-postgres/README.md \
+  'HTTP\.clustered\(1, \.\.\.\)' \
+  'todo-postgres README lost the bounded clustered-route marker'
+assert_file_contains_regex \
+  contract-todo-postgres-health \
+  examples/todo-postgres/README.md \
+  'GET /health' \
+  'todo-postgres README lost the local health-route boundary marker'
+assert_file_contains_regex \
+  contract-todo-postgres-cluster-status \
+  examples/todo-postgres/README.md \
+  'meshc cluster status' \
+  'todo-postgres README lost the runtime-owned operator surface marker'
+assert_file_contains_regex \
+  contract-todo-postgres-env \
+  examples/todo-postgres/README.md \
+  'DATABASE_URL' \
+  'todo-postgres README lost the shared Postgres env marker'
 assert_file_lacks_regex \
   contract-todo-postgres-old-runbook \
   examples/todo-postgres/README.md \
   'tiny-cluster/README\.md|cluster-proof/README\.md|clustered\(work\)' \
   'todo-postgres README still points at retired proof fixtures or legacy clustered(work) wording'
 assert_file_contains_regex \
-  contract-todo-sqlite \
+  contract-todo-sqlite-init \
   examples/todo-sqlite/README.md \
-  'meshc init --template todo-api --db sqlite|meshc test \.|GET /health|TODO_DB_PATH|meshc init --template todo-api --db postgres|meshc init --clustered' \
-  'todo-sqlite README lost the honest local starter split'
+  'meshc init --template todo-api --db sqlite' \
+  'todo-sqlite README lost the explicit SQLite starter command'
+assert_file_contains_regex \
+  contract-todo-sqlite-tests \
+  examples/todo-sqlite/README.md \
+  'meshc test \.' \
+  'todo-sqlite README lost the generated package-test marker'
+assert_file_contains_regex \
+  contract-todo-sqlite-health \
+  examples/todo-sqlite/README.md \
+  'GET /health' \
+  'todo-sqlite README lost the local health-route marker'
+assert_file_contains_regex \
+  contract-todo-sqlite-db-path \
+  examples/todo-sqlite/README.md \
+  'TODO_DB_PATH' \
+  'todo-sqlite README lost the SQLite env marker'
+assert_file_contains_regex \
+  contract-todo-sqlite-postgres-branch \
+  examples/todo-sqlite/README.md \
+  'meshc init --template todo-api --db postgres' \
+  'todo-sqlite README lost the explicit Postgres branch link'
+assert_file_contains_regex \
+  contract-todo-sqlite-clustered-branch \
+  examples/todo-sqlite/README.md \
+  'meshc init --clustered' \
+  'todo-sqlite README lost the scaffold-first clustered branch link'
 assert_file_lacks_regex \
   contract-todo-sqlite-old-clustered \
   examples/todo-sqlite/README.md \

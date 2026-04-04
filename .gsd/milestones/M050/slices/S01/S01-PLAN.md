@@ -27,7 +27,7 @@ The real public docs graph lives in `website/docs/.vitepress/config.mts` and `we
   - Estimate: 1h30m
   - Files: website/docs/.vitepress/config.mts, website/docs/.vitepress/theme/composables/usePrevNext.ts, website/docs/docs/production-backend-proof/index.md, website/docs/docs/distributed-proof/index.md, scripts/tests/verify-m050-s01-onboarding-graph.test.mjs
   - Verify: - `node --test scripts/tests/verify-m050-s01-onboarding-graph.test.mjs`
-- [ ] **T02: Retarget retained docs rails to the secondary-proof contract** — **Slice:** S01 — Onboarding Graph & Retained Rail Reset
+- [x] **T02: Retargeted the retained M047 and production-proof docs rails so README stays scaffold/examples-first while proof pages remain public-secondary.** — **Slice:** S01 — Onboarding Graph & Retained Rail Reset
 **Milestone:** M050
 
 ## Description
