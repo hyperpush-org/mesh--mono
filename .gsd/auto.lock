@@ -1,7 +1,8 @@
 {
   "pid": 27223,
-  "startedAt": "2026-04-04T22:37:40.472Z",
-  "unitType": "execute-task",
-  "unitId": "M051/S05/T04",
-  "unitStartedAt": "2026-04-04T22:37:40.472Z"
+  "startedAt": "2026-04-04T22:58:27.646Z",
+  "unitType": "complete-slice",
+  "unitId": "M051/S05",
+  "unitStartedAt": "2026-04-04T22:58:27.646Z",
+  "sessionFile": "/Users/sn0w/.gsd/sessions/--Users-sn0w-Documents-dev-mesh-lang--/2026-04-04T22-56-17-631Z_489ff856-22a2-45d2-b044-70eb2539fa1d.jsonl"
 }
