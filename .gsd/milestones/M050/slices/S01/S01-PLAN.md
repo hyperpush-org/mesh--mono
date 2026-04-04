@@ -52,7 +52,7 @@ The active retained docs rails are still exact-string contracts around M047 proo
   - Verify: - `cargo test -p meshc --test e2e_m047_s04 -- --nocapture`
 - `cargo test -p meshc --test e2e_m047_s06 m047_s06_ -- --nocapture`
 - `bash reference-backend/scripts/verify-production-proof-surface.sh`
-- [ ] **T03: Add the M050 graph verifier and wire it into the retained wrapper contracts** — **Slice:** S01 — Onboarding Graph & Retained Rail Reset
+- [x] **T03: Added the M050 docs-graph verifier, retained built-HTML evidence, and wired the M049 wrapper to run it as the first preflight.** — **Slice:** S01 — Onboarding Graph & Retained Rail Reset
 **Milestone:** M050
 
 ## Description

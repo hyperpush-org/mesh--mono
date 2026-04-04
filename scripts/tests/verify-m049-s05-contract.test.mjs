@@ -68,6 +68,8 @@ function validateVerifierContract(baseRoot) {
   const verifier = readFrom(baseRoot, verifierPath)
 
   requireIncludes(errors, verifierPath, verifier, [
+    'bash scripts/verify-m050-s01.sh',
+    'm050-s01-preflight',
     'node --test scripts/tests/verify-m049-s04-onboarding-contract.test.mjs',
     'cargo test -p mesh-pkg m049_s0 -- --nocapture',
     'cargo test -p meshc --test tooling_e2e test_init_todo_template_ -- --nocapture',
@@ -116,6 +118,7 @@ function validateVerifierContract(baseRoot) {
   ])
 
   requireOrdered(errors, verifierPath, verifier, [
+    'bash scripts/verify-m050-s01.sh',
     'node --test scripts/tests/verify-m049-s04-onboarding-contract.test.mjs',
     'cargo test -p mesh-pkg m049_s0 -- --nocapture',
     'cargo test -p meshc --test tooling_e2e test_init_todo_template_ -- --nocapture',
@@ -174,6 +177,18 @@ test('contract fails closed when the assembled replay order drifts', (t) => {
   copyRepoFile(tmpRoot, verifierPath)
 
   let mutated = readFrom(tmpRoot, verifierPath)
+  mutated = mutated.replace(
+    'bash scripts/verify-m050-s01.sh',
+    'bash scripts/verify-m050-s01.sh # moved-later',
+  )
+  mutated = mutated.replace(
+    'node --test scripts/tests/verify-m049-s04-onboarding-contract.test.mjs',
+    'bash scripts/verify-m050-s01.sh',
+  )
+  mutated = mutated.replace(
+    'bash scripts/verify-m050-s01.sh # moved-later',
+    'node --test scripts/tests/verify-m049-s04-onboarding-contract.test.mjs',
+  )
   mutated = mutated.replace(
     'cargo build -q -p meshc',
     'cargo build -q -p meshc # moved-later',

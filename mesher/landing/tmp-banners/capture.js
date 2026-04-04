@@ -16,7 +16,15 @@ const path = require('path');
   await banner.screenshot({ path: path.join(publicDir, 'x-banner.png') });
   console.log('✓ x-banner.png');
 
-  // 2. Promo images
+  // 2. OSS announcement banner (1200x628)
+  console.log('Capturing OSS announcement...');
+  await page.goto(`file://${path.resolve(__dirname, 'oss-announcement.html')}`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1000); // wait for fonts
+  const ossAnnouncement = await page.$('#banner');
+  await ossAnnouncement.screenshot({ path: path.join(publicDir, 'oss-announcement.png') });
+  console.log('✓ oss-announcement.png');
+
+  // 3. Promo images
   console.log('Capturing promo images...');
   await page.goto(`file://${path.resolve(__dirname, 'promos.html')}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1000); // wait for fonts
@@ -33,7 +41,15 @@ const path = require('path');
   await promoFlywheel.screenshot({ path: path.join(publicDir, 'promo-flywheel.png') });
   console.log('✓ promo-flywheel.png');
 
-  // 3. Sentry Swap promo (1200x675)
+  // 4. Token pricing promo (1200x675)
+  console.log('Capturing promo token pricing...');
+  await page.goto(`file://${path.resolve(__dirname, 'promo-token-pricing.html')}`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1000);
+  const promoTokenPricing = await page.$('#promo-token-pricing');
+  await promoTokenPricing.screenshot({ path: path.join(publicDir, 'promo-token-pricing.png') });
+  console.log('✓ promo-token-pricing.png');
+
+  // 5. Sentry Swap promo (1200x675)
   console.log('Capturing sentry swap...');
   await page.goto(`file://${path.resolve(__dirname, 'sentry-swap.html')}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1000);
@@ -41,7 +57,7 @@ const path = require('path');
   await sentrySwap.screenshot({ path: path.join(publicDir, 'sentry-swap.png') });
   console.log('✓ sentry-swap.png');
 
-  // 4. Package Challenge (1200x675)
+  // 6. Package Challenge (1200x675)
   console.log('Capturing package challenge...');
   await page.goto(`file://${path.resolve(__dirname, 'package-challenge.html')}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1000);
@@ -49,7 +65,7 @@ const path = require('path');
   await pkgChallenge.screenshot({ path: path.join(publicDir, 'package-challenge.png') });
   console.log('✓ package-challenge.png');
 
-  // 5. VS Sentry Pricing comparison (1200x675)
+  // 7. VS Sentry Pricing comparison (1200x675)
   console.log('Capturing vs-sentry pricing...');
   await page.goto(`file://${path.resolve(__dirname, 'vs-sentry-pricing.html')}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1000);
@@ -57,7 +73,7 @@ const path = require('path');
   await vsSentry.screenshot({ path: path.join(publicDir, 'vs-sentry-pricing.png') });
   console.log('✓ vs-sentry-pricing.png');
 
-  // 6. Roadmap banner (1000x1800, tall/vertical)
+  // 8. Roadmap banner (1000x1800, tall/vertical)
   console.log('Capturing roadmap banner...');
   await page.goto(`file://${path.resolve(__dirname, 'roadmap.html')}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1000); // wait for fonts

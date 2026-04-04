@@ -47,6 +47,29 @@ fn assert_source_omits_all(path: &Path, needles: &[&str]) {
     }
 }
 
+fn assert_source_order(path: &Path, needles: &[&str]) {
+    let source = read_source_file(path);
+    let mut previous_index = None;
+    for needle in needles {
+        let index = source.find(needle).unwrap_or_else(|| {
+            panic!(
+                "expected {} to contain `{}` before checking order",
+                path.display(),
+                needle
+            )
+        });
+        if let Some(previous_index) = previous_index {
+            assert!(
+                index > previous_index,
+                "expected {} to keep `{}` after the prior ordered marker",
+                path.display(),
+                needle
+            );
+        }
+        previous_index = Some(index);
+    }
+}
+
 #[test]
 fn m049_s05_wrapper_replays_the_named_scaffold_and_example_stack() {
     let verifier_path = repo_root().join("scripts").join("verify-m049-s05.sh");
@@ -54,6 +77,8 @@ fn m049_s05_wrapper_replays_the_named_scaffold_and_example_stack() {
     assert_source_contains_all(
         &verifier_path,
         &[
+            "bash scripts/verify-m050-s01.sh",
+            "m050-s01-preflight",
             "node --test scripts/tests/verify-m049-s04-onboarding-contract.test.mjs",
             "cargo test -p mesh-pkg m049_s0 -- --nocapture",
             "cargo test -p meshc --test tooling_e2e test_init_todo_template_ -- --nocapture",
@@ -85,6 +110,30 @@ fn m049_s05_wrapper_replays_the_named_scaffold_and_example_stack() {
             "full-contract.log",
             "todos-unmigrated.http",
             "todos-unmigrated.json",
+        ],
+    );
+}
+
+#[test]
+fn m049_s05_wrapper_runs_the_m050_docs_preflight_before_heavier_replays() {
+    let verifier_path = repo_root().join("scripts").join("verify-m049-s05.sh");
+
+    assert_source_order(
+        &verifier_path,
+        &[
+            "bash scripts/verify-m050-s01.sh",
+            "node --test scripts/tests/verify-m049-s04-onboarding-contract.test.mjs",
+            "cargo test -p mesh-pkg m049_s0 -- --nocapture",
+            "cargo test -p meshc --test tooling_e2e test_init_todo_template_ -- --nocapture",
+            "cargo build -q -p meshc",
+            "node scripts/tests/verify-m049-s03-materialize-examples.mjs --check",
+            "cargo test -p meshc --test e2e_m049_s01 -- --nocapture",
+            "cargo test -p meshc --test e2e_m049_s02 -- --nocapture",
+            "cargo test -p meshc --test e2e_m049_s03 -- --nocapture",
+            "bash scripts/verify-m039-s01.sh",
+            "bash scripts/verify-m045-s02.sh",
+            "bash scripts/verify-m047-s05.sh",
+            "bash scripts/verify-m048-s05.sh",
         ],
     );
 }

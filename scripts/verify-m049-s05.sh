@@ -700,6 +700,9 @@ PY
 
 record_phase init passed
 
+require_file m050-s01-preflight "$ROOT_DIR/scripts/verify-m050-s01.sh" "fast M050 docs-graph preflight" ".tmp/m050-s01/verify"
+run_expect_success m050-s01-preflight m050-s01-preflight no 1800 ".tmp/m050-s01/verify" \
+  bash scripts/verify-m050-s01.sh
 run_expect_success m049-s04-onboarding-contract m049-s04-onboarding-contract no 120 "" \
   node --test scripts/tests/verify-m049-s04-onboarding-contract.test.mjs
 run_expect_success m049-scaffold-mesh-pkg m049-scaffold-mesh-pkg yes 2400 "" \
@@ -846,6 +849,7 @@ record_phase m049-s05-bundle-shape passed
 
 for expected_phase in \
   init \
+  m050-s01-preflight \
   m049-s04-onboarding-contract \
   m049-scaffold-mesh-pkg \
   m049-scaffold-tooling \
