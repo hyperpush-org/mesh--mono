@@ -51,6 +51,21 @@ function looksLikeMarkdown(text: string): boolean {
   ].some((pattern) => pattern.test(normalized))
 }
 
+function clipboardHtmlHasSemanticFormatting(html: string): boolean {
+  const normalized = html.trim()
+  if (!normalized || typeof window === 'undefined') return false
+
+  const doc = new DOMParser().parseFromString(normalized, 'text/html')
+  const semanticSelectors = [
+    'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'ul', 'ol', 'li', 'blockquote', 'a', 'img',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+    'strong', 'b', 'em', 'i', 'hr',
+  ]
+
+  return semanticSelectors.some((selector) => doc.body.querySelector(selector) !== null)
+}
+
 // ── Toolbar button ──────────────────────────────────────────────────────────
 function ToolbarBtn({
   onClick,
@@ -180,15 +195,15 @@ export function RichEditor({
         const htmlText = clipboard?.getData('text/html') ?? ''
 
         if (!editor || !plainText.trim()) return false
-        if (htmlText.trim()) return false
         if (editor.isActive('codeBlock') || editor.isActive('code')) return false
         if (!looksLikeMarkdown(plainText)) return false
+        if (clipboardHtmlHasSemanticFormatting(htmlText)) return false
 
         const renderedHtml = markdown.render(normalizeClipboardText(plainText).trim())
         if (!renderedHtml.trim()) return false
 
         event.preventDefault()
-        editor.commands.insertContent(renderedHtml)
+        editor.chain().focus().insertContent(renderedHtml).run()
         return true
       },
     },
