@@ -7,7 +7,7 @@
     "dev": "vitepress dev docs",
     "build": "vitepress build docs",
     "preview": "vitepress preview docs",
-    "generate:og": "python3 scripts/generate-og-image.py"
+    "generate:og": "python3 scripts/generate-og-image.py || (echo Python is not installed. Please install it from https://www.python.org/downloads/ and try again. && exit 1)"
   },
   "keywords": [],
   "author": "",

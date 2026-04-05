@@ -200,6 +200,14 @@ pub(crate) fn link_with_plan(
 /// profiles. Prefers the profile matching the compiler's own build: a release
 /// `meshc` links the release runtime, a debug `meshc` links the debug runtime.
 fn find_mesh_rt(target: &LinkTarget) -> Result<PathBuf, String> {
+    // ENV override (highest priority)
+    if let Ok(path) = std::env::var("MESH_RT_PATH") {
+        let path = PathBuf::from(path);
+        if path.exists() {
+            return Ok(path);
+        }
+    }
+
     let profiles: &[&str] = if cfg!(debug_assertions) {
         &["debug", "release"]
     } else {
@@ -217,6 +225,49 @@ fn find_mesh_rt(target: &LinkTarget) -> Result<PathBuf, String> {
         }
     }
 
+    // NEW: fallback directories
+    let mut extra_dirs: Vec<PathBuf> = Vec::new();
+
+    // ~/.mesh/lib
+    if let Some(home) = std::env::var_os("HOME") {
+        extra_dirs.push(PathBuf::from(home).join(".mesh/lib"));
+    }
+
+    // current working directory
+    if let Ok(current) = std::env::current_dir() {
+        extra_dirs.push(current);
+    }
+
+    // directory of meshc binary
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            extra_dirs.push(parent.to_path_buf());
+        }
+    }
+
+    // search fallback dirs
+    for dir in extra_dirs {
+        // check profile-based structure
+        for profile in profiles {
+            let candidate = dir.join(profile).join(target.runtime_filename());
+
+            if candidate.exists() {
+                return Ok(candidate);
+            }
+
+            searched_paths.push(candidate);
+        }
+
+        // check direct file
+        let direct = dir.join(target.runtime_filename());
+        if direct.exists() {
+            return Ok(direct);
+        }
+
+        searched_paths.push(direct);
+    }
+
+    // error message (unchanged)
     let mut message = format!(
         "Could not locate Mesh runtime static library for target '{}'. Expected {}. Run `cargo build -p mesh-rt{}` first.",
         target.display_triple(),
