@@ -9,6 +9,7 @@ param(
     [switch]$Help
 )
 
+
 $ErrorActionPreference = 'Stop'
 
 $Repo = "snowdamiz/mesh-lang"
