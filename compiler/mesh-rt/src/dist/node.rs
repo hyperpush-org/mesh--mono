@@ -4124,12 +4124,24 @@ fn startup_payload_hash(runtime_name: &str) -> String {
     format!("{STARTUP_PAYLOAD_HASH_PREFIX}{runtime_name}")
 }
 
+const STARTUP_WORK_DELAY_ENV: &str = "MESH_STARTUP_WORK_DELAY_MS";
+
+fn configured_startup_dispatch_window_ms() -> i64 {
+    match std::env::var(STARTUP_WORK_DELAY_ENV) {
+        Ok(raw) => match raw.trim().parse::<i64>() {
+            Ok(value) if value > 0 => value,
+            _ => STARTUP_CLUSTERED_PENDING_WINDOW_MS,
+        },
+        Err(_) => STARTUP_CLUSTERED_PENDING_WINDOW_MS,
+    }
+}
+
 fn startup_dispatch_window_ms(request_key: &str, required_replica_count: u64) -> i64 {
     if !request_key.starts_with(STARTUP_REQUEST_KEY_PREFIX) || required_replica_count == 0 {
         return 0;
     }
 
-    STARTUP_CLUSTERED_PENDING_WINDOW_MS
+    configured_startup_dispatch_window_ms()
 }
 
 fn startup_work_identity(runtime_name: &str) -> Result<StartupWorkIdentity, String> {
@@ -5538,6 +5550,28 @@ mod tests {
         STARTUP_WORK_TRIGGERED.store(false, Ordering::SeqCst);
     }
 
+    struct StartupWorkDelayEnvGuard {
+        original: Option<std::ffi::OsString>,
+    }
+
+    impl Drop for StartupWorkDelayEnvGuard {
+        fn drop(&mut self) {
+            match self.original.take() {
+                Some(value) => std::env::set_var(STARTUP_WORK_DELAY_ENV, value),
+                None => std::env::remove_var(STARTUP_WORK_DELAY_ENV),
+            }
+        }
+    }
+
+    fn set_startup_work_delay_env(value: Option<&str>) -> StartupWorkDelayEnvGuard {
+        let original = std::env::var_os(STARTUP_WORK_DELAY_ENV);
+        match value {
+            Some(value) => std::env::set_var(STARTUP_WORK_DELAY_ENV, value),
+            None => std::env::remove_var(STARTUP_WORK_DELAY_ENV),
+        }
+        StartupWorkDelayEnvGuard { original }
+    }
+
     fn register_startup_work_test_handler(runtime_name: &str) {
         mesh_register_declared_handler(
             runtime_name.as_ptr(),
@@ -5683,7 +5717,57 @@ mod tests {
     }
 
     #[test]
-    fn startup_work_dispatch_window_only_applies_to_runtime_owned_clustered_startup_requests() {
+    fn startup_work_dispatch_window_falls_back_to_default_when_env_is_missing() {
+        let _guard = startup_work_test_lock();
+        clear_startup_work_test_state();
+        let _env = set_startup_work_delay_env(None);
+
+        assert_eq!(
+            startup_dispatch_window_ms(&startup_request_key("Work.handle_submit"), 1),
+            STARTUP_CLUSTERED_PENDING_WINDOW_MS
+        );
+    }
+
+    #[test]
+    fn startup_work_dispatch_window_uses_positive_env_override_for_clustered_startup_requests() {
+        let _guard = startup_work_test_lock();
+        clear_startup_work_test_state();
+
+        let _short_env = set_startup_work_delay_env(Some("1"));
+        assert_eq!(
+            startup_dispatch_window_ms(&startup_request_key("Work.handle_submit"), 1),
+            1
+        );
+        drop(_short_env);
+
+        let _long_env = set_startup_work_delay_env(Some("20000"));
+        assert_eq!(
+            startup_dispatch_window_ms(&startup_request_key("Work.handle_submit"), 1),
+            20_000
+        );
+    }
+
+    #[test]
+    fn startup_work_dispatch_window_falls_back_to_default_for_zero_negative_or_malformed_env() {
+        let _guard = startup_work_test_lock();
+        clear_startup_work_test_state();
+
+        for raw in ["0", "-5", "not-a-number"] {
+            let _env = set_startup_work_delay_env(Some(raw));
+            assert_eq!(
+                startup_dispatch_window_ms(&startup_request_key("Work.handle_submit"), 1),
+                STARTUP_CLUSTERED_PENDING_WINDOW_MS,
+                "expected default fallback for {raw:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn startup_work_dispatch_window_keeps_zero_delay_for_non_startup_or_replica_free_requests() {
+        let _guard = startup_work_test_lock();
+        clear_startup_work_test_state();
+        let _env = set_startup_work_delay_env(Some("20000"));
+
         assert_eq!(startup_dispatch_window_ms("request-1", 1), 0);
         assert_eq!(
             startup_dispatch_window_ms(&startup_request_key("Work.handle_submit"), 0),
@@ -5691,7 +5775,7 @@ mod tests {
         );
         assert_eq!(
             startup_dispatch_window_ms(&startup_request_key("Work.handle_submit"), 1),
-            STARTUP_CLUSTERED_PENDING_WINDOW_MS
+            20_000
         );
     }
 

@@ -5,6 +5,8 @@ use std::any::Any;
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 use support::m046_route_free as route_free;
 use support::m049_todo_postgres_scaffold as postgres_scaffold;
@@ -28,6 +30,11 @@ fn required_database_url(test_name: &str) -> String {
 fn read_source_file(path: &Path) -> String {
     fs::read_to_string(path)
         .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()))
+}
+
+fn read_json_file(path: &Path) -> Value {
+    serde_json::from_str(&read_source_file(path))
+        .unwrap_or_else(|error| panic!("failed to parse JSON from {}: {error}", path.display()))
 }
 
 fn assert_source_contains_all(path: &Path, needles: &[&str]) {
@@ -106,6 +113,138 @@ fn metadata_value<'a>(entry: &'a Value, key: &str) -> Option<&'a str> {
     })
 }
 
+fn startup_entries_with_transition<'a>(
+    snapshot: &'a Value,
+    request_key: &str,
+    transition: &str,
+) -> Vec<&'a Value> {
+    route_free::diagnostic_entries_for_request(snapshot, request_key)
+        .into_iter()
+        .filter(|entry| entry["transition"].as_str() == Some(transition))
+        .collect()
+}
+
+fn startup_dispatch_window_ms(entry: &Value) -> u64 {
+    let raw = metadata_value(entry, "pending_window_ms").unwrap_or_else(|| {
+        panic!("startup_dispatch_window missing pending_window_ms metadata in {entry}")
+    });
+    raw.parse::<u64>().unwrap_or_else(|error| {
+        panic!("startup_dispatch_window pending_window_ms={raw:?} is not a valid u64 in {entry}: {error}")
+    })
+}
+
+fn startup_dispatch_window_values(snapshot: &Value, request_key: &str) -> Vec<u64> {
+    startup_entries_with_transition(snapshot, request_key, "startup_dispatch_window")
+        .into_iter()
+        .map(startup_dispatch_window_ms)
+        .collect()
+}
+
+fn startup_transition_count(
+    primary_snapshot: &Value,
+    standby_snapshot: &Value,
+    request_key: &str,
+    transition: &str,
+) -> usize {
+    startup_entries_with_transition(primary_snapshot, request_key, transition).len()
+        + startup_entries_with_transition(standby_snapshot, request_key, transition).len()
+}
+
+fn diagnostics_snapshot(artifacts: &Path, name: &str, node_name: &str, cookie: &str) -> Value {
+    let output = route_free::run_meshc_cluster(
+        artifacts,
+        name,
+        &["cluster", "diagnostics", node_name, "--json"],
+        cookie,
+    );
+    assert!(
+        output.status.success(),
+        "meshc cluster diagnostics {node_name} should succeed:\n{}",
+        route_free::command_output_text(&output)
+    );
+    route_free::parse_json_output(artifacts, name, &output, "cluster diagnostics")
+}
+
+fn wait_for_pre_kill_startup_dispatch_window_pair(
+    artifacts: &Path,
+    runtime: &deploy::StagedClusterRuntimePair,
+    request_key: &str,
+    expected_pending_window_ms: u64,
+) -> (Value, Value) {
+    let start = Instant::now();
+    let mut last_primary = String::new();
+    let mut last_standby = String::new();
+
+    while start.elapsed() < route_free::DIAGNOSTIC_TIMEOUT {
+        let primary_json = diagnostics_snapshot(
+            artifacts,
+            "pre-kill-diagnostics-primary",
+            &runtime.primary.node_name,
+            &runtime.primary.cluster_cookie,
+        );
+        let standby_json = diagnostics_snapshot(
+            artifacts,
+            "pre-kill-diagnostics-standby",
+            &runtime.standby.node_name,
+            &runtime.standby.cluster_cookie,
+        );
+        last_primary = serde_json::to_string_pretty(&primary_json).unwrap();
+        last_standby = serde_json::to_string_pretty(&standby_json).unwrap();
+
+        let mut combined_transitions = startup_transitions(&primary_json, request_key);
+        combined_transitions.extend(startup_transitions(&standby_json, request_key));
+        if combined_transitions.iter().any(|transition| {
+            transition == "startup_rejected" || transition == "startup_convergence_timeout"
+        }) {
+            panic!(
+                "startup diagnostics entered a failure transition before the forced owner stop for {request_key}; primary diagnostics:\n{last_primary}\n\nstandby diagnostics:\n{last_standby}"
+            );
+        }
+        if combined_transitions
+            .iter()
+            .any(|transition| transition == "startup_completed")
+        {
+            panic!(
+                "startup_completed reached the owner before the forced owner stop for {request_key}; primary diagnostics:\n{last_primary}\n\nstandby diagnostics:\n{last_standby}"
+            );
+        }
+
+        let mut pending_window_values = startup_dispatch_window_values(&primary_json, request_key);
+        pending_window_values.extend(startup_dispatch_window_values(&standby_json, request_key));
+        if !pending_window_values.is_empty() {
+            if pending_window_values
+                .iter()
+                .any(|value| *value != expected_pending_window_ms)
+            {
+                panic!(
+                    "startup_dispatch_window pending_window_ms mismatch for {request_key}: expected {expected_pending_window_ms}, observed {:?}; primary diagnostics:\n{last_primary}\n\nstandby diagnostics:\n{last_standby}",
+                    pending_window_values
+                );
+            }
+            if combined_transitions
+                .iter()
+                .any(|transition| transition == "startup_trigger")
+            {
+                return (primary_json, standby_json);
+            }
+        }
+
+        sleep(Duration::from_millis(200));
+    }
+
+    let timeout_path = artifacts.join("pre-kill-diagnostics.timeout.txt");
+    deploy::write_artifact(
+        &timeout_path,
+        format!(
+            "last primary diagnostics:\n{last_primary}\n\nlast standby diagnostics:\n{last_standby}\n"
+        ),
+    );
+    panic!(
+        "meshc cluster diagnostics never surfaced the configured startup_dispatch_window before the forced owner stop for {request_key}; last observations archived at {}",
+        timeout_path.display()
+    );
+}
+
 fn status_matches(
     json: &Value,
     expected_local_node: &str,
@@ -117,10 +256,14 @@ fn status_matches(
 ) -> bool {
     let replication_health = route_free::required_str(&json["authority"], "replication_health");
     route_free::required_str(&json["membership"], "local_node") == expected_local_node
-        && route_free::sorted(&route_free::required_string_list(&json["membership"], "peer_nodes"))
-            == route_free::sorted(expected_peer_nodes)
-        && route_free::sorted(&route_free::required_string_list(&json["membership"], "nodes"))
-            == route_free::sorted(expected_nodes)
+        && route_free::sorted(&route_free::required_string_list(
+            &json["membership"],
+            "peer_nodes",
+        )) == route_free::sorted(expected_peer_nodes)
+        && route_free::sorted(&route_free::required_string_list(
+            &json["membership"],
+            "nodes",
+        )) == route_free::sorted(expected_nodes)
         && route_free::required_str(&json["authority"], "cluster_role") == expected_role
         && route_free::required_u64(&json["authority"], "promotion_epoch") == expected_epoch
         && allowed_health.contains(&replication_health.as_str())
@@ -258,10 +401,12 @@ fn m053_s02_staged_postgres_helper_boots_two_nodes_and_retains_dual_node_operato
     fs::create_dir_all(&workspace_dir)
         .unwrap_or_else(|error| panic!("failed to create {}: {error}", workspace_dir.display()));
 
-    let project_dir = deploy::init_postgres_todo_project(&workspace_dir, deploy::PACKAGE_NAME, &artifacts);
+    let project_dir =
+        deploy::init_postgres_todo_project(&workspace_dir, deploy::PACKAGE_NAME, &artifacts);
     let database = deploy::create_isolated_database(&base_database_url, &artifacts, "helper");
     let bundle_dir = deploy::create_retained_bundle_dir("todo-postgres-staged-helper");
-    let stage = deploy::run_stage_deploy_script(&project_dir, &bundle_dir, &artifacts, "stage-deploy");
+    let stage =
+        deploy::run_stage_deploy_script(&project_dir, &bundle_dir, &artifacts, "stage-deploy");
     deploy::assert_phase_success(&stage, "generated Postgres stage-deploy.sh should succeed");
 
     let bundle = deploy::inspect_staged_bundle(&bundle_dir, &artifacts);
@@ -292,23 +437,52 @@ fn m053_s02_staged_postgres_helper_boots_two_nodes_and_retains_dual_node_operato
         let (primary_health, standby_health) =
             deploy::wait_for_cluster_health(&runtime, &artifacts, "health", &secret_values);
         for (label, json) in [("primary", &primary_health), ("standby", &standby_health)] {
-            assert_eq!(json["status"].as_str(), Some("ok"), "{label} health should be ok");
+            assert_eq!(
+                json["status"].as_str(),
+                Some("ok"),
+                "{label} health should be ok"
+            );
             assert_eq!(json["db_backend"].as_str(), Some("postgres"));
-            assert_eq!(json["clustered_handler"].as_str(), Some(deploy::STARTUP_RUNTIME_NAME));
-            assert!(json.get("database_url").is_none(), "{label} /health must not leak DATABASE_URL");
+            assert_eq!(
+                json["clustered_handler"].as_str(),
+                Some(deploy::STARTUP_RUNTIME_NAME)
+            );
+            assert!(
+                json.get("database_url").is_none(),
+                "{label} /health must not leak DATABASE_URL"
+            );
         }
 
         let (primary_status, standby_status) =
             deploy::wait_for_dual_node_cluster_status(&artifacts, "cluster-status", &runtime);
-        assert_eq!(route_free::required_str(&primary_status["authority"], "cluster_role"), "primary");
-        assert_eq!(route_free::required_str(&standby_status["authority"], "cluster_role"), "standby");
-        assert_eq!(route_free::required_str(&primary_status["authority"], "replication_health"), "healthy");
-        assert_eq!(route_free::required_str(&standby_status["authority"], "replication_health"), "healthy");
+        assert_eq!(
+            route_free::required_str(&primary_status["authority"], "cluster_role"),
+            "primary"
+        );
+        assert_eq!(
+            route_free::required_str(&standby_status["authority"], "cluster_role"),
+            "standby"
+        );
+        assert_eq!(
+            route_free::required_str(&primary_status["authority"], "replication_health"),
+            "healthy"
+        );
+        assert_eq!(
+            route_free::required_str(&standby_status["authority"], "replication_health"),
+            "healthy"
+        );
 
         let (primary_before_route, standby_before_route) =
             deploy::continuity_list_snapshot_pair(&artifacts, "continuity-before-route", &runtime);
-        for (label, json) in [("primary", &primary_before_route), ("standby", &standby_before_route)] {
-            assert_eq!(route_free::required_u64(json, "total_records"), 1, "{label} continuity should only expose the startup record before route traffic");
+        for (label, json) in [
+            ("primary", &primary_before_route),
+            ("standby", &standby_before_route),
+        ] {
+            assert_eq!(
+                route_free::required_u64(json, "total_records"),
+                1,
+                "{label} continuity should only expose the startup record before route traffic"
+            );
             assert!(!route_free::required_bool(json, "truncated"));
             assert_eq!(
                 route_free::count_records_for_runtime_name(json, deploy::STARTUP_RUNTIME_NAME),
@@ -322,8 +496,11 @@ fn m053_s02_staged_postgres_helper_boots_two_nodes_and_retains_dual_node_operato
             );
         }
 
-        let startup =
-            deploy::wait_for_primary_owned_startup_selection(&artifacts, "startup-selection", &runtime);
+        let startup = deploy::wait_for_primary_owned_startup_selection(
+            &artifacts,
+            "startup-selection",
+            &runtime,
+        );
         assert_eq!(startup.request_key, deploy::startup_request_key());
         assert_eq!(startup.owner_node, runtime.primary.node_name);
         assert_eq!(startup.replica_node, runtime.standby.node_name);
@@ -331,12 +508,25 @@ fn m053_s02_staged_postgres_helper_boots_two_nodes_and_retains_dual_node_operato
         let (primary_diagnostics, standby_diagnostics) =
             deploy::wait_for_startup_diagnostics_pair(&artifacts, &runtime, &startup.request_key);
         let mut transitions = startup_transitions(&primary_diagnostics, &startup.request_key);
-        transitions.extend(startup_transitions(&standby_diagnostics, &startup.request_key));
-        assert!(transitions.iter().any(|transition| transition == "startup_trigger"));
-        assert!(transitions.iter().any(|transition| transition == "startup_dispatch_window"));
-        assert!(transitions.iter().any(|transition| transition == "startup_completed"));
-        assert!(!transitions.iter().any(|transition| transition == "startup_rejected"));
-        assert!(!transitions.iter().any(|transition| transition == "startup_convergence_timeout"));
+        transitions.extend(startup_transitions(
+            &standby_diagnostics,
+            &startup.request_key,
+        ));
+        assert!(transitions
+            .iter()
+            .any(|transition| transition == "startup_trigger"));
+        assert!(transitions
+            .iter()
+            .any(|transition| transition == "startup_dispatch_window"));
+        assert!(transitions
+            .iter()
+            .any(|transition| transition == "startup_completed"));
+        assert!(!transitions
+            .iter()
+            .any(|transition| transition == "startup_rejected"));
+        assert!(!transitions
+            .iter()
+            .any(|transition| transition == "startup_convergence_timeout"));
 
         let todos = deploy::json_request_snapshot_for_node(
             &artifacts,
@@ -526,7 +716,12 @@ fn m053_s02_staged_postgres_helper_rejects_malformed_bundle_pointer_and_cluster_
     let not_ready_output = route_free::run_meshc_cluster(
         &artifacts,
         "cluster-status-not-ready",
-        &["cluster", "status", &valid_runtime.primary.node_name, "--json"],
+        &[
+            "cluster",
+            "status",
+            &valid_runtime.primary.node_name,
+            "--json",
+        ],
         &valid_runtime.primary.cluster_cookie,
     );
     assert!(
@@ -542,6 +737,113 @@ fn m053_s02_staged_postgres_helper_rejects_malformed_bundle_pointer_and_cluster_
 }
 
 #[test]
+fn m053_s02_hosted_failure_bundle_proves_completed_before_owner_stop() {
+    let retained_bundle = deploy::repo_root().join(
+        ".tmp/m053-s05/remote-auth-24014506220/artifacts/authoritative-starter-failover-proof-diagnostics/staged-postgres-failover-runtime-truth-1775437858534365102",
+    );
+    assert!(
+        retained_bundle.is_dir(),
+        "expected hosted failure bundle at {}",
+        retained_bundle.display()
+    );
+
+    let standby_pending = read_json_file(&retained_bundle.join("pre-kill-continuity-standby.json"));
+    let standby_pending_record = &standby_pending["record"];
+    assert_eq!(
+        route_free::required_str(standby_pending_record, "request_key"),
+        deploy::startup_request_key()
+    );
+    assert_eq!(
+        route_free::required_str(standby_pending_record, "attempt_id"),
+        "attempt-0"
+    );
+    assert_eq!(
+        route_free::required_str(standby_pending_record, "declared_handler_runtime_name"),
+        deploy::STARTUP_RUNTIME_NAME
+    );
+    assert_eq!(
+        route_free::required_str(standby_pending_record, "cluster_role"),
+        "standby"
+    );
+    assert_eq!(
+        route_free::required_str(standby_pending_record, "phase"),
+        "submitted"
+    );
+    assert_eq!(
+        route_free::required_str(standby_pending_record, "result"),
+        "pending"
+    );
+    assert_eq!(
+        route_free::required_str(standby_pending_record, "replica_status"),
+        "mirrored"
+    );
+    assert_eq!(
+        route_free::required_u64(standby_pending_record, "promotion_epoch"),
+        0
+    );
+    assert!(
+        route_free::required_str(standby_pending_record, "execution_node").is_empty(),
+        "hosted failure bundle should still be pending before the forced stop"
+    );
+
+    let primary_run1_log = read_source_file(&retained_bundle.join("primary-run1.combined.log"));
+    let dispatch_window_line = format!(
+        "[mesh-rt startup] transition=startup_dispatch_window runtime_name={} request_key={} pending_window_ms=2500 ownership=language_owned",
+        deploy::STARTUP_RUNTIME_NAME,
+        deploy::startup_request_key(),
+    );
+    let startup_completed_line = format!(
+        "[mesh-rt startup] transition=startup_completed runtime_name={} request_key={} attempt_id=attempt-0",
+        deploy::STARTUP_RUNTIME_NAME,
+        deploy::startup_request_key(),
+    );
+    let dispatch_index = primary_run1_log
+        .find(&dispatch_window_line)
+        .unwrap_or_else(|| {
+            panic!(
+                "expected hosted failure bundle to log the 2500ms startup_dispatch_window in {}",
+                retained_bundle.join("primary-run1.combined.log").display()
+            )
+        });
+    let completed_index = primary_run1_log.find(&startup_completed_line).unwrap_or_else(|| {
+        panic!(
+            "expected hosted failure bundle to log startup_completed before the forced owner stop in {}",
+            retained_bundle.join("primary-run1.combined.log").display()
+        )
+    });
+    assert!(
+        dispatch_index < completed_index,
+        "expected startup_dispatch_window to appear before startup_completed in the hosted failure bundle"
+    );
+
+    let post_kill_status =
+        read_json_file(&retained_bundle.join("post-kill-status-standby.timeout.txt"));
+    assert_eq!(
+        route_free::required_str(&post_kill_status["authority"], "cluster_role"),
+        "standby"
+    );
+    assert_eq!(
+        route_free::required_u64(&post_kill_status["authority"], "promotion_epoch"),
+        0
+    );
+    assert_eq!(
+        route_free::required_str(&post_kill_status["authority"], "replication_health"),
+        "healthy"
+    );
+    assert!(
+        route_free::required_string_list(&post_kill_status["membership"], "peer_nodes").is_empty(),
+        "hosted failure bundle should show the standby isolated after the owner stop"
+    );
+    assert_eq!(
+        route_free::required_string_list(&post_kill_status["membership"], "nodes"),
+        vec![route_free::required_str(
+            &post_kill_status["membership"],
+            "local_node"
+        )]
+    );
+}
+
+#[test]
 fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery() {
     let test_name = "m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery";
     let base_database_url = required_database_url(test_name);
@@ -550,10 +852,12 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
     fs::create_dir_all(&workspace_dir)
         .unwrap_or_else(|error| panic!("failed to create {}: {error}", workspace_dir.display()));
 
-    let project_dir = deploy::init_postgres_todo_project(&workspace_dir, deploy::PACKAGE_NAME, &artifacts);
+    let project_dir =
+        deploy::init_postgres_todo_project(&workspace_dir, deploy::PACKAGE_NAME, &artifacts);
     let database = deploy::create_isolated_database(&base_database_url, &artifacts, "failover");
     let bundle_dir = deploy::create_retained_bundle_dir("todo-postgres-staged-failover");
-    let stage = deploy::run_stage_deploy_script(&project_dir, &bundle_dir, &artifacts, "stage-deploy");
+    let stage =
+        deploy::run_stage_deploy_script(&project_dir, &bundle_dir, &artifacts, "stage-deploy");
     deploy::assert_phase_success(&stage, "generated Postgres stage-deploy.sh should succeed");
 
     let bundle = deploy::inspect_staged_bundle(&bundle_dir, &artifacts);
@@ -578,7 +882,10 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
         database.database_url.as_str(),
         runtime.primary.cluster_cookie.as_str(),
     ];
-    let full_membership = vec![runtime.primary.node_name.clone(), runtime.standby.node_name.clone()];
+    let full_membership = vec![
+        runtime.primary.node_name.clone(),
+        runtime.standby.node_name.clone(),
+    ];
     let standby_only_membership = vec![runtime.standby.node_name.clone()];
     let no_peers: Vec<String> = Vec::new();
 
@@ -651,10 +958,20 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
         let (primary_health, standby_health) =
             deploy::wait_for_cluster_health(&runtime, &artifacts, "health", &secret_values);
         for (label, json) in [("primary", &primary_health), ("standby", &standby_health)] {
-            assert_eq!(json["status"].as_str(), Some("ok"), "{label} health should be ok");
+            assert_eq!(
+                json["status"].as_str(),
+                Some("ok"),
+                "{label} health should be ok"
+            );
             assert_eq!(json["db_backend"].as_str(), Some("postgres"));
-            assert_eq!(json["clustered_handler"].as_str(), Some(deploy::STARTUP_RUNTIME_NAME));
-            assert!(json.get("database_url").is_none(), "{label} /health must not leak DATABASE_URL");
+            assert_eq!(
+                json["clustered_handler"].as_str(),
+                Some(deploy::STARTUP_RUNTIME_NAME)
+            );
+            assert!(
+                json.get("database_url").is_none(),
+                "{label} /health must not leak DATABASE_URL"
+            );
         }
 
         route_free::wait_for_cluster_status_membership(
@@ -680,8 +997,11 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
             &runtime.standby.cluster_cookie,
         );
 
-        let startup =
-            deploy::wait_for_primary_owned_startup_selection(&artifacts, "startup-selection", &runtime);
+        let startup = deploy::wait_for_primary_owned_startup_selection(
+            &artifacts,
+            "startup-selection",
+            &runtime,
+        );
         request_key = Some(startup.request_key.clone());
         initial_attempt_id = Some(startup.attempt_id.clone());
 
@@ -741,12 +1061,21 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
         );
         let created_todo_id = route_free::required_str(&create_todo, "id");
         todo_id = Some(created_todo_id.clone());
-        assert_eq!(route_free::required_str(&create_todo, "title"), "failover smoke todo");
+        assert_eq!(
+            route_free::required_str(&create_todo, "title"),
+            "failover smoke todo"
+        );
         assert_eq!(create_todo["completed"].as_bool(), Some(false));
 
-        let (before_route_primary, before_route_standby) =
-            deploy::continuity_list_snapshot_pair(&artifacts, "continuity-before-list-route", &runtime);
-        for (label, json) in [("primary", &before_route_primary), ("standby", &before_route_standby)] {
+        let (before_route_primary, before_route_standby) = deploy::continuity_list_snapshot_pair(
+            &artifacts,
+            "continuity-before-list-route",
+            &runtime,
+        );
+        for (label, json) in [
+            ("primary", &before_route_primary),
+            ("standby", &before_route_standby),
+        ] {
             assert_eq!(route_free::required_u64(json, "total_records"), 1, "{label} continuity should only expose the startup record before the first clustered GET /todos");
             assert_eq!(
                 route_free::count_records_for_runtime_name(json, deploy::LIST_ROUTE_RUNTIME_NAME),
@@ -766,23 +1095,27 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
             "GET /todos on primary staged node before failover",
             &secret_values,
         );
-        let todos_before_failover_items = todos_before_failover
-            .as_array()
-            .unwrap_or_else(|| panic!("expected GET /todos to return an array, got: {todos_before_failover}"));
+        let todos_before_failover_items = todos_before_failover.as_array().unwrap_or_else(|| {
+            panic!("expected GET /todos to return an array, got: {todos_before_failover}")
+        });
         let todo_before_failover = todos_before_failover_items
             .iter()
             .find(|item| item["id"].as_str() == Some(created_todo_id.as_str()))
             .unwrap_or_else(|| panic!("GET /todos before failover did not include created todo {created_todo_id}: {todos_before_failover}"));
-        assert_eq!(todo_before_failover["title"].as_str(), Some("failover smoke todo"));
+        assert_eq!(
+            todo_before_failover["title"].as_str(),
+            Some("failover smoke todo")
+        );
         assert_eq!(todo_before_failover["completed"].as_bool(), Some(false));
 
-        let (_route_list_primary, new_list_route_request_key) = deploy::wait_for_new_route_request_key(
-            &artifacts,
-            "route-request-key-primary",
-            &runtime.primary.node_name,
-            &before_route_primary,
-            &runtime.primary.cluster_cookie,
-        );
+        let (_route_list_primary, new_list_route_request_key) =
+            deploy::wait_for_new_route_request_key(
+                &artifacts,
+                "route-request-key-primary",
+                &runtime.primary.node_name,
+                &before_route_primary,
+                &runtime.primary.cluster_cookie,
+            );
         list_route_request_key = Some(new_list_route_request_key.clone());
         let route_record_primary = deploy::wait_for_continuity_record_completed(
             &artifacts,
@@ -835,7 +1168,50 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
             }),
         );
 
-        primary_run1_logs = primary_run1.take().map(|spawned| deploy::stop_todo_app(spawned, &secret_values));
+        let expected_pending_window_ms = runtime
+            .primary
+            .startup_work_delay_ms
+            .expect("staged failover runtime must configure startup_work_delay_ms");
+        let (pre_kill_primary_diagnostics, pre_kill_standby_diagnostics) =
+            wait_for_pre_kill_startup_dispatch_window_pair(
+                &artifacts,
+                &runtime,
+                &startup.request_key,
+                expected_pending_window_ms,
+            );
+        assert!(!route_free::required_bool(
+            &pre_kill_primary_diagnostics,
+            "truncated"
+        ));
+        assert!(!route_free::required_bool(
+            &pre_kill_standby_diagnostics,
+            "truncated"
+        ));
+        let mut observed_pending_window_values =
+            startup_dispatch_window_values(&pre_kill_primary_diagnostics, &startup.request_key);
+        observed_pending_window_values.extend(startup_dispatch_window_values(
+            &pre_kill_standby_diagnostics,
+            &startup.request_key,
+        ));
+        assert_eq!(
+            observed_pending_window_values,
+            vec![expected_pending_window_ms],
+            "expected exactly one startup_dispatch_window diagnostic before the forced owner stop"
+        );
+        assert_eq!(
+            startup_transition_count(
+                &pre_kill_primary_diagnostics,
+                &pre_kill_standby_diagnostics,
+                &startup.request_key,
+                "startup_completed",
+            ),
+            0,
+            "startup_completed must not land before the forced owner stop"
+        );
+
+        primary_run1_logs = primary_run1
+            .take()
+            .map(|spawned| deploy::stop_todo_app(spawned, &secret_values));
         deploy::write_artifact(
             &artifacts.join("primary-run1.combined.log"),
             primary_run1_logs
@@ -890,7 +1266,10 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
                 )
             },
         );
-        assert!(!route_free::required_bool(&post_kill_diagnostics, "truncated"));
+        assert!(!route_free::required_bool(
+            &post_kill_diagnostics,
+            "truncated"
+        ));
         let recovered_attempt_id = automatic_recovery_attempt_id(
             &post_kill_diagnostics,
             request_key.as_deref().unwrap(),
@@ -940,8 +1319,14 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
             "GET /todos/:id on promoted standby after failover",
             &secret_values,
         );
-        assert_eq!(route_free::required_str(&todo_after_failover, "id"), created_todo_id);
-        assert_eq!(route_free::required_str(&todo_after_failover, "title"), "failover smoke todo");
+        assert_eq!(
+            route_free::required_str(&todo_after_failover, "id"),
+            created_todo_id
+        );
+        assert_eq!(
+            route_free::required_str(&todo_after_failover, "title"),
+            "failover smoke todo"
+        );
         assert_eq!(todo_after_failover["completed"].as_bool(), Some(false));
 
         let toggled_after_failover = deploy::json_request_snapshot_for_node(
@@ -968,7 +1353,10 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
             "GET /todos/:id on promoted standby after toggle",
             &secret_values,
         );
-        assert_eq!(get_toggled_after_failover["completed"].as_bool(), Some(true));
+        assert_eq!(
+            get_toggled_after_failover["completed"].as_bool(),
+            Some(true)
+        );
 
         let deleted_after_failover = deploy::json_request_snapshot_for_node(
             &artifacts,
@@ -981,8 +1369,14 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
             "DELETE /todos/:id on promoted standby after failover",
             &secret_values,
         );
-        assert_eq!(route_free::required_str(&deleted_after_failover, "status"), "deleted");
-        assert_eq!(route_free::required_str(&deleted_after_failover, "id"), created_todo_id);
+        assert_eq!(
+            route_free::required_str(&deleted_after_failover, "status"),
+            "deleted"
+        );
+        assert_eq!(
+            route_free::required_str(&deleted_after_failover, "id"),
+            created_todo_id
+        );
 
         let missing_after_delete = deploy::json_request_snapshot_for_node(
             &artifacts,
@@ -995,7 +1389,10 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
             "GET /todos/:id after delete on promoted standby",
             &secret_values,
         );
-        assert_eq!(route_free::required_str(&missing_after_delete, "error"), "todo not found");
+        assert_eq!(
+            route_free::required_str(&missing_after_delete, "error"),
+            "todo not found"
+        );
 
         primary_run2 = Some(deploy::spawn_staged_todo_app(
             &bundle,
@@ -1055,7 +1452,10 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
                 )
             },
         );
-        assert!(!route_free::required_bool(&post_rejoin_diagnostics, "truncated"));
+        assert!(!route_free::required_bool(
+            &post_rejoin_diagnostics,
+            "truncated"
+        ));
 
         route_free::wait_for_continuity_record_matching(
             &artifacts,
@@ -1173,7 +1573,9 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
         );
     }
 
-    let request_key = request_key.as_deref().expect("startup request key missing after successful run");
+    let request_key = request_key
+        .as_deref()
+        .expect("startup request key missing after successful run");
     let initial_attempt_id = initial_attempt_id
         .as_deref()
         .expect("initial startup attempt id missing after successful run");
@@ -1183,8 +1585,11 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
     let list_route_request_key = list_route_request_key
         .as_deref()
         .expect("list route request key missing after successful run");
-    let todo_id = todo_id.as_deref().expect("todo id missing after successful run");
-    let primary_run2_logs = primary_run2_logs.expect("primary run2 logs missing after successful run");
+    let todo_id = todo_id
+        .as_deref()
+        .expect("todo id missing after successful run");
+    let primary_run2_logs =
+        primary_run2_logs.expect("primary run2 logs missing after successful run");
 
     for required in [
         "scenario-meta.json",
@@ -1214,6 +1619,10 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
         "pre-kill-continuity-primary.json",
         "pre-kill-continuity-standby.log",
         "pre-kill-continuity-standby.json",
+        "pre-kill-diagnostics-primary.log",
+        "pre-kill-diagnostics-primary.json",
+        "pre-kill-diagnostics-standby.log",
+        "pre-kill-diagnostics-standby.json",
         "create-todo-primary.http",
         "create-todo-primary.json",
         "continuity-before-list-route-primary-continuity.log",
@@ -1277,6 +1686,26 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
     deploy::assert_runtime_logs(&primary_run2_logs, &runtime.primary);
     deploy::assert_artifacts_redacted(&artifacts, &secret_values);
 
+    let expected_pending_window_ms = runtime
+        .primary
+        .startup_work_delay_ms
+        .expect("staged failover runtime must configure startup_work_delay_ms");
+    assert_todo_log_contains(
+        &primary_run1_logs,
+        &format!(
+            "[mesh-rt startup] transition=startup_dispatch_window runtime_name={} request_key={request_key} pending_window_ms={} ownership=language_owned",
+            deploy::STARTUP_RUNTIME_NAME,
+            expected_pending_window_ms,
+        ),
+    );
+    assert_todo_log_absent(
+        &primary_run1_logs,
+        &format!(
+            "[mesh-rt startup] transition=startup_completed runtime_name={} request_key={request_key}",
+            deploy::STARTUP_RUNTIME_NAME,
+        ),
+    );
+
     assert_todo_log_contains(
         &standby_logs,
         &format!(
@@ -1310,7 +1739,10 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
             "[mesh-rt continuity] transition=completed request_key={request_key} attempt_id={initial_attempt_id}"
         ),
     );
-    assert_todo_log_contains(&primary_run2_logs, "[mesh-rt continuity] transition=fenced_rejoin");
+    assert_todo_log_contains(
+        &primary_run2_logs,
+        "[mesh-rt continuity] transition=fenced_rejoin",
+    );
     assert_todo_log_absent(
         &primary_run2_logs,
         &format!(
@@ -1318,7 +1750,10 @@ fn m053_s02_staged_postgres_failover_proves_clustered_http_and_runtime_recovery(
             runtime.primary.node_name
         ),
     );
-    assert!(!list_route_request_key.is_empty(), "list route request key should be recorded");
+    assert!(
+        !list_route_request_key.is_empty(),
+        "list route request key should be recorded"
+    );
     assert!(!todo_id.is_empty(), "todo id should be recorded");
 }
 
@@ -1335,6 +1770,8 @@ fn m053_s02_retained_verifier_keeps_nested_s01_logs_and_non_timeout_failure_reas
             "upstream-m053-s01-verify",
             "m053-s01-example-e2e.log",
             "m053-s01-staged-deploy-e2e.log",
+            "pre-kill-diagnostics-primary.json",
+            "pre-kill-diagnostics-standby.json",
             "manifest.txt",
             "command exited with status %s before %ss deadline",
             "command timed out after %ss",
@@ -1390,13 +1827,7 @@ fn m053_s02_staged_postgres_helper_keeps_readme_bounded_and_work_source_clean() 
         ],
     );
 
-    assert_source_contains_all(
-        &work_path,
-        &[
-            "@cluster pub fn sync_todos()",
-            "1 + 1",
-        ],
-    );
+    assert_source_contains_all(&work_path, &["@cluster pub fn sync_todos()", "1 + 1"]);
     assert_source_omits_all(
         &work_path,
         &[

@@ -334,7 +334,9 @@ run_nested_m053_s01_contract() {
 
   begin_phase "$phase"
   echo "==> DATABASE_URL=<redacted> ${cmd[*]}"
-  if ! run_command_with_database_url "$timeout_secs" "$log_path" "${cmd[@]}"; then
+  if run_command_with_database_url "$timeout_secs" "$log_path" "${cmd[@]}"; then
+    :
+  else
     local exit_code=$?
     retain_nested_verifier_logs "$ROOT_DIR/.tmp/m053-s01/verify" "$retained_root"       full-contract.log       phase-report.txt       status.txt       current-phase.txt       m053-s01-example-e2e.log       m053-s01-staged-deploy-e2e.log
     record_phase "$phase" failed
@@ -634,6 +636,10 @@ failover_required = [
     'pre-kill-continuity-primary.json',
     'pre-kill-continuity-standby.log',
     'pre-kill-continuity-standby.json',
+    'pre-kill-diagnostics-primary.log',
+    'pre-kill-diagnostics-primary.json',
+    'pre-kill-diagnostics-standby.log',
+    'pre-kill-diagnostics-standby.json',
     'create-todo-primary.http',
     'create-todo-primary.json',
     'continuity-before-list-route-primary-continuity.log',
@@ -693,6 +699,39 @@ for required_dir in ['generated-project', 'workspace']:
 scenario = json.loads((failover / 'scenario-meta.json').read_text())
 if not scenario.get('request_key') or not scenario.get('failover_attempt_id'):
     raise SystemExit(f'{failover / "scenario-meta.json"}: expected recorded request_key and failover_attempt_id')
+request_key = scenario['request_key']
+
+pre_kill_primary_diag = json.loads((failover / 'pre-kill-diagnostics-primary.json').read_text())
+pre_kill_standby_diag = json.loads((failover / 'pre-kill-diagnostics-standby.json').read_text())
+startup_entries = [
+    entry
+    for snapshot in (pre_kill_primary_diag, pre_kill_standby_diag)
+    for entry in snapshot.get('entries', [])
+    if entry.get('request_key') == request_key
+]
+startup_dispatch_entries = [
+    entry for entry in startup_entries if entry.get('transition') == 'startup_dispatch_window'
+]
+if len(startup_dispatch_entries) != 1:
+    raise SystemExit(
+        f'expected exactly one startup_dispatch_window entry before the forced owner stop, found {len(startup_dispatch_entries)}'
+    )
+metadata = {
+    item.get('key'): item.get('value')
+    for item in startup_dispatch_entries[0].get('metadata', [])
+}
+if metadata.get('pending_window_ms') != '20000':
+    raise SystemExit(
+        f'pre-kill startup_dispatch_window must retain pending_window_ms=20000, got {metadata.get("pending_window_ms")!r}'
+    )
+if any(entry.get('transition') == 'startup_completed' for entry in startup_entries):
+    raise SystemExit('pre-kill diagnostics must not show startup_completed before the forced owner stop')
+
+primary_run1_text = (failover / 'primary-run1.combined.log').read_text(errors='replace')
+if 'pending_window_ms=20000 ownership=language_owned' not in primary_run1_text:
+    raise SystemExit('primary-run1.combined.log must retain the configured startup_dispatch_window evidence')
+if f'transition=startup_completed runtime_name=Work.sync_todos request_key={request_key}' in primary_run1_text:
+    raise SystemExit('primary-run1.combined.log must not show startup_completed before the forced owner stop')
 
 post_kill_status = json.loads((failover / 'post-kill-status-standby.json').read_text())
 if post_kill_status['authority']['cluster_role'] != 'primary':
