@@ -739,7 +739,7 @@ fn m053_s02_staged_postgres_helper_rejects_malformed_bundle_pointer_and_cluster_
 #[test]
 fn m053_s02_hosted_failure_bundle_proves_completed_before_owner_stop() {
     let retained_bundle = deploy::repo_root().join(
-        ".tmp/m053-s05/remote-auth-24014506220/artifacts/authoritative-starter-failover-proof-diagnostics/staged-postgres-failover-runtime-truth-1775437858534365102",
+        "scripts/fixtures/m053-s02-hosted-failure-bundle",
     );
     assert!(
         retained_bundle.is_dir(),
