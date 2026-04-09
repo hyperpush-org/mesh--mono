@@ -55,7 +55,14 @@ Before committing or pushing from `hyperpush-mono`, check both repos:
 bash ../mesh-lang/scripts/workspace-git.sh status
 ```
 
-The product repo `pre-push` hook blocks accidental partial pushes whenever the sibling `mesh-lang` repo is still dirty.
+For a standalone `hyperpush-mono` clone with no sibling `mesh-lang` checkout, use the repo-local installer instead:
+
+```bash
+bash scripts/install-git-hooks.sh
+```
+
+The product repo `pre-push` hook blocks accidental partial pushes whenever the sibling `mesh-lang` repo is present and still dirty.
+In a standalone product clone, the same tracked hook stays active but skips the cross-repo dirty-check because there is no sibling repo to inspect.
 If you intentionally need a one-sided push, override that single command with `M055_ALLOW_PARTIAL_PUSH=1 git push ...`.
 
 ## Common commands

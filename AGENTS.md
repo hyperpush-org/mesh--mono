@@ -36,7 +36,14 @@ Install the tracked split hooks once from `mesh-lang/`:
 bash ../mesh-lang/scripts/workspace-git.sh install-hooks
 ```
 
-The product repo `pre-push` hook refuses accidental partial pushes whenever the sibling `mesh-lang` repo is still dirty.
+If this is only a standalone `hyperpush-mono` clone with no sibling `mesh-lang` checkout, use the repo-local installer instead:
+
+```bash
+bash scripts/install-git-hooks.sh
+```
+
+The product repo `pre-push` hook refuses accidental partial pushes whenever the sibling `mesh-lang` repo is present and still dirty.
+In a standalone product clone, it stays active but skips the cross-repo dirty-check.
 
 ## Push commands
 
