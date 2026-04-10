@@ -44,9 +44,9 @@ export const metadata: Metadata = {
     siteName: 'hyperpush',
     images: [
       {
-        url: '/x-banner.png',
-        width: 3000,
-        height: 1000,
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
         alt: 'hyperpush — Open Source Error Tracking with Token Rewards',
       },
     ],
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title,
     description,
-    images: ['/x-banner.png'],
+    images: ['/og-image.png'],
     site: X_HANDLE,
     creator: X_HANDLE,
   },
