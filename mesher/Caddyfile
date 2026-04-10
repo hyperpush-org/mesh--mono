@@ -1,0 +1,22 @@
+{
+  auto_https off
+}
+
+# Route the public site to landing
+hyperpush.dev, www.hyperpush.dev {
+  reverse_proxy landing:3000
+}
+
+# Local-only HTTP routes for development
+http://localhost, http://localhost:3000 {
+  reverse_proxy landing:3000
+}
+
+http://app.localhost, http://app.localhost:3000 {
+  reverse_proxy app:3000
+}
+
+# Route app subdomain to frontend-exp
+app.hyperpush.dev {
+  reverse_proxy app:3000
+}

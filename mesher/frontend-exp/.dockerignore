@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+.github
+.bg-shell
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
