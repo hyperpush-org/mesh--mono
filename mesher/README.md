@@ -69,25 +69,45 @@ cp mesher/.env.example .env.mesher
 set -a && source .env.mesher && set +a
 ```
 
-### 2. Run the package tests
+### 2. Install Mesher dev helpers
+
+```bash
+npm --prefix mesher ci
+```
+
+### 3. Run the package tests
 
 ```bash
 bash mesher/scripts/test.sh
 ```
 
-### 3. Inspect migration state
+### 4. Inspect migration state
 
 ```bash
 DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} bash mesher/scripts/migrate.sh status
 ```
 
-### 4. Apply migrations
+### 5. Apply migrations
 
 ```bash
 DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} bash mesher/scripts/migrate.sh up
 ```
 
-### 5. Build Mesher
+### 6. Run the frontend and backend together
+
+```bash
+npm --prefix mesher run dev
+```
+
+That command uses `concurrently` to:
+
+- start the TanStack client on `http://127.0.0.1:3000`
+- compile Mesher into `hyperpush-mono/.tmp/mesher-dev/build/mesher`
+- run the compiled backend on `http://127.0.0.1:18180` with WebSockets on `18181`
+
+The default `18180` backend port matches the client proxy contract, so `/api/v1` works without an extra `MESHER_BACKEND_ORIGIN` override during local development.
+
+### 7. Build Mesher directly
 
 ```bash
 bash mesher/scripts/build.sh .tmp/mesher-build
@@ -95,7 +115,7 @@ bash mesher/scripts/build.sh .tmp/mesher-build
 
 That build writes the runnable binary to `.tmp/mesher-build/mesher`.
 
-### 6. Run Mesher
+### 8. Run Mesher directly
 
 ```bash
 DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} \

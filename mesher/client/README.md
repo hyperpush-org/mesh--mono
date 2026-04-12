@@ -17,14 +17,16 @@ hyperpush-mono/
 From the product repo root:
 
 ```bash
-npm --prefix mesher/client ci
-npm --prefix mesher/client run dev
+npm --prefix mesher ci
+npm --prefix mesher run dev
 npm --prefix mesher/client run build
 PORT=3001 npm --prefix mesher/client run start
 bash mesher/scripts/seed-live-issue.sh
 npm --prefix mesher/client run test:e2e:dev -- --grep "issues live"
 npm --prefix mesher/client run test:e2e:prod -- --grep "issues live"
 ```
+
+`npm --prefix mesher run dev` is the one-command local loop: it starts the TanStack client on port `3000`, compiles the backend, and runs the compiled Mesher binary on `http://127.0.0.1:18180` so the client proxy can use the default same-origin `/api/v1` flow.
 
 From this package directory:
 

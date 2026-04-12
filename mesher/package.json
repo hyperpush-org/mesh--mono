@@ -1,0 +1,13 @@
+{
+  "name": "mesher-dev",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k --success first --names client,server --prefix name --prefix-colors blue,green \"bash scripts/dev-client.sh\" \"bash scripts/dev.sh\"",
+    "dev:client": "bash scripts/dev-client.sh",
+    "dev:server": "bash scripts/dev.sh"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
