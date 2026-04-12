@@ -1,0 +1,30 @@
+services:
+  dev:
+    build:
+      context: .
+      target: dev
+    container_name: Client-dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    command: npm run dev -- --hostname 0.0.0.0
+    restart: unless-stopped
+
+  prod:
+    build:
+      context: .
+      target: production
+    container_name: Client-prod
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  builder:
+    build:
+      context: .
+      target: builder
+    container_name: Client-builder
+    command: npm run build

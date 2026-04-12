@@ -11,6 +11,18 @@ hyperpush-mono/
   mesher/
     client/
 ```
+## Docker Compose
+
+Use the following Docker Compose commands for development and production:
+
+```bash
+# Development
+docker compose up dev
+
+# Production (build and run in detached mode)
+docker compose up prod --build -d
+```
+
 
 ## Maintainer workflow
 
