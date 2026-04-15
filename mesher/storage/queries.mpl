@@ -351,7 +351,10 @@ pub fn resolve_issue(pool :: PoolHandle, issue_id :: String) -> Int ! String do
   let q = Query.from(Issue.__table__())
     |> Query.where_raw("id = ?::uuid", [issue_id])
     |> Query.where_raw("status != 'resolved'", [])
-  Repo.update_where(pool, Issue.__table__(), %{"status" => "resolved"}, q) ?
+  Repo.update_where_expr(pool,
+  Issue.__table__(),
+  %{"status" => Expr.value("resolved"), "last_resolved_at" => Expr.fn_call("now", [])},
+  q) ?
   Ok(1)
 end
 
@@ -544,7 +547,8 @@ pub fn list_issues_by_status(pool :: PoolHandle, project_id :: String, status ::
         event_count : parse_event_count(Map.get(row, "event_count")),
         first_seen : Map.get(row, "first_seen"),
         last_seen : Map.get(row, "last_seen"),
-        assigned_to : Map.get(row, "assigned_to")
+        assigned_to : Map.get(row, "assigned_to"),
+        last_resolved_at : ""
       }
     end))
 end
@@ -599,12 +603,13 @@ project_id :: String,
 status :: String,
 level :: String,
 assigned_to :: String,
+environment :: String,
 cursor :: String,
 cursor_id :: String,
 limit_str :: String) -> List < Map < String, String > > ! String do
   let lim = String.from(parse_limit(limit_str))
-  let sql = "SELECT id::text AS id, title::text AS title, level::text AS level, status::text AS status, event_count::text AS event_count, first_seen::text AS first_seen, last_seen::text AS last_seen, COALESCE(assigned_to::text, '') AS assigned_to FROM issues WHERE project_id = $1::uuid AND ($2 = '' OR status = $2) AND ($3 = '' OR level = $3) AND ($4 = '' OR assigned_to = NULLIF($4, '')::uuid) AND ($5 = '' OR (last_seen, id) < ($5::timestamptz, NULLIF($6, '')::uuid)) ORDER BY last_seen DESC, id DESC LIMIT $7::int"
-  Repo.query_raw(pool, sql, [project_id, status, level, assigned_to, cursor, cursor_id, lim])
+  let sql = "SELECT id::text AS id, title::text AS title, level::text AS level, status::text AS status, event_count::text AS event_count, first_seen::text AS first_seen, last_seen::text AS last_seen, COALESCE(assigned_to::text, '') AS assigned_to FROM issues WHERE project_id = $1::uuid AND ($2 = '' OR status = $2) AND ($3 = '' OR level = $3) AND ($4 = '' OR assigned_to = NULLIF($4, '')::uuid) AND ($5 = '' OR (last_seen, id) < ($5::timestamptz, NULLIF($6, '')::uuid)) AND ($8 = '' OR EXISTS (SELECT 1 FROM events WHERE issue_id = issues.id AND environment = $8 AND received_at > now() - interval '7 days')) ORDER BY last_seen DESC, id DESC LIMIT $7::int"
+  Repo.query_raw(pool, sql, [project_id, status, level, assigned_to, cursor, cursor_id, lim, environment])
 end
 
 # SEARCH-02: Full-text search on event messages using inline tsvector.
@@ -825,7 +830,9 @@ pub fn get_event_detail(pool :: PoolHandle, event_id :: String) -> List < Map < 
     "tags"), Expr.label(Expr.coalesce([Pg.text(Expr.column("extra")), Expr.value("{}")]), "extra"), Expr.label(Expr.coalesce([Pg.text(Expr.column("user_context")), Expr.value("null")]),
     "user_context"), Expr.label(Expr.coalesce([Expr.column("sdk_name"), Expr.value("")]),
     "sdk_name"), Expr.label(Expr.coalesce([Expr.column("sdk_version"), Expr.value("")]),
-    "sdk_version"), Expr.label(Expr.column("received_at"), "received_at")])
+    "sdk_version"), Expr.label(Expr.coalesce([Expr.column("environment"), Expr.value("")]),
+    "environment"), Expr.label(Expr.coalesce([Expr.column("session_id"), Expr.value("")]),
+    "session_id"), Expr.label(Expr.column("received_at"), "received_at")])
   Repo.all(pool, q)
 end
 
@@ -1002,6 +1009,44 @@ pub fn check_new_issue(pool :: PoolHandle, issue_id :: String) -> Bool ! String 
     |> Query.select(["id"])
   let rows = Repo.all(pool, q) ?
   Ok(List.length(rows) > 0)
+end
+
+# Regression detection: an issue has regressed when it is currently unresolved,
+# has a recorded last_resolved_at timestamp, and its last_seen is newer than
+# last_resolved_at -- meaning a new event arrived after the last manual resolve.
+# Returns true only once per regression window because last_seen advances on each
+# new event while last_resolved_at stays fixed until the next resolve action.
+# Wired into check_event_alerts in ingestion/routes.mpl to fire "regression" alerts.
+
+pub fn check_regression(pool :: PoolHandle, issue_id :: String) -> Bool ! String do
+  let q = Query.from(Issue.__table__())
+    |> Query.where_raw("id = ?::uuid AND status = 'unresolved' AND last_resolved_at IS NOT NULL AND last_seen > last_resolved_at",
+    [issue_id])
+    |> Query.select(["id"])
+  let rows = Repo.all(pool, q) ?
+  Ok(List.length(rows) > 0)
+end
+
+# Session-scoped event retrieval: returns events for a given session_id within a project.
+# Scoped to the last 24 hours for partition pruning on the range-partitioned events table.
+# Returns enough fields for session-context display without the full JSONB payload.
+
+pub fn get_events_by_session_id(pool :: PoolHandle,
+project_id :: String,
+session_id :: String,
+limit_str :: String) -> List < Map < String, String > > ! String do
+  let lim = parse_limit(limit_str)
+  let q = Query.from(Event.__table__())
+    |> Query.where_expr(Expr.eq(Expr.column("project_id"), Pg.uuid(Expr.value(project_id))))
+    |> Query.where_raw("session_id = ?", [session_id])
+    |> Query.where_raw("received_at > now() - interval '24 hours'", [])
+    |> Query.select_exprs([Expr.label(Pg.text(Expr.column("id")), "id"), Expr.label(Pg.text(Expr.column("issue_id")),
+    "issue_id"), Expr.label(Expr.column("level"), "level"), Expr.label(Expr.column("message"),
+    "message"), Expr.label(Expr.coalesce([Expr.column("environment"), Expr.value("")]),
+    "environment"), Expr.label(Pg.text(Expr.column("received_at")), "received_at")])
+    |> Query.order_by(:received_at, :asc)
+    |> Query.limit(lim)
+  Repo.all(pool, q)
 end
 
 # ALERT-03: Get enabled alert rules for event-based conditions for a project.

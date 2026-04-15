@@ -33,7 +33,7 @@ from Ingestion.Routes import (
   handle_discard_issue,
   handle_delete_issue
 )
-from Api.Search import handle_search_issues, handle_search_events, handle_filter_by_tag, handle_list_issue_events
+from Api.Search import handle_search_issues, handle_search_events, handle_filter_by_tag, handle_list_issue_events, handle_session_events
 from Api.Dashboard import (
   handle_event_volume,
   handle_error_breakdown,
@@ -120,6 +120,7 @@ fn start_runtime(http_port :: Int, ws_port :: Int, window_seconds :: Int, max_ev
     |> HTTP.on_get("/api/v1/projects/:project_id/events/search", handle_search_events)
     |> HTTP.on_get("/api/v1/projects/:project_id/events/tags", handle_filter_by_tag)
     |> HTTP.on_get("/api/v1/issues/:issue_id/events", handle_list_issue_events)
+    |> HTTP.on_get("/api/v1/projects/:project_id/sessions/:session_id/events", handle_session_events)
     |> HTTP.on_get("/api/v1/projects/:project_id/dashboard/volume", handle_event_volume)
     |> HTTP.on_get("/api/v1/projects/:project_id/dashboard/levels", handle_error_breakdown)
     |> HTTP.on_get("/api/v1/projects/:project_id/dashboard/top-issues", handle_top_issues)

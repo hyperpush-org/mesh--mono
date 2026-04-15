@@ -4,10 +4,12 @@
 
 pub type IssueStatus do
   Unresolved
-  
+
   Resolved
-  
+
   Archived
+
+  Discarded
 end deriving(Json)
 
 # Database Row struct for issues. Status stored as text in DB,
@@ -25,6 +27,7 @@ pub struct Issue do
   first_seen :: String
   last_seen :: String
   assigned_to :: String
+  last_resolved_at :: String
   belongs_to :project, Project
   has_many :events, Event
 end deriving(Schema, Json, Row)

@@ -70,6 +70,8 @@ pub struct Event do
   user_context :: String
   sdk_name :: String
   sdk_version :: String
+  environment :: String
+  session_id :: String
   received_at :: String
   belongs_to :project, Project
   belongs_to :issue, Issue
@@ -90,4 +92,6 @@ pub struct EventPayload do
   user_context :: String
   sdk_name :: Option < String >
   sdk_version :: Option < String >
+  environment :: Option < String >
+  session_id :: Option < String >
 end deriving(Json)

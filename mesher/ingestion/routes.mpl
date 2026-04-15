@@ -19,6 +19,7 @@ from Storage.Queries import (
   delete_issue,
   list_issues_by_status,
   check_new_issue,
+  check_regression,
   get_event_alert_rules,
   fire_alert,
   check_sample_rate,
@@ -185,12 +186,34 @@ is_new :: Bool) do
   end
 end
 
-# Check for new-issue alerts after event processing (ALERT-03).
+# Fire regression alerts when a previously resolved issue receives a new event.
+# Reuses fire_matching_event_alerts with condition_type "regression" so alert
+# rules with that condition type are triggered without a separate alert evaluation path.
+
+fn handle_regression_alert(pool :: PoolHandle,
+project_id :: String,
+issue_id :: String,
+is_regression :: Bool) do
+  if is_regression do
+    fire_matching_event_alerts(pool, project_id, "regression", issue_id)
+    0
+  else
+    0
+  end
+end
+
+# Check for new-issue and regression alerts after event processing (ALERT-03).
+# new_issue fires on first occurrence; regression fires when a resolved issue regresses.
 
 fn check_event_alerts(pool :: PoolHandle, project_id :: String, issue_id :: String) do
   let new_result = check_new_issue(pool, issue_id)
   case new_result do
     Ok( is_new) -> handle_new_issue_alert(pool, project_id, issue_id, is_new)
+    Err( _) -> 0
+  end
+  let reg_result = check_regression(pool, issue_id)
+  case reg_result do
+    Ok( is_regression) -> handle_regression_alert(pool, project_id, issue_id, is_regression)
     Err( _) -> 0
   end
 end
@@ -488,12 +511,20 @@ pub fn handle_unresolve_issue(request) do
   end
 end
 
+# Helper: broadcast assignment and return success response.
+# Follows the resolve_success / archive_success pattern: broadcast then respond.
+
+fn assign_success(pool, issue_id :: String) do
+  broadcast_issue_update(pool, issue_id, "assigned")
+  HTTP.response(200, json { status : "ok" })
+end
+
 # Helper: perform assignment after extracting user_id from parsed JSON rows.
 
 fn assign_with_user_id(pool :: PoolHandle, issue_id :: String, user_id :: String) do
   let result = assign_issue(pool, issue_id, user_id)
   case result do
-    Ok( _) -> HTTP.response(200, json { status : "ok" })
+    Ok( _) -> assign_success(pool, issue_id)
     Err( e) -> HTTP.response(500, json { error : e })
   end
 end

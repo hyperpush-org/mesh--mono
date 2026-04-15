@@ -29,6 +29,8 @@ fn detail_row_to_event(row) -> Event do
     user_context : Map.get(row, "user_context"),
     sdk_name : Map.get(row, "sdk_name"),
     sdk_version : Map.get(row, "sdk_version"),
+    environment : Map.get(row, "environment"),
+    session_id : Map.get(row, "session_id"),
     received_at : Map.get(row, "received_at")
   }
 end
@@ -53,8 +55,10 @@ fn event_detail_to_json(row) -> String do
   let user_context = Map.get(row, "user_context")
   let sdk_name = Json.get(normalized, "sdk_name")
   let sdk_version = Json.get(normalized, "sdk_version")
+  let environment = Json.get(normalized, "environment")
+  let session_id = Json.get(normalized, "session_id")
   let received_at = Json.get(normalized, "received_at")
-  """{"id":"#{id}","project_id":"#{project_id}","issue_id":"#{issue_id}","level":"#{level}","message":"#{message}","fingerprint":"#{fingerprint}","exception":#{exception},"stacktrace":#{stacktrace},"breadcrumbs":#{breadcrumbs},"tags":#{tags},"extra":#{extra},"user_context":#{user_context},"sdk_name":"#{sdk_name}","sdk_version":"#{sdk_version}","received_at":"#{received_at}"}"""
+  """{"id":"#{id}","project_id":"#{project_id}","issue_id":"#{issue_id}","level":"#{level}","message":"#{message}","fingerprint":"#{fingerprint}","exception":#{exception},"stacktrace":#{stacktrace},"breadcrumbs":#{breadcrumbs},"tags":#{tags},"extra":#{extra},"user_context":#{user_context},"sdk_name":"#{sdk_name}","sdk_version":"#{sdk_version}","environment":"#{environment}","session_id":"#{session_id}","received_at":"#{received_at}"}"""
 end
 
 # Format a nullable neighbor ID for JSON output.

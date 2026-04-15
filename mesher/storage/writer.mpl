@@ -31,7 +31,9 @@ json_str :: String) -> String ! String do
   [event_json, Expr.value("extra")]), Pg.jsonb(Expr.value("{}"))]), "user_context" => Expr.fn_call("jsonb_extract_path",
   [event_json, Expr.value("user_context")]), "sdk_name" => Expr.fn_call("jsonb_extract_path_text",
   [event_json, Expr.value("sdk_name")]), "sdk_version" => Expr.fn_call("jsonb_extract_path_text",
-  [event_json, Expr.value("sdk_version")])}) ?
+  [event_json, Expr.value("sdk_version")]), "environment" => Expr.fn_call("jsonb_extract_path_text",
+  [event_json, Expr.value("environment")]), "session_id" => Expr.fn_call("jsonb_extract_path_text",
+  [event_json, Expr.value("session_id")])}) ?
   Ok("stored")
 end
 

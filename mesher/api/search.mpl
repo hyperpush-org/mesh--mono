@@ -4,7 +4,7 @@
 # All handlers follow the PipelineRegistry pattern for pool lookup.
 
 from Ingestion.Pipeline import PipelineRegistry
-from Storage.Queries import list_issues_filtered, search_events_fulltext, filter_events_by_tag, list_events_for_issue
+from Storage.Queries import list_issues_filtered, search_events_fulltext, filter_events_by_tag, list_events_for_issue, get_events_by_session_id
 from Types.Event import Event
 from Types.Issue import Issue
 from Api.Helpers import query_or_default, to_json_array, require_param, get_registry, resolve_project_id
@@ -116,7 +116,8 @@ fn issue_row_to_cursor_issue(row) -> Issue do
     event_count : 0,
     first_seen : Map.get(row, "first_seen"),
     last_seen : Map.get(row, "last_seen"),
-    assigned_to : Map.get(row, "assigned_to")
+    assigned_to : Map.get(row, "assigned_to"),
+    last_resolved_at : ""
   }
 end
 
@@ -158,6 +159,8 @@ fn issue_event_row_to_event(row) -> Event do
     user_context : "null",
     sdk_name : "",
     sdk_version : "",
+    environment : "",
+    session_id : "",
     received_at : Map.get(row, "received_at")
   }
 end
@@ -225,6 +228,7 @@ pub fn handle_search_issues(request) do
   let status = query_or_default(request, "status", "")
   let level = query_or_default(request, "level", "")
   let assigned_to = query_or_default(request, "assigned_to", "")
+  let environment = query_or_default(request, "environment", "")
   let cursor = query_or_default(request, "cursor", "")
     |> decode_query_component()
   let cursor_id = query_or_default(request, "cursor_id", "")
@@ -235,6 +239,7 @@ pub fn handle_search_issues(request) do
   status,
   level,
   assigned_to,
+  environment,
   cursor,
   cursor_id,
   limit_str)
@@ -375,6 +380,47 @@ pub fn handle_list_issue_events(request) do
   let result = list_events_for_issue(pool, issue_id, cursor, cursor_id, limit_str)
   case result do
     Ok( rows) -> handle_issue_events_ok(rows, limit_str)
+    Err( e) -> HTTP.response(500, json { error : e })
+  end
+end
+
+# Convert a session event row to JSON.
+# Includes environment so the client can verify which deployment the event came from.
+
+fn row_to_session_event_json(row) -> String do
+  let id = Map.get(row, "id")
+  let issue_id = Map.get(row, "issue_id")
+  let level = Map.get(row, "level")
+  let message = Map.get(row, "message")
+  let environment = Map.get(row, "environment")
+  let received_at = Map.get(row, "received_at")
+  """{"id":"#{id}","issue_id":"#{issue_id}","level":"#{level}","message":"#{message}","environment":"#{environment}","received_at":"#{received_at}"}"""
+end
+
+# Helper: serialize session event rows and respond.
+
+fn respond_session_events(rows) do
+  let body = rows
+    |> List.map(fn (row) do row_to_session_event_json(row) end)
+    |> to_json_array()
+  HTTP.response(200, body)
+end
+
+# Handle GET /api/v1/projects/:project_id/sessions/:session_id/events
+# Returns events belonging to a specific SDK session, ordered by received_at ASC.
+# Scoped to the last 24 hours (partition-pruned on the partitioned events table).
+# session_id must match exactly the value the SDK sent in the event payload.
+
+pub fn handle_session_events(request) do
+  let reg_pid = get_registry()
+  let pool = PipelineRegistry.get_pool(reg_pid)
+  let raw_id = require_param(request, "project_id")
+  let project_id = resolve_project_id(pool, raw_id)
+  let session_id = require_param(request, "session_id")
+  let limit_str = get_limit(request)
+  let result = get_events_by_session_id(pool, project_id, session_id, limit_str)
+  case result do
+    Ok( rows) -> respond_session_events(rows)
     Err( e) -> HTTP.response(500, json { error : e })
   end
 end
