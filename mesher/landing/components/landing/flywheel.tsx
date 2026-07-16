@@ -2,28 +2,27 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { ArrowRight } from "lucide-react"
 
 const steps = [
   {
     number: "01",
-    title: "Install SDK & Track Errors",
-    description: "Add hyperpush to your project with one command. Full error tracking, stack traces, performance monitoring, and session context from day one.",
+    title: "Capture the Full Context",
+    description: "Add the SDK, then collect errors, stack traces, breadcrumbs, environment data, and performance signals from day one.",
   },
   {
     number: "02",
-    title: "Earn From Your Token",
-    description: "Launch a project token at no cost. A portion of trading activity flows into your project treasury automatically — funding bounties and development without spending a dime.",
+    title: "Group and Prioritize",
+    description: "Fingerprint related events, rank issues by severity and user impact, and keep noisy duplicates out of the way.",
   },
   {
     number: "03",
-    title: "Surface Bugs Publicly",
-    description: "Opt in to the public bug board. Errors are listed with bounties attached, giving community developers clear incentive to contribute fixes.",
+    title: "Assign the Right Owner",
+    description: "Route incidents to the responsible team with release, project, environment, and recent activity already attached.",
   },
   {
     number: "04",
-    title: "Contributors Fix & Earn",
-    description: "A developer picks a bug, submits a PR, your team verifies the fix, and hyperpush distributes the bounty automatically. The project gets healthier, the developer gets paid.",
+    title: "Verify the Recovery",
+    description: "Resolve the issue, monitor the next release, and confirm error rate and latency return to their expected baseline.",
   },
 ]
 
@@ -39,7 +38,7 @@ export function Flywheel() {
   }
 
   return (
-    <section id="flywheel" className="relative py-20 sm:py-32 border-t border-border overflow-hidden">
+    <section id="workflow" className="relative py-20 sm:py-32 border-t border-border overflow-hidden">
       {/* Background accent */}
       <div className="absolute top-0 right-0 w-1/2 h-full bg-accent/[0.02]" />
       
@@ -53,22 +52,16 @@ export function Flywheel() {
           >
             <p className="text-sm font-mono text-accent mb-4 uppercase tracking-wider">How It Works</p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-6 text-balance">
-              Projects get funded.
+              From first signal
               <br />
-              Developers get paid.
+              to verified recovery.
             </h2>
             <p className="text-lg text-muted-foreground mb-4 text-pretty">
-              More projects adopt hyperpush → more bugs surfaced → more developers fix them → 
-              healthier software → more adoption. A cycle where every participant benefits.
+              hyperpush keeps the evidence, ownership, and release context together so teams can move from detection to resolution without losing the thread.
             </p>
             <p className="text-muted-foreground mb-8 text-pretty">
-              Projects build a sustainable treasury through their token. Developers earn bounties for every 
-              verified fix. Open-source maintenance becomes financially viable for both sides.
+              Every stage is built for operators: fewer duplicate alerts, clearer priorities, and a measurable path back to healthy software.
             </p>
-            <div className="flex items-center gap-2 text-accent font-medium">
-              <span>Learn how payouts work</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
           </motion.div>
 
           <div className="relative" onMouseLeave={handleMouseLeave}>

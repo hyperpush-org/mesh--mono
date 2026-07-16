@@ -67,11 +67,8 @@ const expectedRetainedProofBundleFiles = [
 const expectedClassificationByKey = {
   issues: 'mixed',
   performance: 'mock-only',
-  'solana-programs': 'mock-only',
   releases: 'mock-only',
   alerts: 'mixed',
-  bounties: 'mock-only',
-  treasury: 'mock-only',
   settings: 'mixed',
 }
 
@@ -97,8 +94,6 @@ const expectedMixedSurfaceRowsBySection = {
     { routeSection: 'settings', surfaceKey: 'api-keys', level: 'panel', classification: 'live' },
     { routeSection: 'settings', surfaceKey: 'alert-rules', level: 'panel', classification: 'live' },
     { routeSection: 'settings', surfaceKey: 'alert-channels', level: 'subsection', classification: 'shell-only' },
-    { routeSection: 'settings', surfaceKey: 'bounty', level: 'tab', classification: 'mock-only' },
-    { routeSection: 'settings', surfaceKey: 'token', level: 'tab', classification: 'mock-only' },
     { routeSection: 'settings', surfaceKey: 'integrations', level: 'tab', classification: 'mock-only' },
     { routeSection: 'settings', surfaceKey: 'billing', level: 'tab', classification: 'mock-only' },
     { routeSection: 'settings', surfaceKey: 'security', level: 'tab', classification: 'mock-only' },
@@ -135,23 +130,10 @@ const expectedBackendGapRowsBySection = {
     { routeSection: 'performance', surfaceKey: 'overview', supportStatus: 'no-route-family' },
     { routeSection: 'performance', surfaceKey: 'transactions', supportStatus: 'no-route-family' },
   ],
-  'solana-programs': [
-    { routeSection: 'solana-programs', surfaceKey: 'overview', supportStatus: 'no-route-family' },
-    { routeSection: 'solana-programs', surfaceKey: 'log-inspection', supportStatus: 'no-route-family' },
-  ],
   releases: [
     { routeSection: 'releases', surfaceKey: 'list', supportStatus: 'no-route-family' },
     { routeSection: 'releases', surfaceKey: 'detail', supportStatus: 'no-route-family' },
     { routeSection: 'releases', surfaceKey: 'actions', supportStatus: 'no-route-family' },
-  ],
-  bounties: [
-    { routeSection: 'bounties', surfaceKey: 'list', supportStatus: 'no-route-family' },
-    { routeSection: 'bounties', surfaceKey: 'review-payouts', supportStatus: 'no-route-family' },
-  ],
-  treasury: [
-    { routeSection: 'treasury', surfaceKey: 'balances', supportStatus: 'no-route-family' },
-    { routeSection: 'treasury', surfaceKey: 'allocations', supportStatus: 'no-route-family' },
-    { routeSection: 'treasury', surfaceKey: 'transactions', supportStatus: 'no-route-family' },
   ],
 }
 
@@ -350,7 +332,7 @@ test('client route inventory matches the canonical route map and mixed-surface c
 
   assert.equal(
     inventoryRows.filter((row) => row.classification === 'mock-only').length,
-    5,
+    2,
   )
   assert.equal(
     inventoryRows.filter((row) => row.classification === 'mixed').length,
@@ -449,12 +431,12 @@ test('inventory parser rejects malformed top-level rows and parity drift', () =>
       parseRouteInventoryDocument(
         inventoryMutation(
           inventoryMarkdown,
-          '| `treasury` | `/treasury` | `mock-only` | `components/dashboard/treasury-page.tsx` | `tests/e2e/dashboard-route-parity.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` |',
-          '| `treasury` | `/treasury` | `mock-only` | `components/dashboard/treasury-page.tsx` | `tests/e2e/not-a-real-proof.spec.ts` |',
+          '| `releases` | `/releases` | `mock-only` | `components/dashboard/releases-page.tsx` | `tests/e2e/dashboard-route-parity.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` |',
+          '| `releases` | `/releases` | `mock-only` | `components/dashboard/releases-page.tsx` | `tests/e2e/not-a-real-proof.spec.ts` |',
         ),
         { sourceLabel: 'unknown-top-level-proof.md', recognizedProofSuites },
       ),
-    /top-level row treasury: unrecognized proof suite/i,
+    /top-level row releases: unrecognized proof suite/i,
   )
 })
 
@@ -528,12 +510,12 @@ test('inventory parser rejects malformed mixed-surface rows and section tables',
       parseRouteInventoryDocument(
         inventoryMutation(
           inventoryMarkdown,
-          '| `bounty` | `tab` | `mock-only` | `components/dashboard/settings/settings-page.tsx`; `data-testid="settings-bounty-mock-only-banner"` | `tests/e2e/seeded-walkthrough.spec.ts`; `tests/e2e/dashboard-route-parity.spec.ts` | Reward-tier controls remain reachable as stable shell UI. | The tab exposes no live read or write seam and should not be interpreted as bounty policy truth. |',
-          '| `bounty` | `tab` | `mock-only` | `components/dashboard/settings/settings-page.tsx`; `data-testid="settings-bounty-mock-only-banner"` | `tests/e2e/not-a-real-proof.spec.ts` | Reward-tier controls remain reachable as stable shell UI. | The tab exposes no live read or write seam and should not be interpreted as bounty policy truth. |',
+          '| `integrations` | `tab` | `mock-only` | `components/dashboard/settings/settings-page.tsx`; `data-testid="settings-integrations-mock-only-banner"` | `tests/e2e/seeded-walkthrough.spec.ts`; `tests/e2e/dashboard-route-parity.spec.ts` | Connected-service rows stay present so maintainers can see planned surfaces. | Configure and connect affordances are shell-only until dedicated backend routes exist. |',
+          '| `integrations` | `tab` | `mock-only` | `components/dashboard/settings/settings-page.tsx`; `data-testid="settings-integrations-mock-only-banner"` | `tests/e2e/not-a-real-proof.spec.ts` | Connected-service rows stay present so maintainers can see planned surfaces. | Configure and connect affordances are shell-only until dedicated backend routes exist. |',
         ),
         { sourceLabel: 'unknown-mixed-proof.md', recognizedProofSuites },
       ),
-    /Settings\/bounty: unrecognized proof suite/i,
+    /Settings\/integrations: unrecognized proof suite/i,
   )
 })
 

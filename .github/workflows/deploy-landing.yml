@@ -45,7 +45,6 @@ jobs:
       - name: Build landing
         env:
           NEXT_PUBLIC_SITE_URL: https://hyperpush.dev
-          NEXT_PUBLIC_DISCORD_URL: https://discord.gg/6SRhbZw7ZG
         run: npm --prefix mesher/landing run build
 
   deploy-landing:

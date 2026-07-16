@@ -155,8 +155,8 @@ export default function MeshPage() {
               </div>
               <div className="space-y-4 text-muted-foreground text-pretty">
                 <p className="text-base leading-relaxed">
-                  Mesh takes its concurrency model from Erlang and Elixir — the languages behind WhatsApp,
-                  Discord, and the most uptime-critical systems in the world — and combines it with the raw
+                  Mesh takes its concurrency model from Erlang and Elixir — languages proven in telecom,
+                  messaging, and uptime-critical systems — and combines it with the raw
                   compiled speed of native code.
                 </p>
                 <p className="text-base leading-relaxed">

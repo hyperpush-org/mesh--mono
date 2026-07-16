@@ -1,8 +1,3 @@
-/* ------------------------------------------------------------------
- *  Pitch Deck Data — investor-grade slide content
- *  10 slides following the Sequoia / YC structure
- * ----------------------------------------------------------------- */
-
 export type SlideLayout =
   | 'title'
   | 'problem'
@@ -29,7 +24,6 @@ export interface SlideData {
   body?: string
   bullets?: readonly string[]
   metrics?: readonly SlideMetric[]
-  /** Extra structured payload per layout — type-narrowed by layout */
   extra?: Record<string, unknown>
 }
 
@@ -42,33 +36,30 @@ export interface DeckData {
 export const deckData: DeckData = {
   routeTitle: 'hyperpush — Investor Pitch Deck',
   routeDescription:
-    'Open-source error tracking backed by a compiled runtime moat and token-funded bug resolution.',
+    'Production error tracking backed by a compiled runtime designed for isolation and recovery.',
   slides: [
-    /* 1 — Title */
     {
       id: 'title',
       layout: 'title',
       eyebrow: 'hyperpush',
       title: 'The incident workflow\nteams can trust.',
       subtitle:
-        'Open-source error tracking with actor isolation, cluster failover, and token-funded bug fixes.',
+        'Production error tracking with actor isolation, cluster failover, and a focused path from detection to recovery.',
       metrics: [
         { label: 'Category', value: 'Error Tracking' },
         { label: 'Moat', value: 'Mesh Runtime' },
-        { label: 'Model', value: 'Open-core + Tokens' },
+        { label: 'Model', value: 'SaaS + Self-hosted' },
       ],
     },
-
-    /* 2 — Problem */
     {
       id: 'problem',
       layout: 'problem',
       eyebrow: 'The problem',
-      title: 'Error tracking is expensive, brittle, and disconnected from fixes.',
+      title: 'Error tracking is expensive, brittle, and disconnected from recovery.',
       bullets: [
-        'Teams pay $29–89/seat/mo for dashboards that show problems but never resolve them.',
-        'One malformed event can stall the entire ingestion pipeline — no isolation.',
-        'Bug backlogs grow indefinitely because triage is unpriced labor.',
+        'Teams pay for dashboards that surface problems but leave ownership and resolution elsewhere.',
+        'A malformed event can stall a conventional ingestion pipeline without strong isolation.',
+        'Triage, release context, and recovery verification are split across disconnected tools.',
       ],
       metrics: [
         { label: 'Avg spend', value: '$50k+/yr' },
@@ -76,92 +67,65 @@ export const deckData: DeckData = {
         { label: 'Fix rate', value: '<12%' },
       ],
     },
-
-    /* 3 — Solution */
     {
       id: 'solution',
       layout: 'solution',
       eyebrow: 'The solution',
-      title: 'hyperpush: ingest, isolate, assign, and fund the fix.',
+      title: 'hyperpush: ingest, isolate, assign, and verify.',
       subtitle:
-        'An open-source error tracking pipeline where every surfaced bug becomes funded work — not dead backlog.',
+        'A production workflow that turns noisy events into owned incidents with visible release context.',
       bullets: [
-        'Self-hosted ingestion with per-event actor isolation — no cascading failures.',
-        'Automatic grouping, severity ranking, and ownership assignment.',
-        'Token flywheel turns error visibility into contributor-funded resolution.',
+        'Per-event actor isolation contains failures before they cascade.',
+        'Automatic grouping, severity ranking, and ownership accelerate triage.',
+        'Release-aware verification shows whether a fix actually restored health.',
       ],
     },
-
-    /* 4 — Product */
     {
       id: 'product',
       layout: 'product',
       eyebrow: 'The product',
       title: 'Ship, capture, resolve — in one workflow.',
-      body: 'A deployable error-tracking pipeline that replaces fragile SaaS with an inspectable, self-hosted system. Events in, accountable incident work out.',
+      body: 'A deployable error-tracking pipeline that connects events, ownership, release context, and recovery.',
       extra: {
         panels: [
-          {
-            icon: 'capture',
-            label: 'Capture',
-            text: 'SDK + HTTP ingestion for every environment.',
-          },
-          {
-            icon: 'group',
-            label: 'Group',
-            text: 'Fingerprint-based dedup and severity scoring.',
-          },
-          {
-            icon: 'assign',
-            label: 'Assign',
-            text: 'Automatic ownership routing to the right team.',
-          },
-          {
-            icon: 'resolve',
-            label: 'Resolve',
-            text: 'Token-funded bounties close the loop.',
-          },
+          { icon: 'capture', label: 'Capture', text: 'SDK and HTTP ingestion for every environment.' },
+          { icon: 'group', label: 'Group', text: 'Fingerprint-based deduplication and severity scoring.' },
+          { icon: 'assign', label: 'Assign', text: 'Route incidents to the team that can act.' },
+          { icon: 'resolve', label: 'Verify', text: 'Release health confirms recovery.' },
         ],
         image: '/promo-performance.png',
       },
     },
-
-    /* 5 — Technology Moat */
     {
       id: 'technology',
       layout: 'technology',
       eyebrow: 'Technology moat',
-      title: "Mesh: the runtime advantage you can\u2019t bolt on.",
+      title: "Mesh: the runtime advantage you can’t bolt on.",
       subtitle:
-        'A compiled language with actor isolation, cluster-native failover, and operator-visible recovery — baked into every process.',
+        'A compiled language with actor isolation, cluster-native failover, and operator-visible recovery.',
       extra: {
         pillars: [
           {
             icon: 'shield',
             label: 'Actor Isolation',
             title: 'One bad event never stalls the queue.',
-            detail:
-              'Each event runs in its own lightweight actor. Crashes are contained, not cascaded.',
+            detail: 'Each event runs in an isolated actor, containing crashes instead of cascading them.',
           },
           {
             icon: 'refresh',
             label: 'Cluster Failover',
-            title: 'Nodes recover without operator intervention.',
-            detail:
-              'Continuity state replicates across the cluster. Promotion and recovery happen at the runtime level.',
+            title: 'Nodes recover without manual intervention.',
+            detail: 'Continuity state replicates across the cluster and recovery occurs at runtime level.',
           },
           {
             icon: 'zap',
             label: 'Compiled Performance',
-            title: 'Native throughput, not interpreter overhead.',
-            detail:
-              'Mesh compiles to native code via LLVM. No JIT warmup, no GC pauses, no cold-start tax.',
+            title: 'Native throughput without interpreter overhead.',
+            detail: 'Mesh compiles through LLVM for predictable production performance.',
           },
         ],
       },
     },
-
-    /* 6 — Market */
     {
       id: 'market',
       layout: 'market',
@@ -174,79 +138,48 @@ export const deckData: DeckData = {
       ],
       extra: {
         segments: [
-          {
-            label: 'TAM',
-            value: '$4.2B',
-            detail: 'Global application performance monitoring and error tracking.',
-          },
-          {
-            label: 'SAM',
-            value: '$1.1B',
-            detail: 'Teams actively evaluating self-hosted or open-source alternatives.',
-          },
-          {
-            label: 'SOM',
-            value: '$120M',
-            detail: 'Developer teams willing to adopt a runtime-native error platform.',
-          },
+          { label: 'TAM', value: '$4.2B', detail: 'Application monitoring and error tracking.' },
+          { label: 'SAM', value: '$1.1B', detail: 'Teams evaluating private or self-hosted alternatives.' },
+          { label: 'SOM', value: '$120M', detail: 'Developer teams ready for a runtime-native platform.' },
         ],
       },
     },
-
-    /* 7 — Business Model */
     {
       id: 'business-model',
       layout: 'business-model',
       eyebrow: 'Business model',
-      title: 'Open core + token economics.',
+      title: 'Subscription SaaS + self-hosted deployments.',
       extra: {
         tiers: [
-          {
-            name: 'Community',
-            price: 'Free',
-            detail: 'Self-hosted, full pipeline, unlimited events.',
-          },
-          {
-            name: 'Pro',
-            price: '$29/mo',
-            detail: 'Team dashboards, SLA alerting, priority support.',
-          },
-          {
-            name: 'Pro+',
-            price: '$100/mo',
-            detail: 'Multi-cluster, SSO, audit logs, dedicated onboarding.',
-          },
+          { name: 'Starter', price: 'Free', detail: 'Core workflow for one production project.' },
+          { name: 'Pro', price: '$29/mo', detail: 'AI analysis, release health, and team workflows.' },
+          { name: 'Pro+', price: '$100/mo', detail: 'Higher limits, SSO, audit logs, and dedicated support.' },
         ],
         flywheel: [
-          { step: 'Detect', text: 'Errors surface through the product.' },
-          { step: 'Fund', text: 'Token treasury accrues per-project.' },
-          { step: 'Fix', text: 'Contributors claim funded bounties.' },
-          { step: 'Retain', text: 'Healthier software compounds adoption.' },
+          { step: 'Detect', text: 'Errors become grouped, actionable incidents.' },
+          { step: 'Triage', text: 'Context and ownership shorten time to action.' },
+          { step: 'Resolve', text: 'Teams ship fixes with release context attached.' },
+          { step: 'Retain', text: 'Verified recovery builds trust in the workflow.' },
         ],
-        image: '/promo-flywheel.png',
       },
     },
-
-    /* 8 — Traction */
     {
       id: 'traction',
       layout: 'traction',
       eyebrow: 'Traction',
-      title: 'Early but legible — built in public.',
+      title: 'Early but legible — core systems are running.',
       bullets: [
-        'Public repo with deployable examples and clustered proof surfaces.',
-        'Working compiler, runtime, package manager, and LSP.',
-        'Documentation site, installer, and editor integrations shipped.',
+        'Deployable ingestion and dashboard pipeline.',
+        'Working compiler, runtime, package manager, and language server.',
+        'Core issue, performance, release, alert, and settings workflows implemented.',
       ],
       metrics: [
         { label: 'Compiler', value: 'Shipped' },
         { label: 'Clustering', value: 'Proven' },
         { label: 'Package mgr', value: 'Live' },
-        { label: 'Distribution', value: 'Public' },
+        { label: 'Distribution', value: 'Private beta' },
       ],
     },
-
-    /* 9 — Team */
     {
       id: 'team',
       layout: 'team',
@@ -256,46 +189,29 @@ export const deckData: DeckData = {
         members: [
           {
             role: 'Founder & Runtime Engineer',
-            focus:
-              'Compiler, clustering, and continuity surfaces ship alongside the product story.',
+            focus: 'Compiler, clustering, continuity, and product workflows ship together.',
           },
         ],
         strengths: [
           'Compiler through frontend in one team.',
-          'Shipping public proof surfaces, not slide decks.',
-          'Open source by default — every claim is inspectable.',
+          'Product claims backed by executable proof surfaces.',
+          'Runtime behavior designed around the incident workflow.',
         ],
       },
     },
-
-    /* 10 — The Ask */
     {
       id: 'ask',
       layout: 'ask',
       eyebrow: 'The ask',
       title: 'Back the wedge that proves Mesh in-market.',
-      subtitle:
-        'hyperpush wins now on product. Mesh widens the moat over time.',
+      subtitle: 'hyperpush wins on product now. Mesh widens the moat over time.',
       extra: {
         asks: [
-          {
-            label: 'Back the product',
-            detail:
-              'Fund the fastest path to adoption: a better open-source incident workflow with a visible runtime edge.',
-          },
-          {
-            label: 'Back the moat',
-            detail:
-              'Use hyperpush to prove that Mesh-native behavior matters commercially, not just technically.',
-          },
-          {
-            label: 'Back the loop',
-            detail:
-              'Turn bug resolution into a compounding motion instead of a backlog sink.',
-          },
+          { label: 'Back the product', detail: 'Fund the fastest path to a better production incident workflow.' },
+          { label: 'Back the moat', detail: 'Prove that Mesh-native isolation and recovery matter commercially.' },
+          { label: 'Back the scale', detail: 'Turn dependable ingestion and fast recovery into durable retention.' },
         ],
-        close:
-          'hyperpush is the product that wins now. Mesh is the reason the upside keeps widening.',
+        close: 'hyperpush is the product that wins now. Mesh is the reason the upside keeps widening.',
       },
     },
   ],

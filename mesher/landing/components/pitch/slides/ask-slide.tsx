@@ -4,7 +4,6 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { GITHUB_URL } from '@/lib/external-links'
 import type { SlideData } from '@/lib/pitch/deck-data'
 
 const stagger = {
@@ -85,14 +84,6 @@ export function AskSlide({ slide }: { slide: SlideData }) {
           >
             Explore hyperpush
             <ArrowRight className="h-5 w-5" />
-          </Link>
-          <Link
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2.5 rounded-xl border border-border/80 bg-card/60 px-8 py-4 text-[18px] font-medium text-foreground transition-colors hover:bg-card/80"
-          >
-            View on GitHub
           </Link>
         </motion.div>
       </motion.div>

@@ -19,7 +19,6 @@ export interface Issue {
   stacktrace: StackFrame[]
   breadcrumbs: Breadcrumb[]
   githubIssue?: string
-  bounty?: number
   aiSummary?: string
   suspectCommit?: string
 }
@@ -57,7 +56,6 @@ export const MOCK_ISSUES: Issue[] = [
     lastSeen: "just now",
     assignee: "alex.kim",
     tags: ["react", "ssr", "production"],
-    bounty: 250,
     githubIssue: "#1204",
     aiSummary: "The `events` prop is undefined when the Feed component renders server-side before the data fetch resolves. Suspect commit: `c8f2a91` by @alex.kim on Apr 3rd introduced an async boundary mismatch. Recommend adding a null check at line 47 and verifying the suspense boundary wrapping Feed.",
     suspectCommit: "c8f2a91",
@@ -87,7 +85,6 @@ export const MOCK_ISSUES: Issue[] = [
     firstSeen: "4h ago",
     lastSeen: "12s ago",
     tags: ["network", "api", "timeout"],
-    bounty: 150,
     aiSummary: "Intermittent fetch timeouts correlate with traffic spikes above 1200 req/min. The 10s timeout is hit when the upstream Mesh queue is saturated. Increasing the timeout or adding a retry with exponential backoff at src/lib/api.ts:112 should resolve this.",
     suspectCommit: "a3d9e12",
     stacktrace: [
@@ -123,28 +120,27 @@ export const MOCK_ISSUES: Issue[] = [
   },
   {
     id: "HPX-1039",
-    title: "SolanaError: Transaction signature verification failed",
-    subtitle: "Mainnet-beta signature mismatch on high-fee transactions",
-    file: "src/solana/tx.ts:88",
+    title: "DatabaseError: Connection pool exhausted",
+    subtitle: "API requests wait for a database connection during traffic spikes",
+    file: "src/db/pool.ts:88",
     severity: "critical",
     status: "regressed",
     count: 234,
     users: 178,
-    project: "hyperpush-solana",
+    project: "hyperpush-api",
     environment: "production",
     firstSeen: "6h ago",
     lastSeen: "30s ago",
-    assignee: "dev.sol",
-    tags: ["solana", "mainnet", "signature"],
-    bounty: 500,
+    assignee: "sarah.dev",
+    tags: ["database", "pool", "capacity"],
     githubIssue: "#1199",
-    aiSummary: "Signature verification failures began with the v2.3.1 release. The transaction serialization changed in @solana/web3.js 1.87 — versioned transactions are not being signed with the correct message format. Revert to legacy transaction format or update signing logic.",
+    aiSummary: "Connection wait time increased after the v2.3.1 release added concurrent background jobs. The worker pool and request handlers share the same database connections. Split the pools or raise the request pool limit.",
     suspectCommit: "f1c3b44",
     stacktrace: [
-      { file: "src/solana/tx.ts", line: 88, col: 12, fn: "signAndSend", code: ["  const sig = await wallet.signTransaction(tx)", "  await connection.sendRawTransaction(sig.serialize())"], highlight: 0, isApp: true },
+      { file: "src/db/pool.ts", line: 88, col: 12, fn: "acquireConnection", code: ["  const connection = await pool.acquire()", "  return connection.query(statement)"], highlight: 0, isApp: true },
     ],
     breadcrumbs: [
-      { time: "09:15:33", type: "rpc", message: "sendRawTransaction → Error 0x1 (signature verification failed)", level: "error" },
+      { time: "09:15:33", type: "database", message: "pool.acquire → timeout after 5000ms", level: "error" },
     ],
   },
   {
@@ -227,17 +223,6 @@ export const MOCK_EVENT_SERIES = Array.from({ length: 30 }, (_, i) => ({
   low: Math.floor(Math.random() * 20 + 2),
 })).reverse()
 
-export const MOCK_TREASURY = {
-  token: "HPX",
-  price: 0.0342,
-  change: +12.4,
-  balance: 14820,
-  usdValue: 507.0,
-  openBounties: 4,
-  paidOut: 1250,
-  nextPayout: "~$375",
-}
-
 /* ── Performance data ── */
 
 export type VitalRating = "good" | "needs-improvement" | "poor"
@@ -304,7 +289,7 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
   { id: "txn-7", name: "GET /api/v1/projects/:id/stats", operation: "http.server", project: "hyperpush-api", tpm: 29, p50: 156, p75: 310, p95: 890, p99: 1800, failureRate: 1.5, apdex: 0.82, users: 0, status: "degraded", trend: 12, samples: 41760 },
   { id: "txn-8", name: "/issues/:id", operation: "pageload", project: "hyperpush-web", tpm: 24, p50: 980, p75: 1450, p95: 2800, p99: 4200, failureRate: 0.6, apdex: 0.78, users: 234, status: "healthy", trend: 3, samples: 34560 },
   { id: "txn-9", name: "POST /api/v1/webhooks", operation: "http.server", project: "hyperpush-api", tpm: 18, p50: 210, p75: 420, p95: 1100, p99: 2400, failureRate: 3.2, apdex: 0.74, users: 0, status: "degraded", trend: 8, samples: 25920 },
-  { id: "txn-10", name: "solana.signTransaction", operation: "task", project: "hyperpush-solana", tpm: 12, p50: 890, p75: 1340, p95: 3400, p99: 8200, failureRate: 6.1, apdex: 0.58, users: 178, status: "critical", trend: 24, samples: 17280 },
+  { id: "txn-10", name: "db.acquireConnection", operation: "task", project: "hyperpush-api", tpm: 12, p50: 890, p75: 1340, p95: 3400, p99: 8200, failureRate: 6.1, apdex: 0.58, users: 178, status: "critical", trend: 24, samples: 17280 },
   { id: "txn-11", name: "GET /api/v1/alerts", operation: "http.server", project: "hyperpush-api", tpm: 15, p50: 64, p75: 112, p95: 340, p99: 780, failureRate: 0.2, apdex: 0.93, users: 0, status: "healthy", trend: -4, samples: 21600 },
   { id: "txn-12", name: "/settings", operation: "pageload", project: "hyperpush-web", tpm: 8, p50: 760, p75: 1100, p95: 2100, p99: 3400, failureRate: 0.1, apdex: 0.85, users: 67, status: "healthy", trend: 1, samples: 11520 },
 ]
@@ -341,7 +326,7 @@ export const MOCK_APDEX_SERIES = Array.from({ length: 30 }, (_, i) => ({
 /* ── Releases data ── */
 
 export type ReleaseStatus = "deployed" | "rolling-back" | "failed" | "pending" | "staged"
-export type ReleaseEnvironment = "production" | "staging" | "testnet" | "mainnet"
+export type ReleaseEnvironment = "production" | "staging"
 
 export interface Release {
   id: string
@@ -358,14 +343,6 @@ export interface Release {
   p95Latency: number
   p95LatencyChange: number
   users: number
-  bountyPayouts?: number
-  smartContract?: {
-    address: string
-    network: string
-    txHash: string
-    verified: boolean
-  }
-  rollbackTx?: string
   rollbackable: boolean
   tags: string[]
   aiSummary?: string
@@ -381,25 +358,19 @@ export const MOCK_RELEASES: Release[] = [
     environment: "production",
     deployedAt: "2h ago",
     commit: "f1c3b44",
-    commitMessage: "feat: Add versioned transaction support for Solana v1.87",
-    author: "dev.sol",
+    commitMessage: "feat: Run background indexing jobs concurrently",
+    author: "sarah.dev",
     branch: "main",
     errorRate: 2.8,
     errorRateChange: +0.5,
     p95Latency: 890,
     p95LatencyChange: +120,
     users: 891,
-    smartContract: {
-      address: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
-      network: "mainnet-beta",
-      txHash: "5xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
-      verified: true,
-    },
     rollbackable: true,
-    tags: ["solana", "transaction", "major"],
-    aiSummary: "Release introduced signature verification regressions. Versioned transaction serialization changed in @solana/web3.js 1.87. Recommend rollback to v2.3.0 or hotfix with corrected signing logic.",
+    tags: ["database", "workers", "major"],
+    aiSummary: "Release increased database connection pressure by running indexing jobs alongside request traffic. Recommend splitting worker and request pools or rolling back to v2.3.0.",
     impactedIssues: 3,
-    releaseNotes: ["Added support for versioned transactions", "Updated Solana SDK to v1.87", "Improved transaction batching"],
+    releaseNotes: ["Added concurrent indexing jobs", "Improved event search freshness", "Added worker health metrics"],
   },
   {
     id: "REL-1041",
@@ -479,7 +450,6 @@ export const MOCK_RELEASES: Release[] = [
     p95Latency: 1450,
     p95LatencyChange: +580,
     users: 812,
-    rollbackTx: "3mKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsV",
     rollbackable: false,
     tags: ["migration", "nextjs", "failed"],
     aiSummary: "Failed deployment. App router migration introduced route handler errors. Rollback completed successfully via emergency process.",
@@ -490,49 +460,43 @@ export const MOCK_RELEASES: Release[] = [
     id: "REL-1037",
     version: "v2.2.3",
     status: "deployed",
-    environment: "mainnet",
+    environment: "production",
     deployedAt: "4d ago",
     commit: "d4l4m77",
-    commitMessage: "feat: Deploy smart contract v2",
-    author: "dev.sol",
+    commitMessage: "feat: Add release health comparison",
+    author: "sarah.dev",
     branch: "main",
     errorRate: 2.8,
     errorRateChange: 0,
     p95Latency: 870,
     p95LatencyChange: 0,
     users: 801,
-    smartContract: {
-      address: "9yLXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsV",
-      network: "mainnet-beta",
-      txHash: "4yLXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsV",
-      verified: true,
-    },
     rollbackable: true,
-    tags: ["solana", "smart-contract", "major"],
-    aiSummary: "Smart contract deployment successful. All contract functions verified on-chain. No anomalies detected.",
+    tags: ["releases", "health", "feature"],
+    aiSummary: "Release health comparison deployed successfully. Error rate and latency remain within baseline ranges.",
     impactedIssues: 0,
-    releaseNotes: ["Deployed smart contract v2 to mainnet", "Added upgradeable proxy pattern", "Implemented owner-controlled functions"],
+    releaseNotes: ["Added release-over-release health comparison", "Added regression thresholds", "Improved deployment annotations"],
   },
   {
     id: "REL-1036",
     version: "v2.2.2",
     status: "deployed",
-    environment: "testnet",
+    environment: "staging",
     deployedAt: "5d ago",
     commit: "e5n5o88",
-    commitMessage: "feat: Add testnet support for transaction simulation",
-    author: "dev.sol",
-    branch: "feature/testnet-simulation",
+    commitMessage: "feat: Add synthetic transaction testing",
+    author: "sarah.dev",
+    branch: "feature/synthetic-testing",
     errorRate: 1.5,
     errorRateChange: -0.3,
     p95Latency: 380,
     p95LatencyChange: -40,
     users: 23,
     rollbackable: true,
-    tags: ["testnet", "simulation", "feature"],
-    aiSummary: "Testnet deployment for transaction simulation feature. Ready for mainnet promotion.",
+    tags: ["staging", "synthetics", "feature"],
+    aiSummary: "Synthetic transaction checks are stable in staging and ready for production promotion.",
     impactedIssues: 0,
-    releaseNotes: ["Added transaction simulation on testnet", "Implemented gas estimation", "Added mock network for testing"],
+    releaseNotes: ["Added synthetic route checks", "Implemented latency assertions", "Added isolated staging fixtures"],
   },
 ]
 
@@ -543,7 +507,7 @@ export const MOCK_RELEASE_STATS = {
   rollbackRate: "6.4%",
   avgDeploymentTime: "3m 24s",
   activeReleases: 12,
-  smartContractDeploys: 8,
+  deploymentsToday: 8,
 }
 
 export const MOCK_RELEASE_TREND = Array.from({ length: 30 }, (_, i) => ({
@@ -555,7 +519,7 @@ export const MOCK_RELEASE_TREND = Array.from({ length: 30 }, (_, i) => ({
 /* ── Alerts data ── */
 
 export type AlertStatus = "firing" | "acknowledged" | "resolved" | "silenced"
-export type AlertType = "error-rate" | "latency" | "availability" | "smart-contract" | "custom"
+export type AlertType = "error-rate" | "latency" | "availability" | "custom"
 export type AlertLiveAction = "acknowledge" | "resolve"
 export type AlertShellAction = "silence" | "unsnooze"
 
@@ -628,7 +592,7 @@ export const MOCK_ALERTS: Alert[] = [
       { timestamp: "5m ago", status: "firing", value: "7.9%", notified: true },
       { timestamp: "2m ago", status: "firing", value: "8.4%", notified: true },
     ],
-    aiInsight: "Error rate spike correlates with the v2.3.1 release. Signature verification failures in Solana transactions are causing cascading errors. Recommend immediate rollback or hotfix.",
+    aiInsight: "Error rate spike correlates with the v2.3.1 release. Database pool exhaustion is causing request timeouts. Recommend increasing pool capacity or rolling back the concurrent worker change.",
   },
   {
     id: "ALT-1041",
@@ -662,13 +626,13 @@ export const MOCK_ALERTS: Alert[] = [
   },
   {
     id: "ALT-1040",
-    name: "Smart Contract Execution Failure",
-    description: "Transaction execution failure rate exceeds 10% on mainnet",
-    type: "smart-contract",
+    name: "Database Pool Saturation",
+    description: "Connection acquisition failure rate exceeds 10% in production",
+    type: "custom",
     status: "firing",
     severity: "critical",
-    project: "hyperpush-solana",
-    environment: "mainnet",
+    project: "hyperpush-api",
+    environment: "production",
     triggeredAt: "1h ago",
     lastFired: "1m ago",
     firedCount: 24,
@@ -676,11 +640,11 @@ export const MOCK_ALERTS: Alert[] = [
     currentValue: "18.2%",
     currentValueNumeric: 18.2,
     thresholdNumeric: 10,
-    channels: ["slack", "email", "pagerduty", "discord"],
-    assignee: "dev.sol",
-    tags: ["solana", "smart-contract", "mainnet", "critical"],
+    channels: ["slack", "email", "pagerduty"],
+    assignee: "sarah.dev",
+    tags: ["database", "pool", "production", "critical"],
     linkedIssue: "HPX-1039",
-    condition: "tx_failure_rate > 10%",
+    condition: "connection_acquire_failure_rate > 10%",
     evaluationWindow: "5m",
     history: [
       { timestamp: "1h ago", status: "firing", value: "11.2%", notified: true },
@@ -691,7 +655,7 @@ export const MOCK_ALERTS: Alert[] = [
       { timestamp: "10m ago", status: "firing", value: "18.0%", notified: true },
       { timestamp: "1m ago", status: "firing", value: "18.2%", notified: true },
     ],
-    aiInsight: "Critical smart contract failure on mainnet. Versioned transaction serialization in v2.3.1 is incompatible with current RPC nodes. This requires immediate intervention. Contract address: 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+    aiInsight: "The request pool is saturated by concurrent background indexing jobs introduced in v2.3.1. Split worker connections from request traffic or roll back the change.",
   },
   {
     id: "ALT-1039",
@@ -772,340 +736,3 @@ export const MOCK_ALERT_TREND = Array.from({ length: 30 }, (_, i) => ({
   resolved: Math.floor(Math.random() * 3),
   silenced: Math.floor(Math.random() * 2),
 }))
-
-/* ── Bounties data ── */
-
-export type BountyClaimStatus = "pending" | "under-review" | "approved" | "paid" | "rejected" | "disputed"
-
-export interface BountyClaim {
-  id: string
-  issueId: string
-  issueTitle: string
-  project: string
-  severity: Severity
-  bountyAmount: number // USD
-  tokenAmount: number // HPX tokens
-  claimant: string
-  claimantAvatar?: string
-  status: BountyClaimStatus
-  prUrl?: string
-  txHash?: string
-  claimedAt: string
-  resolvedAt?: string
-  reviewNotes?: string
-  reviewers: string[]
-  votes: { up: number; down: number }
-}
-
-export const MOCK_BOUNTY_CLAIMS: BountyClaim[] = [
-  {
-    id: "BNT-1042",
-    issueId: "HPX-1042",
-    issueTitle: "TypeError: Cannot read properties of undefined (reading 'map')",
-    project: "hyperpush-web",
-    severity: "critical",
-    bountyAmount: 250,
-    tokenAmount: 7310,
-    claimant: "bughunter.eth",
-    status: "paid",
-    claimedAt: "1d ago",
-    resolvedAt: "18h ago",
-    txHash: "5xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
-    reviewers: ["alex.kim", "sarah.dev"],
-    votes: { up: 12, down: 0 },
-  },
-  {
-    id: "BNT-1041",
-    issueId: "HPX-1041",
-    issueTitle: "NetworkError: Failed to fetch /api/v1/events — timeout after 10s",
-    project: "hyperpush-web",
-    severity: "high",
-    bountyAmount: 150,
-    tokenAmount: 4386,
-    claimant: "rustacean.sol",
-    status: "under-review",
-    claimedAt: "3h ago",
-    prUrl: "https://github.com/hyperpush/web/pull/1208",
-    reviewers: ["alex.kim"],
-    votes: { up: 8, down: 2 },
-    reviewNotes: "Fix looks good, waiting on test results",
-  },
-  {
-    id: "BNT-1040",
-    issueId: "HPX-1039",
-    issueTitle: "SolanaError: Transaction signature verification failed",
-    project: "hyperpush-solana",
-    severity: "critical",
-    bountyAmount: 500,
-    tokenAmount: 14620,
-    claimant: "solfixer.dev",
-    status: "approved",
-    claimedAt: "5h ago",
-    resolvedAt: "1h ago",
-    reviewers: ["dev.sol", "alex.kim"],
-    votes: { up: 15, down: 0 },
-    reviewNotes: "Comprehensive fix with tests. Ready for payout.",
-  },
-  {
-    id: "BNT-1039",
-    issueId: "HPX-1038",
-    issueTitle: "ChunkLoadError: Loading chunk vendors~main failed",
-    project: "hyperpush-web",
-    severity: "high",
-    bountyAmount: 100,
-    tokenAmount: 2924,
-    claimant: "webpack_wizard",
-    status: "pending",
-    claimedAt: "30m ago",
-    prUrl: "https://github.com/hyperpush/web/pull/1210",
-    reviewers: [],
-    votes: { up: 2, down: 0 },
-  },
-  {
-    id: "BNT-1038",
-    issueId: "HPX-1040",
-    issueTitle: "ReferenceError: analytics is not defined",
-    project: "hyperpush-web",
-    severity: "low",
-    bountyAmount: 25,
-    tokenAmount: 731,
-    claimant: "frontend_newbie",
-    status: "rejected",
-    claimedAt: "2d ago",
-    resolvedAt: "1d ago",
-    reviewers: ["alex.kim"],
-    votes: { up: 1, down: 5 },
-    reviewNotes: "The fix doesn't handle all edge cases. Analytics script can still fail to load.",
-  },
-  {
-    id: "BNT-1037",
-    issueId: "HPX-1037",
-    issueTitle: "UnhandledPromiseRejection: JWT expired",
-    project: "hyperpush-api",
-    severity: "medium",
-    bountyAmount: 75,
-    tokenAmount: 2193,
-    claimant: "auth_expert",
-    status: "disputed",
-    claimedAt: "4h ago",
-    prUrl: "https://github.com/hyperpush/api/pull/456",
-    reviewers: ["alex.kim"],
-    votes: { up: 4, down: 4 },
-    reviewNotes: "Disagreement on whether this fix is complete. Claimant argues current implementation is sufficient.",
-  },
-  {
-    id: "BNT-1036",
-    issueId: "HPX-1039",
-    issueTitle: "SolanaError: Transaction signature verification failed",
-    project: "hyperpush-solana",
-    severity: "critical",
-    bountyAmount: 500,
-    tokenAmount: 14620,
-    claimant: "sol_master",
-    status: "paid",
-    claimedAt: "2d ago",
-    resolvedAt: "1d ago",
-    txHash: "3yLXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsV",
-    reviewers: ["dev.sol"],
-    votes: { up: 18, down: 0 },
-  },
-]
-
-export const MOCK_BOUNTY_STATS = {
-  totalClaims: 47,
-  pending: 4,
-  underReview: 3,
-  approved: 2,
-  paid: 36,
-  rejected: 2,
-  disputed: 1,
-  totalPaidOut: 12500,
-  totalTokenPaid: 365500,
-  avgPayoutTime: "18h 24m",
-  myClaims: 12,
-  myEarnings: 3850,
-}
-
-export const MOCK_BOUNTY_TREND = Array.from({ length: 30 }, (_, i) => ({
-  time: `${(29 - i) * 2}m`,
-  claimed: Math.floor(Math.random() * 5),
-  paid: Math.floor(Math.random() * 4),
-}))
-
-/* ── Treasury data ── */
-
-export type TreasuryTransactionType = "deposit" | "withdrawal" | "payout" | "reward" | "fee"
-
-export interface TreasuryTransaction {
-  id: string
-  type: TreasuryTransactionType
-  amount: number // USD value
-  tokenAmount: number // HPX tokens
-  description: string
-  txHash?: string
-  from?: string
-  to?: string
-  timestamp: string
-  status: "confirmed" | "pending" | "failed"
-}
-
-export interface TreasuryAllocation {
-  category: string
-  percentage: number
-  amount: number
-  color: string
-}
-
-export const MOCK_TREASURY_TRANSACTIONS: TreasuryTransaction[] = [
-  {
-    id: "TRX-1042",
-    type: "payout",
-    amount: 250,
-    tokenAmount: 7310,
-    description: "Bounty payout for HPX-1042",
-    txHash: "5xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
-    to: "bughunter.eth",
-    timestamp: "18h ago",
-    status: "confirmed",
-  },
-  {
-    id: "TRX-1041",
-    type: "payout",
-    amount: 500,
-    tokenAmount: 14620,
-    description: "Bounty payout for HPX-1039",
-    txHash: "4yLXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsV",
-    to: "solfixer.dev",
-    timestamp: "1d ago",
-    status: "confirmed",
-  },
-  {
-    id: "TRX-1040",
-    type: "reward",
-    amount: 100,
-    tokenAmount: 2924,
-    description: "Weekly community reward",
-    to: "alex.kim",
-    timestamp: "1d ago",
-    status: "confirmed",
-  },
-  {
-    id: "TRX-1039",
-    type: "deposit",
-    amount: 1000,
-    tokenAmount: 29240,
-    description: "Project funding deposit",
-    from: "hyperpush-fund",
-    txHash: "3yLXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsT",
-    timestamp: "2d ago",
-    status: "confirmed",
-  },
-  {
-    id: "TRX-1038",
-    type: "payout",
-    amount: 500,
-    tokenAmount: 14620,
-    description: "Bounty payout for HPX-1039",
-    txHash: "2yLXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsS",
-    to: "sol_master",
-    timestamp: "2d ago",
-    status: "confirmed",
-  },
-  {
-    id: "TRX-1037",
-    type: "fee",
-    amount: 5.50,
-    tokenAmount: 161,
-    description: "Platform fee on trading volume",
-    timestamp: "2d ago",
-    status: "confirmed",
-  },
-  {
-    id: "TRX-1036",
-    type: "withdrawal",
-    amount: 500,
-    tokenAmount: 14620,
-    description: "Emergency fund withdrawal",
-    to: "multisig-wallet",
-    txHash: "1yLXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsR",
-    timestamp: "3d ago",
-    status: "confirmed",
-  },
-  {
-    id: "TRX-1035",
-    type: "deposit",
-    amount: 2500,
-    tokenAmount: 73100,
-    description: "Seed funding deposit",
-    from: "vc-fund.sol",
-    txHash: "0yLXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsQ",
-    timestamp: "4d ago",
-    status: "confirmed",
-  },
-  {
-    id: "TRX-1034",
-    type: "payout",
-    amount: 150,
-    tokenAmount: 4386,
-    description: "Bounty payout for HPX-1041",
-    to: "bughunter2.eth",
-    timestamp: "4d ago",
-    status: "pending",
-  },
-]
-
-export const MOCK_TREASURY_ALLOCATIONS: TreasuryAllocation[] = [
-  { category: "Bounties", percentage: 60, amount: 30420, color: "var(--green)" },
-  { category: "Community Rewards", percentage: 20, amount: 10140, color: "var(--purple)" },
-  { category: "Platform Fees", percentage: 15, amount: 7605, color: "var(--blue)" },
-  { category: "Reserves", percentage: 5, amount: 2535, color: "var(--yellow)" },
-]
-
-export const MOCK_TREASURY_PRICE_HISTORY = Array.from({ length: 30 }, (_, i) => {
-  const base = 0.0342 + Math.sin(i * 0.2) * 0.005
-  return {
-    time: `${(29 - i) * 2}m`,
-    price: Math.max(0.02, base + (Math.random() - 0.5) * 0.003),
-  }
-})
-
-export const MOCK_TREASURY_VOLUME_HISTORY = Array.from({ length: 30 }, (_, i) => ({
-  time: `${(29 - i) * 2}m`,
-  volume: Math.floor(10000 + Math.random() * 5000),
-  deposits: Math.floor(2000 + Math.random() * 2000),
-  withdrawals: Math.floor(500 + Math.random() * 1000),
-}))
-
-export interface UpcomingPayout {
-  id: string
-  issueId: string
-  issueTitle: string
-  claimant: string
-  amount: number
-  tokenAmount: number
-  status: "approved" | "under-review"
-  scheduledFor: string
-}
-
-export const MOCK_UPCOMING_PAYOUTS: UpcomingPayout[] = [
-  {
-    id: "UP-001",
-    issueId: "HPX-1040",
-    issueTitle: "SolanaError: Transaction signature verification failed",
-    claimant: "solfixer.dev",
-    amount: 500,
-    tokenAmount: 14620,
-    status: "approved",
-    scheduledFor: "2h from now",
-  },
-  {
-    id: "UP-002",
-    issueId: "HPX-1041",
-    issueTitle: "NetworkError: Failed to fetch /api/v1/events",
-    claimant: "rustacean.sol",
-    amount: 150,
-    tokenAmount: 4386,
-    status: "under-review",
-    scheduledFor: "Pending approval",
-  },
-]

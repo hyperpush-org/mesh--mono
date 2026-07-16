@@ -217,10 +217,6 @@ async function assertRouteDirectEntry(page: import('@playwright/test').Page, rou
       await expect(page.getByRole('heading', { name: 'Performance', level: 1 })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Apdex', exact: true })).toBeVisible()
       break
-    case 'solana-programs':
-      await expect(page.getByRole('heading', { name: 'Solana Programs', level: 1 })).toBeVisible()
-      await expect(page.getByRole('button', { name: /Parsed Logs/i })).toBeVisible()
-      break
     case 'releases':
       await expect(page.getByRole('heading', { name: 'Releases', level: 1 })).toBeVisible()
       await expect(page.getByPlaceholder('Search releases…')).toBeVisible()
@@ -229,14 +225,6 @@ async function assertRouteDirectEntry(page: import('@playwright/test').Page, rou
       await expect(page.getByRole('heading', { name: 'Alerts', level: 1 })).toBeVisible()
       await expect(page.getByTestId('alerts-shell')).toBeVisible()
       await expect(page.getByPlaceholder('Search alerts…')).toBeVisible()
-      break
-    case 'bounties':
-      await expect(page.getByRole('heading', { name: 'Bounties', level: 1 })).toBeVisible()
-      await expect(page.getByPlaceholder('Search claims…')).toBeVisible()
-      break
-    case 'treasury':
-      await expect(page.getByRole('heading', { name: 'Treasury', level: 1 })).toBeVisible()
-      await expect(page.getByPlaceholder('Search transactions…')).toBeVisible()
       break
     case 'settings':
       await expect(page.getByTestId('settings-shell')).toBeVisible()
@@ -256,21 +244,9 @@ async function assertMockOnlyTopLevelRoute(page: import('@playwright/test').Page
       await expect(page.getByRole('heading', { name: 'Performance', level: 1 })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Apdex', exact: true })).toBeVisible()
       break
-    case 'solana-programs':
-      await expect(page.getByRole('heading', { name: 'Solana Programs', level: 1 })).toBeVisible()
-      await expect(page.getByRole('button', { name: /Parsed Logs/i })).toBeVisible()
-      break
     case 'releases':
       await expect(page.getByRole('heading', { name: 'Releases', level: 1 })).toBeVisible()
       await expect(page.getByPlaceholder('Search releases…')).toBeVisible()
-      break
-    case 'bounties':
-      await expect(page.getByRole('heading', { name: 'Bounties', level: 1 })).toBeVisible()
-      await expect(page.getByPlaceholder('Search claims…')).toBeVisible()
-      break
-    case 'treasury':
-      await expect(page.getByRole('heading', { name: 'Treasury', level: 1 })).toBeVisible()
-      await expect(page.getByPlaceholder('Search transactions…')).toBeVisible()
       break
     default:
       throw new Error(`Expected a mock-only top-level route, received ${route.key}`)
@@ -280,22 +256,6 @@ async function assertMockOnlyTopLevelRoute(page: import('@playwright/test').Page
 async function assertMockOnlySettingsSections(page: import('@playwright/test').Page) {
   const settingsShell = page.getByTestId('settings-shell')
   const cases = [
-    {
-      label: /Bounty/,
-      tab: 'bounty',
-      support: 'mock-only',
-      assertion: async () => {
-        await expect(page.getByTestId('settings-bounty-mock-only-banner')).toContainText('Mock-only shell')
-      },
-    },
-    {
-      label: /Token/,
-      tab: 'token',
-      support: 'mock-only',
-      assertion: async () => {
-        await expect(page.getByText('Read-only shell', { exact: true })).toBeVisible()
-      },
-    },
     {
       label: /Integrations/,
       tab: 'integrations',
@@ -471,7 +431,7 @@ test.describe('seeded walkthrough', () => {
       })
 
       for (const route of DASHBOARD_ROUTES.filter(({ key }) =>
-        ['performance', 'solana-programs', 'releases'].includes(key),
+        ['performance', 'releases'].includes(key),
       )) {
         await test.step(`mock-only top-level route stays reachable: ${route.key}`, async () => {
           await navigateToDashboardRoute(page, route)
@@ -538,19 +498,6 @@ test.describe('seeded walkthrough', () => {
         })
         clearRuntimeSignals(runtimeSignals)
       })
-
-      for (const route of DASHBOARD_ROUTES.filter(({ key }) =>
-        ['bounties', 'treasury'].includes(key),
-      )) {
-        await test.step(`mock-only top-level route stays reachable: ${route.key}`, async () => {
-          await navigateToDashboardRoute(page, route)
-          await assertMockOnlyTopLevelRoute(page, route)
-          await assertCleanLiveRuntimeSignals(runtimeSignals, {
-            failureContext: `seeded walkthrough ${route.key}`,
-          })
-          clearRuntimeSignals(runtimeSignals)
-        })
-      }
 
       await test.step('settings prove live general, team, api key, and alert-rule paths while mock-only subsections stay visible', async () => {
         const settingsRoute = DASHBOARD_ROUTES.find((route) => route.key === 'settings')

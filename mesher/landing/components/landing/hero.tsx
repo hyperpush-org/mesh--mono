@@ -1,10 +1,8 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Github, AlertCircle, AlertTriangle, Info } from "lucide-react"
+import { AlertCircle, AlertTriangle, Info } from "lucide-react"
 import { motion } from "framer-motion"
 import { WaitlistButton } from "@/components/landing/waitlist-dialog"
-import { GITHUB_URL } from "@/lib/external-links"
 
 const events = [
   {
@@ -75,7 +73,7 @@ export function Hero() {
         >
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm sm:px-4 sm:py-2 sm:text-sm">
             <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-accent" />
-            Built on Solana
+            Private beta opening soon
           </span>
         </motion.div>
 
@@ -85,10 +83,10 @@ export function Hero() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mx-auto mb-4 max-w-[11ch] text-4xl leading-[0.98] font-bold tracking-tight text-balance sm:mb-6 sm:max-w-none sm:text-5xl md:text-6xl lg:text-7xl"
         >
-          Sentry, but it funds your project
+          See what broke.
           <br className="hidden sm:block" />
           <span className="sm:hidden"> </span>
-          <span className="text-accent">instead of their VC</span>
+          <span className="text-accent">Fix it before users notice.</span>
         </motion.h1>
 
         <motion.p
@@ -97,8 +95,7 @@ export function Hero() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mx-auto mb-6 max-w-[22rem] text-[15px] leading-7 text-muted-foreground text-pretty sm:hidden"
         >
-          Drop-in Sentry replacement. Same SDK, better dashboards, zero lock-in — plus a project token that funds your
-          treasury and pays the devs who fix your bugs.
+          Production error tracking with clear ownership, release context, performance signals, and fast root-cause analysis.
         </motion.p>
 
         <motion.p
@@ -107,30 +104,18 @@ export function Hero() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="hidden text-base text-muted-foreground text-pretty sm:mx-auto sm:mb-10 sm:block sm:max-w-3xl sm:text-lg md:text-xl"
         >
-          Drop-in Sentry replacement. Same SDK, better dashboards, zero lock-in — plus a project token that funds your
-          treasury and pays the devs who fix your bugs.
+          Production error tracking with clear ownership, release context, performance signals, and fast root-cause analysis.
         </motion.p>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="mb-8 flex flex-col items-center justify-center gap-3 sm:mb-16 sm:flex-row sm:gap-4"
+          className="mb-8 flex items-center justify-center sm:mb-16"
         >
           <WaitlistButton size="lg" className="h-11 w-full gap-2 px-6 sm:h-12 sm:w-auto sm:px-8">
             Join Waitlist
           </WaitlistButton>
-          <Button
-            size="lg"
-            variant="outline"
-            className="h-11 w-full gap-2 px-6 sm:h-12 sm:w-auto sm:px-8"
-            asChild
-          >
-            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-              <Github className="h-4 w-4" />
-              View on GitHub
-            </a>
-          </Button>
         </motion.div>
 
         {/* Live error feed dashboard */}

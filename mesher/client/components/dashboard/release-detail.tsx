@@ -6,7 +6,7 @@ import type { Release } from "@/lib/mock-data"
 import {
   X, GitBranch, ArrowUpRight, ArrowDownRight, Minus,
   CheckCircle2, XCircle, AlertCircle, PauseCircle, Clock,
-  ExternalLink, Hash, Copy, Check, Rocket, Shield,
+  ExternalLink, Hash, Copy, Check, Rocket,
   FileText, Users, Zap, TrendingUp, MoreHorizontal
 } from "lucide-react"
 
@@ -27,8 +27,6 @@ const statusConfig: Record<Release["status"], { icon: React.ElementType; color: 
 const environmentConfig: Record<Release["environment"], { color: string; label: string; bg: string }> = {
   production: { color: "var(--green)", label: "Production", bg: "bg-[var(--green)]/[0.10]" },
   staging: { color: "var(--blue)", label: "Staging", bg: "bg-[var(--blue)]/[0.10]" },
-  testnet: { color: "var(--purple)", label: "Testnet", bg: "bg-[var(--purple)]/[0.10]" },
-  mainnet: { color: "var(--yellow)", label: "Mainnet", bg: "bg-[var(--yellow)]/[0.10]" },
 }
 
 function MetaItem({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon?: React.ElementType }) {
@@ -82,10 +80,6 @@ export function ReleaseDetail({ release, onClose, onOpenAI }: ReleaseDetailProps
     setTimeout(() => setCopied(false), 1500)
   }
 
-  function formatAddress(address: string) {
-    return `${address.slice(0, 8)}...${address.slice(-8)}`
-  }
-
   return (
     <aside className="flex flex-col h-full bg-[var(--surface)] border-l border-[var(--line)] overflow-hidden">
       {/* ── Header ── */}
@@ -128,16 +122,9 @@ export function ReleaseDetail({ release, onClose, onOpenAI }: ReleaseDetailProps
       <div className="flex-1 overflow-y-auto">
         {/* Title + subtitle */}
         <div className="px-4 pt-4 pb-3">
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-[14px] font-semibold text-[var(--text-primary)] leading-[1.4]">
-              {release.version}
-            </h2>
-            {release.rollbackTx && (
-              <span className="text-[10px] text-[var(--red)] bg-[var(--red)]/[0.10] px-1.5 py-0.5 rounded font-medium">
-                Rolled back
-              </span>
-            )}
-          </div>
+          <h2 className="mb-1 text-[14px] font-semibold leading-[1.4] text-[var(--text-primary)]">
+            {release.version}
+          </h2>
           <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">{release.commitMessage}</p>
           <div className="flex items-center gap-2 mt-2 text-[10px] text-[var(--text-faint)] font-mono">
             <span>{release.author}</span>
@@ -160,12 +147,6 @@ export function ReleaseDetail({ release, onClose, onOpenAI }: ReleaseDetailProps
             <GitBranch size={11} />
             View Diff
           </ActionButton>
-          {release.smartContract && (
-            <ActionButton variant="secondary">
-              <Shield size={11} />
-              Verify Contract
-            </ActionButton>
-          )}
           {onOpenAI && (
             <ActionButton variant="primary" onClick={onOpenAI}>
               <Zap size={11} />
@@ -183,68 +164,6 @@ export function ReleaseDetail({ release, onClose, onOpenAI }: ReleaseDetailProps
                 <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--purple)]">AI Insight</span>
               </div>
               <p className="text-[11px] text-[var(--text-secondary)] leading-[1.65]">{release.aiSummary}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Smart contract info */}
-        {release.smartContract && (
-          <div className="mx-4 mb-3 rounded-lg border border-[var(--purple)]/[0.12] bg-[var(--purple)]/[0.04] overflow-hidden">
-            <div className="px-3 py-2.5">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Shield size={10} className="text-[var(--purple)] shrink-0" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--purple)]">Smart Contract</span>
-                {release.smartContract.verified && (
-                  <CheckCircle2 size={9} className="text-[var(--green)] ml-auto" />
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-[var(--text-faint)]">Address</span>
-                  <code className="text-[11px] font-mono text-[var(--text-primary)] bg-[var(--surface-3)] px-1.5 py-[1px] rounded">
-                    {formatAddress(release.smartContract.address)}
-                  </code>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-[var(--text-faint)]">Network</span>
-                  <span className="text-[11px] font-medium text-[var(--text-secondary)]">{release.smartContract.network}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-[var(--text-faint)]">Tx Hash</span>
-                  <code className="text-[11px] font-mono text-[var(--text-primary)] bg-[var(--surface-3)] px-1.5 py-[1px] rounded">
-                    {formatAddress(release.smartContract.txHash)}
-                  </code>
-                </div>
-              </div>
-            </div>
-            <div className="px-3 py-2 border-t border-[var(--purple)]/[0.08] flex items-center gap-2 bg-[var(--purple)]/[0.02]">
-              <a
-                href="#"
-                className="flex items-center gap-0.5 text-[11px] text-[var(--purple)] hover:underline active:scale-[0.97] shrink-0"
-              >
-                View on Explorer <ExternalLink size={8} />
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* Rollback info */}
-        {release.rollbackTx && (
-          <div className="mx-4 mb-3 rounded-lg border border-[var(--red)]/[0.12] bg-[var(--red)]/[0.04] overflow-hidden">
-            <div className="px-3 py-2.5">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <ArrowUpRight size={10} className="text-[var(--red)] shrink-0" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--red)]">Rollback Transaction</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Hash size={10} className="text-[var(--text-faint)] shrink-0" />
-                <code className="text-[11px] font-mono text-[var(--text-primary)] bg-[var(--surface-3)] px-1.5 py-[1px] rounded flex-1">
-                  {release.rollbackTx}
-                </code>
-                <a href="#" className="text-[11px] text-[var(--red)] hover:underline flex items-center gap-0.5">
-                  View <ExternalLink size={8} />
-                </a>
-              </div>
             </div>
           </div>
         )}
@@ -339,12 +258,9 @@ function OverviewTab({ release }: { release: Release }) {
     <div className="space-y-2.5">
       <div className="text-[12px] text-[var(--text-secondary)] leading-[1.7]">
         <p className="mb-2">This release was deployed to <strong>{release.environment}</strong> {release.deployedAt}.</p>
-        {release.smartContract && (
-          <p className="mb-2">A smart contract was deployed as part of this release. Verify contract code on Solscan before interacting.</p>
-        )}
-        {release.rollbackTx && (
-          <p className="text-[var(--red)]">This release was rolled back due to issues detected post-deployment.</p>
-        )}
+        {release.status === "failed" ? (
+          <p className="text-[var(--red)]">This release failed its health checks and is no longer serving production traffic.</p>
+        ) : null}
       </div>
     </div>
   )

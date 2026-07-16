@@ -7,9 +7,9 @@ import './globals.css'
 const _geist = Geist({ subsets: ['latin'] })
 const _geistMono = Geist_Mono({ subsets: ['latin'] })
 
-const title = 'hyperpush — Open Source Error Tracking with Token Rewards'
+const title = 'hyperpush — Production Error Tracking for Fast-Moving Teams'
 const description =
-  'Open-source error tracking with built-in token economics for Solana and beyond. Your project gets funded, contributors get paid, software gets healthier.'
+  'Capture production errors, identify root causes, understand release impact, and coordinate recovery from one focused workflow.'
 const socialMetadata = buildSocialMetadata({
   title,
   description,
@@ -25,13 +25,12 @@ export const metadata: Metadata = {
   description,
   keywords: [
     'error tracking',
-    'open source',
-    'solana',
-    'bug bounties',
+    'application monitoring',
+    'performance monitoring',
+    'release health',
     'sentry alternative',
     'developer tools',
-    'token economics',
-    'bug board',
+    'incident response',
     'javascript error tracking',
     'rust error tracking',
   ],

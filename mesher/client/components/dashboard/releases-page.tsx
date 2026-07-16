@@ -8,7 +8,7 @@ import { ReleaseList } from "./release-list"
 import { ReleaseDetail } from "./release-detail"
 import { Search, SlidersHorizontal, GitBranch, CheckCircle2, XCircle, Clock, Zap } from "lucide-react"
 
-type SortKey = "deployedAt" | "version" | "errorRate" | "p95Latency" | "bountyPayouts"
+type SortKey = "deployedAt" | "version" | "errorRate" | "p95Latency"
 type SortDir = "asc" | "desc"
 
 export function ReleasesPage() {
@@ -44,11 +44,6 @@ export function ReleasesPage() {
         const va = parseInt(a.version.replace(/\D/g, ""), 10)
         const vb = parseInt(b.version.replace(/\D/g, ""), 10)
         return sortDir === "desc" ? vb - va : va - vb
-      }
-      if (sortKey === "bountyPayouts") {
-        const av = a.bountyPayouts ?? 0
-        const bv = b.bountyPayouts ?? 0
-        return sortDir === "desc" ? bv - av : av - bv
       }
       const av = a[sortKey]
       const bv = b[sortKey]
@@ -135,7 +130,7 @@ interface FilterProps {
 
 function ReleasesFilterBar({ search, onSearch, statusFilter, onStatusFilter, environmentFilter, onEnvironmentFilter }: FilterProps) {
   const statuses = ["all", "deployed", "rolling-back", "failed", "pending", "staged"]
-  const environments = ["all", "production", "staging", "testnet", "mainnet"]
+  const environments = ["all", "production", "staging"]
 
   const statusLabel: Record<string, string> = {
     all: "All Status",
@@ -150,8 +145,6 @@ function ReleasesFilterBar({ search, onSearch, statusFilter, onStatusFilter, env
     all: "All Environments",
     production: "Production",
     staging: "Staging",
-    testnet: "Testnet",
-    mainnet: "Mainnet",
   }
 
   return (
@@ -193,8 +186,6 @@ function ReleasesFilterBar({ search, onSearch, statusFilter, onStatusFilter, env
             const colorMap: Record<string, string> = {
               production: isActive ? "bg-[var(--green)]/[0.10] text-[var(--green)]" : "",
               staging: isActive ? "bg-[var(--blue)]/[0.10] text-[var(--blue)]" : "",
-              testnet: isActive ? "bg-[var(--purple)]/[0.10] text-[var(--purple)]" : "",
-              mainnet: isActive ? "bg-[var(--yellow)]/[0.10] text-[var(--yellow)]" : "",
             }
             return (
               <button

@@ -75,7 +75,7 @@ export function ReleaseStats({ compact = false }: ReleaseStatsProps) {
       <StatCard label="Rollback Rate" value={MOCK_RELEASE_STATS.rollbackRate} icon={Rocket} />
       <StatCard label="Avg Deploy Time" value={MOCK_RELEASE_STATS.avgDeploymentTime} icon={Clock} />
       <StatCard label="Active Releases" value={MOCK_RELEASE_STATS.activeReleases} icon={Zap} />
-      <StatCard label="Contract Deploys" value={MOCK_RELEASE_STATS.smartContractDeploys} icon={GitBranch} accent="purple" />
+      <StatCard label="Deploys Today" value={MOCK_RELEASE_STATS.deploymentsToday} icon={GitBranch} accent="purple" />
     </div>
   )
 }

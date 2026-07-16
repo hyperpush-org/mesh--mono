@@ -12,12 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as DashboardIndexRouteImport } from './routes/_dashboard.index'
-import { Route as DashboardTreasuryRouteImport } from './routes/_dashboard.treasury'
-import { Route as DashboardSolanaProgramsRouteImport } from './routes/_dashboard.solana-programs'
 import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
 import { Route as DashboardReleasesRouteImport } from './routes/_dashboard.releases'
 import { Route as DashboardPerformanceRouteImport } from './routes/_dashboard.performance'
-import { Route as DashboardBountiesRouteImport } from './routes/_dashboard.bounties'
 import { Route as DashboardAlertsRouteImport } from './routes/_dashboard.alerts'
 
 const DashboardRoute = DashboardRouteImport.update({
@@ -32,16 +29,6 @@ const SplatRoute = SplatRouteImport.update({
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardTreasuryRoute = DashboardTreasuryRouteImport.update({
-  id: '/treasury',
-  path: '/treasury',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardSolanaProgramsRoute = DashboardSolanaProgramsRouteImport.update({
-  id: '/solana-programs',
-  path: '/solana-programs',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
@@ -59,11 +46,6 @@ const DashboardPerformanceRoute = DashboardPerformanceRouteImport.update({
   path: '/performance',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardBountiesRoute = DashboardBountiesRouteImport.update({
-  id: '/bounties',
-  path: '/bounties',
-  getParentRoute: () => DashboardRoute,
-} as any)
 const DashboardAlertsRoute = DashboardAlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
@@ -74,22 +56,16 @@ export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/': typeof DashboardIndexRoute
   '/alerts': typeof DashboardAlertsRoute
-  '/bounties': typeof DashboardBountiesRoute
   '/performance': typeof DashboardPerformanceRoute
   '/releases': typeof DashboardReleasesRoute
   '/settings': typeof DashboardSettingsRoute
-  '/solana-programs': typeof DashboardSolanaProgramsRoute
-  '/treasury': typeof DashboardTreasuryRoute
 }
 export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/alerts': typeof DashboardAlertsRoute
-  '/bounties': typeof DashboardBountiesRoute
   '/performance': typeof DashboardPerformanceRoute
   '/releases': typeof DashboardReleasesRoute
   '/settings': typeof DashboardSettingsRoute
-  '/solana-programs': typeof DashboardSolanaProgramsRoute
-  '/treasury': typeof DashboardTreasuryRoute
   '/': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
@@ -97,48 +73,24 @@ export interface FileRoutesById {
   '/$': typeof SplatRoute
   '/_dashboard': typeof DashboardRouteWithChildren
   '/_dashboard/alerts': typeof DashboardAlertsRoute
-  '/_dashboard/bounties': typeof DashboardBountiesRoute
   '/_dashboard/performance': typeof DashboardPerformanceRoute
   '/_dashboard/releases': typeof DashboardReleasesRoute
   '/_dashboard/settings': typeof DashboardSettingsRoute
-  '/_dashboard/solana-programs': typeof DashboardSolanaProgramsRoute
-  '/_dashboard/treasury': typeof DashboardTreasuryRoute
   '/_dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/$'
-    | '/'
-    | '/alerts'
-    | '/bounties'
-    | '/performance'
-    | '/releases'
-    | '/settings'
-    | '/solana-programs'
-    | '/treasury'
+  fullPaths: '/$' | '/' | '/alerts' | '/performance' | '/releases' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/$'
-    | '/alerts'
-    | '/bounties'
-    | '/performance'
-    | '/releases'
-    | '/settings'
-    | '/solana-programs'
-    | '/treasury'
-    | '/'
+  to: '/$' | '/alerts' | '/performance' | '/releases' | '/settings' | '/'
   id:
     | '__root__'
     | '/$'
     | '/_dashboard'
     | '/_dashboard/alerts'
-    | '/_dashboard/bounties'
     | '/_dashboard/performance'
     | '/_dashboard/releases'
     | '/_dashboard/settings'
-    | '/_dashboard/solana-programs'
-    | '/_dashboard/treasury'
     | '/_dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -170,20 +122,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/_dashboard/treasury': {
-      id: '/_dashboard/treasury'
-      path: '/treasury'
-      fullPath: '/treasury'
-      preLoaderRoute: typeof DashboardTreasuryRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/_dashboard/solana-programs': {
-      id: '/_dashboard/solana-programs'
-      path: '/solana-programs'
-      fullPath: '/solana-programs'
-      preLoaderRoute: typeof DashboardSolanaProgramsRouteImport
-      parentRoute: typeof DashboardRoute
-    }
     '/_dashboard/settings': {
       id: '/_dashboard/settings'
       path: '/settings'
@@ -205,13 +143,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPerformanceRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/_dashboard/bounties': {
-      id: '/_dashboard/bounties'
-      path: '/bounties'
-      fullPath: '/bounties'
-      preLoaderRoute: typeof DashboardBountiesRouteImport
-      parentRoute: typeof DashboardRoute
-    }
     '/_dashboard/alerts': {
       id: '/_dashboard/alerts'
       path: '/alerts'
@@ -224,23 +155,17 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardAlertsRoute: typeof DashboardAlertsRoute
-  DashboardBountiesRoute: typeof DashboardBountiesRoute
   DashboardPerformanceRoute: typeof DashboardPerformanceRoute
   DashboardReleasesRoute: typeof DashboardReleasesRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
-  DashboardSolanaProgramsRoute: typeof DashboardSolanaProgramsRoute
-  DashboardTreasuryRoute: typeof DashboardTreasuryRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAlertsRoute: DashboardAlertsRoute,
-  DashboardBountiesRoute: DashboardBountiesRoute,
   DashboardPerformanceRoute: DashboardPerformanceRoute,
   DashboardReleasesRoute: DashboardReleasesRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
-  DashboardSolanaProgramsRoute: DashboardSolanaProgramsRoute,
-  DashboardTreasuryRoute: DashboardTreasuryRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 

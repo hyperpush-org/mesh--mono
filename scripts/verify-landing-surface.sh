@@ -104,8 +104,7 @@ for relative_path in \
   mesher/scripts/verify-maintainer-surface.sh \
   mesher/landing/package.json \
   mesher/landing/package-lock.json \
-  mesher/landing/.env.example \
-  mesher/landing/lib/external-links.ts; do
+  mesher/landing/.env.example; do
   require_file init "$relative_path" "required product-root surface"
 done
 finish_phase init
@@ -121,11 +120,10 @@ require_absent readme-contract README.md 'bash scripts/verify-m051-s01.sh'
 require_absent readme-contract README.md 'bash scripts/verify-production-proof-surface.sh'
 finish_phase readme-contract
 
-begin_phase landing-links "verify landing links point at the product repo"
-require_contains landing-links mesher/landing/lib/external-links.ts 'https://github.com/hyperpush-org/hyperpush'
-require_contains landing-links mesher/landing/lib/external-links.ts 'github.com/hyperpush-org/hyperpush'
-require_contains landing-links mesher/landing/lib/external-links.ts 'NEXT_PUBLIC_DISCORD_URL'
-finish_phase landing-links
+begin_phase landing-positioning "verify landing uses the production-monitoring product story"
+require_contains landing-positioning mesher/landing/app/layout.tsx 'Production Error Tracking'
+require_contains landing-positioning mesher/landing/components/landing/footer.tsx 'Production error tracking'
+finish_phase landing-positioning
 
 begin_phase dependabot-contract "verify product dependabot scope"
 require_contains dependabot-contract .github/dependabot.yml 'package-ecosystem: github-actions'

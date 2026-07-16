@@ -12,16 +12,14 @@ interface Message {
 
 const CANNED_RESPONSES: Record<string, string> = {
   default: "I'm analyzing your recent error data across all environments. Based on the current issue distribution, you have **3 critical** issues, **2 high**, and **1 medium** open right now.\n\nThe most impactful is `HPX-1042` — a TypeError affecting 312 users in production. This looks like an SSR boundary issue introduced in commit `c8f2a91`. I'd recommend assigning this to @alex.kim immediately.\n\nWant me to draft a GitHub issue and propose a fix?",
-  "what broke": "Looking at the last 24h: the biggest regression is **HPX-1042** (TypeError in Feed.tsx, 1,847 events, 312 users affected). It started 2 hours ago, correlating with a deploy. Suspect commit `c8f2a91` by @alex.kim.\n\nAlso notable: **HPX-1039** (Solana signature failure) regressed after `v2.3.1` — 234 events, 178 users. This one has a $500 bounty attached.",
+  "what broke": "Looking at the last 24h: the biggest regression is **HPX-1042** (TypeError in Feed.tsx, 1,847 events, 312 users affected). It started 2 hours ago, correlating with a deploy. Suspect commit `c8f2a91` by @alex.kim.\n\nAlso notable: **HPX-1039** (database pool exhaustion) regressed after `v2.3.1` — 234 events, 178 users. Worker and request traffic are competing for the same connections.",
   "fix": "For **HPX-1042**, here's the proposed fix:\n\n```tsx\n// src/components/Feed.tsx:47\n// Before:\nconst items = events.map(e => <FeedItem key={e.id} event={e} />)\n\n// After:\nconst items = (events ?? []).map(e => <FeedItem key={e.id} event={e} />)\n```\n\nThis guards against undefined `events` during SSR. I can open a PR with this change — should I proceed?",
-  "bounties": "Current open bounties:\n\n• **HPX-1039** — $500 — Solana signature failure (critical)\n• **HPX-1042** — $250 — TypeError in Feed.tsx (critical)\n• **HPX-1041** — $150 — Network timeout in api.ts (high)\n• **HPX-1040** — $75 — ReferenceError analytics (medium)\n\nTotal bounty pool: **$975** from the HPX treasury. Want me to open these on the public bug board?",
-  "summary": "**Weekly Incident Summary — Week of Apr 4**\n\nTotal events: 3,482 (+12% vs last week)\nAffected users: 891\nIssues opened: 7 | Resolved: 4 | Regressed: 1\nMTTR: 1h 24m (improved from 2h 11m)\n\nTop issue: HPX-1042 — 1,847 events\nHighest user impact: HPX-1039 — 178 users\n\nToken treasury: 14,820 HPX ($507) | Open bounties: 4\n\nOverall health: ⚠️ 2 critical issues require immediate attention.",
+  "summary": "**Weekly Incident Summary — Week of Apr 4**\n\nTotal events: 3,482 (+12% vs last week)\nAffected users: 891\nIssues opened: 7 | Resolved: 4 | Regressed: 1\nMTTR: 1h 24m (improved from 2h 11m)\n\nTop issue: HPX-1042 — 1,847 events\nHighest user impact: HPX-1039 — 178 users\n\nOverall health: ⚠️ 2 critical issues require immediate attention.",
 }
 
 function getResponse(input: string): string {
   const lower = input.toLowerCase()
   if (lower.includes("fix") || lower.includes("patch") || lower.includes("pr")) return CANNED_RESPONSES["fix"]
-  if (lower.includes("bounty") || lower.includes("reward") || lower.includes("earn")) return CANNED_RESPONSES["bounties"]
   if (lower.includes("summary") || lower.includes("week") || lower.includes("report")) return CANNED_RESPONSES["summary"]
   if (lower.includes("broke") || lower.includes("wrong") || lower.includes("issue") || lower.includes("error")) return CANNED_RESPONSES["what broke"]
   return CANNED_RESPONSES["default"]
@@ -76,7 +74,7 @@ function TypingIndicator() {
 
 const QUICK_PROMPTS = [
   "What broke today?",
-  "Show open bounties",
+  "Summarize critical issues",
   "Weekly summary",
   "Propose a fix for HPX-1042",
 ]
@@ -90,7 +88,7 @@ export function AIPanel({ onClose }: AIPanelProps) {
     {
       id: "0",
       role: "assistant",
-      content: "Hey — I'm the hyperpush AI copilot. I can help you triage issues, find root causes, propose fixes, and manage bounties. What do you need?",
+      content: "Hey — I'm the hyperpush AI copilot. I can help you triage issues, find root causes, and propose fixes. What do you need?",
     },
   ])
   const [input, setInput] = useState("")

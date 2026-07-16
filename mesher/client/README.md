@@ -86,7 +86,7 @@ npm run test:e2e:prod -- --grep "issues live"
 - Selecting an issue reads `/api/v1/issues/:issue_id/events?limit=1`, `/api/v1/events/:event_id`, and `/api/v1/issues/:issue_id/timeline` through the provider-owned state path.
 - Supported live maintainer actions are `Resolve`, `Reopen`, and `Ignore`, which call same-origin `/api/v1/issues/:issue_id/{resolve,unresolve,archive}` from the existing detail action row.
 - The UI intentionally uses a mixed live/mock overlay: live Mesher truth replaces supported fields, while unsupported shell sections keep explicit fallback values.
-- `AI Analysis`, issue-link chrome, bounty chrome, and the retained proof-rail buttons remain visible but shell-only; they are not claimed as live backend actions.
+- `AI Analysis`, issue-link chrome, and the retained proof-rail buttons remain visible but shell-only; they are not claimed as live backend actions.
 - Backend read and mutation failures are surfaced through the mounted Radix toaster and `issues-shell` / detail-panel `data-*` attributes instead of silently reverting.
 
 ## Important files
@@ -120,7 +120,7 @@ npm --prefix mesher/client run test:e2e:dev -- --grep "issues live|admin and ops
 npm --prefix mesher/client run test:e2e:prod -- --grep "issues live|admin and ops live|seeded walkthrough"
 ```
 
-- `tests/e2e/seeded-walkthrough.spec.ts` is the canonical route-to-route shell proof. It covers direct-entry and in-app navigation parity across Issues, Performance, Solana Programs, Releases, Alerts, Bounties, Treasury, and Settings.
+- `tests/e2e/seeded-walkthrough.spec.ts` is the canonical route-to-route shell proof. It covers direct-entry and in-app navigation parity across Issues, Performance, Releases, Alerts, and Settings.
 - `tests/e2e/live-runtime-helpers.ts` owns the shared same-origin request tracking, direct-backend rejection, and filtered runtime diagnostics used by the walkthrough and route-level live suites.
 - `bash mesher/scripts/seed-live-issue.sh` resets the seeded live Issues read/action fixtures.
 - `bash mesher/scripts/seed-live-admin-ops.sh` resets the seeded Alerts and Settings admin/ops fixtures used by the assembled rail.

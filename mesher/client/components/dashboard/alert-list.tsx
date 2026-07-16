@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import type { Alert, AlertStatus, AlertType, Severity } from '@/lib/mock-data'
-import { GitBranch, Sparkles, Bell, BellOff, CheckCircle2, ShieldAlert, Activity, Clock, Zap, Shield, TrendingUp, AlertTriangle } from 'lucide-react'
+import { GitBranch, Sparkles, Bell, BellOff, CheckCircle2, ShieldAlert, Activity, Clock, Zap, TrendingUp, AlertTriangle } from 'lucide-react'
 
 const severityColor: Record<Severity, string> = {
   critical: 'var(--red)',
@@ -22,7 +22,6 @@ const typeIcon: Record<AlertType, React.ElementType> = {
   'error-rate': TrendingUp,
   latency: Clock,
   availability: Activity,
-  'smart-contract': Shield,
   custom: Zap,
 }
 
@@ -79,7 +78,6 @@ function ChannelBadges({ channels }: { channels: string[] }) {
     slack: () => <span className="text-[9px] font-bold">#</span>,
     email: () => <span className="text-[9px] font-bold">@</span>,
     pagerduty: () => <span className="text-[9px] font-bold">!</span>,
-    discord: () => <span className="text-[9px] font-bold">D</span>,
   }
 
   return (

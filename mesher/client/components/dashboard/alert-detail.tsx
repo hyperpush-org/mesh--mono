@@ -3,20 +3,18 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { Alert, AlertLiveAction } from '@/lib/mock-data'
-import { X, CheckCircle2, BellOff, ShieldAlert, Clock, Activity, Shield, Zap, TrendingUp, Mail, MessageSquare, Phone, Copy, Sparkles, ChevronDown, ChevronRight, GitBranch, Tag, Database, AlertTriangle, LoaderCircle } from 'lucide-react'
+import { X, CheckCircle2, BellOff, ShieldAlert, Clock, Activity, Zap, TrendingUp, Mail, MessageSquare, Phone, Copy, Sparkles, ChevronDown, ChevronRight, GitBranch, Tag, Database, AlertTriangle, LoaderCircle } from 'lucide-react'
 
 const channelIcon: Record<string, React.ElementType> = {
   slack: MessageSquare,
   email: Mail,
   pagerduty: Phone,
-  discord: MessageSquare,
 }
 
 const typeIcon: Record<string, React.ElementType> = {
   'error-rate': TrendingUp,
   latency: Clock,
   availability: Activity,
-  'smart-contract': Shield,
   custom: Zap,
 }
 

@@ -3,11 +3,8 @@ import { readFileSync, existsSync } from 'node:fs'
 export const EXPECTED_TOP_LEVEL_ROUTE_KEYS = [
   'issues',
   'performance',
-  'solana-programs',
   'releases',
   'alerts',
-  'bounties',
-  'treasury',
   'settings',
 ]
 
@@ -18,10 +15,7 @@ export const BACKEND_GAP_ROUTE_SECTIONS = [
   'alerts',
   'settings',
   'performance',
-  'solana-programs',
   'releases',
-  'bounties',
-  'treasury',
 ]
 export const ALLOWED_MIXED_SURFACE_LEVELS = ['panel', 'subsection', 'tab', 'control']
 export const ALLOWED_MIXED_SURFACE_CLASSIFICATIONS = ['mixed', 'live', 'mock-only', 'shell-only']
@@ -51,14 +45,7 @@ const backendGapSectionDefinitions = [
   { heading: '### Alerts backend gaps', routeSection: 'alerts', displayName: 'Alerts' },
   { heading: '### Settings backend gaps', routeSection: 'settings', displayName: 'Settings' },
   { heading: '### Performance backend gaps', routeSection: 'performance', displayName: 'Performance' },
-  {
-    heading: '### Solana Programs backend gaps',
-    routeSection: 'solana-programs',
-    displayName: 'Solana Programs',
-  },
   { heading: '### Releases backend gaps', routeSection: 'releases', displayName: 'Releases' },
-  { heading: '### Bounties backend gaps', routeSection: 'bounties', displayName: 'Bounties' },
-  { heading: '### Treasury backend gaps', routeSection: 'treasury', displayName: 'Treasury' },
 ]
 
 function fail(message) {

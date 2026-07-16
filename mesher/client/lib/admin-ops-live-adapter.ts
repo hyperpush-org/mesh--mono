@@ -173,10 +173,6 @@ function normalizeAlertType(snapshot: MesherApiRecord, fallback: AlertType): Ale
     case 'http_status':
     case 'uptime':
       return 'availability'
-    case 'smart_contract':
-    case 'smart-contract':
-    case 'tx_failure_rate':
-      return 'smart-contract'
     case 'new_issue':
       return 'custom'
     default:

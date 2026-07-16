@@ -42,10 +42,6 @@ async function assertDirectEntryRoute(page: import('@playwright/test').Page, rou
       await expect(page.getByRole('heading', { name: 'Performance', level: 1 })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Apdex', exact: true })).toBeVisible()
       break
-    case 'solana-programs':
-      await expect(page.getByRole('heading', { name: 'Solana Programs', level: 1 })).toBeVisible()
-      await expect(page.getByRole('button', { name: /Parsed Logs/i })).toBeVisible()
-      break
     case 'releases':
       await expect(page.getByRole('heading', { name: 'Releases', level: 1 })).toBeVisible()
       await expect(page.getByPlaceholder('Search releases…')).toBeVisible()
@@ -54,14 +50,6 @@ async function assertDirectEntryRoute(page: import('@playwright/test').Page, rou
       await expect(page.getByRole('heading', { name: 'Alerts', level: 1 })).toBeVisible()
       await expect(page.getByTestId('alerts-shell')).toBeVisible()
       await expect(page.getByPlaceholder('Search alerts…')).toBeVisible()
-      break
-    case 'bounties':
-      await expect(page.getByRole('heading', { name: 'Bounties', level: 1 })).toBeVisible()
-      await expect(page.getByPlaceholder('Search claims…')).toBeVisible()
-      break
-    case 'treasury':
-      await expect(page.getByRole('heading', { name: 'Treasury', level: 1 })).toBeVisible()
-      await expect(page.getByPlaceholder('Search transactions…')).toBeVisible()
       break
     case 'settings':
       await expect(page.getByTestId('settings-shell')).toBeVisible()
@@ -153,32 +141,6 @@ test.describe('dashboard route parity', () => {
 
     await assertCleanLiveRuntimeSignals(runtimeSignals, {
       failureContext: 'dashboard route parity issues history',
-    })
-  })
-
-  test('solana programs AI auto-collapses the sidebar and restores it on close', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 })
-    const runtimeSignals = attachRuntimeSignalTracking(page)
-    const sidebar = page.getByTestId('dashboard-sidebar')
-    const aiPanel = page.getByTestId('ai-panel')
-
-    await page.goto('/solana-programs')
-
-    await expect(page.getByTestId('dashboard-shell')).toHaveAttribute('data-route-key', 'solana-programs')
-    await expect(page.getByTestId('sidebar-nav-solana-programs')).toHaveAttribute('data-active', 'true')
-    await expect(page.getByRole('heading', { name: 'Solana Programs', level: 1 })).toBeVisible()
-    await expect(sidebar).toHaveAttribute('data-collapsed', 'false')
-
-    await page.getByTestId('ai-copilot-toggle').click()
-    await expect(aiPanel).toBeVisible()
-    await expect(sidebar).toHaveAttribute('data-collapsed', 'true')
-
-    await page.getByTestId('ai-copilot-toggle').click()
-    await expect(aiPanel).toBeHidden()
-    await expect(sidebar).toHaveAttribute('data-collapsed', 'false')
-
-    await assertCleanLiveRuntimeSignals(runtimeSignals, {
-      failureContext: 'dashboard route parity solana ai',
     })
   })
 

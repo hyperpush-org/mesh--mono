@@ -5,8 +5,6 @@ import { cn } from '@/lib/utils'
 import { useSettingsLiveState } from '@/components/dashboard/settings/settings-live-state'
 import {
   Settings as SettingsIcon,
-  Coins,
-  Wallet,
   Users,
   GitBranch,
   Key,
@@ -27,14 +25,11 @@ import {
   Database,
   PlugZap,
 } from 'lucide-react'
-import { MOCK_TREASURY } from '@/lib/mock-data'
 
 type SettingsLiveState = ReturnType<typeof useSettingsLiveState>
 
 type SettingsTab =
   | 'general'
-  | 'bounty'
-  | 'token'
   | 'team'
   | 'integrations'
   | 'api-keys'
@@ -52,8 +47,6 @@ const NAV_GROUPS: Array<{
     label: 'Project',
     items: [
       { id: 'general', label: 'General', icon: SettingsIcon },
-      { id: 'bounty', label: 'Bounty', icon: Coins },
-      { id: 'token', label: 'Token', icon: Wallet },
       { id: 'team', label: 'Team', icon: Users },
       { id: 'integrations', label: 'Integrations', icon: GitBranch },
       { id: 'api-keys', label: 'API Keys', icon: Key },
@@ -73,24 +66,15 @@ const NAV_GROUPS: Array<{
 
 const PROJECT_CONFIG = {
   name: 'hyperpush-web',
-  description: 'Main web application for error tracking and bug bounty platform',
+  description: 'Main web application for production error tracking',
   defaultEnvironment: 'production',
   publicDashboard: true,
   allowAnonymousIssues: false,
 }
 
-const BOUNTY_CONFIG = {
-  enabled: true,
-  publicBoardEnabled: true,
-  autoApproveThreshold: 10,
-  requireVerification: true,
-  minReputation: 5,
-}
-
 const INTEGRATIONS = [
   { id: 'github', name: 'GitHub', icon: GitBranch, connected: true, detail: 'hyperpush/web · main' },
-  { id: 'slack', name: 'Slack', icon: Bell, connected: true, detail: '#alerts, #bounties' },
-  { id: 'discord', name: 'Discord', icon: Users, connected: false, detail: 'Not connected' },
+  { id: 'slack', name: 'Slack', icon: Bell, connected: true, detail: '#alerts' },
 ]
 
 const BILLING_INFO = {
@@ -101,14 +85,11 @@ const BILLING_INFO = {
   eventsUsed: 67842,
   aiAnalysisUsed: 18,
   aiAnalysisIncluded: 30,
-  tradingVolume: 8750,
-  tradingVolumeTarget: 10000,
 }
 
 const NOTIF_PREFS = {
   email: true,
   slack: true,
-  discord: false,
   critical: true,
   high: true,
   medium: false,
@@ -120,10 +101,6 @@ const USER_PROFILE = {
   email: 'alex@hyperpush.dev',
   username: 'alex.kim',
   avatar: 'AK',
-  walletConnected: true,
-  walletAddress: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
-  totalEarned: 12500,
-  completedBounties: 47,
 }
 
 const ACTIVE_SESSIONS = [
@@ -546,8 +523,6 @@ export function SettingsPage() {
             {tab === 'general' ? <GeneralTab live={live} /> : null}
             {tab === 'api-keys' ? <APIKeysTab live={live} /> : null}
             {tab === 'alerts' ? <AlertRulesTab live={live} /> : null}
-            {tab === 'bounty' ? <BountyTab /> : null}
-            {tab === 'token' ? <TokenTab /> : null}
             {tab === 'team' ? <TeamTab live={live} /> : null}
             {tab === 'integrations' ? <IntegrationsTab /> : null}
             {tab === 'billing' ? <BillingTab /> : null}
@@ -964,11 +939,10 @@ function AlertRulesTab({ live }: { live: SettingsLiveState }) {
       )}
 
       <SectionHead title="Notification channels" action={<SourceBadge label="mock-only" tone="mock" testId="settings-alert-channels-source-badge" />} />
-      <MockOnlyWrap testId="settings-alert-channels-mock-only" note="Email, Slack, Discord, and PagerDuty controls remain visibly present, but this slice does not fake backend writes for unsupported channel management.">
+      <MockOnlyWrap testId="settings-alert-channels-mock-only" note="Email, Slack, and PagerDuty controls remain visibly present, but this slice does not fake backend writes for unsupported channel management.">
         {[
           { name: 'Email', detail: 'alex@hyperpush.dev', on: true },
-          { name: 'Slack', detail: '#alerts, #bounties', on: true },
-          { name: 'Discord', detail: 'Not configured', on: false },
+          { name: 'Slack', detail: '#alerts', on: true },
           { name: 'PagerDuty', detail: 'Not configured', on: false },
         ].map((channel, index, array) => (
           <Row key={channel.name} last={index === array.length - 1}>
@@ -980,52 +954,6 @@ function AlertRulesTab({ live }: { live: SettingsLiveState }) {
           </Row>
         ))}
       </MockOnlyWrap>
-    </div>
-  )
-}
-
-function BountyTab() {
-  return (
-    <div>
-      <PageTitle title="Bounty" subtitle="Reward tiers stay visible, but no backend write route exists here yet." />
-      <MockOnlyWrap testId="settings-bounty-mock-only" note="Bounty settings remain shell-only in this slice, so the controls are stable but intentionally non-live.">
-        <SettingRow label="Enable bounties" description="Attach bounty amounts to issues.">
-          <Toggle defaultChecked={BOUNTY_CONFIG.enabled} />
-        </SettingRow>
-        <SettingRow label="Public bug board" description="Show open bounties on the public leaderboard.">
-          <Toggle defaultChecked={BOUNTY_CONFIG.publicBoardEnabled} />
-        </SettingRow>
-        <SettingRow label="Auto-approve threshold" description="Minimum upvotes to auto-approve a claim.">
-          <input type="number" defaultValue={BOUNTY_CONFIG.autoApproveThreshold} className={cn(iCls, 'w-24 text-center')} />
-        </SettingRow>
-        <SettingRow label="Minimum reputation" description="Score required to submit a claim." last>
-          <input type="number" defaultValue={BOUNTY_CONFIG.minReputation} className={cn(iCls, 'w-24 text-center')} />
-        </SettingRow>
-      </MockOnlyWrap>
-    </div>
-  )
-}
-
-function TokenTab() {
-  const treasury = MOCK_TREASURY
-  return (
-    <div>
-      <PageTitle title="Token" subtitle="Treasury and free-tier progress stay read-only in this shell." />
-      <StatusBanner icon={Wallet} title="Read-only shell" description="Token economics are protocol-level and remain non-editable in Settings." tone="mock" />
-      <SectionHead title="Treasury" />
-      <div className="border-b border-[var(--line)] py-4">
-        <div className="mb-4 flex items-end justify-between">
-          <div>
-            <p className="mb-1 text-[11px] uppercase tracking-[0.07em] text-[var(--text-faint)]">Balance</p>
-            <p className="text-[22px] font-bold leading-none tracking-tight text-[var(--text-primary)]">
-              {treasury.balance.toLocaleString()} <span className="text-[14px] font-semibold text-[var(--text-secondary)]">{treasury.token}</span>
-            </p>
-            <p className="mt-1 text-[12px] text-[var(--text-tertiary)]">${treasury.usdValue.toFixed(2)} USD</p>
-          </div>
-          <span className="text-[12px] font-semibold text-[var(--green)]">+{treasury.change}%</span>
-        </div>
-        <ProgressBar value={BILLING_INFO.tradingVolume} max={BILLING_INFO.tradingVolumeTarget} />
-      </div>
     </div>
   )
 }
@@ -1260,8 +1188,7 @@ function NotificationsTab() {
         <SectionHead title="Channels" />
         {[
           { label: 'Email', key: 'email' as const, detail: 'alex@hyperpush.dev' },
-          { label: 'Slack', key: 'slack' as const, detail: '#alerts, #bounties' },
-          { label: 'Discord', key: 'discord' as const, detail: 'Not connected' },
+          { label: 'Slack', key: 'slack' as const, detail: '#alerts' },
         ].map((channel, index, array) => (
           <SettingRow key={channel.label} label={channel.label} description={channel.detail} last={index === array.length - 1}>
             <Toggle defaultChecked={NOTIF_PREFS[channel.key]} />
@@ -1277,8 +1204,8 @@ function ProfileTab() {
 
   return (
     <div>
-      <PageTitle title="Profile" subtitle="Identity and payout details stay present, but remain shell-only from Settings." />
-      <MockOnlyWrap testId="settings-profile-mock-only" note="Profile edits and wallet management are intentionally non-live in this slice.">
+      <PageTitle title="Profile" subtitle="Identity details stay present, but remain shell-only from Settings." />
+      <MockOnlyWrap testId="settings-profile-mock-only" note="Profile edits are intentionally non-live in this slice.">
         <div className="mb-1 flex items-center gap-3.5 border-b border-[var(--line)] py-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-3)] text-[14px] font-bold text-[var(--text-secondary)]">
             {profile.avatar}
@@ -1294,19 +1221,6 @@ function ProfileTab() {
         <InputRow label="Username" last>
           <input type="text" defaultValue={profile.username} className={cn(iCls, 'w-full')} />
         </InputRow>
-        <SectionHead title="Wallet" />
-        <div className="border-b border-[var(--line)] py-3.5">
-          <div className="mb-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--green)]" />
-              <span className="text-[13px] font-medium text-[var(--text-primary)]">Wallet connected</span>
-            </div>
-            <button type="button" className="text-[11px] text-[var(--text-faint)]">Disconnect</button>
-          </div>
-          <div className="rounded-md border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2">
-            <p className="break-all font-mono text-[11.5px] text-[var(--text-secondary)]">{profile.walletAddress}</p>
-          </div>
-        </div>
       </MockOnlyWrap>
     </div>
   )

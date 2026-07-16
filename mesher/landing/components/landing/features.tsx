@@ -1,37 +1,37 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Bug, Coins, Globe, Sparkles, Zap, GitPullRequest } from "lucide-react"
+import { Activity, BellRing, Bug, Gauge, GitBranch, Sparkles } from "lucide-react"
 
 const features = [
   {
     icon: Bug,
     title: "Full Error Tracking",
-    description: "Stack traces, session replays, performance monitoring, and alerts. Everything you'd expect from a production error tracker — open source and self-hostable.",
+    description: "Group errors by root cause, inspect stack traces and breadcrumbs, and understand exactly which users and releases are affected.",
     comingSoon: false,
   },
   {
-    icon: Zap,
-    title: "Solana Program Errors",
-    description: "Surface transaction failures, program log errors, CPI call failures, and RPC timeouts from on-chain programs. First-class Solana error tracking, not bolted on.",
-    comingSoon: true,
-  },
-  {
-    icon: Globe,
-    title: "Public Bug Board",
-    description: "Opt-in public dashboard showing live errors with bounties attached. Community developers see what's broken and get paid to fix it.",
+    icon: Gauge,
+    title: "Performance Monitoring",
+    description: "Track slow routes, latency percentiles, throughput, Apdex, and Web Vitals alongside the errors they cause.",
     comingSoon: false,
   },
   {
-    icon: Coins,
-    title: "Token-Funded Projects",
-    description: "Each project can launch a token. A portion of trading activity flows back to the project treasury — funding bounties, development, and maintenance.",
+    icon: GitBranch,
+    title: "Release Health",
+    description: "Compare error rate and latency across deployments, identify regressions quickly, and keep release context attached to every incident.",
     comingSoon: false,
   },
   {
-    icon: GitPullRequest,
-    title: "Bounties for Developers",
-    description: "Pick a bug, submit a PR, get it verified, receive the bounty. No invoices, no chasing payments — just fix bugs and earn.",
+    icon: BellRing,
+    title: "Actionable Alerts",
+    description: "Route high-signal alerts to the right team with severity, thresholds, history, and lifecycle actions in one place.",
+    comingSoon: false,
+  },
+  {
+    icon: Activity,
+    title: "Operational Context",
+    description: "Connect events, projects, environments, ownership, and recent activity without piecing together separate monitoring tools.",
     comingSoon: false,
   },
   {
@@ -57,11 +57,10 @@ export function Features() {
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4 sm:mb-6 text-balance">
             Production error tracking.
             <br />
-            <span className="text-muted-foreground">Built-in economics.</span>
+            <span className="text-muted-foreground">Without the noise.</span>
           </h2>
           <p className="text-base sm:text-lg text-muted-foreground text-pretty">
-            Full error tracking for web apps — free and open source. Token
-            economics fund projects and pay the developers who fix bugs. AI analysis on paid tiers.
+            One focused workflow for triage, performance, releases, and alerts, with AI analysis available on paid tiers.
           </p>
         </motion.div>
 

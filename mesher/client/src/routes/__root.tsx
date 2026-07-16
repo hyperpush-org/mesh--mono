@@ -32,7 +32,7 @@ export const Route = createRootRoute({
       {
         name: 'description',
         content:
-          'Open source error tracking with token rewards. Sentry-like dashboard for web, mobile, and Solana.',
+          'Production error tracking for web and backend applications, with fast triage, performance insights, releases, and alerts.',
       },
     ],
     links: [

@@ -7,7 +7,7 @@ import { useAlertsLiveState } from '@/components/dashboard/alerts-live-state'
 import { AlertStatsBar } from './alert-stats'
 import { AlertList } from './alert-list'
 import { AlertDetail } from './alert-detail'
-import { Search, SlidersHorizontal, Bell, ShieldAlert, CheckCircle2, AlertTriangle, Zap, Shield, TrendingUp, Clock, Activity } from 'lucide-react'
+import { Search, SlidersHorizontal, Bell, ShieldAlert, CheckCircle2, AlertTriangle, Zap, TrendingUp, Clock, Activity } from 'lucide-react'
 
 type SortKey = 'triggeredAt' | 'lastFired' | 'firedCount' | 'currentValueNumeric' | 'severity'
 type SortDir = 'asc' | 'desc'
@@ -247,14 +247,13 @@ function AlertsFilterBar({
   onSeverityFilter,
 }: FilterProps) {
   const statuses: FilterStatus[] = ['all', 'firing', 'acknowledged', 'resolved']
-  const types: (AlertType | 'all')[] = ['all', 'error-rate', 'latency', 'availability', 'smart-contract', 'custom']
+  const types: (AlertType | 'all')[] = ['all', 'error-rate', 'latency', 'availability', 'custom']
   const severities: (Severity | 'all')[] = ['all', 'critical', 'high', 'medium', 'low']
 
   const typeIcon: Record<string, React.ElementType> = {
     'error-rate': TrendingUp,
     latency: Clock,
     availability: Activity,
-    'smart-contract': Shield,
     custom: Zap,
   }
 

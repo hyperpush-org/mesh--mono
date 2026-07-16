@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils"
 import type { Issue, Severity, IssueStatus } from "@/lib/mock-data"
 import type { IssuesOverviewSource } from "@/lib/issues-live-adapter"
-import { GitBranch, Coins, Sparkles, Users, RefreshCw, Database } from "lucide-react"
+import { GitBranch, Sparkles, Users, RefreshCw, Database } from "lucide-react"
 
 const severityColor: Record<Severity, string> = {
   critical: "var(--red)",
@@ -187,11 +187,6 @@ function IssueRow({ issue, isSelected, onClick, overviewSource }: IssueRowProps)
               {issue.githubIssue && (
                 <span className="inline-flex items-center gap-1 rounded-[4px] bg-[var(--surface-3)] px-1.5 py-[2px] font-mono text-[10px] leading-none text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--line)]">
                   <GitBranch size={9} className="opacity-60" /> {issue.githubIssue}
-                </span>
-              )}
-              {issue.bounty && (
-                <span className="inline-flex items-center gap-1 rounded-[4px] bg-[var(--green)]/[0.08] px-1.5 py-[2px] text-[10px] leading-none text-[var(--green)] ring-1 ring-inset ring-[var(--green)]/15">
-                  <Coins size={9} /> ${issue.bounty}
                 </span>
               )}
               {issue.aiSummary && (

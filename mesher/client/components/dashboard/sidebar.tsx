@@ -12,14 +12,11 @@ import {
   Activity,
   GitBranch,
   Bell,
-  Coins,
   Settings,
   ChevronDown,
   Box,
-  Shield,
   PanelLeftClose,
   PanelLeftOpen,
-  Cpu,
   Check,
   Plus,
 } from "lucide-react"
@@ -40,11 +37,8 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { icon: AlertTriangle, label: "Issues", href: "issues", badge: "24" },
   { icon: Activity, label: "Performance", href: "performance" },
-  { icon: Cpu, label: "Solana Programs", href: "solana-programs" },
   { icon: GitBranch, label: "Releases", href: "releases" },
   { icon: Bell, label: "Alerts", href: "alerts", badge: "3" },
-  { icon: Coins, label: "Bounties", href: "bounties", badge: "4" },
-  { icon: Shield, label: "Treasury", href: "treasury" },
   { icon: Settings, label: "Settings", href: "settings" },
 ]
 

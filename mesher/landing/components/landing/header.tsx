@@ -9,14 +9,13 @@ import { WaitlistDialog } from "@/components/landing/waitlist-dialog"
 
 const navigation = [
   { name: "Features", href: "#features" },
-  { name: "How It Works", href: "#flywheel" },
+  { name: "Workflow", href: "#workflow" },
   { name: "Pricing", href: "#pricing" },
   { name: "Docs", href: "/docs" },
-  { name: "Bounties", href: "/community/bounties" },
 ]
 
 interface HeaderProps {
-  /** Optional section label shown next to logo, e.g. "/docs", "/community" */
+  /** Optional section label shown next to logo, e.g. "/docs" */
   section?: string
   /** Override the default max-width container class */
   maxWidth?: string

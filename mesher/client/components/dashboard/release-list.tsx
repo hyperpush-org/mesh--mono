@@ -24,8 +24,6 @@ const statusConfig: Record<Release["status"], { icon: React.ElementType; color: 
 const environmentConfig: Record<Release["environment"], { color: string; label: string }> = {
   production: { color: "var(--green)", label: "Production" },
   staging: { color: "var(--blue)", label: "Staging" },
-  testnet: { color: "var(--purple)", label: "Testnet" },
-  mainnet: { color: "var(--yellow)", label: "Mainnet" },
 }
 
 export function ReleaseList({ releases, selectedId, onSelect }: ReleaseListProps) {
@@ -58,7 +56,6 @@ export function ReleaseList({ releases, selectedId, onSelect }: ReleaseListProps
         const status = statusConfig[release.status]
         const env = environmentConfig[release.environment]
         const isSelected = selectedId === release.id
-        const bountyPayouts = release.bountyPayouts ?? 0
 
         return (
           <button
@@ -89,16 +86,6 @@ export function ReleaseList({ releases, selectedId, onSelect }: ReleaseListProps
                     <p className="text-[13.5px] sm:text-sm font-semibold font-mono text-[var(--text-primary)] leading-snug">
                       {release.version}
                     </p>
-                    {release.rollbackTx && (
-                      <span className="text-[10px] text-[var(--red)] bg-[var(--red)]/[0.10] px-1.5 py-[2px] rounded-[4px] font-medium leading-none ring-1 ring-inset ring-[var(--red)]/20">
-                        Rolled back
-                      </span>
-                    )}
-                    {release.smartContract && (
-                      <span className="text-[10px] text-[var(--purple)] bg-[var(--purple)]/[0.10] px-1.5 py-[2px] rounded-[4px] font-medium leading-none ring-1 ring-inset ring-[var(--purple)]/20">
-                        Contract
-                      </span>
-                    )}
                   </div>
 
                   {/* Meta row 1: commit · author · branch */}
@@ -159,11 +146,6 @@ export function ReleaseList({ releases, selectedId, onSelect }: ReleaseListProps
                   {/* Timing */}
                   <div className="text-right">
                     <p className="text-[12px] font-medium text-[var(--text-primary)]">{release.deployedAt}</p>
-                    {bountyPayouts > 0 && (
-                      <p className="text-[10px] text-[var(--text-faint)] mt-0.5">
-                        {bountyPayouts} bounties
-                      </p>
-                    )}
                   </div>
                 </div>
 

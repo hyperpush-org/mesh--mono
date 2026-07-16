@@ -1,11 +1,8 @@
 export const DASHBOARD_ROUTE_KEYS = [
   'issues',
   'performance',
-  'solana-programs',
   'releases',
   'alerts',
-  'bounties',
-  'treasury',
   'settings',
 ] as const
 
@@ -31,12 +28,6 @@ export const DASHBOARD_ROUTE_MAP: Record<DashboardRouteKey, DashboardRouteDefini
     title: 'Performance',
     navLabel: 'Performance',
   },
-  'solana-programs': {
-    key: 'solana-programs',
-    pathname: '/solana-programs',
-    title: 'Solana Programs',
-    navLabel: 'Solana Programs',
-  },
   releases: {
     key: 'releases',
     pathname: '/releases',
@@ -48,18 +39,6 @@ export const DASHBOARD_ROUTE_MAP: Record<DashboardRouteKey, DashboardRouteDefini
     pathname: '/alerts',
     title: 'Alerts',
     navLabel: 'Alerts',
-  },
-  bounties: {
-    key: 'bounties',
-    pathname: '/bounties',
-    title: 'Bounties',
-    navLabel: 'Bounties',
-  },
-  treasury: {
-    key: 'treasury',
-    pathname: '/treasury',
-    title: 'Treasury',
-    navLabel: 'Treasury',
   },
   settings: {
     key: 'settings',

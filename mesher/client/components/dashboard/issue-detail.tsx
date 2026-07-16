@@ -11,7 +11,6 @@ import type {
 import {
   X,
   GitBranch,
-  Coins,
   Sparkles,
   ExternalLink,
   ChevronRight,
@@ -398,18 +397,12 @@ export function IssueDetail({
               Link Issue
             </ActionButton>
           )}
-          {issue.bounty && (
-            <ActionButton source="shell-only" variant="accent">
-              <Coins size={11} />
-              ${issue.bounty}
-            </ActionButton>
-          )}
         </div>
 
         <div className="px-4 pb-3" data-testid="issue-detail-action-source-note">
           <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-faint)]">Maintainer actions</p>
           <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-secondary)]">
-            Resolve, Reopen, and Ignore call the provider-owned same-origin Mesher seam. AI Analysis, Link Issue, and bounty chrome stay visible as shell-only helpers.
+            Resolve, Reopen, and Ignore call the provider-owned same-origin Mesher seam. AI Analysis and issue linking stay visible as shell-only helpers.
           </p>
           {actionErrorVisible ? (
             <p

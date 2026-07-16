@@ -1,10 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Github } from "lucide-react"
 import { WaitlistButton } from "@/components/landing/waitlist-dialog"
-import { GITHUB_URL } from "@/lib/external-links"
 
 export function CTA() {
   return (
@@ -23,31 +20,19 @@ export function CTA() {
           transition={{ duration: 0.5 }}
         >
           <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6 text-balance">
-            Track errors. Fund your project.
+            Find the regression.
             <br className="hidden sm:block" />
             <span className="sm:hidden"> </span>
-            Reward the people who help.
+            Restore confidence faster.
           </h2>
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10 text-pretty">
-            Open-source error tracking with built-in token economics for Solana and beyond. 
-            Your project gets funded, contributors get paid, software gets healthier.
+            Bring errors, performance, releases, alerts, and root-cause context into one focused operational workflow.
           </p>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+          <div className="flex items-center justify-center">
             <WaitlistButton size="lg" className="h-11 sm:h-12 px-6 sm:px-8 gap-2 w-full sm:w-auto">
               Join Waitlist
             </WaitlistButton>
-            <Button
-              size="lg"
-              variant="outline"
-              className="h-11 sm:h-12 px-6 sm:px-8 gap-2 w-full sm:w-auto"
-              asChild
-            >
-              <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-                <Github className="w-4 h-4" />
-                Star on GitHub
-              </a>
-            </Button>
           </div>
         </motion.div>
       </div>

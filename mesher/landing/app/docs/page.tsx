@@ -14,9 +14,10 @@ export default function DocsPage() {
           {[
             "Getting Started",
             "SDKs",
-            "Solana",
-            "Token Economics",
-            "Bug Board",
+            "Error Tracking",
+            "Performance",
+            "Releases",
+            "Alerts",
             "Platform",
           ].map((section) => (
             <div key={section} className="space-y-2">
@@ -63,7 +64,7 @@ export default function DocsPage() {
         <ComingSoonCard
           emoji="📖"
           title="Docs are on their way"
-          description="We're writing comprehensive documentation for hyperpush. Sign up for the waitlist and we'll let you know when it's ready."
+          description="We're writing comprehensive documentation for hyperpush. Join the waitlist and we'll let you know when it's ready."
         />
       </div>
     </div>

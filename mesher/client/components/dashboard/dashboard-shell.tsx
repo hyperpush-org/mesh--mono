@@ -128,15 +128,9 @@ function DashboardShellLayout({ children }: DashboardShellProps) {
     clearPendingAIPanelClose()
     clearSelectedIssue()
 
-    if (activeNav === "solana-programs" && !sidebarCollapsed && window.innerWidth < 1920) {
-      setSidebarCollapsed(true)
-      copilotAutoCollapsedSidebar.current = true
-    }
-
     setIsClosingAIPanel(false)
     setIsAIPanelOpen(true)
   }, [
-    activeNav,
     clearPendingAIPanelClose,
     clearSelectedIssue,
     closeAIPanel,
