@@ -6,71 +6,70 @@ import { ArrowLeft, ArrowRight, Zap, Shield, GitBranch, Layers, ChevronRight } f
 import { Header } from "@/components/landing/header"
 import { Footer } from "@/components/landing/footer"
 import { Button } from "@/components/ui/button"
-import { MeshDataflow } from "@/components/landing/mesh-dataflow"
 
 const pillars = [
   {
     icon: Shield,
-    title: "Failures stay contained",
+    title: "An isolated event boundary",
     tagline: "Actor isolation",
     description:
-      "Every error event hyperpush receives runs as its own lightweight process — completely isolated from everything else. If one event causes a problem, it can't take down any others. The system keeps running as if nothing happened.",
+      "The ingestion implementation starts a lightweight actor for each accepted error event before storage and grouping work begins.",
     analogy:
-      "Think of it like a building with fireproof walls between every room. A fire in one room doesn't spread.",
+      "The boundary is part of the checked-in ingestion path, not a dashboard animation.",
   },
   {
     icon: Zap,
-    title: "140% faster than the alternatives",
+    title: "A native compiler pipeline",
     tagline: "Native compilation",
     description:
-      "Mesh compiles down to native machine code via LLVM — the same technology powering Rust and C++. You get the speed of a systems language with the expressiveness of something far more pleasant to build in.",
+      "Mesh compiles through LLVM to a native executable. The same build pipeline produces the hyperpush server used by the release verifier.",
     analogy:
-      "Most error trackers are running an interpreted script. Hyperpush is running a compiled binary.",
+      "The product build proves compilation; this page does not publish an unverified speed comparison.",
   },
   {
     icon: GitBranch,
-    title: "Distribution built into the language",
-    tagline: "First-class clustering",
+    title: "Typed service primitives",
+    tagline: "HTTP and database integration",
     description:
-      "In most languages, making servers work together across a network is a library you bolt on. In Mesh, it's part of the language itself — the same syntax as the rest of your code. Failover, load balancing, clustering: all first-class.",
+      "The application defines HTTP routes, validation, authorization, and SQL-backed storage in Mesh modules that are compiled and exercised together.",
     analogy:
-      "Instead of teaching a car to fly after the fact, Mesh was designed as an aircraft from the start.",
+      "The language is being proven by a real service boundary rather than a synthetic feature list.",
   },
   {
     icon: Layers,
-    title: "Self-healing by default",
-    tagline: "Supervision trees",
+    title: "Executable product proof",
+    tagline: "Release verification",
     description:
-      "Every part of hyperpush has a supervisor watching it. When something crashes — and in distributed systems, things always crash eventually — the supervisor restarts it automatically, in the right state, with the right context.",
+      "The release gate compiles the server and probes authentication, typed ingestion, idempotency, grouping, lifecycle, retention, and tenant isolation.",
     analogy:
-      "It's the difference between a city with ambulances and fire departments versus one that hopes nothing ever goes wrong.",
+      "A capability is called live only when it has a named proof path.",
   },
 ]
 
 const timeline = [
   {
     phase: "The problem",
-    text: "Error tracking isn't simple. Events arrive in bursts, some need grouping, some need alerts, some need to fan out to automations — all without any single path being able to take the system down.",
+    text: "Error tracking needs typed event intake, validation, grouping, alert detection, storage, and project-scoped management without confusing accepted data with illustrative records.",
   },
   {
     phase: "The existing options",
-    text: "Fast languages made concurrency awkward. Distributed languages lacked the compiled, systems-level performance we needed. Most of them were unpleasant to build in for years at a stretch.",
+    text: "The project needed a compiled language with lightweight concurrency plus direct HTTP and database integration for a complete service.",
   },
   {
     phase: "The decision",
-    text: "We stopped trying to pick the least-wrong option. We built Mesh — combining Elixir's actor model and fault-tolerance story with LLVM-native speed and distribution as a first-class language feature.",
+    text: "We built Mesh around an actor model and an LLVM compiler pipeline, then used hyperpush as an end-to-end application of those primitives.",
   },
   {
     phase: "The result",
-    text: "hyperpush, built entirely in Mesh. Every event isolated. Every failure contained. Every recovery automatic. A system that gets more reliable under pressure, not less.",
+    text: "The result is a compiled hyperpush server whose launch behavior is checked by executable API and browser proof rather than performance slogans.",
   },
 ]
 
 const stats = [
-  { value: "140%", label: "faster than Elixir", sub: "in equivalent workloads" },
-  { value: "<1ms", label: "process spawn time", sub: "for each error event" },
-  { value: "∞", label: "concurrent processes", sub: "lightweight, isolated actors" },
-  { value: "0", label: "shared state", sub: "between event handlers" },
+  { value: "LLVM", label: "native compiler", sub: "used by the server build" },
+  { value: "Actor", label: "event boundary", sub: "used by typed ingestion" },
+  { value: "HTTP", label: "management API", sub: "authenticated and project-scoped" },
+  { value: "SQL", label: "durable state", sub: "migrations and tenant-safe queries" },
 ]
 
 export default function MeshPage() {
@@ -120,7 +119,7 @@ export default function MeshPage() {
             <p className="max-w-2xl text-lg text-muted-foreground text-pretty sm:text-xl">
               Mesh is the programming language hyperpush is written in. Not a dependency, not a framework —
               the actual language. We built it because nothing else gave us what we needed to build a
-              reliable, high-throughput error tracker without compromise.
+              a compiled error-tracking service with explicit concurrency boundaries.
             </p>
           </motion.div>
         </div>
@@ -148,30 +147,24 @@ export default function MeshPage() {
                   to the error tracker watching your code — was written in one.
                 </p>
                 <p className="text-base leading-relaxed">
-                  Most developer tools are built with existing languages, designed for general use. Hyperpush
-                  isn't. We wrote a new language, designed from scratch around the specific shape of problems
-                  that error tracking at scale creates.
+                  Most developer tools are built with existing languages. Hyperpush is also a proving ground
+                  for Mesh: its server, routing, ingestion, and storage logic compile as one application.
                 </p>
               </div>
               <div className="space-y-4 text-muted-foreground text-pretty">
                 <p className="text-base leading-relaxed">
-                  Mesh takes its concurrency model from Erlang and Elixir — languages proven in telecom,
-                  messaging, and uptime-critical systems — and combines it with the raw
-                  compiled speed of native code.
+                  Mesh takes inspiration from actor-oriented languages and combines lightweight
+                  processes with an LLVM-backed native compiler pipeline.
                 </p>
                 <p className="text-base leading-relaxed">
-                  The result: a system that handles millions of events, keeps failures isolated, heals
-                  itself automatically, and runs faster than the tools it was inspired by. That's what
-                  hyperpush runs on.
+                  The result is the checked-in hyperpush server. Its documented product behavior is
+                  limited to what the current build and release verifier exercise.
                 </p>
               </div>
             </div>
           </motion.div>
         </div>
       </section>
-
-      {/* ── Animated cluster visualization ───────────────────────────── */}
-      <MeshDataflow />
 
       {/* Stats bar */}
       <section className="border-y border-border bg-card/30">
@@ -279,7 +272,7 @@ export default function MeshPage() {
               Four things that make hyperpush different at a systems level.
             </h2>
             <p className="max-w-xl text-lg text-muted-foreground text-pretty">
-              You don't need to understand compilers to appreciate what this means for reliability.
+              Each claim below points to behavior present in the codebase or release gate.
             </p>
           </motion.div>
 
@@ -338,12 +331,11 @@ export default function MeshPage() {
               <p className="mb-4 text-muted-foreground leading-relaxed text-pretty">
                 Mesh is a real, general-purpose programming language. Other teams can use it to build
                 other products. Hyperpush just happens to be the flagship proof that it works — an
-                error tracker running at scale, in production, written entirely in the language itself.
+                error tracker whose backend is written in the language itself.
               </p>
               <p className="text-muted-foreground leading-relaxed text-pretty">
-                Every time hyperpush handles an error event reliably, every time the system recovers
-                automatically from a failure, every time a new node joins the cluster without downtime —
-                that's Mesh proving itself. Not in a benchmark. In the real product you're using.
+                Every successful server build and every passing ingestion, grouping, lifecycle, retention,
+                and tenant-isolation probe is Mesh proving itself in the checked-in product.
               </p>
             </motion.div>
 
@@ -357,27 +349,27 @@ export default function MeshPage() {
               {[
                 {
                   label: "hyperpush error event arrives",
-                  detail: "Fan-out to grouping, alerting, and enrichment paths",
+                  detail: "Authenticated HTTP intake validates the typed payload",
                   accent: false,
                 },
                 {
                   label: "Mesh spawns an isolated actor",
-                  detail: "< 1ms. Completely independent from all other events.",
+                  detail: "An event actor establishes the processing boundary",
                   accent: true,
                 },
                 {
-                  label: "Each path runs in parallel",
-                  detail: "No shared state. No blocking. No bottlenecks.",
+                  label: "Storage enforces idempotency",
+                  detail: "Duplicate event IDs return the existing accepted record",
                   accent: false,
                 },
                 {
-                  label: "Supervisor watches everything",
-                  detail: "Any failure is caught and restarted automatically.",
+                  label: "Grouping and alert detection run",
+                  detail: "The accepted event updates its project-scoped live records",
                   accent: true,
                 },
                 {
                   label: "Event processed, UI updated",
-                  detail: "You see the error. Nothing else was disrupted.",
+                  detail: "The authenticated dashboard reads the committed backend facts",
                   accent: false,
                 },
               ].map((step, i) => (
@@ -428,8 +420,8 @@ export default function MeshPage() {
               Ready to see what it can do?
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground text-pretty">
-              Hyperpush is the error tracker. Mesh is the engine. Together they're built for the
-              workload that breaks other systems.
+              Hyperpush is the error tracker. Mesh is the backend language. The release gate is the
+              shared proof of what the combination can do today.
             </p>
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
               <Button size="lg" className="h-12 w-full gap-2 px-8 sm:w-auto" asChild>

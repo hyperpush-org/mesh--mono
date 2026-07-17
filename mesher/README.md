@@ -4,7 +4,7 @@ This README is the canonical maintainer runbook for Mesher's current PostgreSQL 
 
 ## Startup contract
 
-Mesher validates configuration locally, opens the PostgreSQL pool, and only then boots the runtime through `Node.start_from_env()`.
+Mesher validates configuration, opens the PostgreSQL pool, verifies the hardened schema, creates the next seven daily event partitions, and only then starts its HTTP and WebSocket listeners. It currently ships in explicit single-node mode.
 
 ### Required for every run
 
@@ -17,18 +17,7 @@ Mesher validates configuration locally, opens the PostgreSQL pool, and only then
 - `MESHER_RATE_LIMIT_WINDOW_SECONDS` — rate-limit window size (`60` by default)
 - `MESHER_RATE_LIMIT_MAX_EVENTS` — rate-limit budget per window (`1000` by default)
 
-### Cluster/runtime env
-
-These stay on the runtime-owned contract that `Node.start_from_env()` expects:
-
-- `MESH_CLUSTER_COOKIE`
-- `MESH_NODE_NAME`
-- `MESH_DISCOVERY_SEED`
-- `MESH_CLUSTER_PORT`
-- `MESH_CONTINUITY_ROLE`
-- `MESH_CONTINUITY_PROMOTION_EPOCH`
-
-`mesher/.env.example` carries the current local-development values for that full set.
+Clustering, continuity, and automatic failover are not product contracts in this release. Run one Mesher process per database until a supervised multi-node design is implemented and tested.
 
 ## Toolchain boundary
 
@@ -37,7 +26,7 @@ Mesher scripts need `meshc`.
 Supported resolution paths:
 
 1. blessed sibling `mesh-lang/target/debug/meshc`
-2. explicit `MESHER_MESHC_BIN` + `MESHER_MESHC_SOURCE`
+2. explicit executable path in `MESHER_MESHC_BIN` (`MESHER_MESHC_SOURCE` is optional diagnostic metadata)
 3. `meshc` on `PATH`
 
 If you are working in the blessed sibling workspace, keep:
@@ -93,6 +82,12 @@ DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} bash mesher/scripts/migrate.sh st
 DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} bash mesher/scripts/migrate.sh up
 ```
 
+For the local dashboard walkthrough, seed an expiring owner session after migrating:
+
+```bash
+DATABASE_URL=${DATABASE_URL:?set DATABASE_URL} bash mesher/scripts/seed-e2e-auth.sh
+```
+
 ### 6. Run the frontend and backend together
 
 ```bash
@@ -123,12 +118,6 @@ PORT=${PORT:-8080} \
 MESHER_WS_PORT=${MESHER_WS_PORT:-8081} \
 MESHER_RATE_LIMIT_WINDOW_SECONDS=${MESHER_RATE_LIMIT_WINDOW_SECONDS:-60} \
 MESHER_RATE_LIMIT_MAX_EVENTS=${MESHER_RATE_LIMIT_MAX_EVENTS:-1000} \
-MESH_CLUSTER_COOKIE=${MESH_CLUSTER_COOKIE:-dev-cookie} \
-MESH_NODE_NAME=${MESH_NODE_NAME:-mesher@127.0.0.1:4370} \
-MESH_DISCOVERY_SEED=${MESH_DISCOVERY_SEED:-localhost} \
-MESH_CLUSTER_PORT=${MESH_CLUSTER_PORT:-4370} \
-MESH_CONTINUITY_ROLE=${MESH_CONTINUITY_ROLE:-primary} \
-MESH_CONTINUITY_PROMOTION_EPOCH=${MESH_CONTINUITY_PROMOTION_EPOCH:-0} \
 .tmp/mesher-build/mesher
 ```
 
@@ -137,7 +126,7 @@ MESH_CONTINUITY_PROMOTION_EPOCH=${MESH_CONTINUITY_PROMOTION_EPOCH:-0} \
 ### Readiness check
 
 ```bash
-curl -sSf http://127.0.0.1:8080/api/v1/projects/default/settings
+curl -sSf http://127.0.0.1:8080/health/ready
 ```
 
 ### Event ingest smoke
@@ -154,25 +143,20 @@ curl -sSf \
 ### Read back seeded project issues
 
 ```bash
-curl -sSf 'http://127.0.0.1:8080/api/v1/projects/default/issues?status=unresolved'
+curl -sSf \
+  -H 'Authorization: Bearer hyperpush-e2e-session-token-0000000000000000000000000000' \
+  'http://127.0.0.1:8080/api/v1/projects/default/issues?status=unresolved'
 ```
 
 ### Optional storage readback
 
 ```bash
-curl -sSf http://127.0.0.1:8080/api/v1/projects/default/storage
+curl -sSf \
+  -H 'Authorization: Bearer hyperpush-e2e-session-token-0000000000000000000000000000' \
+  http://127.0.0.1:8080/api/v1/projects/default/storage
 ```
 
-## Runtime inspection
-
-When you boot Mesher with clustered env, inspect runtime-owned state through Mesh CLI surfaces instead of package-owned control routes:
-
-```bash
-meshc cluster status <node-name@host:port> --json
-meshc cluster continuity <node-name@host:port> --json
-meshc cluster continuity <node-name@host:port> <request-key> --json
-meshc cluster diagnostics <node-name@host:port> --json
-```
+Operational probes, retention procedures, credential handling, and incident guidance live in `mesher/OPERATIONS.md`.
 
 ## Authoritative proof rails
 
@@ -180,6 +164,12 @@ Package-owned maintainer replay:
 
 ```bash
 bash mesher/scripts/verify-maintainer-surface.sh
+```
+
+Hermetic platform release replay (isolated PostgreSQL, backend, both frontends, browsers, accessibility, dependency audit, and budgets):
+
+```bash
+bash scripts/verify-platform.sh
 ```
 
 Product-root wrapper:

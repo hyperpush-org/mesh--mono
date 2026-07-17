@@ -4,22 +4,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '@/hooks/use-toast'
 import {
   acknowledgeAlert,
-  fetchDefaultProjectAlerts,
+  fetchProjectAlerts,
   MesherApiError,
   type MesherApiErrorCode,
   resolveAlert,
 } from '@/lib/mesher-api'
 import {
   adaptMesherProjectAlerts,
-  buildFallbackAlertsOverview,
-  type AlertOverviewSource,
+  buildEmptyAlertsOverview,
   type AlertsOverviewSnapshot,
-} from '@/lib/admin-ops-live-adapter'
-import { type Alert, type AlertLiveAction } from '@/lib/mock-data'
+} from '@/lib/alerts-live-adapter'
+import { type Alert, type AlertLiveAction } from '@/lib/dashboard-types'
+import { useDashboardSession } from '@/components/dashboard/dashboard-session'
 
 export type AlertsBootstrapState = 'loading' | 'ready' | 'failed'
 export type SelectedAlertState = 'idle' | 'ready'
-export type SelectedAlertSource = 'none' | 'fallback' | 'mixed'
+export type SelectedAlertSource = 'none' | 'live'
 export type AlertsActionPhase = 'idle' | 'mutating' | 'refreshing' | 'failed'
 export type AlertsActionStage = 'mutation' | 'overview-refresh'
 
@@ -55,7 +55,7 @@ function toBootstrapError(error: unknown): AlertsBootstrapError {
   return {
     code: 'network',
     message: error instanceof Error ? error.message : 'Unknown alerts bootstrap error',
-    path: '/api/v1/projects/default/alerts',
+    path: '/api/v1/projects/unknown/alerts',
     status: null,
   }
 }
@@ -83,7 +83,7 @@ function toActionError(
     message: error instanceof Error ? error.message : 'Unknown alerts action error',
     path:
       stage === 'overview-refresh'
-        ? '/api/v1/projects/default/alerts'
+        ? '/api/v1/projects/unknown/alerts'
         : `/api/v1/alerts/${encodeURIComponent(alertId || 'unknown')}/${encodeURIComponent(action || 'unknown')}`,
     status: null,
     stage,
@@ -108,7 +108,7 @@ function showBootstrapFailureToast(error: AlertsBootstrapError) {
 
   toast({
     title: 'Live alerts failed',
-    description: `The same-origin alerts bootstrap failed (${reason}). The shell stayed mounted with explicit fallback markers instead of pretending mock alerts were live.`,
+    description: `The same-origin alerts read failed (${reason}). No alert records were substituted.`,
     variant: 'destructive',
   })
 }
@@ -138,11 +138,12 @@ function deriveSelectedAlertSource(alert: Alert | null): SelectedAlertSource {
     return 'none'
   }
 
-  return alert.source === 'live' ? 'mixed' : 'fallback'
+  return 'live'
 }
 
 export function useAlertsLiveState() {
-  const [overviewData, setOverviewData] = useState<AlertsOverviewSnapshot>(() => buildFallbackAlertsOverview())
+  const { activeProject } = useDashboardSession()
+  const [overviewData, setOverviewData] = useState<AlertsOverviewSnapshot>(() => buildEmptyAlertsOverview())
   const [bootstrapState, setBootstrapState] = useState<AlertsBootstrapState>('loading')
   const [bootstrapError, setBootstrapError] = useState<AlertsBootstrapError | null>(null)
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null)
@@ -154,18 +155,19 @@ export function useAlertsLiveState() {
   const refreshAbortRef = useRef<AbortController | null>(null)
 
   const refreshAlerts = useCallback(
-    async ({ fallbackOnFailure = false }: { fallbackOnFailure?: boolean } = {}): Promise<AlertsOverviewSnapshot | null> => {
+    async ({ clearOnFailure = false }: { clearOnFailure?: boolean } = {}): Promise<AlertsOverviewSnapshot | null> => {
       refreshAbortRef.current?.abort()
       const abortController = new AbortController()
       refreshAbortRef.current = abortController
 
       try {
-        const alerts = await fetchDefaultProjectAlerts(abortController.signal)
+        if (!activeProject) return null
+        const alerts = await fetchProjectAlerts(activeProject.id, abortController.signal)
         if (abortController.signal.aborted) {
           return null
         }
 
-        const adapted = adaptMesherProjectAlerts(alerts)
+        const adapted = adaptMesherProjectAlerts(alerts, activeProject.name)
         setOverviewData(adapted)
         setBootstrapState('ready')
         setBootstrapError(null)
@@ -175,9 +177,9 @@ export function useAlertsLiveState() {
           return null
         }
 
-        if (fallbackOnFailure) {
+        if (clearOnFailure) {
           const normalizedError = toBootstrapError(error)
-          setOverviewData(buildFallbackAlertsOverview())
+          setOverviewData(buildEmptyAlertsOverview())
           setBootstrapState('failed')
           setBootstrapError(normalizedError)
           showBootstrapFailureToast(normalizedError)
@@ -190,14 +192,19 @@ export function useAlertsLiveState() {
         }
       }
     },
-    [],
+    [activeProject],
   )
 
   useEffect(() => {
     const abortController = new AbortController()
     bootstrapAbortRef.current = abortController
 
-    void refreshAlerts({ fallbackOnFailure: true }).catch(() => undefined)
+    setOverviewData(buildEmptyAlertsOverview())
+    setBootstrapState('loading')
+    setBootstrapError(null)
+    setSelectedAlertId(null)
+
+    void refreshAlerts({ clearOnFailure: true }).catch(() => undefined)
 
     return () => {
       abortController.abort()
@@ -277,7 +284,7 @@ export function useAlertsLiveState() {
         return
       }
 
-      if (targetAlert.source !== 'live' || !targetAlert.supportedActions?.includes(normalizedAction)) {
+      if (!targetAlert.supportedActions.includes(normalizedAction)) {
         const error = toActionError(
           new MesherApiError(
             'invalid-payload',
@@ -339,7 +346,12 @@ export function useAlertsLiveState() {
   return {
     alerts: overviewData.alerts,
     stats: overviewData.stats,
-    statsFieldSources: overviewData.statsSources,
+    statsFieldSources: {
+      totalAlerts: 'derived-live' as const,
+      firing: 'derived-live' as const,
+      acknowledged: 'derived-live' as const,
+      resolved: 'derived-live' as const,
+    },
     bootstrapState,
     bootstrapError,
     liveAlertCount: overviewData.liveAlertCount,

@@ -64,6 +64,18 @@ require_contains() {
   fi
 }
 
+require_matches() {
+  local phase_name="$1"
+  local relative_path="$2"
+  local pattern="$3"
+  local description="$4"
+  local log_path="$ARTIFACT_DIR/${phase_name}.log"
+  if ! grep -Eq -- "$pattern" "$ROOT_DIR/$relative_path"; then
+    printf '%s missing %s\n' "$relative_path" "$description" >"$log_path"
+    fail_phase "$phase_name" "${relative_path} missing ${description}" "$log_path"
+  fi
+}
+
 require_absent() {
   local phase_name="$1"
   local relative_path="$2"
@@ -140,8 +152,8 @@ require_contains workflow-contract .github/workflows/deploy-landing.yml "mesher/
 require_contains workflow-contract .github/workflows/deploy-landing.yml 'bash scripts/verify-landing-surface.sh'
 require_contains workflow-contract .github/workflows/deploy-landing.yml 'npm --prefix mesher/landing ci'
 require_contains workflow-contract .github/workflows/deploy-landing.yml 'npm --prefix mesher/landing run build'
-require_contains workflow-contract .github/workflows/deploy-landing.yml 'actions/checkout@v4'
-require_contains workflow-contract .github/workflows/deploy-landing.yml 'actions/setup-node@v4'
+require_matches workflow-contract .github/workflows/deploy-landing.yml 'actions/checkout@[0-9a-f]{40} # v4' 'SHA-pinned actions/checkout v4'
+require_matches workflow-contract .github/workflows/deploy-landing.yml 'actions/setup-node@[0-9a-f]{40} # v4' 'SHA-pinned actions/setup-node v4'
 require_contains workflow-contract .github/workflows/deploy-landing.yml 'mesher/landing/package-lock.json'
 require_absent workflow-contract .github/workflows/deploy-landing.yml 'website/'
 finish_phase workflow-contract

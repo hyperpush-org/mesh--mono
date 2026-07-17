@@ -13,12 +13,11 @@ export default function DocsPage() {
           <div className="h-6 w-24 rounded bg-muted/60" />
           {[
             "Getting Started",
-            "SDKs",
+            "Ingestion API",
             "Error Tracking",
-            "Performance",
-            "Releases",
             "Alerts",
-            "Platform",
+            "Project Settings",
+            "API Keys",
           ].map((section) => (
             <div key={section} className="space-y-2">
               <div className="h-3 w-20 rounded bg-accent/20" />

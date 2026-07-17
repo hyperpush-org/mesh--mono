@@ -1,7 +1,7 @@
 # Event payload validation functions.
 # Checks required fields, valid severity levels, and payload constraints.
 
-from Types.Event import EventPayload
+from Types.Event import EventPayload, IncomingEvent
 
 # Check if the severity level is valid.
 
@@ -22,6 +22,19 @@ pub fn validate_event(payload :: EventPayload) -> String ! String do
   let msg_len = String.length(payload.message)
   if msg_len == 0 do
     Err("missing required field: message")
+  else if msg_len > 32768 do
+    Err("message exceeds 32768 characters")
+  else
+    validate_level(payload.level)
+  end
+end
+
+pub fn validate_incoming_event(payload :: IncomingEvent) -> String ! String do
+  let msg_len = String.length(payload.message)
+  if msg_len == 0 do
+    Err("missing required field: message")
+  else if msg_len > 32768 do
+    Err("message exceeds 32768 characters")
   else
     validate_level(payload.level)
   end

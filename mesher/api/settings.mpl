@@ -49,6 +49,56 @@ fn storage_row_to_json(rows) do
   end
 end
 
+fn valid_retention_days(raw :: String) -> Bool do
+  if String.length(raw) == 0 do
+    true
+  else
+    let parsed = String.to_int(raw)
+    case parsed do
+      Some( days) -> if days >= 1 do days <= 365 else false end
+      None -> false
+    end
+  end
+end
+
+fn valid_sample_rate(raw :: String) -> Bool do
+  if String.length(raw) == 0 do
+    true
+  else
+    let parsed = String.to_float(raw)
+    case parsed do
+      Some( rate) -> if rate >= 0.0 do rate <= 1.0 else false end
+      None -> false
+    end
+  end
+end
+
+fn update_valid_settings(pool :: PoolHandle, project_id :: String, body :: String) do
+  let result = update_project_settings(pool, project_id, body)
+  case result do
+    Ok( count) -> if count > 0 do
+      HTTP.response(200, json { status : "ok" })
+    else
+      HTTP.response(404, json { error : "project not found or no settings supplied" })
+    end
+    Err( e) -> HTTP.response(500, json { error : "settings update failed" })
+  end
+end
+
+fn validate_and_update_settings(pool :: PoolHandle, project_id :: String, body :: String) do
+  let retention_days = Json.get(body, "retention_days")
+  let sample_rate = Json.get(body, "sample_rate")
+  if valid_retention_days(retention_days) do
+    if valid_sample_rate(sample_rate) do
+      update_valid_settings(pool, project_id, body)
+    else
+      HTTP.response(400, json { error : "sample_rate must be between 0 and 1" })
+    end
+  else
+    HTTP.response(400, json { error : "retention_days must be between 1 and 365" })
+  end
+end
+
 # --- Handler functions (pub, defined after all helpers) ---
 # Handle GET /api/v1/projects/:project_id/settings (RETAIN-01)
 # Returns retention_days and sample_rate for a project.
@@ -74,11 +124,7 @@ pub fn handle_update_project_settings(request) do
   let raw_id = require_param(request, "project_id")
   let project_id = resolve_project_id(pool, raw_id)
   let body = Request.body(request)
-  let result = update_project_settings(pool, project_id, body)
-  case result do
-    Ok( _) -> HTTP.response(200, json { status : "ok" })
-    Err( e) -> HTTP.response(400, json { error : e })
-  end
+  validate_and_update_settings(pool, project_id, body)
 end
 
 # Handle GET /api/v1/projects/:project_id/storage (RETAIN-03)

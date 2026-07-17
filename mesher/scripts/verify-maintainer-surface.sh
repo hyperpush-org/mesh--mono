@@ -28,7 +28,7 @@ POSTGRES_HOST_PORT=""
 repo_rel() {
   local candidate="$1"
   if [[ "$candidate" == "$ROOT_DIR/"* ]]; then
-    printf '%s\n' "${candidate#$ROOT_DIR/}"
+    printf '%s\n' "${candidate#"$ROOT_DIR"/}"
   else
     printf '%s\n' "$candidate"
   fi
@@ -275,7 +275,7 @@ PY
   local ready=0
   local ready_log="$ARTIFACT_DIR/${phase}.ready.log"
   : >"$ready_log"
-  for attempt in $(seq 1 "$POSTGRES_START_TIMEOUT_SECONDS"); do
+  for _ in $(seq 1 "$POSTGRES_START_TIMEOUT_SECONDS"); do
     if PGPASSWORD=mesh psql "$DATABASE_URL" -c 'select 1' >/dev/null 2>>"$ready_log"; then
       ready=1
       break
@@ -354,12 +354,6 @@ for key in [
     'MESHER_WS_PORT',
     'MESHER_RATE_LIMIT_WINDOW_SECONDS',
     'MESHER_RATE_LIMIT_MAX_EVENTS',
-    'MESH_CLUSTER_COOKIE',
-    'MESH_NODE_NAME',
-    'MESH_DISCOVERY_SEED',
-    'MESH_CLUSTER_PORT',
-    'MESH_CONTINUITY_ROLE',
-    'MESH_CONTINUITY_PROMOTION_EPOCH',
 ]:
     require_contains('runbook', key, 'Mesher runbook env contract')
     require_contains('env', key, '.env contract')
@@ -568,4 +562,3 @@ done
 echo "verify-maintainer-surface: ok"
 echo "artifacts: $(repo_rel "$ARTIFACT_DIR")"
 echo "proof bundle: $(repo_rel "$RETAINED_PROOF_BUNDLE_DIR")"
-IR")"

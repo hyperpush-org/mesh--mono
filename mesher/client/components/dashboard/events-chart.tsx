@@ -32,17 +32,6 @@ function CustomTooltip({ active, payload, label }: any) {
   )
 }
 
-function getChartSourceLabel(chartSource: ReturnType<typeof useDashboardIssuesState>["chartSource"]) {
-  switch (chartSource) {
-    case "live":
-      return "Live buckets"
-    case "mixed":
-      return "Live buckets · normalized overlay"
-    default:
-      return "Fallback chart"
-  }
-}
-
 export function EventsChart() {
   const { eventSeries, chartSource } = useDashboardIssuesState()
 
@@ -75,8 +64,9 @@ export function EventsChart() {
           </div>
         </div>
 
-        <span className="text-[10px] text-[var(--text-faint)]">{getChartSourceLabel(chartSource)}</span>
+        <span className="text-[10px] text-[var(--text-faint)]">Live buckets · severity split derived from live level totals</span>
       </div>
+      {eventSeries.length === 0 ? <div className="flex h-[88px] items-center justify-center text-[11px] text-[var(--text-tertiary)]">No events in the current 24-hour window.</div> : (
       <div style={{ height: 88 }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={eventSeries} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
@@ -136,6 +126,7 @@ export function EventsChart() {
           </AreaChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   )
 }

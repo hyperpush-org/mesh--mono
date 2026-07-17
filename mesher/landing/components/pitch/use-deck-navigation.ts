@@ -44,7 +44,7 @@ export function useDeckNavigation({ total }: UseDeckNavigationOptions) {
       setDirection(-1)
       return prev - 1
     })
-  }, [total])
+  }, [])
 
   const toggleFullscreen = useCallback(async () => {
     const el = deckRef.current

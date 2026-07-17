@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react"
 import {
-  fetchDefaultProjectDashboardBootstrap,
+  fetchProjectDashboardBootstrap,
   fetchEventDetail,
   fetchIssueLatestEvents,
   fetchIssueTimeline,
@@ -22,19 +22,20 @@ import {
 import {
   adaptMesherDashboardBootstrap,
   adaptMesherSelectedIssueDetail,
-  buildFallbackIssuesOverview,
+  buildEmptyIssuesOverview,
   type IssueRecentEvent,
   type IssuesOverviewSnapshot,
   type IssuesOverviewSource,
 } from "@/lib/issues-live-adapter"
-import { type Issue, type IssueStatus, type Severity } from "@/lib/mock-data"
+import { type Issue, type IssueStatus, type Severity } from "@/lib/dashboard-types"
+import { useDashboardSession } from "@/components/dashboard/dashboard-session"
 import { toast } from "@/hooks/use-toast"
 
 export type IssueStatusFilter = IssueStatus | "all"
 export type IssueSeverityFilter = Severity | "all"
 export type IssuesBootstrapState = "loading" | "ready" | "failed"
 export type SelectedIssueState = "idle" | "loading" | "ready" | "failed"
-export type SelectedIssueSource = "none" | "fallback" | "mixed"
+export type SelectedIssueSource = "none" | IssuesOverviewSource
 export type IssueMutationPhase = "idle" | "mutating" | "refreshing" | "failed"
 export type IssueMutationStage = "mutation" | "overview-refresh" | "detail-refresh"
 
@@ -67,8 +68,6 @@ interface SelectedIssueSnapshot {
 const ISSUE_STATUS_FILTER_VALUES: IssueStatusFilter[] = [
   "all",
   "open",
-  "in-progress",
-  "regressed",
   "resolved",
   "ignored",
 ]
@@ -116,7 +115,7 @@ function toIssuesBootstrapError(error: unknown): IssuesBootstrapError {
   return {
     code: "network",
     message: error instanceof Error ? error.message : "Unknown Mesher bootstrap error",
-    path: "/api/v1/projects/default",
+    path: "/api/v1/projects/unknown",
     status: null,
   }
 }
@@ -176,7 +175,7 @@ function toIssueMutationError(
     message: error instanceof Error ? error.message : "Unknown issue mutation error",
     path:
       stage === "overview-refresh"
-        ? "/api/v1/projects/default/issues"
+        ? "/api/v1/projects/unknown/issues"
         : `/api/v1/issues/${issueId}/${action || "unknown"}`,
     status: null,
     stage,
@@ -226,7 +225,7 @@ function showSelectedIssueErrorToast(issueId: string, error: SelectedIssueError)
 
   toast({
     title: `Live ${surface} failed`,
-    description: `Issue ${issueId} kept its fallback shell content because Mesher ${surface} read failed (${reason}).`,
+    description: `Issue ${issueId} detail is unavailable because the Mesher ${surface} read failed (${reason}).`,
     variant: "destructive",
   })
 }
@@ -247,7 +246,7 @@ function showIssueMutationErrorToast(error: IssueMutationError) {
 
   toast({
     title: `${actionLabel} applied, but refresh failed`,
-    description: `Issue ${error.issueId} changed on Mesher, but the follow-up ${stageLabel} failed (${reason}). The shell kept fallback data visible instead of guessing local state.`,
+    description: `Issue ${error.issueId} changed on Mesher, but the follow-up ${stageLabel} failed (${reason}). Refresh before taking another action.`,
     variant: "destructive",
   })
 }
@@ -264,9 +263,9 @@ interface DashboardIssuesStateValue {
   selectedIssueRecentEvents: IssueRecentEvent[]
   selectedIssueError: SelectedIssueError | null
   filteredIssues: Issue[]
-  stats: ReturnType<typeof buildFallbackIssuesOverview>["stats"]
-  statsFieldSources: ReturnType<typeof buildFallbackIssuesOverview>["statsSources"]
-  eventSeries: ReturnType<typeof buildFallbackIssuesOverview>["eventSeries"]
+  stats: ReturnType<typeof buildEmptyIssuesOverview>["stats"]
+  statsFieldSources: ReturnType<typeof buildEmptyIssuesOverview>["statsSources"]
+  eventSeries: ReturnType<typeof buildEmptyIssuesOverview>["eventSeries"]
   bootstrapState: IssuesBootstrapState
   bootstrapError: IssuesBootstrapError | null
   liveIssueCount: number
@@ -290,11 +289,12 @@ interface DashboardIssuesStateValue {
 const DashboardIssuesStateContext = createContext<DashboardIssuesStateValue | null>(null)
 
 export function DashboardIssuesStateProvider({ children }: { children: ReactNode }) {
+  const { activeProject } = useDashboardSession()
   const [search, setSearchState] = useState("")
   const [statusFilter, setStatusFilterState] = useState<IssueStatusFilter>("all")
   const [severityFilter, setSeverityFilterState] = useState<IssueSeverityFilter>("all")
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null)
-  const [overviewData, setOverviewData] = useState(() => buildFallbackIssuesOverview())
+  const [overviewData, setOverviewData] = useState(() => buildEmptyIssuesOverview())
   const [bootstrapState, setBootstrapState] = useState<IssuesBootstrapState>("loading")
   const [bootstrapError, setBootstrapError] = useState<IssuesBootstrapError | null>(null)
   const [selectedIssueState, setSelectedIssueState] = useState<SelectedIssueState>("idle")
@@ -350,18 +350,19 @@ export function DashboardIssuesStateProvider({ children }: { children: ReactNode
   }, [])
 
   const refreshOverview = useCallback(
-    async ({ fallbackOnFailure = false }: { fallbackOnFailure?: boolean } = {}): Promise<IssuesOverviewSnapshot | null> => {
+    async ({ clearOnFailure = false }: { clearOnFailure?: boolean } = {}): Promise<IssuesOverviewSnapshot | null> => {
       overviewRefreshAbortRef.current?.abort()
       const abortController = new AbortController()
       overviewRefreshAbortRef.current = abortController
 
       try {
-        const payload = await fetchDefaultProjectDashboardBootstrap(abortController.signal)
+        if (!activeProject) return null
+        const payload = await fetchProjectDashboardBootstrap(activeProject.id, abortController.signal)
         if (abortController.signal.aborted) {
           return null
         }
 
-        const adapted = adaptMesherDashboardBootstrap(payload)
+        const adapted = adaptMesherDashboardBootstrap(payload, activeProject.name)
         setOverviewData(adapted)
         setBootstrapState("ready")
         setBootstrapError(null)
@@ -371,9 +372,9 @@ export function DashboardIssuesStateProvider({ children }: { children: ReactNode
           return null
         }
 
-        if (fallbackOnFailure) {
+        if (clearOnFailure) {
           const normalizedError = toIssuesBootstrapError(error)
-          setOverviewData(buildFallbackIssuesOverview())
+          setOverviewData(buildEmptyIssuesOverview())
           setBootstrapState("failed")
           setBootstrapError(normalizedError)
         }
@@ -385,13 +386,21 @@ export function DashboardIssuesStateProvider({ children }: { children: ReactNode
         }
       }
     },
-    [],
+    [activeProject],
   )
 
   useEffect(() => {
     let cancelled = false
 
-    void refreshOverview({ fallbackOnFailure: true }).catch(() => {
+    setOverviewData(buildEmptyIssuesOverview())
+    setBootstrapState("loading")
+    setBootstrapError(null)
+    setSelectedIssueId(null)
+    setSelectedIssueSnapshots({})
+    setSelectedIssueState("idle")
+    setSelectedIssueError(null)
+
+    void refreshOverview({ clearOnFailure: true }).catch(() => {
       if (cancelled) {
         return
       }
@@ -434,21 +443,24 @@ export function DashboardIssuesStateProvider({ children }: { children: ReactNode
       return
     }
 
-    const baseIssue = issuesById.get(selectedIssueId)
+    const issueId = selectedIssueId
+
+    const baseIssue = issuesById.get(issueId)
     if (!baseIssue) {
       setSelectedIssueState("failed")
       setSelectedIssueError({
         code: "invalid-payload",
-        message: `Unknown issue ${selectedIssueId}`,
-        path: `/api/v1/issues/${selectedIssueId}`,
+        message: `Unknown issue ${issueId}`,
+        path: `/api/v1/issues/${issueId}`,
         status: null,
         step: "latest-event",
       })
       setSelectedIssueNeedsHydration(false)
       return
     }
+    const selectedBaseIssue = baseIssue
 
-    const cachedSnapshot = selectedIssueSnapshots[selectedIssueId]
+    const cachedSnapshot = selectedIssueSnapshots[issueId]
     if (!selectedIssueNeedsHydration) {
       if (cachedSnapshot) {
         setSelectedIssueState("ready")
@@ -464,7 +476,7 @@ export function DashboardIssuesStateProvider({ children }: { children: ReactNode
 
     async function hydrateSelection() {
       try {
-        const hydrated = await hydrateSelectedIssue(selectedIssueId, baseIssue, abortController.signal)
+        const hydrated = await hydrateSelectedIssue(issueId, selectedBaseIssue, abortController.signal)
         if (abortController.signal.aborted) {
           return
         }
@@ -478,7 +490,7 @@ export function DashboardIssuesStateProvider({ children }: { children: ReactNode
 
         setSelectedIssueSnapshots((current) => ({
           ...current,
-          [selectedIssueId]: hydrated,
+          [issueId]: hydrated,
         }))
         setSelectedIssueState("ready")
         setSelectedIssueError(null)
@@ -492,7 +504,7 @@ export function DashboardIssuesStateProvider({ children }: { children: ReactNode
         setSelectedIssueState("failed")
         setSelectedIssueError(normalizedError)
         setSelectedIssueNeedsHydration(false)
-        showSelectedIssueErrorToast(selectedIssueId, normalizedError)
+        showSelectedIssueErrorToast(issueId, normalizedError)
       }
     }
 
@@ -737,11 +749,14 @@ export function DashboardIssuesStateProvider({ children }: { children: ReactNode
   )
 
   const selectedIssueSource: SelectedIssueSource = selectedIssueId
-    ? selectedIssueSnapshot?.source ?? "fallback"
+    ? selectedIssueSnapshot?.source ?? "live"
     : "none"
 
   const selectedIssueLatestEventId = selectedIssueSnapshot?.latestEventId ?? null
-  const selectedIssueRecentEvents = selectedIssueSnapshot?.recentEvents ?? []
+  const selectedIssueRecentEvents = useMemo(
+    () => selectedIssueSnapshot?.recentEvents ?? [],
+    [selectedIssueSnapshot],
+  )
   const isIssueMutationPending = issueMutationPhase === "mutating" || issueMutationPhase === "refreshing"
 
   const value = useMemo<DashboardIssuesStateValue>(

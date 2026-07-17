@@ -19,7 +19,9 @@ fn make_payload(msg :: String, lvl :: String, fp :: String) -> EventPayload do
     extra : "{}",
     user_context : "{}",
     sdk_name : None,
-    sdk_version : None
+    sdk_version : None,
+    environment : None,
+    session_id : None
   }
 end
 
@@ -42,7 +44,9 @@ test("non-empty fingerprint takes priority over exception")do let payload = Even
   extra : "{}",
   user_context : "{}",
   sdk_name : None,
-  sdk_version : None
+  sdk_version : None,
+  environment : None,
+  session_id : None
 }
 assert_eq(compute_fingerprint(payload), "priority-fp") end end
 
@@ -72,7 +76,9 @@ describe("compute_fingerprint — exception fallback")do test("uses exception ty
   extra : "{}",
   user_context : "{}",
   sdk_name : None,
-  sdk_version : None
+  sdk_version : None,
+  environment : None,
+  session_id : None
 }
 let fp = compute_fingerprint(payload)
 assert_eq(fp, "TypeError:cannot read ff") end end

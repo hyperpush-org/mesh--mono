@@ -38,6 +38,8 @@ export interface MesherEventDetailEvent {
   user_context: unknown
   sdk_name: string
   sdk_version: string
+  environment: string
+  session_id: string
   received_at: string
 }
 
@@ -128,7 +130,7 @@ export type MesherOrgMembersResponse = MesherOrgMember[]
 export interface MesherApiKeyRecord {
   id: string
   project_id: string
-  key_value: string
+  key_prefix: string
   label: string
   created_at: string
   revoked_at: string | null
@@ -146,6 +148,33 @@ export interface MesherCreatedIdResponse {
 
 export interface MesherCreatedApiKeyResponse {
   key_value: string
+}
+
+export interface MesherLoginResponse {
+  token: string
+  token_type: 'Bearer'
+  expires_in: number
+  user: {
+    id: string
+    email: string
+    display_name: string
+  }
+}
+
+export interface MesherSessionMembership {
+  org_id: string
+  org_name: string
+  org_slug: string
+  role: 'owner' | 'admin' | 'member'
+  project_id: string
+  project_slug: string
+  project_name: string
+  project_platform: string
+}
+
+export interface MesherSessionContext {
+  user: MesherLoginResponse['user']
+  memberships: MesherSessionMembership[]
 }
 
 export type MesherApiErrorCode =
@@ -169,7 +198,6 @@ export class MesherApiError extends Error {
   }
 }
 
-const DEFAULT_PROJECT_SLUG = 'default'
 const DEFAULT_TIMEOUT_MS = 4_000
 const MESHER_ISSUE_MUTATION_ACTIONS: readonly MesherIssueMutationAction[] = ['resolve', 'unresolve', 'archive']
 
@@ -256,6 +284,14 @@ function parseNullableString(value: unknown): string | null {
   return typeof value === 'string' ? value : null
 }
 
+function parseString(value: unknown, path: string, field: string): string {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  throw new MesherApiError('invalid-payload', path, `Expected ${field} to be a string`)
+}
+
 function parseFiniteNumber(value: unknown, path: string, field: string): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
@@ -316,41 +352,25 @@ function parseEventDetailResponse(value: unknown, path: string): MesherEventDeta
   const event = value.event
   const navigation = value.navigation
 
-  const requiredEventFields = [
-    'id',
-    'project_id',
-    'issue_id',
-    'level',
-    'message',
-    'fingerprint',
-    'sdk_name',
-    'sdk_version',
-    'received_at',
-  ] as const
-
-  for (const field of requiredEventFields) {
-    if (typeof event[field] !== 'string') {
-      throw new MesherApiError('invalid-payload', path, `Expected event.${field} to be a string`)
-    }
-  }
-
   return {
     event: {
-      id: event.id,
-      project_id: event.project_id,
-      issue_id: event.issue_id,
-      level: event.level,
-      message: event.message,
-      fingerprint: event.fingerprint,
+      id: parseString(event.id, path, 'event.id'),
+      project_id: parseString(event.project_id, path, 'event.project_id'),
+      issue_id: parseString(event.issue_id, path, 'event.issue_id'),
+      level: parseString(event.level, path, 'event.level'),
+      message: parseString(event.message, path, 'event.message'),
+      fingerprint: parseString(event.fingerprint, path, 'event.fingerprint'),
       exception: parseJsonEncodedField(event.exception, path, 'exception'),
       stacktrace: parseJsonEncodedField(event.stacktrace, path, 'stacktrace'),
       breadcrumbs: parseJsonEncodedField(event.breadcrumbs, path, 'breadcrumbs'),
       tags: parseJsonEncodedField(event.tags, path, 'tags'),
       extra: parseJsonEncodedField(event.extra, path, 'extra'),
       user_context: parseJsonEncodedField(event.user_context, path, 'user_context'),
-      sdk_name: event.sdk_name,
-      sdk_version: event.sdk_version,
-      received_at: event.received_at,
+      sdk_name: parseString(event.sdk_name, path, 'event.sdk_name'),
+      sdk_version: parseString(event.sdk_version, path, 'event.sdk_version'),
+      environment: parseString(event.environment, path, 'event.environment'),
+      session_id: parseString(event.session_id, path, 'event.session_id'),
+      received_at: parseString(event.received_at, path, 'event.received_at'),
     },
     navigation: {
       next_id: parseNullableString(navigation.next_id),
@@ -426,6 +446,82 @@ function parseCreatedApiKeyResponse(value: unknown, path: string): MesherCreated
 
   return {
     key_value: value.key_value,
+  }
+}
+
+function parseLoginResponse(value: unknown, path: string): MesherLoginResponse {
+  if (
+    !isRecord(value) ||
+    typeof value.token !== 'string' ||
+    value.token_type !== 'Bearer' ||
+    typeof value.expires_in !== 'number' ||
+    !isRecord(value.user) ||
+    typeof value.user.id !== 'string' ||
+    typeof value.user.email !== 'string' ||
+    typeof value.user.display_name !== 'string'
+  ) {
+    throw new MesherApiError('invalid-payload', path, 'Expected a bearer login response')
+  }
+
+  return {
+    token: value.token,
+    token_type: 'Bearer',
+    expires_in: value.expires_in,
+    user: {
+      id: value.user.id,
+      email: value.user.email,
+      display_name: value.user.display_name,
+    },
+  }
+}
+
+function parseSessionRole(value: unknown, path: string): MesherSessionMembership['role'] {
+  switch (value) {
+    case 'owner':
+    case 'admin':
+    case 'member':
+      return value
+    default:
+      throw new MesherApiError('invalid-payload', path, 'Expected membership.role to be owner, admin, or member')
+  }
+}
+
+function parseSessionMembership(value: unknown, path: string): MesherSessionMembership {
+  if (!isRecord(value)) {
+    throw new MesherApiError('invalid-payload', path, 'Expected a session membership object')
+  }
+
+  return {
+    org_id: parseString(value.org_id, path, 'membership.org_id'),
+    org_name: parseString(value.org_name, path, 'membership.org_name'),
+    org_slug: parseString(value.org_slug, path, 'membership.org_slug'),
+    role: parseSessionRole(value.role, path),
+    project_id: parseString(value.project_id, path, 'membership.project_id'),
+    project_slug: parseString(value.project_slug, path, 'membership.project_slug'),
+    project_name: parseString(value.project_name, path, 'membership.project_name'),
+    project_platform: parseString(value.project_platform, path, 'membership.project_platform'),
+  }
+}
+
+function parseSessionContext(value: unknown, path: string): MesherSessionContext {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.user) ||
+    !Array.isArray(value.memberships) ||
+    typeof value.user.id !== 'string' ||
+    typeof value.user.email !== 'string' ||
+    typeof value.user.display_name !== 'string'
+  ) {
+    throw new MesherApiError('invalid-payload', path, 'Expected current user and membership context')
+  }
+
+  return {
+    user: {
+      id: value.user.id,
+      email: value.user.email,
+      display_name: value.user.display_name,
+    },
+    memberships: value.memberships.map((membership) => parseSessionMembership(membership, path)),
   }
 }
 
@@ -574,17 +670,17 @@ function parseApiKeyRecord(value: unknown, path: string): MesherApiKeyRecord {
   if (
     typeof value.id !== 'string' ||
     typeof value.project_id !== 'string' ||
-    typeof value.key_value !== 'string' ||
+    typeof value.key_prefix !== 'string' ||
     typeof value.label !== 'string' ||
     typeof value.created_at !== 'string'
   ) {
-    throw new MesherApiError('invalid-payload', path, 'Expected API key rows with id, project_id, key_value, label, and created_at strings')
+    throw new MesherApiError('invalid-payload', path, 'Expected API key rows with id, project_id, key_prefix, label, and created_at strings')
   }
 
   return {
     id: value.id,
     project_id: value.project_id,
-    key_value: value.key_value,
+    key_prefix: value.key_prefix,
     label: value.label,
     created_at: value.created_at,
     revoked_at: value.revoked_at === null || typeof value.revoked_at === 'string' ? value.revoked_at : null,
@@ -629,17 +725,25 @@ async function requestMesherJson<T>(
   }, timeoutMs)
 
   try {
+    const headers = new Headers(options?.headers)
+    if (!headers.has('accept')) headers.set('accept', 'application/json')
+    const sessionToken = getMesherSessionToken()
+    if (sessionToken && !headers.has('authorization')) {
+      headers.set('authorization', `Bearer ${sessionToken}`)
+    }
+
     const response = await fetch(path, {
       method: options?.method ?? 'GET',
-      headers: {
-        accept: 'application/json',
-        ...options?.headers,
-      },
+      headers,
       body: options?.body,
       signal: abortController.signal,
     })
 
     if (!response.ok) {
+      if (response.status === 401 && path !== '/api/v1/auth/login') {
+        clearMesherSessionToken()
+        window.location.assign('/login')
+      }
       throw new MesherApiError('http', path, `Mesher request failed with status ${response.status}`, response.status)
     }
 
@@ -672,12 +776,69 @@ async function requestMesherJson<T>(
   }
 }
 
-function defaultProjectPath(suffix: string) {
-  return `/api/v1/projects/${DEFAULT_PROJECT_SLUG}${suffix}`
+async function requestMesherJsonWithTransientRetry<T>(
+  path: string,
+  parse: (value: unknown, path: string) => T,
+  signal?: AbortSignal,
+): Promise<T> {
+  try {
+    return await requestMesherJson(path, parse, { signal })
+  } catch (error) {
+    const transient =
+      error instanceof MesherApiError && (error.code === 'timeout' || error.code === 'network')
+    if (!transient || signal?.aborted) {
+      throw error
+    }
+
+    return requestMesherJson(path, parse, { signal })
+  }
 }
 
-function defaultOrgPath(orgSlug: string, suffix: string) {
-  return `/api/v1/orgs/${encodeURIComponent(orgSlug)}${suffix}`
+const MESHER_SESSION_STORAGE_KEY = 'hyperpush.management-session'
+
+export function getMesherSessionToken() {
+  if (typeof window === 'undefined') return null
+  return window.sessionStorage.getItem(MESHER_SESSION_STORAGE_KEY)
+}
+
+export function setMesherSessionToken(token: string) {
+  window.sessionStorage.setItem(MESHER_SESSION_STORAGE_KEY, token)
+}
+
+export function clearMesherSessionToken() {
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.removeItem(MESHER_SESSION_STORAGE_KEY)
+  }
+}
+
+export async function loginToMesher(email: string, password: string) {
+  const result = await requestMesherJson('/api/v1/auth/login', parseLoginResponse, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  setMesherSessionToken(result.token)
+  return result
+}
+
+export async function logoutFromMesher() {
+  try {
+    await requestMesherJson('/api/v1/auth/logout', parseMutationStatusResponse, { method: 'POST' })
+  } finally {
+    clearMesherSessionToken()
+  }
+}
+
+export function fetchMesherSessionContext(signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry('/api/v1/auth/me', parseSessionContext, signal)
+}
+
+function projectPath(projectId: string, suffix: string) {
+  return `/api/v1/projects/${encodeURIComponent(projectId)}${suffix}`
+}
+
+function orgPath(orgId: string, suffix: string) {
+  return `/api/v1/orgs/${encodeURIComponent(orgId)}${suffix}`
 }
 
 function issueMutationPath(issueId: string, action: MesherIssueMutationAction) {
@@ -700,28 +861,31 @@ export function isMesherIssueMutationAction(value: string): value is MesherIssue
   return MESHER_ISSUE_MUTATION_ACTIONS.includes(value as MesherIssueMutationAction)
 }
 
-export function fetchDefaultProjectIssues(signal?: AbortSignal) {
-  return requestMesherJson(defaultProjectPath('/issues'), parseIssuesResponse, { signal })
+export function fetchProjectIssues(projectId: string, signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry(projectPath(projectId, '/issues'), parseIssuesResponse, signal)
 }
 
-export function fetchDefaultProjectHealth(signal?: AbortSignal) {
-  return requestMesherJson(defaultProjectPath('/dashboard/health'), parseRecordResponse, { signal })
+export function fetchProjectHealth(projectId: string, signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry(projectPath(projectId, '/dashboard/health'), parseRecordResponse, signal)
 }
 
-export function fetchDefaultProjectLevels(signal?: AbortSignal) {
-  return requestMesherJson(defaultProjectPath('/dashboard/levels'), parseRecordArrayResponse, { signal })
+export function fetchProjectLevels(projectId: string, signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry(projectPath(projectId, '/dashboard/levels'), parseRecordArrayResponse, signal)
 }
 
-export function fetchDefaultProjectVolume(signal?: AbortSignal) {
-  return requestMesherJson(defaultProjectPath('/dashboard/volume'), parseRecordArrayResponse, { signal })
+export function fetchProjectVolume(projectId: string, signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry(projectPath(projectId, '/dashboard/volume'), parseRecordArrayResponse, signal)
 }
 
-export async function fetchDefaultProjectDashboardBootstrap(signal?: AbortSignal): Promise<MesherDashboardBootstrapPayload> {
+export async function fetchProjectDashboardBootstrap(
+  projectId: string,
+  signal?: AbortSignal,
+): Promise<MesherDashboardBootstrapPayload> {
   const [issues, health, levels, volume] = await Promise.all([
-    fetchDefaultProjectIssues(signal),
-    fetchDefaultProjectHealth(signal),
-    fetchDefaultProjectLevels(signal),
-    fetchDefaultProjectVolume(signal),
+    fetchProjectIssues(projectId, signal),
+    fetchProjectHealth(projectId, signal),
+    fetchProjectLevels(projectId, signal),
+    fetchProjectVolume(projectId, signal),
   ])
 
   return {
@@ -733,15 +897,23 @@ export async function fetchDefaultProjectDashboardBootstrap(signal?: AbortSignal
 }
 
 export function fetchIssueLatestEvents(issueId: string, signal?: AbortSignal) {
-  return requestMesherJson(`/api/v1/issues/${issueId}/events?limit=1`, parseIssueEventsResponse, { signal })
+  return requestMesherJsonWithTransientRetry(
+    `/api/v1/issues/${issueId}/events?limit=1`,
+    parseIssueEventsResponse,
+    signal,
+  )
 }
 
 export function fetchEventDetail(eventId: string, signal?: AbortSignal) {
-  return requestMesherJson(`/api/v1/events/${eventId}`, parseEventDetailResponse, { signal })
+  return requestMesherJsonWithTransientRetry(`/api/v1/events/${eventId}`, parseEventDetailResponse, signal)
 }
 
 export function fetchIssueTimeline(issueId: string, signal?: AbortSignal) {
-  return requestMesherJson(`/api/v1/issues/${issueId}/timeline`, parseIssueTimelineResponse, { signal })
+  return requestMesherJsonWithTransientRetry(
+    `/api/v1/issues/${issueId}/timeline`,
+    parseIssueTimelineResponse,
+    signal,
+  )
 }
 
 export function mutateIssue(issueId: string, action: string, signal?: AbortSignal) {
@@ -771,8 +943,8 @@ export function archiveIssue(issueId: string, signal?: AbortSignal) {
   return mutateIssue(issueId, 'archive', signal)
 }
 
-export function fetchDefaultProjectAlerts(signal?: AbortSignal) {
-  return requestMesherJson(defaultProjectPath('/alerts'), parseProjectAlertsResponse, { signal })
+export function fetchProjectAlerts(projectId: string, signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry(projectPath(projectId, '/alerts'), parseProjectAlertsResponse, signal)
 }
 
 export function acknowledgeAlert(alertId: string, signal?: AbortSignal) {
@@ -789,11 +961,12 @@ export function resolveAlert(alertId: string, signal?: AbortSignal) {
   })
 }
 
-export function fetchDefaultProjectAlertRules(signal?: AbortSignal) {
-  return requestMesherJson(defaultProjectPath('/alert-rules'), parseAlertRulesResponse, { signal })
+export function fetchProjectAlertRules(projectId: string, signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry(projectPath(projectId, '/alert-rules'), parseAlertRulesResponse, signal)
 }
 
-export function createDefaultProjectAlertRule(
+export function createProjectAlertRule(
+  projectId: string,
   body: {
     name?: string
     condition?: MesherApiRecord
@@ -802,7 +975,7 @@ export function createDefaultProjectAlertRule(
   },
   signal?: AbortSignal,
 ) {
-  return requestMesherJson(defaultProjectPath('/alert-rules'), parseCreatedIdResponse, {
+  return requestMesherJson(projectPath(projectId, '/alert-rules'), parseCreatedIdResponse, {
     method: 'POST',
     signal,
     headers: {
@@ -830,18 +1003,23 @@ export function deleteAlertRule(ruleId: string, signal?: AbortSignal) {
   })
 }
 
-export function fetchDefaultProjectSettings(signal?: AbortSignal) {
-  return requestMesherJson(defaultProjectPath('/settings'), parseProjectSettingsResponse, { signal })
+export function fetchProjectSettings(projectId: string, signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry(
+    projectPath(projectId, '/settings'),
+    parseProjectSettingsResponse,
+    signal,
+  )
 }
 
-export function updateDefaultProjectSettings(
+export function updateProjectSettings(
+  projectId: string,
   body: {
     retention_days?: number
     sample_rate?: number
   },
   signal?: AbortSignal,
 ) {
-  return requestMesherJson(defaultProjectPath('/settings'), parseMutationStatusResponse, {
+  return requestMesherJson(projectPath(projectId, '/settings'), parseMutationStatusResponse, {
     method: 'POST',
     signal,
     headers: {
@@ -851,16 +1029,20 @@ export function updateDefaultProjectSettings(
   })
 }
 
-export function fetchDefaultProjectStorage(signal?: AbortSignal) {
-  return requestMesherJson(defaultProjectPath('/storage'), parseProjectStorageResponse, { signal })
+export function fetchProjectStorage(projectId: string, signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry(
+    projectPath(projectId, '/storage'),
+    parseProjectStorageResponse,
+    signal,
+  )
 }
 
-export function fetchOrgMembers(orgSlug = 'default', signal?: AbortSignal) {
-  return requestMesherJson(defaultOrgPath(orgSlug, '/members'), parseOrgMembersResponse, { signal })
+export function fetchOrgMembers(orgId: string, signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry(orgPath(orgId, '/members'), parseOrgMembersResponse, signal)
 }
 
-export function addOrgMember(orgSlug: string, body: { user_id: string; role?: string }, signal?: AbortSignal) {
-  return requestMesherJson(defaultOrgPath(orgSlug, '/members'), parseCreatedIdResponse, {
+export function addOrgMember(orgId: string, body: { user_id: string; role?: string }, signal?: AbortSignal) {
+  return requestMesherJson(orgPath(orgId, '/members'), parseCreatedIdResponse, {
     method: 'POST',
     signal,
     headers: {
@@ -870,8 +1052,8 @@ export function addOrgMember(orgSlug: string, body: { user_id: string; role?: st
   })
 }
 
-export function updateOrgMemberRole(orgSlug: string, membershipId: string, role: string, signal?: AbortSignal) {
-  return requestMesherJson(defaultOrgPath(orgSlug, `/members/${encodeURIComponent(membershipId)}/role`), parseMutationStatusResponse, {
+export function updateOrgMemberRole(orgId: string, membershipId: string, role: string, signal?: AbortSignal) {
+  return requestMesherJson(orgPath(orgId, `/members/${encodeURIComponent(membershipId)}/role`), parseMutationStatusResponse, {
     method: 'POST',
     signal,
     headers: {
@@ -881,19 +1063,19 @@ export function updateOrgMemberRole(orgSlug: string, membershipId: string, role:
   })
 }
 
-export function removeOrgMember(orgSlug: string, membershipId: string, signal?: AbortSignal) {
-  return requestMesherJson(defaultOrgPath(orgSlug, `/members/${encodeURIComponent(membershipId)}/remove`), parseMutationStatusResponse, {
+export function removeOrgMember(orgId: string, membershipId: string, signal?: AbortSignal) {
+  return requestMesherJson(orgPath(orgId, `/members/${encodeURIComponent(membershipId)}/remove`), parseMutationStatusResponse, {
     method: 'POST',
     signal,
   })
 }
 
-export function fetchDefaultProjectApiKeys(signal?: AbortSignal) {
-  return requestMesherJson(defaultProjectPath('/api-keys'), parseApiKeysResponse, { signal })
+export function fetchProjectApiKeys(projectId: string, signal?: AbortSignal) {
+  return requestMesherJsonWithTransientRetry(projectPath(projectId, '/api-keys'), parseApiKeysResponse, signal)
 }
 
-export function createDefaultProjectApiKey(body: { label?: string }, signal?: AbortSignal) {
-  return requestMesherJson(defaultProjectPath('/api-keys'), parseCreatedApiKeyResponse, {
+export function createProjectApiKey(projectId: string, body: { label?: string }, signal?: AbortSignal) {
+  return requestMesherJson(projectPath(projectId, '/api-keys'), parseCreatedApiKeyResponse, {
     method: 'POST',
     signal,
     headers: {

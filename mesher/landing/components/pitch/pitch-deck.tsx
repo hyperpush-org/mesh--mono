@@ -26,14 +26,15 @@ export function PitchDeck() {
     canNext,
   } = useDeckNavigation({ total: slides.length })
 
-  const { isExporting, progress, exportPdf } = useDeckPdf()
+  const { isExporting, progress, exportError, exportPdf } = useDeckPdf()
 
   const currentSlide = slides[index]
-  if (!currentSlide) return null
 
   const handleExport = useCallback(() => {
     exportPdf(slides, () => index, goTo)
   }, [exportPdf, slides, index, goTo])
+
+  if (!currentSlide) return null
 
   return (
     <div
@@ -78,6 +79,14 @@ export function PitchDeck() {
             </p>
           </div>
         </div>
+      )}
+      {exportError && (
+        <p
+          role="alert"
+          className="absolute bottom-16 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-destructive/40 bg-background px-4 py-2 text-sm text-destructive"
+        >
+          {exportError}
+        </p>
       )}
     </div>
   )

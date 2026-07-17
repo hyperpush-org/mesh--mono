@@ -14,9 +14,9 @@ from Api.Helpers import query_or_default, to_json_array, require_param, get_regi
 
 fn cap_limit(n :: Int) -> String do
   if n > 100 do
-    "25"
+    "100"
   else if n < 1 do
-    "25"
+    "1"
   else
     String.from(n)
   end
@@ -56,7 +56,7 @@ end
 # Convert an issue row (Map<String, String>) to a JSON string.
 # All fields are strings from SQL; event_count is numeric so parse to Int.
 
-fn row_to_issue_json(row) -> String do
+fn row_to_issue_json(row :: Map < String, String >) -> String do
   let id = Map.get(row, "id")
   let title = Map.get(row, "title")
   let level = Map.get(row, "level")
@@ -69,43 +69,43 @@ fn row_to_issue_json(row) -> String do
   let first_seen = Map.get(row, "first_seen")
   let last_seen = Map.get(row, "last_seen")
   let assigned_to = Map.get(row, "assigned_to")
-  """{"id":"#{id}","title":"#{title}","level":"#{level}","status":"#{status}","event_count":#{event_count},"first_seen":"#{first_seen}","last_seen":"#{last_seen}","assigned_to":"#{assigned_to}"}"""
+  json { id : id, title : title, level : level, status : status, event_count : event_count, first_seen : first_seen, last_seen : last_seen, assigned_to : assigned_to }
 end
 
 # Convert an event search result row to JSON.
 
-fn row_to_event_json(row) -> String do
+fn row_to_event_json(row :: Map < String, String >) -> String do
   let id = Map.get(row, "id")
   let issue_id = Map.get(row, "issue_id")
   let level = Map.get(row, "level")
   let message = Map.get(row, "message")
   let received_at = Map.get(row, "received_at")
-  """{"id":"#{id}","issue_id":"#{issue_id}","level":"#{level}","message":"#{message}","received_at":"#{received_at}"}"""
+  json { id : id, issue_id : issue_id, level : level, message : message, received_at : received_at }
 end
 
 # Convert a tag filter result row to JSON.
 # tags field is raw JSONB -- embed directly without quoting.
 
-fn row_to_tag_event_json(row) -> String do
+fn row_to_tag_event_json(row :: Map < String, String >) -> String do
   let id = Map.get(row, "id")
   let issue_id = Map.get(row, "issue_id")
   let level = Map.get(row, "level")
   let message = Map.get(row, "message")
   let tags = Map.get(row, "tags")
   let received_at = Map.get(row, "received_at")
-  """{"id":"#{id}","issue_id":"#{issue_id}","level":"#{level}","message":"#{message}","tags":#{tags},"received_at":"#{received_at}"}"""
+  """{"id":#{Json.encode_string(id)},"issue_id":#{Json.encode_string(issue_id)},"level":#{Json.encode_string(level)},"message":#{Json.encode_string(message)},"tags":#{tags},"received_at":#{Json.encode_string(received_at)}}"""
 end
 
 # Convert a per-issue event row to JSON (minimal fields).
 
-fn row_to_issue_event_json(row) -> String do
+fn row_to_issue_event_json(row :: Map < String, String >) -> String do
   let event = issue_event_row_to_event(row)
   Json.encode(event)
 end
 
 # Helper: extract last_seen and id from the last row for pagination cursor.
 
-fn issue_row_to_cursor_issue(row) -> Issue do
+fn issue_row_to_cursor_issue(row :: Map < String, String >) -> Issue do
   Issue {
     id : Map.get(row, "id"),
     project_id : "",
@@ -126,7 +126,7 @@ fn extract_cursor_from_last(rows, last_seen_key :: String, id_key :: String) -> 
   let normalized = Json.encode(issue_row_to_cursor_issue(List.get(rows, total - 1)))
   let next_cursor = Json.get(normalized, last_seen_key)
   let next_cursor_id = Json.get(normalized, id_key)
-  ""","next_cursor":"#{next_cursor}","next_cursor_id":"#{next_cursor_id}","has_more":true}"""
+  ""","next_cursor":#{Json.encode_string(next_cursor)},"next_cursor_id":#{Json.encode_string(next_cursor_id)},"has_more":true}"""
 end
 
 # Build paginated response JSON with cursor metadata.
@@ -143,7 +143,7 @@ end
 
 # Build paginated response for event lists (cursor key is received_at).
 
-fn issue_event_row_to_event(row) -> Event do
+fn issue_event_row_to_event(row :: Map < String, String >) -> Event do
   Event {
     id : Map.get(row, "id"),
     project_id : "",
@@ -171,7 +171,7 @@ fn extract_event_cursor_from_last(rows) -> String do
   let event_json = Json.encode(event)
   let next_cursor = Json.get(event_json, "received_at")
   let next_cursor_id = Json.get(event_json, "id")
-  ""","next_cursor":"#{next_cursor}","next_cursor_id":"#{next_cursor_id}","has_more":true}"""
+  ""","next_cursor":#{Json.encode_string(next_cursor)},"next_cursor_id":#{Json.encode_string(next_cursor_id)},"has_more":true}"""
 end
 
 fn build_event_paginated_response(json_array :: String, rows, limit :: Int) -> String do
@@ -312,8 +312,12 @@ end
 
 # Helper: perform tag filter and return response.
 
-fn do_tag_filter(pool, project_id :: String, tag_json :: String, limit_str :: String) do
-  let result = filter_events_by_tag(pool, project_id, tag_json, limit_str)
+fn do_tag_filter(pool,
+project_id :: String,
+key :: String,
+value :: String,
+limit_str :: String) do
+  let result = filter_events_by_tag(pool, project_id, key, value, limit_str)
   case result do
     Ok( rows) -> HTTP.response(200, serialize_tag_events(rows))
     Err( e) -> HTTP.response(500, json { error : e })
@@ -330,8 +334,7 @@ fn check_tag_params(pool, project_id :: String, key :: String, value :: String, 
   else if val_empty do
     missing_tag_response()
   else
-    let tag_json = """{"#{key}":"#{value}"}"""
-    do_tag_filter(pool, project_id, tag_json, limit_str)
+    do_tag_filter(pool, project_id, key, value, limit_str)
   end
 end
 
@@ -387,14 +390,14 @@ end
 # Convert a session event row to JSON.
 # Includes environment so the client can verify which deployment the event came from.
 
-fn row_to_session_event_json(row) -> String do
+fn row_to_session_event_json(row :: Map < String, String >) -> String do
   let id = Map.get(row, "id")
   let issue_id = Map.get(row, "issue_id")
   let level = Map.get(row, "level")
   let message = Map.get(row, "message")
   let environment = Map.get(row, "environment")
   let received_at = Map.get(row, "received_at")
-  """{"id":"#{id}","issue_id":"#{issue_id}","level":"#{level}","message":"#{message}","environment":"#{environment}","received_at":"#{received_at}"}"""
+  json { id : id, issue_id : issue_id, level : level, message : message, environment : environment, received_at : received_at }
 end
 
 # Helper: serialize session event rows and respond.

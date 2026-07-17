@@ -22,7 +22,7 @@ from Api.Helpers import query_or_default, to_json_array, require_param, get_regi
 # Serialize a member row (with user info) to JSON.
 # Fields: id, user_id, email, display_name, role, joined_at
 
-fn member_row_to_membership(row) -> OrgMembership do
+fn member_row_to_membership(row :: Map < String, String >) -> OrgMembership do
   OrgMembership {
     id : Map.get(row, "id"),
     user_id : Map.get(row, "user_id"),
@@ -32,7 +32,7 @@ fn member_row_to_membership(row) -> OrgMembership do
   }
 end
 
-fn member_row_to_user(row) -> User do
+fn member_row_to_user(row :: Map < String, String >) -> User do
   User {
     id : Map.get(row, "user_id"),
     email : Map.get(row, "email"),
@@ -41,7 +41,7 @@ fn member_row_to_user(row) -> User do
   }
 end
 
-fn member_to_json(row) -> String do
+fn member_to_json(row :: Map < String, String >) -> String do
   let membership_json = Json.encode(member_row_to_membership(row))
   let user_json = Json.encode(member_row_to_user(row))
   let id = Json.get(membership_json, "id")
@@ -50,42 +50,43 @@ fn member_to_json(row) -> String do
   let display_name = Json.get(user_json, "display_name")
   let role = Json.get(membership_json, "role")
   let joined_at = Json.get(membership_json, "joined_at")
-  """{"id":"#{id}","user_id":"#{user_id}","email":"#{email}","display_name":"#{display_name}","role":"#{role}","joined_at":"#{joined_at}"}"""
+  json { id : id, user_id : user_id, email : email, display_name : display_name, role : role, joined_at : joined_at }
 end
 
-# Serialize an API key row to JSON.
-# Fields: id, project_id, key_value, label, created_at, revoked_at
-# Uses Json.encode + Json.get so string fields remain truthful values.
-
-fn api_key_row_to_api_key(row) -> ApiKey do
+fn api_key_row_to_model(row :: Map < String, String >) -> ApiKey do
+  let revoked_at = Map.get(row, "revoked_at")
   ApiKey {
     id : Map.get(row, "id"),
     project_id : Map.get(row, "project_id"),
-    key_value : Map.get(row, "key_value"),
+    key_prefix : Map.get(row, "key_prefix"),
     label : Map.get(row, "label"),
     created_at : Map.get(row, "created_at"),
-    revoked_at : if String.length(Map.get(row, "revoked_at")) == 0 do
-      None
-    else
-      Some(Map.get(row, "revoked_at"))
-    end
+    revoked_at : if String.length(revoked_at) == 0 do None else Some(revoked_at) end
   }
 end
 
-fn api_key_to_json(row) -> String do
-  let api_key_json = Json.encode(api_key_row_to_api_key(row))
-  let id = Json.get(api_key_json, "id")
-  let project_id = Json.get(api_key_json, "project_id")
-  let key_value = Json.get(api_key_json, "key_value")
-  let label = Json.get(api_key_json, "label")
-  let created_at = Json.get(api_key_json, "created_at")
-  let revoked_at_raw = Json.get(api_key_json, "revoked_at")
-  let revoked_at = if revoked_at_raw == "" or revoked_at_raw == "null" do
-    "null"
+fn api_key_to_json(row :: Map < String, String >) -> String do
+  let encoded = Json.encode(api_key_row_to_model(row))
+  let revoked_at = Map.get(row, "revoked_at")
+  if String.length(revoked_at) == 0 do
+    json {
+      id : Json.get(encoded, "id"),
+      project_id : Json.get(encoded, "project_id"),
+      key_prefix : Json.get(encoded, "key_prefix"),
+      label : Json.get(encoded, "label"),
+      created_at : Json.get(encoded, "created_at"),
+      revoked_at : nil
+    }
   else
-    "\"#{revoked_at_raw}\""
+    json {
+      id : Json.get(encoded, "id"),
+      project_id : Json.get(encoded, "project_id"),
+      key_prefix : Json.get(encoded, "key_prefix"),
+      label : Json.get(encoded, "label"),
+      created_at : Json.get(encoded, "created_at"),
+      revoked_at : revoked_at
+    }
   end
-  """{"id":"#{id}","project_id":"#{project_id}","key_value":"#{key_value}","label":"#{label}","created_at":"#{created_at}","revoked_at":#{revoked_at}}"""
 end
 
 # Extract a field from a JSON body using Mesh-native Json.get (no DB roundtrip).
@@ -184,8 +185,8 @@ end
 # --- Update member role helper chain ---
 # Helper: perform the actual role update.
 
-fn perform_role_update(pool :: PoolHandle, membership_id :: String, role :: String) do
-  let result = update_member_role(pool, membership_id, role)
+fn perform_role_update(pool :: PoolHandle, org_id :: String, membership_id :: String, role :: String) do
+  let result = update_member_role(pool, org_id, membership_id, role)
   case result do
     Ok( count) -> if count > 0 do
       update_role_success()
@@ -198,10 +199,10 @@ end
 
 # Helper: extract role and perform update.
 
-fn do_update_role(pool :: PoolHandle, membership_id :: String, body :: String) do
+fn do_update_role(pool :: PoolHandle, org_id :: String, membership_id :: String, body :: String) do
   let role_result = extract_json_field(pool, body, "role")
   case role_result do
-    Ok( role) -> perform_role_update(pool, membership_id, role)
+    Ok( role) -> perform_role_update(pool, org_id, membership_id, role)
     Err( e) -> HTTP.response(400, json { error : "invalid json" })
   end
 end
@@ -286,7 +287,7 @@ pub fn handle_update_member_role(request) do
   if String.length(org_id) == 0 do
     HTTP.response(404, json { error : "organization not found" })
   else
-    do_update_role(pool, membership_id, body)
+    do_update_role(pool, org_id, membership_id, body)
   end
 end
 
@@ -302,7 +303,7 @@ pub fn handle_remove_member(request) do
   if String.length(org_id) == 0 do
     HTTP.response(404, json { error : "organization not found" })
   else
-    let result = remove_member(pool, membership_id)
+    let result = remove_member(pool, org_id, membership_id)
     case result do
       Ok( count) -> if count > 0 do
         remove_success()
@@ -354,7 +355,11 @@ pub fn handle_revoke_api_key(request) do
   let key_id = require_param(request, "key_id")
   let result = revoke_api_key(pool, key_id)
   case result do
-    Ok( _) -> revoke_key_success()
+    Ok( count) -> if count > 0 do
+      revoke_key_success()
+    else
+      HTTP.response(404, json { error : "API key not found or already revoked" })
+    end
     Err( e) -> HTTP.response(500, json { error : e })
   end
 end

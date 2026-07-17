@@ -4,18 +4,57 @@
 
 from Storage.Queries import get_project_id_by_slug, get_org_id_by_slug
 
-# Cluster-aware registry lookup.
-# In cluster mode (Node.self returns non-empty), uses Global.whereis for
-# cross-node discovery. In standalone mode, uses Process.whereis (zero overhead).
-# Both return Pid<()>; the runtime representation is u64 in either case.
+fn strip_uuid_characters(value :: String) -> String do
+  value
+    |> String.to_lower()
+    |> String.replace("-", "")
+    |> String.replace("0", "")
+    |> String.replace("1", "")
+    |> String.replace("2", "")
+    |> String.replace("3", "")
+    |> String.replace("4", "")
+    |> String.replace("5", "")
+    |> String.replace("6", "")
+    |> String.replace("7", "")
+    |> String.replace("8", "")
+    |> String.replace("9", "")
+    |> String.replace("a", "")
+    |> String.replace("b", "")
+    |> String.replace("c", "")
+    |> String.replace("d", "")
+    |> String.replace("e", "")
+    |> String.replace("f", "")
+end
+
+pub fn is_uuid(value :: String) -> Bool do
+  if String.length(value) != 36 do
+    false
+  else
+    let parts = String.split(value, "-")
+    if List.length(parts) != 5 do
+      false
+    else if String.length(List.get(parts, 0)) != 8 do
+      false
+    else if String.length(List.get(parts, 1)) != 4 do
+      false
+    else if String.length(List.get(parts, 2)) != 4 do
+      false
+    else if String.length(List.get(parts, 3)) != 4 do
+      false
+    else if String.length(List.get(parts, 4)) != 12 do
+      false
+    else
+      String.length(strip_uuid_characters(value)) == 0
+    end
+  end
+end
+
+# Hyperpush currently ships in explicit single-node mode. Keeping registry
+# lookup process-local avoids advertising cross-node routing that the product
+# does not implement yet.
 
 pub fn get_registry() do
-  let node_name = Node.self()
-  if node_name != "" do
-    Global.whereis("mesher_registry")
-  else
-    Process.whereis("mesher_registry")
-  end
+  Process.whereis("mesher_registry")
 end
 
 # Resolve a project identifier to a UUID.
@@ -24,7 +63,7 @@ end
 # Returns the UUID string on success, or an empty string if slug not found.
 
 pub fn resolve_project_id(pool :: PoolHandle, raw_id :: String) -> String do
-  if String.length(raw_id) == 36 do
+  if is_uuid(raw_id) do
     raw_id
   else
     let result = get_project_id_by_slug(pool, raw_id)
@@ -41,7 +80,7 @@ end
 # Returns the UUID string on success, or an empty string if slug not found.
 
 pub fn resolve_org_id(pool :: PoolHandle, raw_id :: String) -> String do
-  if String.length(raw_id) == 36 do
+  if is_uuid(raw_id) do
     raw_id
   else
     let result = get_org_id_by_slug(pool, raw_id)

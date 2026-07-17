@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 
 const footerLinks = {
   Product: [
@@ -24,10 +25,10 @@ export function Footer() {
         <div className="mb-10 grid grid-cols-2 gap-6 sm:mb-12 sm:grid-cols-3 sm:gap-8 md:grid-cols-5">
           <div className="col-span-2">
             <Link href="/" className="mb-4 flex items-center">
-              <img src="/logo-light.svg" alt="hyperpush" className="h-7" />
+              <Image src="/logo-light.svg" alt="hyperpush" width={132} height={28} className="h-7" />
             </Link>
             <p className="max-w-xs text-sm text-muted-foreground">
-              Production error tracking with clear ownership, release context, and fast recovery.
+              Production error tracking with live issue evidence, lifecycle controls, and in-product alerts.
             </p>
           </div>
 

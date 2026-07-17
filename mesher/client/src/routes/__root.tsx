@@ -32,7 +32,7 @@ export const Route = createRootRoute({
       {
         name: 'description',
         content:
-          'Production error tracking for web and backend applications, with fast triage, performance insights, releases, and alerts.',
+          'Production error tracking with grouped issues, recorded evidence, in-product alerts, and project-scoped settings.',
       },
     ],
     links: [

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 
 test.describe('Pitch Deck', () => {
   test.beforeEach(async ({ page }) => {
@@ -105,8 +106,17 @@ test.describe('Pitch Deck', () => {
     await expect(fsBtn).toBeVisible()
   })
 
-  test('download PDF button exists', async ({ page }) => {
+  test('download PDF produces a multi-page PDF artifact', async ({ page }) => {
+    test.setTimeout(120_000)
     const dlBtn = page.locator('[aria-label="Download PDF"]')
-    await expect(dlBtn).toBeVisible()
+    const downloadPromise = page.waitForEvent('download', { timeout: 90_000 })
+    await dlBtn.click()
+    const download = await downloadPromise
+    expect(download.suggestedFilename()).toBe('hyperpush-pitch-deck.pdf')
+    const downloadPath = await download.path()
+    expect(downloadPath).not.toBeNull()
+    const contents = await readFile(downloadPath!)
+    expect(contents.subarray(0, 4).toString()).toBe('%PDF')
+    expect(contents.length).toBeGreaterThan(10_000)
   })
 })

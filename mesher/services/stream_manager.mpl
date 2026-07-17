@@ -5,6 +5,9 @@
 # BufferMessage/DrainBuffers handlers queue and flush buffered messages (STREAM-05).
 
 struct ConnectionState do
+  # 1 = management stream, 2 = ingestion. An integer discriminator avoids
+  # runtime string-representation ambiguity in service state.
+  kind_code :: Int
   project_id :: String
   level_filter :: String
   # "" means no filter (accept all)
@@ -19,6 +22,10 @@ end
 
 struct StreamState do
   connections :: Map < Int, ConnectionState >
+  # Keep the role in a scalar map as well as the connection record. The Mesh
+  # runtime currently does not preserve the leading scalar discriminator when
+  # a struct is stored as a map value, while the remaining fields are stable.
+  roles :: Map < Int, Int >
   # conn_handle -> state
 end
 
@@ -26,10 +33,12 @@ end
 
 fn register_client(state :: StreamState,
 conn :: Int,
+kind_code :: Int,
 project_id :: String,
 level_filter :: String,
 env_filter :: String) -> StreamState do
   let cs = ConnectionState {
+    kind_code : kind_code,
     project_id : project_id,
     level_filter : level_filter,
     env_filter : env_filter,
@@ -38,16 +47,32 @@ env_filter :: String) -> StreamState do
     max_buffer : 100
   }
   let new_conns = Map.put(state.connections, conn, cs)
-  StreamState { connections : new_conns }
+  let new_roles = Map.put(state.roles, conn, kind_code)
+  StreamState { connections : new_conns, roles : new_roles }
 end
 
 fn remove_client(state :: StreamState, conn :: Int) -> StreamState do
   let new_conns = Map.delete(state.connections, conn)
-  StreamState { connections : new_conns }
+  let new_roles = Map.delete(state.roles, conn)
+  StreamState { connections : new_conns, roles : new_roles }
 end
 
 fn is_stream_client(state :: StreamState, conn :: Int) -> Bool do
-  Map.has_key(state.connections, conn)
+  let has = Map.has_key(state.roles, conn)
+  if has do
+    Map.get(state.roles, conn) == 1
+  else
+    false
+  end
+end
+
+fn is_ingest_client(state :: StreamState, conn :: Int) -> Bool do
+  let has = Map.has_key(state.roles, conn)
+  if has do
+    Map.get(state.roles, conn) == 2
+  else
+    false
+  end
 end
 
 fn get_project_id(state :: StreamState, conn :: Int) -> String do
@@ -98,27 +123,22 @@ fn buffer_message_for_conn(state :: StreamState, conn :: Int, msg :: String) -> 
   let cs = Map.get(state.connections, conn)
   let appended = List.append(cs.buffer, msg)
   let new_len = cs.buffer_len + 1
-  # Drop oldest if over capacity (same pattern as StorageWriter)
-  let buf = if new_len > cs.max_buffer do
-    List.drop(appended, new_len - cs.max_buffer)
+  if new_len > cs.max_buffer do
+    println("[Mesher] websocket_slow_consumer conn=#{conn} project_id=#{cs.project_id} action=disconnect")
+    remove_client(state, conn)
   else
-    appended
+    let new_cs = ConnectionState {
+      kind_code : cs.kind_code,
+      project_id : cs.project_id,
+      level_filter : cs.level_filter,
+      env_filter : cs.env_filter,
+      buffer : appended,
+      buffer_len : new_len,
+      max_buffer : cs.max_buffer
+    }
+    let new_conns = Map.put(state.connections, conn, new_cs)
+    StreamState { connections : new_conns, roles : state.roles }
   end
-  let blen = if new_len > cs.max_buffer do
-    cs.max_buffer
-  else
-    new_len
-  end
-  let new_cs = ConnectionState {
-    project_id : cs.project_id,
-    level_filter : cs.level_filter,
-    env_filter : cs.env_filter,
-    buffer : buf,
-    buffer_len : blen,
-    max_buffer : cs.max_buffer
-  }
-  let new_conns = Map.put(state.connections, conn, new_cs)
-  StreamState { connections : new_conns }
 end
 
 # --- Buffer drain helpers (STREAM-05 backpressure) ---
@@ -147,6 +167,7 @@ fn drain_single_connection(state :: StreamState, conn :: Int) -> StreamState do
     if send_ok == 0 do
       # All sends succeeded -- clear buffer
       let cleared_cs = ConnectionState {
+        kind_code : cs.kind_code,
         project_id : cs.project_id,
         level_filter : cs.level_filter,
         env_filter : cs.env_filter,
@@ -155,7 +176,7 @@ fn drain_single_connection(state :: StreamState, conn :: Int) -> StreamState do
         max_buffer : cs.max_buffer
       }
       let new_conns = Map.put(state.connections, conn, cleared_cs)
-      StreamState { connections : new_conns }
+      StreamState { connections : new_conns, roles : state.roles }
     else
       # Ws.send returned -1 (connection error) -- remove this connection
       remove_client(state, conn)
@@ -180,6 +201,67 @@ fn drain_all_buffers(state :: StreamState) -> StreamState do
   drain_connections_loop(state, conns, 0, List.length(conns))
 end
 
+fn project_matches(state :: StreamState,
+conn :: Int,
+cs :: ConnectionState,
+project_id :: String) -> Bool do
+  is_stream_client(state, conn) and cs.project_id == project_id
+end
+
+fn buffer_project_loop(state :: StreamState,
+conns,
+project_id :: String,
+level :: String,
+environment :: String,
+msg :: String,
+apply_filters :: Bool,
+i :: Int,
+total :: Int) -> StreamState do
+  if i < total do
+    let conn = List.get(conns, i)
+    let cs = Map.get(state.connections, conn)
+    let selected = if project_matches(state, conn, cs, project_id) do
+      if apply_filters do
+        matches_filter(state, conn, level, environment)
+      else
+        true
+      end
+    else
+      false
+    end
+    let next_state = if selected do buffer_message_for_conn(state, conn, msg) else state end
+    buffer_project_loop(next_state,
+    conns,
+    project_id,
+    level,
+    environment,
+    msg,
+    apply_filters,
+    i + 1,
+    total)
+  else
+    state
+  end
+end
+
+fn buffer_project(state :: StreamState,
+project_id :: String,
+level :: String,
+environment :: String,
+msg :: String,
+apply_filters :: Bool) -> StreamState do
+  let conns = Map.keys(state.connections)
+  buffer_project_loop(state,
+  conns,
+  project_id,
+  level,
+  environment,
+  msg,
+  apply_filters,
+  0,
+  List.length(conns))
+end
+
 # --- StreamManager Service ---
 # Per-connection subscription state for WebSocket streaming clients.
 # RegisterClient/RemoveClient are casts (fire-and-forget state updates).
@@ -187,44 +269,54 @@ end
 
 service StreamManager do
   fn init() -> StreamState do
-    StreamState { connections : Map.new() }
+    StreamState { connections : Map.new(), roles : Map.new() }
   end
-  
+
   # Register a streaming client connection with project and filter preferences
-  
-  cast RegisterClient(conn :: Int,
+
+  call RegisterClient(conn :: Int,
+  kind_code :: Int,
   project_id :: String,
   level_filter :: String,
-  env_filter :: String) do|state|
-    register_client(state, conn, project_id, level_filter, env_filter)
+  env_filter :: String) :: Int do|state|
+    (register_client(state, conn, kind_code, project_id, level_filter, env_filter), conn)
   end
-  
+
   # Remove a connection (called on disconnect)
-  
+
   cast RemoveClient(conn :: Int) do|state|
     remove_client(state, conn)
   end
-  
+
   # Check if a connection is a streaming client (vs ingestion client)
-  
+
   call IsStreamClient(conn :: Int) :: Bool do|state|
     (state, is_stream_client(state, conn))
   end
-  
+
+
+  call IsIngestClient(conn :: Int) :: Bool do|state|
+    (state, is_ingest_client(state, conn))
+  end
+
   # Get the project_id for a streaming client
-  
+
   call GetProjectId(conn :: Int) :: String do|state|
     (state, get_project_id(state, conn))
   end
-  
+
+  call ConnectionCount() :: Int do|state|
+    (state, List.length(Map.keys(state.connections)))
+  end
+
   # Check if an event matches a connection's filters
-  
+
   call MatchesFilter(conn :: Int, level :: String, environment :: String) :: Bool do|state|
     (state, matches_filter(state, conn, level, environment))
   end
-  
+
   # Buffer a message for a slow client with drop-oldest backpressure (STREAM-05)
-  
+
   cast BufferMessage(conn :: Int, msg :: String) do|state|
     if is_stream_client(state, conn) do
       buffer_message_for_conn(state, conn, msg)
@@ -232,10 +324,22 @@ service StreamManager do
       state
     end
   end
-  
+
   # Drain all connection buffers -- called by stream_drain_ticker periodically
-  
+
   cast DrainBuffers() do|state|
     drain_all_buffers(state)
+  end
+
+
+  cast PublishEvent(project_id :: String,
+  level :: String,
+  environment :: String,
+  msg :: String) do|state|
+    buffer_project(state, project_id, level, environment, msg, true)
+  end
+
+  cast PublishProject(project_id :: String, msg :: String) do|state|
+    buffer_project(state, project_id, "", "", msg, false)
   end
 end

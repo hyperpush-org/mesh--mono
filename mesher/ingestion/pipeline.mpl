@@ -4,7 +4,6 @@
 
 from Services.RateLimiter import start_rate_limiter
 from Services.EventProcessor import EventProcessor
-from Services.Writer import start_writer
 from Services.StreamManager import StreamManager
 from Storage.Queries import check_volume_spikes, get_threshold_rules, evaluate_threshold_rule, fire_alert
 from Services.Retention import retention_cleaner
@@ -15,21 +14,21 @@ struct RegistryState do
   pool :: PoolHandle
   rate_limiter_pid :: Pid
   processor_pid :: Pid
-  writer_pid :: Pid
   event_count :: Int
+  outcomes :: Map < String, Int >
 end
 
 # PipelineRegistry service -- stores pipeline context for handler lookup.
 # Call handlers return the stored values with correct types.
 
 service PipelineRegistry do
-  fn init(pool :: PoolHandle, rate_limiter_pid :: Pid, processor_pid :: Pid, writer_pid :: Pid) -> RegistryState do
+  fn init(pool :: PoolHandle, rate_limiter_pid :: Pid, processor_pid :: Pid) -> RegistryState do
     RegistryState {
       pool : pool,
       rate_limiter_pid : rate_limiter_pid,
       processor_pid : processor_pid,
-      writer_pid : writer_pid,
-      event_count : 0
+      event_count : 0,
+      outcomes : Map.new()
     }
   end
   
@@ -45,10 +44,6 @@ service PipelineRegistry do
     (state, state.processor_pid)
   end
   
-  call GetWriter() :: Pid do|state|
-    (state, state.writer_pid)
-  end
-  
   call GetEventCount() :: Int do|state|
     (state, state.event_count)
   end
@@ -59,8 +54,8 @@ service PipelineRegistry do
       pool : state.pool,
       rate_limiter_pid : state.rate_limiter_pid,
       processor_pid : state.processor_pid,
-      writer_pid : state.writer_pid,
-      event_count : new_count
+      event_count : new_count,
+      outcomes : state.outcomes
     }
     (new_state, new_count)
   end
@@ -70,10 +65,27 @@ service PipelineRegistry do
       pool : state.pool,
       rate_limiter_pid : state.rate_limiter_pid,
       processor_pid : state.processor_pid,
-      writer_pid : state.writer_pid,
-      event_count : 0
+      event_count : 0,
+      outcomes : state.outcomes
     }
     (new_state, 0)
+  end
+
+  call RecordOutcome(project_id :: String, outcome :: String) :: Int do|state|
+    let key = "#{project_id}:#{outcome}"
+    let next_count = Map.get(state.outcomes, key) + 1
+    let new_state = RegistryState {
+      pool : state.pool,
+      rate_limiter_pid : state.rate_limiter_pid,
+      processor_pid : state.processor_pid,
+      event_count : state.event_count,
+      outcomes : Map.put(state.outcomes, key, next_count)
+    }
+    (new_state, next_count)
+  end
+
+  call GetMetricsJson() :: String do|state|
+    (state, Json.encode(state.outcomes))
   end
 end
 
@@ -151,11 +163,19 @@ alert_id :: String,
 rule_name :: String,
 condition_type :: String,
 message :: String) do
-  let room = "project:#{project_id}"
-  # Heredoc: triple quotes eliminate escaped quote noise in JSON strings
-  let msg = """{"type":"alert","alert_id":"#{alert_id}","rule_name":"#{rule_name}","condition":"#{condition_type}","message":"#{message}"}"""
-  Ws.broadcast(room, msg)
+  let msg = """{"type":"alert","alert_id":#{Json.encode_string(alert_id)},"rule_name":#{Json.encode_string(rule_name)},"condition":#{Json.encode_string(condition_type)},"message":#{Json.encode_string(message)}}"""
+  let stream_mgr_pid = Process.whereis("stream_manager")
+  StreamManager.publish_project(stream_mgr_pid, project_id, msg)
   0
+end
+
+fn broadcast_claimed_alert(project_id :: String,
+alert_id :: String,
+rule_name :: String,
+condition_type :: String,
+message :: String) do
+  broadcast_alert(project_id, alert_id, rule_name, condition_type, message)
+  1
 end
 
 # Fire alert record then broadcast (combines fire_alert + broadcast_alert).
@@ -168,7 +188,7 @@ condition_type :: String,
 message :: String) do
   let result = fire_alert(pool, rule_id, project_id, message, condition_type, rule_name)
   case result do
-    Ok( alert_id) -> broadcast_alert(project_id, alert_id, rule_name, condition_type, message)
+    Ok( alert_id) -> broadcast_claimed_alert(project_id, alert_id, rule_name, condition_type, message)
     Err( _) -> 0
   end
 end
@@ -276,8 +296,8 @@ fn evaluate_rules_loop(pool :: PoolHandle, rules, i :: Int, total :: Int, fired 
     let rule_name = Map.get(rule, "name")
     let condition_json = Map.get(rule, "condition_json")
     let cooldown_str = Map.get(rule, "cooldown_minutes")
-    evaluate_single_threshold(pool, rule_id, project_id, rule_name, condition_json, cooldown_str)
-    evaluate_rules_loop(pool, rules, i + 1, total, fired)
+    let fired_now = evaluate_single_threshold(pool, rule_id, project_id, rule_name, condition_json, cooldown_str)
+    evaluate_rules_loop(pool, rules, i + 1, total, fired + fired_now)
   else
     Ok(fired)
   end
@@ -319,166 +339,19 @@ actor alert_evaluator(pool :: PoolHandle) do
   alert_evaluator(pool)
 end
 
-# --- Load monitoring for cluster-aware scaling (CLUSTER-05) ---
-# Helper: log load monitor status
-
-fn log_load_status(event_count :: Int, node_count :: Int) do
-  println("[Mesher] Load monitor: #{event_count} events/5s, #{node_count} peers")
-end
-
-# Worker function for remote event processing (CLUSTER-05).
-# Spawned on remote nodes via Node.spawn. Looks up THIS node's own
-# PipelineRegistry via Process.whereis to get the local pool and processor.
-# Does NOT accept PoolHandle as argument (raw pointer, not serializable -- pitfall 1).
-
-fn event_processor_worker() do
-  let reg_pid = Process.whereis("mesher_registry")
-  let pool = PipelineRegistry.get_pool(reg_pid)
-  EventProcessor.start(pool)
-  println("[Mesher] Remote event processor worker started")
-  0
-end
-
-# Helper: attempt remote processor spawn on a peer node.
-# Uses Node.spawn to spawn event_processor_worker on the target node.
-# The worker looks up its own node's PipelineRegistry via Process.whereis.
-# Does NOT send local PoolHandle across nodes (research pitfall 1 -- raw pointer, meaningless remotely).
-
-fn try_remote_spawn(nodes :: List < String >) do
-  let target = List.head(nodes)
-  println("[Mesher] Load high -- spawning remote processor on #{target}")
-  Node.spawn(target, event_processor_worker)
-  println("[Mesher] Spawned remote event_processor_worker on #{target}")
-  0
-end
-
-# Monitor a peer node for NODEDOWN events (CLUSTER-05 health tracking).
-# Node.monitor(node_name) registers the calling process to receive
-# NODEDOWN notifications when the specified node disconnects.
-# Returns 0 on success, 1 on failure.
-
-fn monitor_peer(node_name :: String) do
-  let result = Node.monitor(node_name)
-  if result == 0 do
-    println("[Mesher] Monitoring peer: #{node_name}")
-    0
-  else
-    println("[Mesher] Failed to monitor peer: #{node_name}")
-    0
-  end
-end
-
-# Monitor all peers in a list by index.
-
-fn monitor_all_peers(nodes, i :: Int, total :: Int) do
-  if i < total do
-    let node_name = List.get(nodes, i)
-    monitor_peer(node_name)
-    monitor_all_peers(nodes, i + 1, total)
-  else
-    0
-  end
-end
-
-# Load monitor actor -- checks event processing rate and peer nodes every 5 seconds.
-# When connected peers exist and local load exceeds threshold, attempts remote processor spawning.
-# Tracks peer count changes to detect new peers (set up monitors) and lost peers (NODEDOWN).
-
-actor load_monitor(pool :: PoolHandle, threshold :: Int, prev_peers :: Int) do
-  Timer.sleep(5000)
-  
-  let reg_pid = Process.whereis("mesher_registry")
-  
-  let event_count = PipelineRegistry.get_event_count(reg_pid)
-  
-  PipelineRegistry.reset_event_count(reg_pid)
-  
-  let nodes = Node.list()
-  
-  let node_count = List.length(nodes)
-  
-  log_load_status(event_count, node_count)
-  
-  # Detect peer changes and set up monitoring for new peers
-  
-  if node_count > prev_peers do
-    println("[Mesher] New peers detected (#{prev_peers} -> #{node_count}), setting up monitors")
-    monitor_all_peers(nodes, 0, node_count)
-    0
-  else if node_count < prev_peers do
-    println("[Mesher] Peer lost (#{prev_peers} -> #{node_count}) -- NODEDOWN detected")
-    0
-  else
-    0
-  end
-  
-  if node_count > 0 do
-    if event_count > threshold do
-      try_remote_spawn(nodes)
-    else
-      0
-    end
-  else
-    0
-  end
-  
-  load_monitor(pool, threshold, node_count)
-end
-
-# Register PipelineRegistry globally for cross-node discovery (CLUSTER-02).
-# Uses Node.self() to check if distributed mode is active.
-# Registers with both a node-specific name and a well-known default name.
-# Node-specific name allows targeted cross-node lookup; default name is first-writer-wins.
-
-fn register_global_services(registry_pid) do
-  let node_name = Node.self()
-  if node_name != "" do
-    Global.register("mesher_registry@#{node_name}", registry_pid)
-    Global.register("mesher_registry", registry_pid)
-    println("[Mesher] Services registered globally as mesher_registry@#{node_name}")
-  else
-    println("[Mesher] Running in standalone mode (skipping global registration)")
-  end
-end
-
 fn start_configured_rate_limiter(window_seconds :: Int, max_events :: Int) do
   let rate_limiter_pid = start_rate_limiter(window_seconds, max_events)
   println("[Mesher] RateLimiter started (#{window_seconds}s window, #{max_events} max)")
   rate_limiter_pid
 end
 
-# Restart all pipeline services and re-register PipelineRegistry.
-# Called by health_checker when the registry is unreachable (one_for_all strategy).
-# Defined after alert_evaluator actor (define-before-use, decision [90-03]).
-
-fn restart_all_services(pool :: PoolHandle, window_seconds :: Int, max_events :: Int) do
-  let rate_limiter_pid = start_configured_rate_limiter(window_seconds, max_events)
-  let processor_pid = EventProcessor.start(pool)
-  let writer_pid = start_writer(pool, "default")
-  let stream_mgr_pid = StreamManager.start()
-  Process.register("stream_manager", stream_mgr_pid)
-  # Spawn drain ticker for StreamManager buffer backpressure (250ms interval)
-  spawn(stream_drain_ticker, stream_mgr_pid, 250)
-  # Spawn alert evaluator on restart
-  spawn(alert_evaluator, pool)
-  # Spawn retention cleaner on restart
-  spawn(retention_cleaner, pool)
-  # Spawn load monitor for cluster-aware load balancing (5s interval, 100 events/5s threshold)
-  spawn(load_monitor, pool, 100, 0)
-  let registry_pid = PipelineRegistry.start(pool, rate_limiter_pid, processor_pid, writer_pid)
-  Process.register("mesher_registry", registry_pid)
-  register_global_services(registry_pid)
-  registry_pid
-end
-
 # Start the full ingestion pipeline.
 # 1. Start StreamManager + drain ticker
 # 2. Start RateLimiter
 # 3. Start EventProcessor
-# 4. Start StorageWriter
-# 5. Start PipelineRegistry (stores all PIDs)
-# 6. Register PipelineRegistry by name for handler lookup
-# 7. Spawn health checker + spike checker + alert evaluator
+# 4. Start PipelineRegistry (stores all PIDs)
+# 5. Register PipelineRegistry by name for handler lookup
+# 6. Spawn health checker + spike checker + alert evaluator
 # Returns registry PID.
 
 pub fn start_pipeline(pool :: PoolHandle, window_seconds :: Int, max_events :: Int) do
@@ -494,14 +367,10 @@ pub fn start_pipeline(pool :: PoolHandle, window_seconds :: Int, max_events :: I
   # Start event processor
   let processor_pid = EventProcessor.start(pool)
   println("[Mesher] EventProcessor started")
-  # Start a default StorageWriter
-  let writer_pid = start_writer(pool, "default")
-  println("[Mesher] StorageWriter started (default project)")
   # Start pipeline registry
-  let registry_pid = PipelineRegistry.start(pool, rate_limiter_pid, processor_pid, writer_pid)
+  let registry_pid = PipelineRegistry.start(pool, rate_limiter_pid, processor_pid)
   Process.register("mesher_registry", registry_pid)
-  register_global_services(registry_pid)
-  println("[Mesher] PipelineRegistry started and registered")
+  println("[Mesher] PipelineRegistry started in single-node mode")
   # Spawn health checker for automatic restart (10s interval)
   spawn(health_checker, pool)
   println("[Mesher] Health checker started (10s interval)")
@@ -514,8 +383,5 @@ pub fn start_pipeline(pool :: PoolHandle, window_seconds :: Int, max_events :: I
   # Spawn retention cleaner (24-hour interval for daily cleanup)
   spawn(retention_cleaner, pool)
   println("[Mesher] Retention cleaner started (24h interval)")
-  # Spawn load monitor for cluster-aware load balancing (5s interval, 100 events/5s threshold)
-  spawn(load_monitor, pool, 100, 0)
-  println("[Mesher] Load monitor started (5s interval, threshold: 100 events)")
   registry_pid
 end

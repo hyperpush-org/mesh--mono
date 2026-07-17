@@ -4,17 +4,45 @@ import { Analytics } from '@vercel/analytics/next'
 import { buildSocialMetadata, siteUrl } from '@/lib/social-metadata'
 import './globals.css'
 
-const _geist = Geist({ subsets: ['latin'] })
-const _geistMono = Geist_Mono({ subsets: ['latin'] })
+const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 const title = 'hyperpush — Production Error Tracking for Fast-Moving Teams'
 const description =
-  'Capture production errors, identify root causes, understand release impact, and coordinate recovery from one focused workflow.'
+  'Capture production errors, group issues, inspect recorded evidence, and manage issue and alert lifecycle from one focused workflow.'
 const socialMetadata = buildSocialMetadata({
   title,
   description,
   canonicalPath: '/',
 })
+
+type ThemeStyle = React.CSSProperties & Record<`--${string}`, string>
+
+// Keep the runtime color tokens in broadly supported RGB syntax. The CSS
+// optimizer may serialize stylesheet colors as Lab; inline tokens avoid older
+// browser and accessibility-engine misinterpretation while preserving the same
+// visual palette.
+const runtimeTheme: ThemeStyle = {
+  '--background': 'rgb(2 2 2)',
+  '--foreground': 'rgb(248 248 248)',
+  '--card': 'rgb(6 6 6)',
+  '--card-foreground': 'rgb(248 248 248)',
+  '--popover': 'rgb(3 3 3)',
+  '--popover-foreground': 'rgb(248 248 248)',
+  '--primary': 'rgb(248 248 248)',
+  '--primary-foreground': 'rgb(2 2 2)',
+  '--secondary': 'rgb(18 18 18)',
+  '--secondary-foreground': 'rgb(248 248 248)',
+  '--muted': 'rgb(11 11 11)',
+  '--muted-foreground': 'rgb(146 146 146)',
+  '--accent': 'rgb(0 207 133)',
+  '--accent-foreground': 'rgb(2 2 2)',
+  '--destructive': 'rgb(212 9 36)',
+  '--destructive-foreground': 'rgb(248 248 248)',
+  '--border': 'rgb(27 27 27)',
+  '--input': 'rgb(18 18 18)',
+  '--ring': 'rgb(0 207 133)',
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -25,14 +53,12 @@ export const metadata: Metadata = {
   description,
   keywords: [
     'error tracking',
-    'application monitoring',
-    'performance monitoring',
-    'release health',
+    'error grouping',
+    'stack trace monitoring',
     'sentry alternative',
     'developer tools',
-    'incident response',
-    'javascript error tracking',
-    'rust error tracking',
+    'issue lifecycle',
+    'in-product alerts',
   ],
   authors: [{ name: 'hyperpush', url: siteUrl }],
   creator: 'hyperpush',
@@ -79,11 +105,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const analyticsEnabled = process.env.NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS === 'true'
+
   return (
     <html lang="en" className="scroll-smooth">
-      <body className="font-sans antialiased overflow-x-hidden">
+      <body
+        className={`${geist.variable} ${geistMono.variable} font-sans antialiased overflow-x-hidden`}
+        style={runtimeTheme}
+      >
         {children}
-        <Analytics />
+        {analyticsEnabled ? <Analytics /> : null}
       </body>
     </html>
   )

@@ -9,14 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as DashboardIndexRouteImport } from './routes/_dashboard.index'
 import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
-import { Route as DashboardReleasesRouteImport } from './routes/_dashboard.releases'
-import { Route as DashboardPerformanceRouteImport } from './routes/_dashboard.performance'
 import { Route as DashboardAlertsRouteImport } from './routes/_dashboard.alerts'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/_dashboard',
   getParentRoute: () => rootRouteImport,
@@ -36,16 +40,6 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardReleasesRoute = DashboardReleasesRouteImport.update({
-  id: '/releases',
-  path: '/releases',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardPerformanceRoute = DashboardPerformanceRouteImport.update({
-  id: '/performance',
-  path: '/performance',
-  getParentRoute: () => DashboardRoute,
-} as any)
 const DashboardAlertsRoute = DashboardAlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
@@ -55,16 +49,14 @@ const DashboardAlertsRoute = DashboardAlertsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/': typeof DashboardIndexRoute
+  '/login': typeof LoginRoute
   '/alerts': typeof DashboardAlertsRoute
-  '/performance': typeof DashboardPerformanceRoute
-  '/releases': typeof DashboardReleasesRoute
   '/settings': typeof DashboardSettingsRoute
 }
 export interface FileRoutesByTo {
   '/$': typeof SplatRoute
+  '/login': typeof LoginRoute
   '/alerts': typeof DashboardAlertsRoute
-  '/performance': typeof DashboardPerformanceRoute
-  '/releases': typeof DashboardReleasesRoute
   '/settings': typeof DashboardSettingsRoute
   '/': typeof DashboardIndexRoute
 }
@@ -72,24 +64,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/$': typeof SplatRoute
   '/_dashboard': typeof DashboardRouteWithChildren
+  '/login': typeof LoginRoute
   '/_dashboard/alerts': typeof DashboardAlertsRoute
-  '/_dashboard/performance': typeof DashboardPerformanceRoute
-  '/_dashboard/releases': typeof DashboardReleasesRoute
   '/_dashboard/settings': typeof DashboardSettingsRoute
   '/_dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/$' | '/' | '/alerts' | '/performance' | '/releases' | '/settings'
+  fullPaths: '/$' | '/' | '/login' | '/alerts' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/$' | '/alerts' | '/performance' | '/releases' | '/settings' | '/'
+  to: '/$' | '/login' | '/alerts' | '/settings' | '/'
   id:
     | '__root__'
     | '/$'
     | '/_dashboard'
+    | '/login'
     | '/_dashboard/alerts'
-    | '/_dashboard/performance'
-    | '/_dashboard/releases'
     | '/_dashboard/settings'
     | '/_dashboard/'
   fileRoutesById: FileRoutesById
@@ -97,10 +87,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_dashboard': {
       id: '/_dashboard'
       path: ''
@@ -129,20 +127,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSettingsRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/_dashboard/releases': {
-      id: '/_dashboard/releases'
-      path: '/releases'
-      fullPath: '/releases'
-      preLoaderRoute: typeof DashboardReleasesRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/_dashboard/performance': {
-      id: '/_dashboard/performance'
-      path: '/performance'
-      fullPath: '/performance'
-      preLoaderRoute: typeof DashboardPerformanceRouteImport
-      parentRoute: typeof DashboardRoute
-    }
     '/_dashboard/alerts': {
       id: '/_dashboard/alerts'
       path: '/alerts'
@@ -155,16 +139,12 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardAlertsRoute: typeof DashboardAlertsRoute
-  DashboardPerformanceRoute: typeof DashboardPerformanceRoute
-  DashboardReleasesRoute: typeof DashboardReleasesRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAlertsRoute: DashboardAlertsRoute,
-  DashboardPerformanceRoute: DashboardPerformanceRoute,
-  DashboardReleasesRoute: DashboardReleasesRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
@@ -176,6 +156,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

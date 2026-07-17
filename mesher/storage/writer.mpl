@@ -1,6 +1,6 @@
-# StorageWriter SQL functions for Mesher monitoring platform.
-# Provides the low-level event INSERT and the storage-local batch flush helper.
-# Service state, buffering, retry policy, and timer triggers stay in Services.Writer.
+# Durable event insertion for Mesher. The live processor calls this
+# synchronously, so a transport is never told an event was accepted before the
+# database confirms the row.
 #
 # Events are stored as JSON strings. PostgreSQL still parses the JSON server-side,
 # but insert_event now binds that extraction through Repo.insert_expr + explicit
@@ -11,7 +11,7 @@
 # project_id, issue_id, and fingerprint are passed separately (computed by EventProcessor
 # via extract_event_fields + upsert_issue) rather than extracted from JSON.
 # Uses PostgreSQL JSONB extraction/defaulting for the payload-backed fields.
-# Returns a success marker on flush-safe completion.
+# Returns a success marker after durable insertion.
 
 pub fn insert_event(pool :: PoolHandle,
 project_id :: String,
@@ -35,24 +35,4 @@ json_str :: String) -> String ! String do
   [event_json, Expr.value("environment")]), "session_id" => Expr.fn_call("jsonb_extract_path_text",
   [event_json, Expr.value("session_id")])}) ?
   Ok("stored")
-end
-
-fn flush_loop(pool :: PoolHandle, events, i :: Int, total :: Int) -> String ! String do
-  if i < total do
-    let entry = List.get(events, i)
-    let parts = String.split(entry, "|||")
-    let project_id = List.get(parts, 0)
-    let issue_id = List.get(parts, 1)
-    let fingerprint = List.get(parts, 2)
-    let event_json = List.get(parts, 3)
-    insert_event(pool, project_id, issue_id, fingerprint, event_json) ?
-    flush_loop(pool, events, i + 1, total)
-  else
-    Ok("flushed")
-  end
-end
-
-pub fn flush_batch(pool :: PoolHandle, events) -> String ! String do
-  let total = List.length(events)
-  flush_loop(pool, events, 0, total)
 end

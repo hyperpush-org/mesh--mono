@@ -11,6 +11,8 @@ CLUSTER_PORT_VALUE="${MESH_CLUSTER_PORT:-19080}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:${PORT_VALUE}}"
 USE_RUNNING_BACKEND="${MESHER_REUSE_RUNNING_BACKEND:-false}"
 API_KEY="${MESHER_SEED_API_KEY:-mshr_devdefaultapikey000000000000000000000000000}"
+E2E_SESSION_TOKEN="${MESHER_E2E_SESSION_TOKEN:-hyperpush-e2e-session-token-0000000000000000000000000000}"
+AUTHORIZATION_HEADER="authorization: Bearer ${E2E_SESSION_TOKEN}"
 ARTIFACT_DIR="${MESHER_SEED_ARTIFACT_DIR:-$MESHER_PACKAGE_DIR/../.tmp/m060-s02/seed-live-issue}"
 BUILD_DIR="$ARTIFACT_DIR/build"
 BINARY_PATH="$BUILD_DIR/mesher"
@@ -117,13 +119,9 @@ rm -f "$SETTINGS_RESPONSE_PATH"
 wait_for_settings() {
   local last_response=''
   for attempt in $(seq 1 80); do
-    if last_response="$(curl -fsS "$BASE_URL/api/v1/projects/default/settings" 2>/dev/null)"; then
-      local retention_days
-      retention_days="$(printf '%s' "$last_response" | json_field retention_days || true)"
-      if [[ -n "$retention_days" ]]; then
-        LAST_RESPONSE="$last_response"
-        return 0
-      fi
+    if last_response="$(curl -fsS "$BASE_URL/health/ready" 2>/dev/null)"; then
+      LAST_RESPONSE="$last_response"
+      return 0
     fi
     sleep 0.25
   done
@@ -222,6 +220,10 @@ start_backend() {
   rm -rf "$BUILD_DIR"
   mkdir -p "$BUILD_DIR"
   rm -f "$LOG_FILE" "$SETTINGS_RESPONSE_PATH"
+
+  printf '[seed-live-issue] applying migrations and auth fixtures before launch\n' >&2
+  DATABASE_URL="$DATABASE_URL" bash "$SCRIPT_DIR/migrate.sh" up
+  DATABASE_URL="$DATABASE_URL" MESHER_E2E_SESSION_TOKEN="$E2E_SESSION_TOKEN" bash "$SCRIPT_DIR/seed-e2e-auth.sh"
 
   printf '[seed-live-issue] building Mesher into %s\n' "$BUILD_DIR" >&2
   bash "$SCRIPT_DIR/build.sh" "$BUILD_DIR"
@@ -371,7 +373,7 @@ lookup_issue_across_statuses() {
   local issue_snapshot=''
 
   for status in unresolved resolved archived; do
-    response="$(curl -fsS "$BASE_URL/api/v1/projects/default/issues?status=$status")"
+    response="$(curl -fsS -H "$AUTHORIZATION_HEADER" "$BASE_URL/api/v1/projects/default/issues?status=$status")"
     issue_snapshot="$(printf '%s' "$response" | find_issue_snapshot "$title" || true)"
     if [[ -n "$issue_snapshot" ]]; then
       printf '%s\n' "$issue_snapshot"
@@ -388,7 +390,7 @@ latest_event_id_for_issue() {
   local event_id=''
 
   for attempt in $(seq 1 40); do
-    if events_response="$(curl -fsS "$BASE_URL/api/v1/issues/$issue_id/events?limit=1")"; then
+    if events_response="$(curl -fsS -H "$AUTHORIZATION_HEADER" "$BASE_URL/api/v1/issues/$issue_id/events?limit=1")"; then
       event_id="$(printf '%s' "$events_response" | find_latest_event_id || true)"
       if [[ -n "$event_id" ]]; then
         printf '%s\n' "$event_id"
@@ -412,7 +414,7 @@ reset_issue_to_open() {
 
   printf '[seed-live-issue] resetting %s issue_id=%s from status=%s to unresolved\n' "$case_name" "$issue_id" "$issue_status" >&2
   local action_response
-  action_response="$(curl -fsS -X POST "$BASE_URL/api/v1/issues/$issue_id/unresolve")"
+  action_response="$(curl -fsS -H "$AUTHORIZATION_HEADER" -X POST "$BASE_URL/api/v1/issues/$issue_id/unresolve")"
   local action_status
   action_status="$(printf '%s' "$action_response" | json_field status || true)"
   case "$action_status" in
@@ -448,7 +450,7 @@ verify_detail_and_timeline() {
 
   printf '[seed-live-issue] verifying %s detail and timeline for issue_id=%s event_id=%s\n' "$case_name" "$issue_id" "$event_id" >&2
   local detail_response
-  detail_response="$(curl -fsS "$BASE_URL/api/v1/events/$event_id")"
+  detail_response="$(curl -fsS -H "$AUTHORIZATION_HEADER" "$BASE_URL/api/v1/events/$event_id")"
   local detail_message
   detail_message="$(printf '%s' "$detail_response" | json_field event.message || true)"
   local detail_stack_file
@@ -470,7 +472,7 @@ raise SystemExit(1)
   fi
 
   local timeline_response
-  timeline_response="$(curl -fsS "$BASE_URL/api/v1/issues/$issue_id/timeline")"
+  timeline_response="$(curl -fsS -H "$AUTHORIZATION_HEADER" "$BASE_URL/api/v1/issues/$issue_id/timeline")"
   local timeline_count
   timeline_count="$(printf '%s' "$timeline_response" | python3 -c 'import json,sys
 payload=json.load(sys.stdin)

@@ -6,8 +6,8 @@ primary_region = 'iad'
 
 [build.args]
   NEXT_PUBLIC_SITE_URL = 'https://hyperpush.dev'
-  NEXT_PUBLIC_WAITLIST_EMAIL = 'yurlovandrew@gmail.com'
   NEXT_PUBLIC_FORMSPREE_ID = 'https://formspree.io/f/mreoyono'
+  NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS = 'false'
 
 [env]
   HOSTNAME = '0.0.0.0'

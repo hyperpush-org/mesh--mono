@@ -1,136 +1,73 @@
-# Client route inventory
+# Dashboard launch inventory
 
-`components/dashboard/dashboard-route-map.ts` is the canonical source for top-level Mesher dashboard routes. This inventory mirrors that map exactly and normalizes route status into milestone language:
+`components/dashboard/dashboard-route-map.ts` is the executable source of truth for dashboard
+navigation. `../capabilities.json` is the product-wide source of truth for capability state. This
+document records the resulting launch surface; the structural verifier fails if any of the three
+drift apart.
 
-- `mixed` = the top-level route already exercises at least one same-origin Mesher seam, but the page still contains explicit shell or fallback-backed areas.
-- `mock-only` = the route is intentionally shell-backed at the top level today; it may be reachable and polished, but this inventory does not claim a live backend seam.
-- No top-level route is currently classified as fully `live`.
+There are no `mixed`, `mock-only`, or `shell-only` production routes.
 
-## Top-level inventory
+## Retained routes
 
-| Route key | Canonical pathname | Classification | Code evidence | Proof evidence | Backend seam summary | Boundary note |
-| --- | --- | --- | --- | --- | --- | --- |
-| `issues` | `/` | `mixed` | `components/dashboard/issues-page.tsx`; `components/dashboard/issue-detail.tsx` | `tests/e2e/dashboard-route-parity.spec.ts`; `tests/e2e/issues-live-read.spec.ts`; `tests/e2e/issues-live-actions.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Same-origin issue list, issue detail, timeline, and maintainer lifecycle actions already run through `/api/v1/projects/default/issues`, `/api/v1/issues/:id/events`, `/api/v1/events/:id`, and issue mutation routes. | The route shell is real, but detail presentation and the retained proof harness still preserve explicit shell/fallback-backed surfaces instead of pretending every field is live. |
-| `performance` | `/performance` | `mock-only` | `components/dashboard/performance-page.tsx` | `tests/e2e/dashboard-route-parity.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | No same-origin Mesher seam is documented for this top-level route yet; the page renders from client mock data. | Reachable route-shell parity exists, but the inventory does not treat mock charts, filters, or transaction detail as live support. |
-| `releases` | `/releases` | `mock-only` | `components/dashboard/releases-page.tsx` | `tests/e2e/dashboard-route-parity.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | No same-origin Mesher seam is documented for this top-level route yet; the route still reads from client mock release data. | Search, sorting, and detail affordances are present, but the page should be read as shell truth only until a backend seam lands. |
-| `alerts` | `/alerts` | `mixed` | `components/dashboard/alerts-page.tsx`; `components/dashboard/alert-detail.tsx` | `tests/e2e/dashboard-route-parity.spec.ts`; `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Same-origin alert list/detail and lifecycle actions already run through `/api/v1/projects/default/alerts` plus `/api/v1/alerts/:id/{acknowledge,resolve}`. | Alert status and supported lifecycle actions are live-backed, but unsupported fields and destructive gaps stay visibly fallback-backed inside the shell. |
-| `settings` | `/settings` | `mixed` | `components/dashboard/settings/settings-page.tsx`; `components/dashboard/settings/settings-live-state.tsx` | `tests/e2e/dashboard-route-parity.spec.ts`; `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Same-origin settings, storage, team membership, API key, and alert-rule seams already run through `/api/v1/projects/default/settings`, `/api/v1/projects/default/storage`, `/api/v1/orgs/default/members`, `/api/v1/projects/default/api-keys`, and `/api/v1/projects/default/alert-rules`. | The route is top-level `mixed` because only selected settings sections are live-backed; multiple subsections remain explicitly mock-only and should not be overstated. |
+| Route key | Canonical pathname | Classification | Capability | Backend source | Browser proof |
+| --- | --- | --- | --- | --- | --- |
+| `issues` | `/` | `live` | `issues` | Project-scoped issue list, dashboard health/levels/volume, event detail and timeline, and issue lifecycle mutations | `tests/e2e/mock-surface-closeout.spec.ts` |
+| `alerts` | `/alerts` | `live` | `alerts` | Project-scoped alert list plus acknowledge and resolve lifecycle mutations | `tests/e2e/mock-surface-closeout.spec.ts` |
+| `settings` | `/settings` | `live` | `project-settings` | Project settings/storage, organization membership, reveal-once API keys, and validated alert rules | `tests/e2e/mock-surface-closeout.spec.ts` |
 
-## mixed-route breakdown
+All retained routes require a bearer management session. The current-session response supplies the
+authorized organizations, projects, roles, and user identity. Selecting a project invalidates the
+project-scoped views and refetches by the selected project ID; production client source contains no
+compile-time `default` project or organization API path.
 
-### Issues
+## Unavailable production surfaces
 
-| Surface key | Level | Classification | Code evidence | Proof evidence | Live seam summary | Boundary note |
-| --- | --- | --- | --- | --- | --- | --- |
-| `overview` | `panel` | `mixed` | `components/dashboard/issues-page.tsx`; `components/dashboard/stats-bar.tsx`; `components/dashboard/events-chart.tsx`; `data-testid="issues-shell"` | `tests/e2e/issues-live-read.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts`; `tests/e2e/dashboard-route-parity.spec.ts` | The shell, stats bar, and event chart expose row-level source/state markers while same-origin issue aggregates bootstrap in place. | Reads can still fall back per section, so the row stays `mixed` even when live counts and charts are present. |
-| `list` | `subsection` | `mixed` | `components/dashboard/issues-page.tsx`; `components/dashboard/issue-list.tsx`; `data-testid="issues-list"` | `tests/e2e/issues-live-read.spec.ts`; `tests/e2e/issues-live-actions.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | The filtered issue list hydrates from the same-origin issue collection and preserves per-row source markers for mixed overlays. | Sorting, filters, and empty states stay mounted even if the live bootstrap fails, so the list is a mixed read surface rather than a fully live contract. |
-| `detail` | `panel` | `mixed` | `components/dashboard/issue-detail.tsx`; `data-testid="issue-detail-panel"`; `data-testid="issue-detail-live-banner"`; `data-testid="issue-detail-recent-events"` | `tests/e2e/issues-live-read.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Selecting an issue hydrates latest event detail and recent timeline entries from Mesher while the panel keeps explicit source/state diagnostics. | Unsupported descriptive fields remain visible shell content, and runtime fallback is reported by the banner instead of changing the durable classification. |
-| `live-actions` | `control` | `live` | `components/dashboard/issue-detail.tsx`; `data-testid="issue-detail-actions"`; `data-testid="issue-detail-action-source-note"` | `tests/e2e/issues-live-actions.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Resolve, Reopen, and Ignore call the provider-owned same-origin issue mutation seam and retain mutation-phase diagnostics. | Only the supported maintainer lifecycle buttons count as live; action failure keeps the previous visible state mounted with an explicit error banner. |
-| `shell-controls` | `control` | `shell-only` | `components/dashboard/issue-detail.tsx`; `data-source="shell-only"`; `AI Analysis`; `Link Issue` | `tests/e2e/issues-live-actions.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | The detail panel deliberately keeps AI and issue-linking chrome visible next to live actions. | These helpers never claim a backend write path and should stay grouped separately from the live maintainer controls. |
-| `proof-harness` | `control` | `shell-only` | `components/dashboard/issues-page.tsx`; `data-testid="issue-action-proof-harness"`; `data-testid="issue-action-proof-error"`; `data-testid="issue-action-proof-stage"` | `tests/e2e/issues-live-actions.spec.ts`; `tests/e2e/issues-live-read.spec.ts` | The retained proof rail drives unsupported and unknown-issue mutations through the real provider validation path so diagnostics remain observable. | This harness exists for verification and failure-path coverage only; it is not part of the supported maintainer action set. |
+| Capability | State | Production disposition |
+| --- | --- | --- |
+| `performance` | `unavailable` | Route and dashboard modules removed |
+| `releases` | `unavailable` | Route and dashboard modules removed |
+| `ai-analysis` | `unavailable` | Panel, chat, generated fix, and controls removed |
+| `notification-delivery` | `unavailable` | Email, Slack, PagerDuty, and webhook channel controls removed |
+| `integrations` | `unavailable` | Settings tab and connect controls removed |
+| `billing` | `unavailable` | Settings tab, prices, allowances, and paid entitlements removed |
+| `enterprise-security` | `unavailable` | SSO, SCIM, session-management, and policy controls removed |
+| `profile-writes` | `unavailable` | Settings edit surface removed; session identity is read-only |
+| `project-creation` | `unavailable` | New-project control removed; no-project state explains the owner workflow |
+| `recovery-receipts` | `unavailable` | Recovery and release verification claims removed |
 
-### Alerts
+Direct entry to a removed route is handled by the catch-all unavailable page and never mounts the
+dashboard shell or substitutes the Issues route.
 
-| Surface key | Level | Classification | Code evidence | Proof evidence | Live seam summary | Boundary note |
-| --- | --- | --- | --- | --- | --- | --- |
-| `overview` | `panel` | `mixed` | `components/dashboard/alerts-page.tsx`; `components/dashboard/alert-stats.tsx`; `data-testid="alerts-shell"` | `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts`; `tests/e2e/dashboard-route-parity.spec.ts` | Alert bootstrap, counts, and stat-source fields come from the same-origin alerts seam with top-level source/error markers retained on the shell. | The route keeps explicit fallback markers when live alert reads fail, so overview stays `mixed` instead of claiming full live parity. |
-| `list` | `subsection` | `mixed` | `components/dashboard/alerts-page.tsx`; `components/dashboard/alert-list.tsx`; `data-search-value`; `data-status-filter` | `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | The visible alert list filters and sorts over live-backed alert records returned from Mesher. | Client-side filters are real shell behavior, but the subsection still depends on bootstrap success and keeps fail-closed fallback semantics. |
-| `detail` | `panel` | `mixed` | `components/dashboard/alert-detail.tsx`; `data-testid="alert-detail-panel"`; `data-testid="alert-detail-live-banner"`; `data-testid="alert-detail-source-badge"` | `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Alert detail shows live status, source labeling, and history-backed lifecycle context for Mesher-returned alerts. | Unsupported fields remain visibly shell-backed, and a fallback detail banner is used when no live alert detail is available. |
-| `live-actions` | `control` | `live` | `components/dashboard/alert-detail.tsx`; `data-testid="alert-detail-actions"`; `data-testid="alert-detail-action-source-note"` | `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Acknowledge and Resolve call the same-origin `/api/v1/alerts/...` lifecycle routes and keep mutation diagnostics mounted on failure. | These are only live when Mesher returned a live alert detail surface; action errors stay explicit and do not downgrade the durable row classification. |
-| `shell-controls` | `control` | `shell-only` | `components/dashboard/alert-detail.tsx`; `data-source="shell-only"`; `data-testid="alert-detail-copy-link"` | `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Silence or Unsnooze chrome and copy-link helpers remain present beside the live actions. | Those controls are intentionally non-live and must remain documented as shell-only even when the surrounding detail panel is mixed. |
+## Data-source rules
 
-### Settings
+- Overview and detail records are mapped directly from Mesher responses.
+- Client derivations use only live inputs. The issue chart labels its proportional severity split as
+  derived from live level totals.
+- Loading, empty, error, and unavailable are distinct UI states.
+- Failed reads clear the affected view and show an error; they never load a realistic fallback.
+- API-key secrets are revealed only by the create response and are not persisted by the client.
+- Landing feature and access rows are filtered from the same capability catalog used by navigation.
 
-| Surface key | Level | Classification | Code evidence | Proof evidence | Live seam summary | Boundary note |
-| --- | --- | --- | --- | --- | --- | --- |
-| `general` | `panel` | `mixed` | `components/dashboard/settings/settings-page.tsx`; `components/dashboard/settings/settings-live-state.tsx`; `data-testid="settings-general-panel"`; `data-testid="settings-general-mock-only-banner"` | `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts`; `tests/e2e/dashboard-route-parity.spec.ts` | Retention days, sample rate, and storage metrics read/write through same-origin settings and storage routes. | Project identity, visibility, and default-environment controls stay explicitly mock-only inside the same panel, so the durable row is `mixed`. |
-| `team` | `panel` | `live` | `components/dashboard/settings/settings-page.tsx`; `components/dashboard/settings/settings-live-state.tsx`; `data-testid="settings-team-panel"`; `data-testid="settings-team-source-badge"` | `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Team membership list, add, role changes, and removal all target `/api/v1/orgs/default/members` through the live state adapter. | The shell is honest about requiring raw `user_id` input instead of pretending an email invite backend exists, but the supported member-management seam is live. |
-| `api-keys` | `panel` | `live` | `components/dashboard/settings/settings-page.tsx`; `components/dashboard/settings/settings-live-state.tsx`; `data-testid="settings-api-keys-panel"`; `data-testid="settings-api-key-reveal"` | `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Key list, create, revoke, and one-time reveal are backed by the same-origin API key routes. | Revealed secrets are session-local and one-time only; the persisted list never implies reusable secret disclosure. |
-| `alert-rules` | `panel` | `live` | `components/dashboard/settings/settings-page.tsx`; `components/dashboard/settings/settings-live-state.tsx`; `data-testid="settings-alert-rules-panel"`; `data-testid="settings-alert-rules-status-banner"` | `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Rule list, create, toggle, and delete all use the same-origin alert-rule routes with section-level mutation diagnostics. | This row covers only the live rule-management seam inside the Alerts tab; channel management is tracked separately and fail-closed below. |
-| `alert-channels` | `subsection` | `shell-only` | `components/dashboard/settings/settings-page.tsx`; `data-testid="settings-alert-channels-source-badge"`; `data-testid="settings-alert-channels-mock-only-banner"` | `tests/e2e/admin-ops-live.spec.ts`; `tests/e2e/seeded-walkthrough.spec.ts` | Email, Slack, and PagerDuty channel chrome remains visible for maintainers next to the live alert-rule list. | No backend route is claimed for channel configuration from this page, so the subsection stays explicitly shell-only. |
-| `integrations` | `tab` | `mock-only` | `components/dashboard/settings/settings-page.tsx`; `data-testid="settings-integrations-mock-only-banner"` | `tests/e2e/seeded-walkthrough.spec.ts`; `tests/e2e/dashboard-route-parity.spec.ts` | Connected-service rows stay present so maintainers can see planned surfaces. | Configure and connect affordances are shell-only until dedicated backend routes exist. |
-| `billing` | `tab` | `mock-only` | `components/dashboard/settings/settings-page.tsx`; `data-testid="settings-billing-mock-only-banner"` | `tests/e2e/seeded-walkthrough.spec.ts`; `tests/e2e/dashboard-route-parity.spec.ts` | Plan and usage visuals remain stable in the shell. | The page does not claim live billing writes, subscription management, or invoicing control. |
-| `security` | `tab` | `mock-only` | `components/dashboard/settings/settings-page.tsx`; `data-testid="settings-security-mock-only-banner"` | `tests/e2e/seeded-walkthrough.spec.ts`; `tests/e2e/dashboard-route-parity.spec.ts` | 2FA, session, and account-protection chrome remains visible for future wiring. | Revocation and destructive security actions remain shell-only so the tab does not overstate support. |
-| `notifications` | `tab` | `mock-only` | `components/dashboard/settings/settings-page.tsx`; `data-testid="settings-notifications-mock-only-banner"` | `tests/e2e/seeded-walkthrough.spec.ts`; `tests/e2e/dashboard-route-parity.spec.ts` | Preference toggles remain present as disabled shell controls. | The tab no longer implies global saves or a backed notification-preference route. |
-| `profile` | `tab` | `mock-only` | `components/dashboard/settings/settings-page.tsx`; `data-testid="settings-profile-mock-only-banner"` | `tests/e2e/seeded-walkthrough.spec.ts`; `tests/e2e/dashboard-route-parity.spec.ts` | Identity and username views remain reachable in the shell. | Profile edits are intentionally non-live from Settings in this slice. |
+## Proof
 
-## Backend gap map
-
-The tables below fail closed on live and mock-route promises: each row ties a visible client promise to the concrete Mesher seam that currently backs it—or to the explicit absence of a same-origin route family—then marks the remaining gap with one stable support status.
-
-### Issues backend gaps
-
-| Route/surface key | Client promise | Current backend seam | Support status | Remaining backend work |
-| --- | --- | --- | --- | --- |
-| `issues/overview` | Show live issue rows, shell counts, and chart context on the main Issues screen without hiding which summary cards are still derived or fallback-backed. | `fetchDefaultProjectDashboardBootstrap()` fans into `GET /api/v1/projects/default/issues`, `GET /api/v1/projects/default/dashboard/health`, `GET /api/v1/projects/default/dashboard/levels`, and `GET /api/v1/projects/default/dashboard/volume`, then `adaptMesherDashboardBootstrap()` overlays those reads into `StatsBar` and `EventsChart`. | `missing-payload` | Add backend fields or endpoints for affected users, MTTR, crash-free sessions, uptime, and real per-bucket severity totals so the overview can stop deriving or falling back for those cards. |
-| `issues/detail` | Hydrate the selected issue with live latest-event context, stacktrace, breadcrumbs, and recent timeline while keeping unsupported shell content explicit. | `fetchIssueLatestEvents()`, `fetchEventDetail()`, and `fetchIssueTimeline()` call `GET /api/v1/issues/:id/events?limit=1`, `GET /api/v1/events/:event_id`, and `GET /api/v1/issues/:id/timeline` before `adaptMesherSelectedIssueDetail()` overlays the panel. | `missing-payload` | Return live user-impact counts and any durable linked-issue or AI-enrichment fields that the shared detail shell still renders from fallback data. |
-| `issues/live-actions` | Resolve, Reopen, and Ignore from the maintainer action row and then refresh the visible issue state from Mesher. | `mutateIssue()` posts to `POST /api/v1/issues/:id/{resolve,unresolve,archive}`, and `useDashboardIssuesState` re-runs the overview and selected-detail reads after the mutation. | `covered` | Keep this row covered; add new issue mutation routes before exposing more maintainer actions in the live action rail. |
-| `issues/shell-controls` | Keep AI Analysis and Link Issue chrome visible beside the live maintainer actions without implying those helpers already work. | No same-origin Mesher route family is registered in `main.mpl` or exported from `mesher-api.ts` for issue-panel AI analysis or external issue linking. | `no-route-family` | Add dedicated route families for AI summaries and issue-linking before promoting these shell controls beyond visible chrome. |
-
-### Alerts backend gaps
-
-| Route/surface key | Client promise | Current backend seam | Support status | Remaining backend work |
-| --- | --- | --- | --- | --- |
-| `alerts/overview` | Render live alert rows and summary cards on the Alerts page while keeping unsupported SLA metrics honest. | `fetchDefaultProjectAlerts()` calls `GET /api/v1/projects/default/alerts`, and `adaptMesherProjectAlerts()` derives the overview cards from that list for `AlertStatsBar`. | `missing-payload` | Expose backend MTTA, average resolution time, and average firing duration aggregates so the overview cards stop relying on fallback-only SLA numbers. |
-| `alerts/detail` | Show live alert status, thresholds, condition context, and history in the detail panel without overstating unsupported metadata. | The detail panel reuses the `GET /api/v1/projects/default/alerts` payload via `adaptMesherProjectAlerts()`; there is no separate alert-detail read beyond the list bootstrap today. | `missing-payload` | Return detail-grade notification channels, assignee or silence metadata, linked issue context, and AI insight fields from Mesher—or remove those fallback-only fields from the shared panel. |
-| `alerts/live-actions` | Acknowledge and Resolve a live alert from the detail footer and refresh the visible list/detail state from Mesher. | `acknowledgeAlert()` and `resolveAlert()` post to `POST /api/v1/alerts/:id/{acknowledge,resolve}`, then `useAlertsLiveState` refreshes `GET /api/v1/projects/default/alerts`. | `covered` | Keep this row covered; add any new alert lifecycle buttons only after the matching backend mutations exist. |
-| `alerts/shell-controls` | Keep Silence or Unsnooze chrome visible next to the live alert actions without pretending that alert suppression already exists server-side. | The alert route family currently registers only `POST /api/v1/alerts/:id/acknowledge` and `POST /api/v1/alerts/:id/resolve`; copy-link is client-only chrome and no silence or unsnooze mutation exists. | `missing-controls` | Add explicit silence and unsnooze routes plus persistence semantics before enabling those controls as live backend actions. |
-
-### Settings backend gaps
-
-| Route/surface key | Client promise | Current backend seam | Support status | Remaining backend work |
-| --- | --- | --- | --- | --- |
-| `settings/general` | Edit live retention and sample-rate values, show live storage metrics, and keep the rest of the General tab honest about what is still shell-only. | `fetchDefaultProjectSettings()`, `updateDefaultProjectSettings()`, and `fetchDefaultProjectStorage()` target `GET/POST /api/v1/projects/default/settings` plus `GET /api/v1/projects/default/storage` through `useSettingsLiveState`. | `missing-controls` | Extend the settings payload and write routes for project name, description, default environment, public dashboard, and anonymous issue submission before turning those mock-only controls into real saves. |
-| `settings/team` | List members and support add, role change, and remove flows against the org-members seam. | `fetchOrgMembers()`, `addOrgMember()`, `updateOrgMemberRole()`, and `removeOrgMember()` use `GET/POST /api/v1/orgs/default/members`, `POST /api/v1/orgs/default/members/:membership_id/role`, and `POST /api/v1/orgs/default/members/:membership_id/remove`. | `covered` | Keep this row covered; add a separate invite-by-email backend if the UX should move beyond the current raw `user_id` contract. |
-| `settings/api-keys` | List, create, reveal once, and revoke project API keys from Settings. | `fetchDefaultProjectApiKeys()`, `createDefaultProjectApiKey()`, and `revokeApiKey()` use `GET/POST /api/v1/projects/default/api-keys` plus `POST /api/v1/api-keys/:key_id/revoke`; the one-time reveal comes from the create response. | `covered` | Keep this row covered; add dedicated edit or rotate routes before promising more than create, reveal-once, and revoke. |
-| `settings/alert-rules` | List, create, enable or disable, and delete alert rules from the Alerts tab. | `fetchDefaultProjectAlertRules()`, `createDefaultProjectAlertRule()`, `toggleAlertRule()`, and `deleteAlertRule()` use `GET/POST /api/v1/projects/default/alert-rules` plus `POST /api/v1/alert-rules/:rule_id/{toggle,delete}`. | `covered` | Keep this row covered; add a real patch route before exposing arbitrary rule edits beyond create, toggle, and delete. |
-| `settings/alert-channels` | Configure delivery channels beside the live alert-rule list from the same Settings area. | `main.mpl` registers alert-rule routes only; no `/api/v1/projects/:project_id/alert-channels` or notification-destination family exists, and the UI keeps the channel rows inside `MockOnlyWrap`. | `no-route-family` | Add channel read and mutation routes for email, Slack, and PagerDuty before promoting this subsection beyond shell-only controls. |
-
-### Performance backend gaps
-
-| Route/surface key | Client promise | Current backend seam | Support status | Remaining backend work |
-| --- | --- | --- | --- | --- |
-| `performance/overview` | Show performance summary cards, latency or throughput charts, Apdex, and Web Vitals for the routed Performance page. | No same-origin Mesher performance summary family is registered in `main.mpl`, and `performance-page.tsx` renders `PerformanceStatsBar`, `LatencyChart`, `ThroughputChart`, `ApdexChart`, and `WebVitalsBar` from `MOCK_PERF_STATS`. | `no-route-family` | Add a dedicated performance overview family for aggregate metrics, chart buckets, and Web Vitals summaries before treating this page as a live observability surface. |
-| `performance/transactions` | Search, filter, sort, and inspect transaction rows plus the slide-in transaction detail panel from the same Performance route. | No `/api/v1/projects/:project_id/performance` or transaction-trace read family is registered in `main.mpl`; `performance-page.tsx` filters `MOCK_TRANSACTIONS` locally and opens `TransactionDetail` over mock transaction data. | `no-route-family` | Add transaction-list and transaction-detail routes for latency spans, tags, and per-transaction diagnostics before promoting drill-down from shell behavior into backend truth. |
-
-### Releases backend gaps
-
-| Route/surface key | Client promise | Current backend seam | Support status | Remaining backend work |
-| --- | --- | --- | --- | --- |
-| `releases/list` | Show release summary cards plus searchable, filterable, sortable release rows across environments. | No same-origin release route family is registered in `main.mpl`, and `releases-page.tsx` derives the route from `MOCK_RELEASES` while `ReleaseStats` and `ReleaseList` stay entirely client-backed. | `no-route-family` | Add release-list and release-summary routes before presenting deployment history, release health, or environment filtering as backend truth. |
-| `releases/detail` | Open a selected release and inspect notes, changes, AI summary, and deployment metadata in the detail drawer. | No release-detail read family is registered in `main.mpl`; `ReleaseDetail` reads the selected mock release object, including notes, change tabs, and deployment metadata. | `no-route-family` | Add release-detail routes for commit metadata, release notes, comparisons, AI summaries, and deployment context before promoting the drawer beyond shell scope. |
-| `releases/actions` | Expose release lifecycle chrome such as Rollback from the selected release without pretending that deployment writes already exist. | `main.mpl` registers no release mutation family, and `release-detail.tsx` renders Rollback affordances entirely from mock release state. | `no-route-family` | Add explicit release rollback or deploy-control routes, plus mutation-state refresh semantics, before enabling release actions as real backend workflows. |
-
-## Invariants
-
-- `issues` lives at canonical pathname `/`; the inventory must not drift to `/issues` even if unknown-path runtime fallback renders the Issues shell.
-- Settings shows `mixed live` inside the app for the General tab and shell support badge, but this inventory normalizes that top-level status to milestone language `mixed`.
-- Runtime `fallback` is not the same as canonical `mock-only`: `fallback` means a live-backed surface failed and the shell stayed mounted with explicit diagnostics, while `mock-only` means no live seam is claimed for that top-level route in the first place.
-- Top-level `mock-only` routes stay grouped at route or major-subsection scope inside the backend gap map until Mesher lands a real same-origin seam; do not explode shell-only CTAs like Rollback, Connect, or transaction drill-down into per-button rows.
-
-## Maintainer handoff
-
-Use the backend gap map as the canonical expansion queue. Pick a row, confirm the current backend seam and remaining work still match the code, land the route or payload change, then update the affected inventory row instead of re-auditing the whole dashboard from scratch.
-
-### Backend expansion order
-
-1. Finish the partially live surfaces first: keep working top-down through `issues`, `alerts`, and `settings` rows that already have a same-origin seam but still carry `missing-payload` or `missing-controls` gaps.
-2. When a mixed route is fully covered, close its adjacent shell-only helpers next: issue-panel helpers, alert suppression controls, and settings alert-channel management should only move once the matching write or read family exists.
-3. Only after the mixed-route gaps are stable should maintainers open a new `no-route-family` route family from the mock-only pages: `performance` and `releases`, in that order unless product priorities change.
-4. Treat each backend-gap row as the planning unit. If a slice changes more than one row, update every affected row in the same pull request so the next maintainer can choose the next seam directly from this document.
-
-### Proof commands to rerun
-
-When any inventory row, route-family seam, or proof citation changes, rerun the package-local structural verifier first:
+Fast structural gate:
 
 ```bash
 npm --prefix mesher/client run verify:route-inventory
 ```
 
-Then rerun the root-level slice closeout wrapper from `hyperpush-mono/` so the maintained docs and retained proof rail stay aligned:
+Dev and production browser proof:
 
 ```bash
-bash scripts/verify-m061-s04.sh
+npm --prefix mesher/client run test:e2e:dev -- --grep "mock surface closeout"
+npm --prefix mesher/client run test:e2e:prod -- --grep "mock surface closeout"
 ```
 
-If only a single backend gap row changed, still rerun both commands before merging. The package-local verifier catches route-map and inventory drift; the root wrapper is the durable handoff check that later backend-expansion slices should treat as the final closeout gate.
+Full isolated release gate:
+
+```bash
+bash scripts/verify-platform.sh
+```
+
+The structural gate rejects capability drift, removed-route return, mock-data imports, seeded product
+constants, hardcoded tenant paths, unsupported public claims, and missing browser closeout coverage.

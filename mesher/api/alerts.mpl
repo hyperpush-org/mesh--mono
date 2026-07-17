@@ -19,7 +19,7 @@ from Api.Helpers import require_param, query_or_default, to_json_array, get_regi
 
 fn format_nullable_ts(ts :: String) -> String do
   if String.length(ts) > 0 do
-    "\"#{ts}\""
+    Json.encode_string(ts)
   else
     "null"
   end
@@ -27,7 +27,7 @@ end
 
 # Serialize a single alert rule Map row to JSON string.
 
-fn rule_row_to_json(row) -> String do
+fn rule_row_to_json(row :: Map < String, String >) -> String do
   let id = Map.get(row, "id")
   let project_id = Map.get(row, "project_id")
   let name = Map.get(row, "name")
@@ -37,12 +37,12 @@ fn rule_row_to_json(row) -> String do
   let cooldown_minutes = Map.get(row, "cooldown_minutes")
   let last_fired_at = format_nullable_ts(Map.get(row, "last_fired_at"))
   let created_at = Map.get(row, "created_at")
-  """{"id":"#{id}","project_id":"#{project_id}","name":"#{name}","condition":#{condition_json},"action":#{action_json},"enabled":#{enabled},"cooldown_minutes":#{cooldown_minutes},"last_fired_at":#{last_fired_at},"created_at":"#{created_at}"}"""
+  """{"id":#{Json.encode_string(id)},"project_id":#{Json.encode_string(project_id)},"name":#{Json.encode_string(name)},"condition":#{condition_json},"action":#{action_json},"enabled":#{enabled},"cooldown_minutes":#{cooldown_minutes},"last_fired_at":#{last_fired_at},"created_at":#{Json.encode_string(created_at)}}"""
 end
 
 # Serialize a single alert Map row to JSON string.
 
-fn alert_row_to_json(row) -> String do
+fn alert_row_to_json(row :: Map < String, String >) -> String do
   let id = Map.get(row, "id")
   let rule_id = Map.get(row, "rule_id")
   let project_id = Map.get(row, "project_id")
@@ -53,7 +53,7 @@ fn alert_row_to_json(row) -> String do
   let acknowledged_at = format_nullable_ts(Map.get(row, "acknowledged_at"))
   let resolved_at = format_nullable_ts(Map.get(row, "resolved_at"))
   let rule_name = Map.get(row, "rule_name")
-  """{"id":"#{id}","rule_id":"#{rule_id}","project_id":"#{project_id}","status":"#{status}","message":"#{message}","condition_snapshot":#{condition_snapshot},"triggered_at":"#{triggered_at}","acknowledged_at":#{acknowledged_at},"resolved_at":#{resolved_at},"rule_name":"#{rule_name}"}"""
+  """{"id":#{Json.encode_string(id)},"rule_id":#{Json.encode_string(rule_id)},"project_id":#{Json.encode_string(project_id)},"status":#{Json.encode_string(status)},"message":#{Json.encode_string(message)},"condition_snapshot":#{condition_snapshot},"triggered_at":#{Json.encode_string(triggered_at)},"acknowledged_at":#{acknowledged_at},"resolved_at":#{resolved_at},"rule_name":#{Json.encode_string(rule_name)}}"""
 end
 
 # Helper: perform toggle with extracted enabled value.
@@ -61,7 +61,11 @@ end
 fn do_toggle(pool :: PoolHandle, rule_id :: String, enabled_str :: String) do
   let result = toggle_alert_rule(pool, rule_id, enabled_str)
   case result do
-    Ok( _) -> HTTP.response(200, json { status : "ok" })
+    Ok( count) -> if count > 0 do
+      HTTP.response(200, json { status : "ok" })
+    else
+      HTTP.response(404, json { error : "alert rule not found or unchanged" })
+    end
     Err( e) -> HTTP.response(500, json { error : e })
   end
 end
@@ -128,7 +132,11 @@ pub fn handle_delete_alert_rule(request) do
   let rule_id = require_param(request, "rule_id")
   let result = delete_alert_rule(pool, rule_id)
   case result do
-    Ok( _) -> HTTP.response(200, json { status : "ok" })
+    Ok( count) -> if count > 0 do
+      HTTP.response(200, json { status : "ok" })
+    else
+      HTTP.response(404, json { error : "alert rule not found" })
+    end
     Err( e) -> HTTP.response(500, json { error : e })
   end
 end
@@ -161,7 +169,11 @@ pub fn handle_acknowledge_alert(request) do
   let alert_id = require_param(request, "id")
   let result = acknowledge_alert(pool, alert_id)
   case result do
-    Ok( _) -> HTTP.response(200, json { status : "ok" })
+    Ok( count) -> if count > 0 do
+      HTTP.response(200, json { status : "ok" })
+    else
+      HTTP.response(409, json { error : "alert is not active" })
+    end
     Err( e) -> HTTP.response(500, json { error : e })
   end
 end
@@ -175,7 +187,11 @@ pub fn handle_resolve_alert(request) do
   let alert_id = require_param(request, "id")
   let result = resolve_fired_alert(pool, alert_id)
   case result do
-    Ok( _) -> HTTP.response(200, json { status : "ok" })
+    Ok( count) -> if count > 0 do
+      HTTP.response(200, json { status : "ok" })
+    else
+      HTTP.response(409, json { error : "alert cannot be resolved" })
+    end
     Err( e) -> HTTP.response(500, json { error : e })
   end
 end

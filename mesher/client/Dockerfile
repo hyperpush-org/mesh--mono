@@ -6,7 +6,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 FROM base AS deps
 
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm ci
 
 FROM deps AS dev
 
@@ -17,7 +17,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 FROM deps AS builder
 
 COPY . .
-RUN npm run build
+RUN npm run test:server
 
 FROM deps AS production
 

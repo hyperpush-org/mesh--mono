@@ -11,6 +11,7 @@ export default defineConfig({
     timeout: 10_000,
   },
   fullyParallel: false,
+  forbidOnly: Boolean(process.env.CI),
   reporter: 'list',
   use: {
     baseURL,
@@ -25,10 +26,46 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
       },
     },
+    {
+      name: 'firefox-smoke',
+      grep: /@smoke/,
+      testMatch: /landing-surface\.spec\.ts/,
+      use: {
+        ...devices['Desktop Firefox'],
+      },
+    },
+    {
+      name: 'webkit-smoke',
+      grep: /@smoke/,
+      testMatch: /landing-surface\.spec\.ts/,
+      use: {
+        ...devices['Desktop Safari'],
+      },
+    },
+    {
+      name: 'mobile-chrome-smoke',
+      grep: /@smoke/,
+      testMatch: /landing-surface\.spec\.ts/,
+      use: {
+        ...devices['Pixel 7'],
+      },
+    },
+    {
+      name: 'mobile-safari-smoke',
+      grep: /@smoke/,
+      testMatch: /landing-surface\.spec\.ts/,
+      use: {
+        ...devices['iPhone 14'],
+      },
+    },
   ],
   webServer: {
     command: `npm run dev -- --hostname ${host} --port ${port}`,
     cwd: __dirname,
+    env: {
+      NEXT_PUBLIC_FORMSPREE_ID:
+        process.env.NEXT_PUBLIC_FORMSPREE_ID ?? 'https://formspree.io/f/playwright-test',
+    },
     port,
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,

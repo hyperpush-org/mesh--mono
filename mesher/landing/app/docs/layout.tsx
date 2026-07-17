@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 export const metadata: Metadata = {
   title: "Documentation",
   description:
-    "Comprehensive hyperpush documentation for error tracking, performance monitoring, releases, alerts, and SDK integration.",
+    "Documentation for hyperpush error ingestion, issue tracking, alerts, API keys, and project settings.",
 }
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {

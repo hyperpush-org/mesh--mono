@@ -8,11 +8,13 @@ struct RateLimitState do
   max_events :: Int
 end
 
-fn check_limit_impl(state :: RateLimitState, project_id :: String) ->( RateLimitState, Bool) do
+fn check_limit_impl(state :: RateLimitState,
+project_id :: String,
+cost :: Int) ->( RateLimitState, Bool) do
   let count = Map.get(state.limits, project_id)
-  let allowed = count < state.max_events
+  let allowed = count + cost <= state.max_events
   let next_limits = if allowed do
-    Map.put(state.limits, project_id, count + 1)
+    Map.put(state.limits, project_id, count + cost)
   else
     state.limits
   end
@@ -43,8 +45,16 @@ service RateLimiter do
   
   # Synchronous check: returns true if allowed, false if rate limited.
   
-  call CheckLimit(project_id :: String) :: Bool do|state|
-    check_limit_impl(state, project_id)
+  call CheckLimit(project_id :: String, cost :: Int) :: Bool do|state|
+    check_limit_impl(state, project_id, cost)
+  end
+
+  call GetCountersJson() :: String do|state|
+    (state, Json.encode(state.limits))
+  end
+
+  call GetMaxUnits() :: Int do|state|
+    (state, state.max_events)
   end
   
   # Async reset: clears all counters for a new window.

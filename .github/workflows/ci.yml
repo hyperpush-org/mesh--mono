@@ -24,19 +24,19 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout product repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Checkout mesh-lang toolchain repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: hyperpush-org/mesh-lang
           path: mesh-lang
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
 
       - name: Cache LLVM
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: cache-llvm
         with:
           path: ~/llvm
@@ -50,6 +50,7 @@ jobs:
           LLVM_ARCHIVE="LLVM-${LLVM_VERSION}-Linux-X64.tar.xz"
           LLVM_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/${LLVM_ARCHIVE}"
           curl -sSfL "$LLVM_URL" -o llvm.tar.xz
+          echo 'b3b7f2801d15d50736acea3c73982994d025b01c2f035b91ae3b49d1b575732b  llvm.tar.xz' | sha256sum --check --strict
           mkdir -p "$HOME/llvm"
           tar xf llvm.tar.xz --strip-components=1 -C "$HOME/llvm"
           rm llvm.tar.xz
@@ -78,10 +79,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -100,6 +101,19 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://hyperpush.dev
         run: npm --prefix mesher/landing run build
 
+      - name: Check landing types, lint, dependencies, and bundle budgets
+        run: |
+          npm --prefix mesher/landing run typecheck
+          npm --prefix mesher/landing run lint
+          npm --prefix mesher/landing audit --audit-level=high --omit=dev
+          node mesher/scripts/check-frontend-budgets.mjs landing
+
+      - name: Install landing browser matrix
+        run: npm --prefix mesher/landing exec playwright install --with-deps chromium firefox webkit
+
+      - name: Run landing browser, accessibility, and interaction gates
+        run: npm --prefix mesher/landing run test:e2e
+
       - name: Install client dependencies
         run: npm --prefix mesher/client ci
 
@@ -108,3 +122,10 @@ jobs:
 
       - name: Build client
         run: npm --prefix mesher/client run build
+
+      - name: Check client types, lint, dependencies, and bundle budgets
+        run: |
+          npm --prefix mesher/client run typecheck
+          npm --prefix mesher/client run lint
+          npm --prefix mesher/client audit --audit-level=high --omit=dev
+          node mesher/scripts/check-frontend-budgets.mjs client

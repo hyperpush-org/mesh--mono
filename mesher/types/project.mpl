@@ -29,14 +29,14 @@ pub struct Project do
   belongs_to :org, Organization
 end deriving(Schema, Json, Row)
 
-# API key -- multiple keys per project for rotation and environment separation.
-# Key format: mshr_ prefix with hex-encoded random bytes.
+# API key metadata -- multiple keys per project for rotation and environment
+# separation. The reusable secret is never represented by this application row.
 
 pub struct ApiKey do
   table "api_keys"
   id :: String
   project_id :: String
-  key_value :: String
+  key_prefix :: String
   label :: String
   created_at :: String
   revoked_at :: Option < String >

@@ -13,7 +13,7 @@ from Api.Helpers import require_param, get_registry
 # Normalize the event row through the typed Event surface so caller-visible
 # string fields stay stable even when direct Map.get stringification drifts.
 
-fn detail_row_to_event(row) -> Event do
+fn detail_row_to_event(row :: Map < String, String >) -> Event do
   Event {
     id : Map.get(row, "id"),
     project_id : Map.get(row, "project_id"),
@@ -39,7 +39,7 @@ end
 # String fields get \" quoting. JSONB fields embedded raw (no quoting).
 # JSONB: exception, stacktrace, breadcrumbs, tags, extra, user_context
 
-fn event_detail_to_json(row) -> String do
+fn event_detail_to_json(row :: Map < String, String >) -> String do
   let normalized = Json.encode(detail_row_to_event(row))
   let id = Json.get(normalized, "id")
   let project_id = Json.get(normalized, "project_id")
@@ -58,7 +58,7 @@ fn event_detail_to_json(row) -> String do
   let environment = Json.get(normalized, "environment")
   let session_id = Json.get(normalized, "session_id")
   let received_at = Json.get(normalized, "received_at")
-  """{"id":"#{id}","project_id":"#{project_id}","issue_id":"#{issue_id}","level":"#{level}","message":"#{message}","fingerprint":"#{fingerprint}","exception":#{exception},"stacktrace":#{stacktrace},"breadcrumbs":#{breadcrumbs},"tags":#{tags},"extra":#{extra},"user_context":#{user_context},"sdk_name":"#{sdk_name}","sdk_version":"#{sdk_version}","environment":"#{environment}","session_id":"#{session_id}","received_at":"#{received_at}"}"""
+  """{"id":#{Json.encode_string(id)},"project_id":#{Json.encode_string(project_id)},"issue_id":#{Json.encode_string(issue_id)},"level":#{Json.encode_string(level)},"message":#{Json.encode_string(message)},"fingerprint":#{Json.encode_string(fingerprint)},"exception":#{exception},"stacktrace":#{stacktrace},"breadcrumbs":#{breadcrumbs},"tags":#{tags},"extra":#{extra},"user_context":#{user_context},"sdk_name":#{Json.encode_string(sdk_name)},"sdk_version":#{Json.encode_string(sdk_version)},"environment":#{Json.encode_string(environment)},"session_id":#{Json.encode_string(session_id)},"received_at":#{Json.encode_string(received_at)}}"""
 end
 
 # Format a nullable neighbor ID for JSON output.
@@ -68,13 +68,13 @@ fn format_neighbor_id(val :: String) -> String do
   if String.length(val) == 0 do
     "null"
   else
-    "\"#{val}\""
+    Json.encode_string(val)
   end
 end
 
 # Serialize navigation row to JSON with next_id and prev_id.
 
-fn neighbors_to_json(row) -> String do
+fn neighbors_to_json(row :: Map < String, String >) -> String do
   let next_id = Map.get(row, "next_id")
   let prev_id = Map.get(row, "prev_id")
   let next_str = format_neighbor_id(next_id)

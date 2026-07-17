@@ -89,7 +89,7 @@ mesher_prepare_bundle_dir() {
 
 mesher_is_mesh_lang_root() {
   local candidate="$1"
-  [[ -f "$candidate/Cargo.toml" && -f "$candidate/compiler/meshc/Cargo.toml" && -f "$candidate/WORKSPACE.md" ]]
+  [[ -f "$candidate/Cargo.toml" && -f "$candidate/compiler/meshc/Cargo.toml" ]]
 }
 
 mesher_find_enclosing_mesh_lang_root() {
@@ -106,9 +106,11 @@ mesher_find_enclosing_mesh_lang_root() {
 
 mesher_find_nested_workspace_mesh_lang_root() {
   local product_root="$1"
-  local blessed_sibling_root="$(dirname "$product_root")/mesh-lang"
+  local blessed_sibling_root
+  blessed_sibling_root="$(dirname "$product_root")/mesh-lang"
   local stale_direct_sibling_root="$MESHER_PACKAGE_DIR/../mesh-lang"
-  local blessed_abs_root="$(mesher_abs_path "$blessed_sibling_root")"
+  local blessed_abs_root
+  blessed_abs_root="$(mesher_abs_path "$blessed_sibling_root")"
 
   if mesher_is_mesh_lang_root "$stale_direct_sibling_root"; then
     local stale_abs_root
@@ -127,14 +129,21 @@ mesher_find_nested_workspace_mesh_lang_root() {
 }
 
 mesher_resolve_toolchain() {
-  if [[ -n "${MESHER_MESHC_BIN:-}" && -n "${MESHER_MESHC_SOURCE:-}" ]]; then
+  if [[ -n "${MESHER_MESHC_BIN:-}" ]]; then
+    MESHER_MESHC_BIN="$(mesher_abs_path "$MESHER_MESHC_BIN")"
+    if [[ ! -x "$MESHER_MESHC_BIN" ]]; then
+      mesher_toolchain_fail "configured MESHER_MESHC_BIN is not executable: ${MESHER_MESHC_BIN}"
+    fi
+    MESHER_MESHC_SOURCE="${MESHER_MESHC_SOURCE:-explicit}"
+    export MESHER_MESHC_BIN MESHER_MESHC_SOURCE
     return 0
   fi
 
   local source_root=''
   local source_name=''
   local candidate=''
-  local product_root="$(mesher_abs_path "$MESHER_PACKAGE_DIR/..")"
+  local product_root
+  product_root="$(mesher_abs_path "$MESHER_PACKAGE_DIR/..")"
 
   if source_root="$(mesher_find_enclosing_mesh_lang_root)"; then
     source_name='enclosing-source'

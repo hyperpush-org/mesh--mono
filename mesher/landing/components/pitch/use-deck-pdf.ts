@@ -1,8 +1,7 @@
-/* PDF export hook — html2canvas + jsPDF at 16:9
+/* PDF export hook — html2canvas-pro + jsPDF at 16:9
  *
- * html2canvas cannot parse oklch() / lab() color functions,
- * so we inject a temporary <style> with hex-converted CSS
- * custom property overrides before each capture. */
+ * We inject a temporary <style> with stable hex theme values before each
+ * capture so exported colors are consistent across browsers. */
 'use client'
 
 import { useCallback, useState } from 'react'
@@ -51,6 +50,7 @@ function injectHexOverrides(): HTMLStyleElement {
 export function useDeckPdf() {
   const [isExporting, setIsExporting] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const exportPdf = useCallback(
     async (
@@ -61,16 +61,17 @@ export function useDeckPdf() {
       if (typeof window === 'undefined') return
       setIsExporting(true)
       setProgress(0)
+      setExportError(null)
 
       let hexStyle: HTMLStyleElement | null = null
 
       try {
         // Dynamic imports — only pulled when user actually clicks export
-        const html2canvasModule = await import('html2canvas')
+        const html2canvasModule = await import('html2canvas-pro')
         const html2canvas = html2canvasModule.default
 
         // Use the browser ESM build of jsPDF to avoid node Worker issue
-        const { jsPDF } = await import('jspdf/dist/jspdf.es.min.js')
+        const { jsPDF } = await import('jspdf')
 
         const pdf = new jsPDF({
           orientation: 'landscape',
@@ -113,6 +114,7 @@ export function useDeckPdf() {
         goTo(originalIndex)
       } catch (err) {
         console.error('[pitch-pdf] Export failed:', err)
+        setExportError('PDF export failed. Please try again.')
       } finally {
         // Remove hex overrides to restore oklch theme
         if (hexStyle?.parentNode) {
@@ -125,5 +127,5 @@ export function useDeckPdf() {
     [],
   )
 
-  return { isExporting, progress, exportPdf }
+  return { isExporting, progress, exportError, exportPdf }
 }

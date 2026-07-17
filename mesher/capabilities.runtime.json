@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "capabilities": {
+    "authenticated-session": { "state": "live" },
+    "project-context": { "state": "live" },
+    "issues": { "state": "live" },
+    "alerts": { "state": "live" },
+    "project-settings": { "state": "live" },
+    "team-membership": { "state": "live" },
+    "api-keys": { "state": "live" },
+    "alert-rules": { "state": "live" },
+    "releases": { "state": "unavailable" },
+    "recovery-receipts": { "state": "unavailable" },
+    "performance": { "state": "unavailable" },
+    "ai-analysis": { "state": "unavailable" },
+    "notification-delivery": { "state": "unavailable" },
+    "integrations": { "state": "unavailable" },
+    "billing": { "state": "unavailable" },
+    "enterprise-security": { "state": "unavailable" },
+    "profile-writes": { "state": "unavailable" },
+    "project-creation": { "state": "unavailable" }
+  }
+}

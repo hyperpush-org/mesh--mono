@@ -10,6 +10,9 @@ mesher/frontend-exp/out/
 mesher/landing/node_modules/
 mesher/landing/.next/
 mesher/landing/test-results/
+mesher/landing/playwright-report/
+mesher/client/test-results/
+mesher/client/playwright-report/
 mesher/landing/tmp-banners/
 mesher/landing/tsconfig.tsbuildinfo
 

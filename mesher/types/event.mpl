@@ -95,3 +95,16 @@ pub struct EventPayload do
   environment :: Option < String >
   session_id :: Option < String >
 end deriving(Json)
+
+# Strict live-ingestion view. Unknown JSON properties remain in the raw payload
+# sent to storage but do not participate in validation or fingerprinting.
+
+pub struct IncomingEvent do
+  message :: String
+  level :: String
+  fingerprint :: Option < String >
+  exception :: Option < ExceptionInfo >
+  stacktrace :: Option < List < StackFrame > >
+  environment :: Option < String >
+  session_id :: Option < String >
+end deriving(Json)

@@ -62,20 +62,28 @@ from Api.Alerts import (
   handle_resolve_alert
 )
 from Api.Settings import handle_get_project_settings, handle_update_project_settings, handle_get_project_storage
+from Api.Auth import handle_login, handle_logout, handle_me
+from Api.Health import handle_live, handle_ready, handle_metrics
+from Ingestion.ManagementAuth import management_auth_middleware
+from Storage.Queries import verify_schema_ready
 from Ingestion.WsHandler import ws_on_connect, ws_on_message, ws_on_close
 
-fn log_bootstrap(status :: BootstrapStatus) do
-  println(
-    "[Mesher] runtime bootstrap mode=#{status.mode} node=#{status.node_name} cluster_port=#{status.cluster_port} discovery_seed=#{status.discovery_seed}"
-  )
+# Mesh applications do not yet expose a public process-exit primitive. An
+# intentional bounds failure on the main startup path is therefore the runtime
+# mechanism that guarantees a non-zero process status after a fatal preflight.
+fn abort_startup_process() do
+  let unreachable = List.get(["startup aborted"], 1)
+  println(unreachable)
 end
 
-fn log_bootstrap_failure(reason :: String) do
-  println("[Mesher] runtime bootstrap failed reason=#{reason}")
+fn fatal_startup(message :: String) do
+  println("[Mesher] Fatal startup error: #{message}")
+  abort_startup_process()
 end
 
 fn log_config_error(message :: String) do
   println("[Mesher] Config error: #{message}")
+  abort_startup_process()
 end
 
 fn optional_positive_env_int(name :: String, default_value :: Int) -> Int ! String do
@@ -114,6 +122,13 @@ fn start_runtime(http_port :: Int, ws_port :: Int, window_seconds :: Int, max_ev
 
   println("[Mesher] HTTP server starting on :#{http_port}")
   let router = HTTP.router()
+    |> HTTP.use(management_auth_middleware)
+    |> HTTP.on_get("/health/live", handle_live)
+    |> HTTP.on_get("/health/ready", handle_ready)
+    |> HTTP.on_get("/metrics", handle_metrics)
+    |> HTTP.on_post("/api/v1/auth/login", handle_login)
+    |> HTTP.on_post("/api/v1/auth/logout", handle_logout)
+    |> HTTP.on_get("/api/v1/auth/me", handle_me)
     |> HTTP.on_post("/api/v1/events", handle_event)
     |> HTTP.on_post("/api/v1/events/bulk", handle_bulk)
     |> HTTP.on_get("/api/v1/projects/:project_id/issues", handle_search_issues)
@@ -161,20 +176,29 @@ fn on_runtime_ready(
   max_events :: Int,
   pool :: PoolHandle
 ) do
-  case create_partitions_ahead(pool, 7) do
-    Ok( _) -> println("[Mesher] Partition bootstrap succeeded (7 days ahead)")
-    Err( e) -> println("[Mesher] Partition bootstrap failed: #{e}")
+  let schema_result = verify_schema_ready(pool)
+  case schema_result do
+    Ok( schema_ready) -> if schema_ready do
+      case create_partitions_ahead(pool, 7) do
+        Ok( _) -> do
+          println("[Mesher] Partition bootstrap succeeded (7 days ahead)")
+          let org_svc = OrgService.start(pool)
+          println("[Mesher] OrgService started")
+          let project_svc = ProjectService.start(pool)
+          println("[Mesher] ProjectService started")
+          let user_svc = UserService.start(pool)
+          println("[Mesher] UserService started")
+          let pipeline_pid = start_pipeline(pool, window_seconds, max_events)
+          println("[Mesher] Foundation ready")
+          start_runtime(http_port, ws_port, window_seconds, max_events)
+        end
+        Err( e) -> fatal_startup("required partition bootstrap failed: #{e}")
+      end
+    else
+      fatal_startup("required database migration 20260716000000 is not applied")
+    end
+    Err( e) -> fatal_startup("database readiness check failed: #{e}")
   end
-
-  let org_svc = OrgService.start(pool)
-  println("[Mesher] OrgService started")
-  let project_svc = ProjectService.start(pool)
-  println("[Mesher] ProjectService started")
-  let user_svc = UserService.start(pool)
-  println("[Mesher] UserService started")
-  let pipeline_pid = start_pipeline(pool, window_seconds, max_events)
-  println("[Mesher] Foundation ready")
-  start_runtime(http_port, ws_port, window_seconds, max_events)
 end
 
 fn maybe_boot_with_pool(
@@ -184,13 +208,8 @@ fn maybe_boot_with_pool(
   max_events :: Int,
   pool :: PoolHandle
 ) do
-  case Node.start_from_env() do
-    Ok( status) -> do
-      log_bootstrap(status)
-      on_runtime_ready(http_port, ws_port, window_seconds, max_events, pool)
-    end
-    Err( reason) -> log_bootstrap_failure(reason)
-  end
+  println("[Mesher] runtime bootstrap mode=single-node")
+  on_runtime_ready(http_port, ws_port, window_seconds, max_events, pool)
 end
 
 fn start_with_values(
@@ -211,7 +230,7 @@ fn start_with_values(
       println("[Mesher] PostgreSQL pool ready")
       maybe_boot_with_pool(http_port, ws_port, window_seconds, max_events, pool)
     end
-    Err( _) -> println("[Mesher] PostgreSQL connect failed")
+    Err( _) -> fatal_startup("PostgreSQL connect failed")
   end
 end
 

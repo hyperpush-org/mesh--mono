@@ -1,7 +1,7 @@
+import { isCapabilityLive, type CapabilityKey } from '@/lib/capabilities'
+
 export const DASHBOARD_ROUTE_KEYS = [
   'issues',
-  'performance',
-  'releases',
   'alerts',
   'settings',
 ] as const
@@ -13,6 +13,7 @@ export interface DashboardRouteDefinition {
   pathname: string
   title: string
   navLabel: string
+  capability: CapabilityKey
 }
 
 export const DASHBOARD_ROUTE_MAP: Record<DashboardRouteKey, DashboardRouteDefinition> = {
@@ -21,31 +22,28 @@ export const DASHBOARD_ROUTE_MAP: Record<DashboardRouteKey, DashboardRouteDefini
     pathname: '/',
     title: 'Issues',
     navLabel: 'Issues',
-  },
-  performance: {
-    key: 'performance',
-    pathname: '/performance',
-    title: 'Performance',
-    navLabel: 'Performance',
-  },
-  releases: {
-    key: 'releases',
-    pathname: '/releases',
-    title: 'Releases',
-    navLabel: 'Releases',
+    capability: 'issues',
   },
   alerts: {
     key: 'alerts',
     pathname: '/alerts',
     title: 'Alerts',
     navLabel: 'Alerts',
+    capability: 'alerts',
   },
   settings: {
     key: 'settings',
     pathname: '/settings',
     title: 'Settings',
     navLabel: 'Settings',
+    capability: 'project-settings',
   },
+}
+
+for (const route of Object.values(DASHBOARD_ROUTE_MAP)) {
+  if (!isCapabilityLive(route.capability)) {
+    throw new Error(`Dashboard route ${route.key} requires live capability ${route.capability}`)
+  }
 }
 
 export function normalizeDashboardRouteKey(routeKey?: string | null): DashboardRouteKey {

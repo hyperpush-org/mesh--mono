@@ -26,7 +26,7 @@ export function CTA() {
             Restore confidence faster.
           </h2>
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10 text-pretty">
-            Bring errors, performance, releases, alerts, and root-cause context into one focused operational workflow.
+            Bring error events, grouped issues, recorded evidence, and in-product alerts into one focused workflow.
           </p>
           
           <div className="flex items-center justify-center">

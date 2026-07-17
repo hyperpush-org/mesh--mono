@@ -54,10 +54,10 @@ export function BusinessModelSlide({ slide }: { slide: SlideData }) {
         </div>
 
         <div className="grid grid-cols-[1fr_1fr] items-start gap-16">
-          {/* Pricing tiers */}
+          {/* Access posture */}
           <motion.div variants={fadeUp} className="space-y-6">
             <p className="font-mono text-[14px] uppercase tracking-[0.24em] text-muted-foreground">
-              Pricing tiers
+              Access posture
             </p>
             <div className="space-y-4">
               {tiers.map((t, i) => (

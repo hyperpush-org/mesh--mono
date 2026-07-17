@@ -10,7 +10,6 @@ WS_PORT_VALUE="${MESHER_WS_PORT:-18181}"
 CLUSTER_PORT_VALUE="${MESH_CLUSTER_PORT:-19180}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:${PORT_VALUE}}"
 USE_RUNNING_BACKEND="${MESHER_REUSE_RUNNING_BACKEND:-false}"
-DEFAULT_API_KEY="${MESHER_SEED_API_KEY:-mshr_devdefaultapikey000000000000000000000000000}"
 LOCAL_DATABASE_URL_DEFAULT='postgres://postgres:postgres@127.0.0.1:5432/mesher'
 DATABASE_URL_VALUE="${DATABASE_URL:-$LOCAL_DATABASE_URL_DEFAULT}"
 ARTIFACT_DIR="${MESHER_SEED_ARTIFACT_DIR:-$MESHER_PACKAGE_DIR/../.tmp/m060-s03/seed-live-admin-ops}"
@@ -19,7 +18,7 @@ BINARY_PATH="$BUILD_DIR/mesher"
 LOG_FILE="$ARTIFACT_DIR/mesher.log"
 STARTED_SERVER='false'
 SERVER_PID=''
-LAST_RESPONSE=''
+E2E_SESSION_TOKEN="${MESHER_E2E_SESSION_TOKEN:-hyperpush-e2e-session-token-0000000000000000000000000000}"
 
 readonly DEFAULT_ORG_SLUG='default'
 readonly DEFAULT_PROJECT_SLUG='default'
@@ -117,15 +116,12 @@ BINARY_PATH="$BUILD_DIR/mesher"
 LOG_FILE="$ARTIFACT_DIR/mesher.log"
 
 wait_for_settings() {
-  local last_response=''
   for _attempt in $(seq 1 80); do
-    if last_response="$(curl -fsS "$BASE_URL/api/v1/projects/default/settings" 2>/dev/null)"; then
-      LAST_RESPONSE="$last_response"
+    if curl -fsS "$BASE_URL/health/ready" >/dev/null 2>&1; then
       return 0
     fi
     sleep 0.25
   done
-  LAST_RESPONSE="$last_response"
   return 1
 }
 
@@ -199,7 +195,6 @@ configure_backend_endpoint() {
       CLUSTER_PORT_VALUE="$((isolated_port + 1000))"
     fi
     BASE_URL="http://127.0.0.1:${PORT_VALUE}"
-    LAST_RESPONSE=''
     printf '[seed-live-admin-ops] ignoring existing backend at %s; starting isolated verification backend at %s\n' "$original_base_url" "$BASE_URL" >&2
   fi
 }
@@ -211,6 +206,7 @@ start_backend() {
 
   printf '[seed-live-admin-ops] applying Mesher migrations before launch\n' >&2
   DATABASE_URL="$DATABASE_URL_VALUE" bash "$SCRIPT_DIR/migrate.sh" up
+  DATABASE_URL="$DATABASE_URL_VALUE" MESHER_E2E_SESSION_TOKEN="$E2E_SESSION_TOKEN" bash "$SCRIPT_DIR/seed-e2e-auth.sh"
 
   printf '[seed-live-admin-ops] building Mesher into %s\n' "$BUILD_DIR" >&2
   bash "$SCRIPT_DIR/build.sh" "$BUILD_DIR"
@@ -293,12 +289,20 @@ VALUES
   ('${OWNER_MEMBERSHIP_ID}'::uuid, '${OWNER_USER_ID}'::uuid, '${org_id}'::uuid, 'owner'),
   ('${ADMIN_MEMBERSHIP_ID}'::uuid, '${ADMIN_USER_ID}'::uuid, '${org_id}'::uuid, 'admin');
 
+INSERT INTO sessions (token, user_id, expires_at)
+VALUES ('${E2E_SESSION_TOKEN}', '${OWNER_USER_ID}'::uuid, now() + interval '24 hours')
+ON CONFLICT (token) DO UPDATE
+SET user_id = EXCLUDED.user_id,
+    created_at = now(),
+    expires_at = EXCLUDED.expires_at;
+
 DELETE FROM api_keys WHERE label = '${SEEDED_API_KEY_LABEL}' AND id != '${SEEDED_API_KEY_ID}'::uuid;
-INSERT INTO api_keys (id, project_id, key_value, label, revoked_at)
-VALUES ('${SEEDED_API_KEY_ID}'::uuid, '${project_id}'::uuid, '${SEEDED_API_KEY_VALUE}', '${SEEDED_API_KEY_LABEL}', NULL)
+INSERT INTO api_keys (id, project_id, key_prefix, key_hash, label, revoked_at)
+VALUES ('${SEEDED_API_KEY_ID}'::uuid, '${project_id}'::uuid, left('${SEEDED_API_KEY_VALUE}', 13), crypt('${SEEDED_API_KEY_VALUE}', gen_salt('bf', 12)), '${SEEDED_API_KEY_LABEL}', NULL)
 ON CONFLICT (id) DO UPDATE
 SET project_id = EXCLUDED.project_id,
-    key_value = EXCLUDED.key_value,
+    key_prefix = EXCLUDED.key_prefix,
+    key_hash = EXCLUDED.key_hash,
     label = EXCLUDED.label,
     revoked_at = NULL;
 
@@ -360,7 +364,7 @@ SQL
 }
 
 verify_readback_and_print() {
-  local org_id project_id retention_days sample_rate member_count candidate_membership_count owner_present admin_present seeded_key_value seeded_rule_id seeded_alert_status
+  local org_id project_id retention_days sample_rate member_count candidate_membership_count owner_present admin_present seeded_key_prefix seeded_rule_id seeded_alert_status
   org_id="$(psql_scalar "SELECT id::text FROM organizations WHERE slug = '${DEFAULT_ORG_SLUG}'")"
   project_id="$(psql_scalar "SELECT id::text FROM projects WHERE slug = '${DEFAULT_PROJECT_SLUG}'")"
   retention_days="$(psql_scalar "SELECT retention_days::text FROM projects WHERE id = '${project_id}'::uuid")"
@@ -369,11 +373,11 @@ verify_readback_and_print() {
   candidate_membership_count="$(psql_scalar "SELECT count(*)::text FROM org_memberships WHERE org_id = '${org_id}'::uuid AND user_id = '${CANDIDATE_USER_ID}'::uuid")"
   owner_present="$(psql_scalar "SELECT count(*)::text FROM org_memberships WHERE org_id = '${org_id}'::uuid AND user_id = '${OWNER_USER_ID}'::uuid")"
   admin_present="$(psql_scalar "SELECT count(*)::text FROM org_memberships WHERE org_id = '${org_id}'::uuid AND user_id = '${ADMIN_USER_ID}'::uuid")"
-  seeded_key_value="$(psql_scalar "SELECT key_value FROM api_keys WHERE id = '${SEEDED_API_KEY_ID}'::uuid AND label = '${SEEDED_API_KEY_LABEL}' AND revoked_at IS NULL")"
+  seeded_key_prefix="$(psql_scalar "SELECT key_prefix FROM api_keys WHERE id = '${SEEDED_API_KEY_ID}'::uuid AND label = '${SEEDED_API_KEY_LABEL}' AND revoked_at IS NULL")"
   seeded_rule_id="$(psql_scalar "SELECT id::text FROM alert_rules WHERE id = '${SEEDED_ALERT_RULE_ID}'::uuid AND name = '${SEEDED_RULE_NAME}'")"
   seeded_alert_status="$(psql_scalar "SELECT status FROM alerts WHERE id = '${SEEDED_ALERT_ID}'::uuid AND rule_id = '${SEEDED_ALERT_RULE_ID}'::uuid")"
 
-  python3 - "$retention_days" "$sample_rate" "$member_count" "$candidate_membership_count" "$owner_present" "$admin_present" "$seeded_key_value" "$seeded_rule_id" "$seeded_alert_status" "$OWNER_USER_ID" "$ADMIN_USER_ID" "$CANDIDATE_USER_ID" "$SEEDED_API_KEY_LABEL" "$SEEDED_RULE_NAME" "$SEEDED_ALERT_ID" <<'PY'
+  python3 - "$retention_days" "$sample_rate" "$member_count" "$candidate_membership_count" "$owner_present" "$admin_present" "$seeded_key_prefix" "$seeded_rule_id" "$seeded_alert_status" "$OWNER_USER_ID" "$ADMIN_USER_ID" "$CANDIDATE_USER_ID" "$SEEDED_API_KEY_LABEL" "$SEEDED_RULE_NAME" "$SEEDED_ALERT_ID" <<'PY'
 import json
 import sys
 
@@ -384,7 +388,7 @@ import sys
     candidate_membership_count,
     owner_present,
     admin_present,
-    seeded_key_value,
+    seeded_key_prefix,
     seeded_rule_id,
     seeded_alert_status,
     owner_user_id,
@@ -403,14 +407,14 @@ if owner_present != '1' or admin_present != '1':
     raise SystemExit('expected seeded owner/admin memberships in org_memberships')
 if candidate_membership_count != '0':
     raise SystemExit('candidate user_id must stay available for add-member proof')
-if not seeded_key_value:
+if not seeded_key_prefix:
     raise SystemExit('expected seeded active API key row in api_keys')
 if not seeded_rule_id:
     raise SystemExit('expected seeded alert rule row in alert_rules')
 if seeded_alert_status != 'active':
     raise SystemExit('expected seeded alert row with active status in alerts')
 
-masked_key = f"{seeded_key_value[:6]}••••{seeded_key_value[-4:]}" if len(seeded_key_value) > 10 else seeded_key_value
+masked_key = f"{seeded_key_prefix}••••"
 
 print(json.dumps({
     'databaseUrl': 'configured',

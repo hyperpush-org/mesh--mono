@@ -4,17 +4,18 @@ import { InfoBox, LegalList, LegalPage, Section, SubSection } from "@/components
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy Policy" lastUpdated="July 15, 2026">
+    <LegalPage title="Privacy Policy" lastUpdated="July 17, 2026">
       <InfoBox>
         <strong className="text-foreground">Summary:</strong> We collect only what is needed to
         provide the service. We never sell your data. Error data you send us is yours, and you can
-        request its deletion at any time. We use no third-party ad trackers.
+        request its deletion at any time. We do not use advertising trackers. Optional, deployment-controlled
+        Vercel Analytics and the waitlist processor are described below.
       </InfoBox>
 
       <Section number="1" title="Introduction" id="introduction">
         <p>
           hyperpush (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the hyperpush error tracking platform,
-          including the hosted service at hyperpush.dev, self-hosted installations, SDKs, APIs, and
+          including the hosted service at hyperpush.dev, self-hosted installations, APIs, and
           related documentation (collectively, the &quot;Service&quot;).
         </p>
         <p>
@@ -44,7 +45,6 @@ export default function PrivacyPage() {
               "Browser or runtime metadata (user agent, OS, and device information)",
               "Request URLs and HTTP headers",
               "Application environment tags, such as production or staging",
-              "Performance traces and timing data",
               "Custom context and tags you attach to events",
             ]}
           />
@@ -68,10 +68,8 @@ export default function PrivacyPage() {
           items={[
             "Provide, maintain, and improve the Service",
             "Process and display error events in your dashboard",
-            "Send transactional emails, alerts, and account notifications",
             "Detect abuse, fraud, and security incidents",
             "Generate aggregated and anonymized usage statistics",
-            "Provide AI-assisted error analysis when enabled",
           ]}
         />
       </Section>
@@ -83,7 +81,9 @@ export default function PrivacyPage() {
         </p>
         <LegalList
           items={[
-            "Service providers: infrastructure and email providers process data on our behalf under contractual obligations.",
+            "Infrastructure providers: the operator's hosting and database providers process service data to run the deployment.",
+            "Formspree: when the waitlist is enabled and you submit it, Formspree processes your name and email to acknowledge the signup.",
+            "Vercel Analytics: a deployment may enable privacy-focused page analytics with NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS; it is disabled by default in this source tree.",
             "Legal compliance: we may disclose information when required by law or valid legal process.",
             "Business transfer: data may transfer to a successor entity during a merger or acquisition.",
           ]}
@@ -91,8 +91,10 @@ export default function PrivacyPage() {
       </Section>
 
       <Section number="5" title="Data Retention" id="data-retention">
-        <p>Error event data is retained according to your plan:</p>
-        <LegalList items={["Starter: 30 days", "Pro: 60 days", "Pro+: 90 days"]} />
+        <p>
+          Error-event retention is configured per project from 1 to 365 days. The active value shown in
+          project settings controls event cleanup; shared database partitions retain an additional safety margin.
+        </p>
         <p>
           Account data is retained for the duration of your account. You may request deletion of
           your account and associated data at any time by emailing privacy@hyperpush.dev.
@@ -102,10 +104,11 @@ export default function PrivacyPage() {
       <Section number="6" title="Data Security" id="data-security">
         <LegalList
           items={[
-            "Encryption in transit for service connections",
-            "Encryption at rest for stored data",
-            "Role-based access controls and audit logging",
-            "Regular security assessments",
+            "TLS protects service connections when the deployment is configured behind HTTPS.",
+            "Passwords and API-key secrets are stored as one-way hashes; API-key secrets are revealed only when created.",
+            "Tenant-scoped owner, admin, and member authorization protects management routes.",
+            "Sensitive management mutations create redacted audit records without request bodies or credentials.",
+            "Storage encryption at rest is an infrastructure responsibility and depends on the selected hosting and database configuration.",
           ]}
         />
       </Section>
@@ -128,8 +131,9 @@ export default function PrivacyPage() {
 
       <Section number="8" title="Cookies" id="cookies">
         <p>
-          hyperpush uses essential cookies for authentication and session management. We do not use
-          advertising cookies or third-party tracking pixels.
+          The current management API uses bearer sessions rather than authentication cookies. Individual
+          deployments may add essential edge or authentication cookies and must disclose them. hyperpush does
+          not use advertising cookies or tracking pixels in this source tree.
         </p>
       </Section>
 

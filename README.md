@@ -27,9 +27,11 @@ Do not flatten the product package to `<workspace>/mesher`.
 
 ## Repo-root maintainer surfaces
 
+- `MOCK-SURFACE-CLOSEOUT-PLAN.md` — ordered vertical-slice plan for replacing or removing every mixed, shell-only, and mock-only product surface
 - `mesher/README.md` — Mesher maintainer runbook
-- `mesher/client/ROUTE-INVENTORY.md` — canonical client route inventory, backend gap map, and maintainer handoff
+- `mesher/client/ROUTE-INVENTORY.md` — canonical retained-route and unavailable-capability inventory
 - `bash mesher/scripts/verify-maintainer-surface.sh` — package-owned Mesher maintainer replay
+- `bash scripts/verify-platform.sh` — isolated PostgreSQL, backend, dashboard, landing, browser, accessibility, dependency, and bundle release gates
 - `bash scripts/verify-landing-surface.sh` — landing/root-surface verifier
 - `bash scripts/verify-m061-s04.sh` — root-level closeout wrapper for the canonical client inventory handoff
 - `.github/workflows/ci.yml` — product CI for Mesher + landing + `client`
@@ -43,7 +45,7 @@ Mesher build/test/migrate/smoke flows need `meshc`.
 The supported paths are:
 
 1. a blessed sibling `mesh-lang/` checkout with `target/debug/meshc`
-2. an explicit `MESHER_MESHC_BIN` + `MESHER_MESHC_SOURCE` override
+2. an explicit executable path in `MESHER_MESHC_BIN` (`MESHER_MESHC_SOURCE` is optional diagnostic metadata)
 3. `meshc` on `PATH`
 
 If you are working in the blessed sibling workspace, the normal path is:
@@ -58,7 +60,7 @@ If you are working in the blessed sibling workspace, the normal path is:
 
 Canonical product repo URL: https://github.com/hyperpush-org/hyperpush
 
-The landing app and `client` stay product-owned here. `mesher/landing` remains the intentional Next.js runtime surface; `mesher/client` owns the canonical Mesher dashboard route inventory, backend gap map, and maintainer handoff for later backend expansion slices.
+The landing app and `client` stay product-owned here. `mesher/landing` remains the intentional Next.js runtime surface; `mesher/client` owns the authenticated Issues, Alerts, and backed Settings launch surface. Performance, Releases, AI, delivery channels, commercial controls, unsupported security/profile writes, and self-service project creation are unavailable and absent from production UI until implemented and proven.
 
 ## Working rules
 
@@ -89,4 +91,3 @@ bash scripts/install-git-hooks.sh
 The product repo `pre-push` hook blocks accidental partial pushes whenever the sibling `mesh-lang` repo is present and still dirty.
 In a standalone product clone, the same tracked hook stays active but skips the cross-repo dirty-check because there is no sibling repo to inspect.
 If you intentionally need a one-sided push, override the guard for that command only with `M055_ALLOW_PARTIAL_PUSH=1 git push ...`.
-

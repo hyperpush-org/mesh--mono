@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "capabilities": {
+    "authenticated-session": {
+      "state": "live",
+      "publicLabel": "Authenticated dashboard sessions"
+    },
+    "project-context": {
+      "state": "live",
+      "publicLabel": "Organization and project context"
+    },
+    "issues": {
+      "state": "live",
+      "publicLabel": "Error grouping, issue lifecycle, stack traces, and breadcrumbs"
+    },
+    "alerts": {
+      "state": "live",
+      "publicLabel": "In-product alert detection and lifecycle"
+    },
+    "project-settings": {
+      "state": "live",
+      "publicLabel": "Sampling, retention, and storage settings"
+    },
+    "team-membership": {
+      "state": "live",
+      "publicLabel": "Team roles and membership management"
+    },
+    "api-keys": {
+      "state": "live",
+      "publicLabel": "Reveal-once ingestion API keys"
+    },
+    "alert-rules": {
+      "state": "live",
+      "publicLabel": "Validated alert rules"
+    }
+  }
+}

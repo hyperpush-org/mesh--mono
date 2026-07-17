@@ -9,6 +9,9 @@ const mesherBackendPort = Number(
 )
 const mesherWsPort = Number(process.env.MESHER_WS_PORT || String(mesherBackendPort + 1))
 const mesherClusterPort = Number(process.env.MESH_CLUSTER_PORT || String(mesherBackendPort + 1000))
+const e2eSessionToken =
+  process.env.MESHER_E2E_SESSION_TOKEN ||
+  'hyperpush-e2e-session-token-0000000000000000000000000000'
 
 type NamedProject = NonNullable<PlaywrightTestConfig['projects']>[number] & {
   name: string
@@ -93,6 +96,7 @@ function buildWebServers(
     `BUILD_DIR=${shellQuote(buildDir)}`,
     'rm -rf "$BUILD_DIR"',
     'env DATABASE_URL="$DATABASE_URL" bash ../scripts/migrate.sh up',
+    'env DATABASE_URL="$DATABASE_URL" MESHER_E2E_SESSION_TOKEN=' + shellQuote(e2eSessionToken) + ' bash ../scripts/seed-e2e-auth.sh',
     'bash ../scripts/build.sh "$BUILD_DIR"',
     'cd "$BUILD_DIR"',
     'DATABASE_URL="$DATABASE_URL" \\\nPORT=' + mesherBackendPort + ' \\\nMESHER_WS_PORT=' + mesherWsPort + ' \\\nMESH_CLUSTER_COOKIE="${MESH_CLUSTER_COOKIE:-dev-cookie}" \\\nMESH_NODE_NAME="${MESH_NODE_NAME:-mesher@127.0.0.1:' + mesherClusterPort + '}" \\\nMESH_DISCOVERY_SEED="${MESH_DISCOVERY_SEED:-localhost}" \\\nMESH_CLUSTER_PORT="${MESH_CLUSTER_PORT:-' + mesherClusterPort + '}" \\\nMESH_CONTINUITY_ROLE="${MESH_CONTINUITY_ROLE:-primary}" \\\nMESH_CONTINUITY_PROMOTION_EPOCH="${MESH_CONTINUITY_PROMOTION_EPOCH:-0}" \\\n./mesher',
@@ -134,6 +138,7 @@ const projects: NamedProject[] = [
     use: {
       ...devices['Desktop Chrome'],
       baseURL: devBaseUrl.toString(),
+      extraHTTPHeaders: { authorization: `Bearer ${e2eSessionToken}` },
     },
   },
   {
@@ -141,6 +146,7 @@ const projects: NamedProject[] = [
     use: {
       ...devices['Desktop Chrome'],
       baseURL: prodBaseUrl.toString(),
+      extraHTTPHeaders: { authorization: `Bearer ${e2eSessionToken}` },
     },
   },
 ]

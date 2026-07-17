@@ -16,8 +16,9 @@ function MeshBackground({ variant = "desktop" }: { variant?: MeshBackgroundVaria
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !containerRef.current) return
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    const context = canvas.getContext("2d")
+    if (!context) return
+    const ctx: CanvasRenderingContext2D = context
 
     let width = 0
     let height = 0
@@ -134,8 +135,9 @@ function MeshBackground({ variant = "desktop" }: { variant?: MeshBackgroundVaria
       }
     }
 
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
     function draw() {
-      if (!ctx) return
       ctx.clearRect(0, 0, width, height)
       time++
 
@@ -233,7 +235,7 @@ function MeshBackground({ variant = "desktop" }: { variant?: MeshBackgroundVaria
         ctx.fill()
       }
 
-      animationRef.current = requestAnimationFrame(draw)
+      if (!reducedMotion) animationRef.current = requestAnimationFrame(draw)
     }
 
     if (isInView) {
@@ -253,7 +255,14 @@ function MeshBackground({ variant = "desktop" }: { variant?: MeshBackgroundVaria
 
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none">
-      <canvas ref={canvasRef} className="absolute inset-0" />
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0"
+        role="img"
+        aria-label="Illustration of isolated Mesh actors exchanging events"
+      >
+        Mesh actors process events independently so one failure does not stop the system.
+      </canvas>
       <div className={fadeClass} />
     </div>
   )
@@ -284,18 +293,16 @@ export function Infrastructure() {
             <h2 className="mb-6 text-3xl font-bold tracking-tight text-balance sm:text-4xl md:text-5xl">
               Powered by Mesh.
               <br />
-              <span className="text-muted-foreground">Built for millions of events.</span>
+              <span className="text-muted-foreground">Compiled for the ingestion path.</span>
             </h2>
             <p className="mb-4 text-lg text-muted-foreground text-pretty">
               hyperpush runs on <strong className="text-foreground">Mesh</strong> — a systems language with
-              Elixir&apos;s fault-tolerant actor model and the raw speed of compiled code. Every error event
-              is handled by its own lightweight process that can&apos;t take down the system.
+              a lightweight actor model and compiled code. The ingestion path gives each accepted
+              error event an isolated processing boundary before it is committed.
             </p>
             <p className="text-muted-foreground text-pretty">
-              The same concurrency model that makes Erlang/Elixir legendary for uptime, but
-              <strong className="text-foreground"> 140% faster</strong> on equivalent workloads. Millions
-              of concurrent processes, sub-millisecond spawn times, and automatic supervision trees
-              that self-heal on failure.
+              The launch proof exercises typed ingestion, duplicate-idempotency, grouping, lifecycle,
+              retention, and tenant isolation. We publish only behavior demonstrated by that release gate.
             </p>
 
             <motion.div

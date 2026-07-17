@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  typescript: {
-    ignoreBuildErrors: true,
+  turbopack: {
+    root: process.cwd(),
   },
   images: {
     unoptimized: true,

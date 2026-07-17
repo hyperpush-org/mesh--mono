@@ -36,7 +36,7 @@ export interface DeckData {
 export const deckData: DeckData = {
   routeTitle: 'hyperpush — Investor Pitch Deck',
   routeDescription:
-    'Production error tracking backed by a compiled runtime designed for isolation and recovery.',
+    'A private-beta error-tracking product backed by a compiled Mesh server and executable launch proof.',
   slides: [
     {
       id: 'title',
@@ -44,84 +44,83 @@ export const deckData: DeckData = {
       eyebrow: 'hyperpush',
       title: 'The incident workflow\nteams can trust.',
       subtitle:
-        'Production error tracking with actor isolation, cluster failover, and a focused path from detection to recovery.',
+        'Production error tracking with live issue evidence, lifecycle controls, and in-product alerts.',
       metrics: [
         { label: 'Category', value: 'Error Tracking' },
         { label: 'Moat', value: 'Mesh Runtime' },
-        { label: 'Model', value: 'SaaS + Self-hosted' },
+        { label: 'Stage', value: 'Private beta' },
       ],
     },
     {
       id: 'problem',
       layout: 'problem',
       eyebrow: 'The problem',
-      title: 'Error tracking is expensive, brittle, and disconnected from recovery.',
+      title: 'Error tracking gets noisy before a team can act.',
       bullets: [
         'Teams pay for dashboards that surface problems but leave ownership and resolution elsewhere.',
-        'A malformed event can stall a conventional ingestion pipeline without strong isolation.',
-        'Triage, release context, and recovery verification are split across disconnected tools.',
+        'Missing or synthetic context makes a polished dashboard less trustworthy, not more useful.',
+        'Core event evidence and issue lifecycle state are often split across disconnected tools.',
       ],
       metrics: [
-        { label: 'Avg spend', value: '$50k+/yr' },
-        { label: 'Mean backlog', value: '3,200 issues' },
-        { label: 'Fix rate', value: '<12%' },
+        { label: 'Product rule', value: 'Live only' },
+        { label: 'Fallback data', value: 'None' },
+        { label: 'Launch stage', value: 'Private beta' },
       ],
     },
     {
       id: 'solution',
       layout: 'solution',
       eyebrow: 'The solution',
-      title: 'hyperpush: ingest, isolate, assign, and verify.',
+      title: 'hyperpush: ingest, group, inspect, and act.',
       subtitle:
-        'A production workflow that turns noisy events into owned incidents with visible release context.',
+        'A project-scoped workflow that turns accepted events into grouped issues with recorded evidence.',
       bullets: [
         'Per-event actor isolation contains failures before they cascade.',
-        'Automatic grouping, severity ranking, and ownership accelerate triage.',
-        'Release-aware verification shows whether a fix actually restored health.',
+        'Fingerprint grouping, live severity, and lifecycle state focus the issue queue.',
+        'Stack traces, breadcrumbs, tags, environment, SDK, and session context stay source-attributable.',
       ],
     },
     {
       id: 'product',
       layout: 'product',
       eyebrow: 'The product',
-      title: 'Ship, capture, resolve — in one workflow.',
-      body: 'A deployable error-tracking pipeline that connects events, ownership, release context, and recovery.',
+      title: 'Capture, inspect, act — in one workflow.',
+      body: 'A deployable error-tracking pipeline that connects accepted events, grouped issues, evidence, and lifecycle state.',
       extra: {
         panels: [
-          { icon: 'capture', label: 'Capture', text: 'SDK and HTTP ingestion for every environment.' },
+          { icon: 'capture', label: 'Capture', text: 'Authenticated typed HTTP event ingestion.' },
           { icon: 'group', label: 'Group', text: 'Fingerprint-based deduplication and severity scoring.' },
-          { icon: 'assign', label: 'Assign', text: 'Route incidents to the team that can act.' },
-          { icon: 'resolve', label: 'Verify', text: 'Release health confirms recovery.' },
+          { icon: 'assign', label: 'Inspect', text: 'Recorded stack traces, breadcrumbs, and tags.' },
+          { icon: 'resolve', label: 'Act', text: 'Issue and in-product alert lifecycle controls.' },
         ],
-        image: '/promo-performance.png',
       },
     },
     {
       id: 'technology',
       layout: 'technology',
       eyebrow: 'Technology moat',
-      title: "Mesh: the runtime advantage you can’t bolt on.",
+      title: 'Mesh: the backend language proven by the product.',
       subtitle:
-        'A compiled language with actor isolation, cluster-native failover, and operator-visible recovery.',
+        'An LLVM-backed language with actor primitives, HTTP routing, and database integration.',
       extra: {
         pillars: [
           {
             icon: 'shield',
             label: 'Actor Isolation',
-            title: 'One bad event never stalls the queue.',
-            detail: 'Each event runs in an isolated actor, containing crashes instead of cascading them.',
+            title: 'Each accepted event gets a processing boundary.',
+            detail: 'The checked-in ingestion path starts an event actor before storage and grouping.',
           },
           {
             icon: 'refresh',
-            label: 'Cluster Failover',
-            title: 'Nodes recover without manual intervention.',
-            detail: 'Continuity state replicates across the cluster and recovery occurs at runtime level.',
+            label: 'Service Integration',
+            title: 'The API and database compile together.',
+            detail: 'Routes, authorization, validation, migrations, and queries are exercised as one server.',
           },
           {
             icon: 'zap',
-            label: 'Compiled Performance',
-            title: 'Native throughput without interpreter overhead.',
-            detail: 'Mesh compiles through LLVM for predictable production performance.',
+            label: 'Executable Proof',
+            title: 'Launch claims have named checks.',
+            detail: 'The release gate builds the server and probes the live management and ingestion workflows.',
           },
         ],
       },
@@ -129,37 +128,37 @@ export const deckData: DeckData = {
     {
       id: 'market',
       layout: 'market',
-      eyebrow: 'Market size',
-      title: 'A $4.2B market with consolidation pressure.',
+      eyebrow: 'Launch scope',
+      title: 'A narrow wedge with an honest expansion boundary.',
       metrics: [
-        { label: 'TAM', value: '$4.2B' },
-        { label: 'SAM', value: '$1.1B' },
-        { label: 'SOM', value: '$120M' },
+        { label: 'Live', value: 'Issues' },
+        { label: 'Live', value: 'Alerts' },
+        { label: 'Live', value: 'Settings' },
       ],
       extra: {
         segments: [
-          { label: 'TAM', value: '$4.2B', detail: 'Application monitoring and error tracking.' },
-          { label: 'SAM', value: '$1.1B', detail: 'Teams evaluating private or self-hosted alternatives.' },
-          { label: 'SOM', value: '$120M', detail: 'Developer teams ready for a runtime-native platform.' },
+          { label: 'Core', value: 'Live', detail: 'Issues, alerts, and project administration.' },
+          { label: 'Trust', value: 'Gated', detail: 'Every retained route reads live backend facts.' },
+          { label: 'Growth', value: 'Later', detail: 'New modules require implementation and proof before a public claim.' },
         ],
       },
     },
     {
       id: 'business-model',
       layout: 'business-model',
-      eyebrow: 'Business model',
-      title: 'Subscription SaaS + self-hosted deployments.',
+      eyebrow: 'Access model',
+      title: 'Private beta first. Commercial terms later.',
       extra: {
         tiers: [
-          { name: 'Starter', price: 'Free', detail: 'Core workflow for one production project.' },
-          { name: 'Pro', price: '$29/mo', detail: 'AI analysis, release health, and team workflows.' },
-          { name: 'Pro+', price: '$100/mo', detail: 'Higher limits, SSO, audit logs, and dedicated support.' },
+          { name: 'Now', price: 'Beta', detail: 'Invitation-based access to the live launch surface.' },
+          { name: 'Pricing', price: 'Unset', detail: 'No published prices, allowances, or paid entitlements.' },
+          { name: 'Later', price: 'Gated', detail: 'Commercial offers must match a capability catalog entry and proof.' },
         ],
         flywheel: [
           { step: 'Detect', text: 'Errors become grouped, actionable incidents.' },
           { step: 'Triage', text: 'Context and ownership shorten time to action.' },
-          { step: 'Resolve', text: 'Teams ship fixes with release context attached.' },
-          { step: 'Retain', text: 'Verified recovery builds trust in the workflow.' },
+          { step: 'Resolve', text: 'Teams manage issue and alert lifecycle state.' },
+          { step: 'Retain', text: 'Source-attributed evidence builds trust in the workflow.' },
         ],
       },
     },
@@ -171,12 +170,12 @@ export const deckData: DeckData = {
       bullets: [
         'Deployable ingestion and dashboard pipeline.',
         'Working compiler, runtime, package manager, and language server.',
-        'Core issue, performance, release, alert, and settings workflows implemented.',
+        'Issue, in-product alert, and backed settings workflows implemented.',
       ],
       metrics: [
         { label: 'Compiler', value: 'Shipped' },
-        { label: 'Clustering', value: 'Proven' },
-        { label: 'Package mgr', value: 'Live' },
+        { label: 'Launch gate', value: 'Executable' },
+        { label: 'Mock routes', value: 'Removed' },
         { label: 'Distribution', value: 'Private beta' },
       ],
     },
@@ -189,7 +188,7 @@ export const deckData: DeckData = {
         members: [
           {
             role: 'Founder & Runtime Engineer',
-            focus: 'Compiler, clustering, continuity, and product workflows ship together.',
+            focus: 'Compiler, backend, product workflows, and release proof ship together.',
           },
         ],
         strengths: [
@@ -208,8 +207,8 @@ export const deckData: DeckData = {
       extra: {
         asks: [
           { label: 'Back the product', detail: 'Fund the fastest path to a better production incident workflow.' },
-          { label: 'Back the moat', detail: 'Prove that Mesh-native isolation and recovery matter commercially.' },
-          { label: 'Back the scale', detail: 'Turn dependable ingestion and fast recovery into durable retention.' },
+          { label: 'Back the moat', detail: 'Prove that a Mesh-native backend can support a trusted product.' },
+          { label: 'Back the scale', detail: 'Expand only after each new capability earns executable proof.' },
         ],
         close: 'hyperpush is the product that wins now. Mesh is the reason the upside keeps widening.',
       },

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
+import Link from "next/link"
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,12 +42,6 @@ async function submitToFormspree(name: string, email: string): Promise<void> {
   if (!response.ok) throw new Error("Submission failed")
 }
 
-async function submitMailto(name: string, email: string): Promise<void> {
-  const recipient = process.env.NEXT_PUBLIC_WAITLIST_EMAIL ?? "yurlovandrew@gmail.com"
-  const body = `Name%3A%20${encodeURIComponent(name)}%0AEmail%3A%20${encodeURIComponent(email)}`
-  window.location.href = `mailto:${recipient}?subject=Waitlist%20signup&body=${body}`
-}
-
 export function WaitlistDialog({ open, onOpenChange }: WaitlistDialogProps) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -61,12 +56,15 @@ export function WaitlistDialog({ open, onOpenChange }: WaitlistDialogProps) {
     setErrorMessage("")
 
     try {
-      if (FORMSPREE_TARGET) await submitToFormspree(name, email)
-      else await submitMailto(name, email)
+      await submitToFormspree(name, email)
       setStatus("success")
     } catch {
       setStatus("error")
-      setErrorMessage("Something went wrong. Please try again.")
+      setErrorMessage(
+        FORMSPREE_TARGET
+          ? "We could not confirm your signup. Please retry."
+          : "Waitlist signup is temporarily unavailable.",
+      )
     }
   }
 
@@ -136,15 +134,26 @@ export function WaitlistDialog({ open, onOpenChange }: WaitlistDialogProps) {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required
+                  aria-describedby="waitlist-privacy waitlist-error"
+                  aria-invalid={status === "error"}
                   disabled={status === "loading"}
                   className="border-border bg-background"
                   autoComplete="email"
                 />
               </div>
 
-              {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
+              <p id="waitlist-error" aria-live="polite" role={errorMessage ? "alert" : undefined} className="min-h-5 text-sm text-destructive">
+                {errorMessage}
+              </p>
 
-              <Button type="submit" className="w-full gap-2" disabled={status === "loading" || !email}>
+              <p id="waitlist-privacy" className="text-xs text-muted-foreground">
+                Formspree processes this submission for hyperpush. See our{' '}
+                <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                  Privacy Policy
+                </Link>.
+              </p>
+
+              <Button type="submit" className="w-full gap-2" disabled={status === "loading" || !email || !FORMSPREE_TARGET}>
                 {status === "loading" ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -155,12 +164,6 @@ export function WaitlistDialog({ open, onOpenChange }: WaitlistDialogProps) {
                 )}
               </Button>
             </form>
-
-            {!FORMSPREE_TARGET && (
-              <p className="text-center text-xs text-muted-foreground/50">
-                Set NEXT_PUBLIC_FORMSPREE_ID to enable email capture
-              </p>
-            )}
           </>
         )}
       </DialogContent>
@@ -177,13 +180,19 @@ interface WaitlistButtonProps {
 
 export function WaitlistButton({ size, variant, className, children }: WaitlistButtonProps) {
   const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next)
+    if (!next) setTimeout(() => triggerRef.current?.focus(), 350)
+  }
 
   return (
     <>
-      <Button size={size} variant={variant} className={className} onClick={() => setOpen(true)}>
+      <Button ref={triggerRef} size={size} variant={variant} className={className} onClick={() => setOpen(true)}>
         {children ?? "Join Waitlist"}
       </Button>
-      <WaitlistDialog open={open} onOpenChange={setOpen} />
+      <WaitlistDialog open={open} onOpenChange={handleOpenChange} />
     </>
   )
 }

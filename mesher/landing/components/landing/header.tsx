@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Menu, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -26,6 +27,17 @@ interface HeaderProps {
 export function Header({ section, maxWidth = "max-w-7xl", extraActions }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [waitlistOpen, setWaitlistOpen] = useState(false)
+  const waitlistTriggerRef = useRef<HTMLButtonElement | null>(null)
+
+  function openWaitlist(event: React.MouseEvent<HTMLButtonElement>) {
+    waitlistTriggerRef.current = event.currentTarget
+    setWaitlistOpen(true)
+  }
+
+  function handleWaitlistOpenChange(next: boolean) {
+    setWaitlistOpen(next)
+    if (!next) setTimeout(() => waitlistTriggerRef.current?.focus(), 350)
+  }
 
   return (
     <>
@@ -34,9 +46,13 @@ export function Header({ section, maxWidth = "max-w-7xl", extraActions }: Header
           <div className="flex items-center justify-between py-3">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 shrink-0">
-              <img
+              <Image
                 src="/logo-light.svg"
                 alt="hyperpush"
+                width={132}
+                height={28}
+                loading="eager"
+                fetchPriority="high"
                 className="h-7"
               />
               {section && (
@@ -60,7 +76,7 @@ export function Header({ section, maxWidth = "max-w-7xl", extraActions }: Header
             {/* Desktop CTA */}
             <div className="hidden md:flex items-center gap-3 lg:gap-4">
               {extraActions}
-              <Button size="sm" onClick={() => setWaitlistOpen(true)}>
+              <Button size="sm" onClick={openWaitlist}>
                 Join Waitlist
               </Button>
             </div>
@@ -100,7 +116,8 @@ export function Header({ section, maxWidth = "max-w-7xl", extraActions }: Header
                   <div className="pt-3 border-t border-border">
                     <Button
                       className="w-full"
-                      onClick={() => {
+                      onClick={(event) => {
+                        waitlistTriggerRef.current = event.currentTarget
                         setMobileMenuOpen(false)
                         setWaitlistOpen(true)
                       }}
@@ -115,7 +132,7 @@ export function Header({ section, maxWidth = "max-w-7xl", extraActions }: Header
         </nav>
       </header>
 
-      <WaitlistDialog open={waitlistOpen} onOpenChange={setWaitlistOpen} />
+      <WaitlistDialog open={waitlistOpen} onOpenChange={handleWaitlistOpenChange} />
     </>
   )
 }

@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "capabilities": {
+    "authenticated-session": {
+      "owner": "product-platform",
+      "state": "live",
+      "publicLabel": "Authenticated dashboard sessions",
+      "proof": "bash scripts/verify-platform.sh"
+    },
+    "project-context": {
+      "owner": "product-platform",
+      "state": "live",
+      "publicLabel": "Organization and project context",
+      "proof": "bash scripts/verify-platform.sh"
+    },
+    "issues": {
+      "owner": "error-tracking",
+      "state": "live",
+      "publicLabel": "Error grouping, issue lifecycle, stack traces, and breadcrumbs",
+      "proof": "bash scripts/verify-platform.sh"
+    },
+    "alerts": {
+      "owner": "error-tracking",
+      "state": "live",
+      "publicLabel": "In-product alert detection and lifecycle",
+      "proof": "bash scripts/verify-platform.sh"
+    },
+    "project-settings": {
+      "owner": "product-platform",
+      "state": "live",
+      "publicLabel": "Sampling, retention, and storage settings",
+      "proof": "bash scripts/verify-platform.sh"
+    },
+    "team-membership": {
+      "owner": "product-platform",
+      "state": "live",
+      "publicLabel": "Team roles and membership management",
+      "proof": "bash scripts/verify-platform.sh"
+    },
+    "api-keys": {
+      "owner": "product-platform",
+      "state": "live",
+      "publicLabel": "Reveal-once ingestion API keys",
+      "proof": "bash scripts/verify-platform.sh"
+    },
+    "alert-rules": {
+      "owner": "error-tracking",
+      "state": "live",
+      "publicLabel": "Validated alert rules",
+      "proof": "bash scripts/verify-platform.sh"
+    },
+    "releases": {
+      "owner": "release-intelligence",
+      "state": "unavailable",
+      "publicLabel": "Release health",
+      "proof": ""
+    },
+    "recovery-receipts": {
+      "owner": "release-intelligence",
+      "state": "unavailable",
+      "publicLabel": "Recovery verification",
+      "proof": ""
+    },
+    "performance": {
+      "owner": "telemetry",
+      "state": "unavailable",
+      "publicLabel": "Performance monitoring",
+      "proof": ""
+    },
+    "ai-analysis": {
+      "owner": "agent-workflows",
+      "state": "unavailable",
+      "publicLabel": "AI-assisted analysis",
+      "proof": ""
+    },
+    "notification-delivery": {
+      "owner": "alerting",
+      "state": "unavailable",
+      "publicLabel": "Email, Slack, PagerDuty, and webhook delivery",
+      "proof": ""
+    },
+    "integrations": {
+      "owner": "integrations",
+      "state": "unavailable",
+      "publicLabel": "Source-control and incident integrations",
+      "proof": ""
+    },
+    "billing": {
+      "owner": "commercial",
+      "state": "unavailable",
+      "publicLabel": "Paid plans and billing controls",
+      "proof": ""
+    },
+    "enterprise-security": {
+      "owner": "commercial",
+      "state": "unavailable",
+      "publicLabel": "SSO, SCIM, and organization security policies",
+      "proof": ""
+    },
+    "profile-writes": {
+      "owner": "product-platform",
+      "state": "unavailable",
+      "publicLabel": "Profile editing",
+      "proof": ""
+    },
+    "project-creation": {
+      "owner": "product-platform",
+      "state": "unavailable",
+      "publicLabel": "Self-service project creation",
+      "proof": ""
+    }
+  }
+}

@@ -10,7 +10,6 @@ playwright-report
 
 # VCS and local config
 .git
-.gitignore
 *.log
 .env
 .env.*

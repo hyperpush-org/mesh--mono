@@ -16,24 +16,25 @@ import {
   MesherApiError,
   type MesherApiErrorCode,
   addOrgMember,
-  createDefaultProjectAlertRule,
-  createDefaultProjectApiKey,
+  createProjectAlertRule,
+  createProjectApiKey,
   deleteAlertRule,
-  fetchDefaultProjectAlertRules,
-  fetchDefaultProjectApiKeys,
-  fetchDefaultProjectSettings,
-  fetchDefaultProjectStorage,
+  fetchProjectAlertRules,
+  fetchProjectApiKeys,
+  fetchProjectSettings,
+  fetchProjectStorage,
   fetchOrgMembers,
   removeOrgMember,
   revokeApiKey,
   toggleAlertRule,
-  updateDefaultProjectSettings,
+  updateProjectSettings,
   updateOrgMemberRole,
 } from '@/lib/mesher-api'
+import { useDashboardSession } from '@/components/dashboard/dashboard-session'
 
 export type SettingsLiveSection = 'general' | 'team' | 'api-keys' | 'alert-rules'
 export type SettingsSectionState = 'loading' | 'ready' | 'failed'
-export type SettingsSectionSource = 'mixed' | 'live' | 'fallback'
+export type SettingsSectionSource = 'live'
 export type SettingsMutationStage = 'validation' | 'mutation' | 'refresh'
 export type SettingsMutationPhase = 'idle' | 'mutating' | 'refreshing' | 'failed'
 
@@ -141,7 +142,7 @@ function emptyGeneralState(): GeneralSectionState {
     form: { ...DEFAULT_GENERAL_FORM },
     formErrors: {},
     state: 'loading',
-    source: 'fallback',
+    source: 'live',
     error: null,
     mutationPhase: 'idle',
     mutationError: null,
@@ -156,7 +157,7 @@ function emptyApiKeysState(): ApiKeysSectionState {
     createError: null,
     reveal: null,
     state: 'loading',
-    source: 'fallback',
+    source: 'live',
     error: null,
     mutationPhase: 'idle',
     mutationError: null,
@@ -173,7 +174,7 @@ function emptyAlertRulesState(): AlertRulesSectionState {
     createCooldownMinutes: DEFAULT_ALERT_RULE_FORM.cooldownMinutes,
     createErrors: {},
     state: 'loading',
-    source: 'fallback',
+    source: 'live',
     error: null,
     mutationPhase: 'idle',
     mutationError: null,
@@ -188,7 +189,7 @@ function emptyTeamState(): TeamSectionState {
     createRole: DEFAULT_TEAM_FORM.role,
     createError: null,
     state: 'loading',
-    source: 'fallback',
+    source: 'live',
     error: null,
     mutationPhase: 'idle',
     mutationError: null,
@@ -376,6 +377,11 @@ function parseTeamRole(raw: string) {
 }
 
 export function useSettingsLiveState() {
+  const { activeProject } = useDashboardSession()
+  const projectId = activeProject?.id ?? ''
+  const orgId = activeProject?.orgId ?? ''
+  const projectApiPath = `/api/v1/projects/${encodeURIComponent(projectId)}`
+  const orgApiPath = `/api/v1/orgs/${encodeURIComponent(orgId)}`
   const [general, setGeneral] = useState<GeneralSectionState>(() => emptyGeneralState())
   const [team, setTeam] = useState<TeamSectionState>(() => emptyTeamState())
   const [apiKeys, setApiKeys] = useState<ApiKeysSectionState>(() => emptyApiKeysState())
@@ -406,7 +412,7 @@ export function useSettingsLiveState() {
   )
 
   const refreshGeneral = useCallback(
-    async ({ preserveStateOnFailure = false }: { preserveStateOnFailure?: boolean } = {}) => {
+    async ({ preserveStateOnFailure: _preserveStateOnFailure = false }: { preserveStateOnFailure?: boolean } = {}) => {
       generalAbortRef.current?.abort()
       const abortController = new AbortController()
       generalAbortRef.current = abortController
@@ -419,8 +425,8 @@ export function useSettingsLiveState() {
 
       try {
         const [settings, storage] = await Promise.all([
-          fetchDefaultProjectSettings(abortController.signal),
-          fetchDefaultProjectStorage(abortController.signal),
+          fetchProjectSettings(projectId, abortController.signal),
+          fetchProjectStorage(projectId, abortController.signal),
         ])
         if (abortController.signal.aborted) {
           return null
@@ -436,7 +442,7 @@ export function useSettingsLiveState() {
           },
           formErrors: {},
           state: 'ready',
-          source: 'mixed',
+          source: 'live',
           error: null,
         }))
         return snapshot
@@ -445,11 +451,11 @@ export function useSettingsLiveState() {
           return null
         }
 
-        const normalized = toSectionError(error, '/api/v1/projects/default/settings')
+        const normalized = toSectionError(error, `${projectApiPath}/settings`)
         setGeneral((current) => ({
           ...current,
           state: 'failed',
-          source: 'fallback',
+          source: 'live',
           error: normalized,
         }))
         showSectionFailureToast('general', normalized)
@@ -460,11 +466,11 @@ export function useSettingsLiveState() {
         }
       }
     },
-    [],
+    [projectApiPath, projectId],
   )
 
   const refreshTeam = useCallback(
-    async ({ preserveStateOnFailure = false }: { preserveStateOnFailure?: boolean } = {}) => {
+    async ({ preserveStateOnFailure: _preserveStateOnFailure = false }: { preserveStateOnFailure?: boolean } = {}) => {
       teamAbortRef.current?.abort()
       const abortController = new AbortController()
       teamAbortRef.current = abortController
@@ -476,7 +482,7 @@ export function useSettingsLiveState() {
       }))
 
       try {
-        const members = await fetchOrgMembers('default', abortController.signal)
+        const members = await fetchOrgMembers(orgId, abortController.signal)
         if (abortController.signal.aborted) {
           return null
         }
@@ -495,11 +501,11 @@ export function useSettingsLiveState() {
           return null
         }
 
-        const normalized = toSectionError(error, '/api/v1/orgs/default/members')
+        const normalized = toSectionError(error, `${orgApiPath}/members`)
         setTeam((current) => ({
           ...current,
           state: 'failed',
-          source: 'fallback',
+          source: 'live',
           error: normalized,
         }))
         showSectionFailureToast('team', normalized)
@@ -510,11 +516,11 @@ export function useSettingsLiveState() {
         }
       }
     },
-    [],
+    [orgApiPath, orgId],
   )
 
   const refreshApiKeys = useCallback(
-    async ({ preserveStateOnFailure = false }: { preserveStateOnFailure?: boolean } = {}) => {
+    async ({ preserveStateOnFailure: _preserveStateOnFailure = false }: { preserveStateOnFailure?: boolean } = {}) => {
       apiKeysAbortRef.current?.abort()
       const abortController = new AbortController()
       apiKeysAbortRef.current = abortController
@@ -526,7 +532,7 @@ export function useSettingsLiveState() {
       }))
 
       try {
-        const keys = await fetchDefaultProjectApiKeys(abortController.signal)
+        const keys = await fetchProjectApiKeys(projectId, abortController.signal)
         if (abortController.signal.aborted) {
           return null
         }
@@ -545,11 +551,11 @@ export function useSettingsLiveState() {
           return null
         }
 
-        const normalized = toSectionError(error, '/api/v1/projects/default/api-keys')
+        const normalized = toSectionError(error, `${projectApiPath}/api-keys`)
         setApiKeys((current) => ({
           ...current,
           state: 'failed',
-          source: 'fallback',
+          source: 'live',
           error: normalized,
         }))
         showSectionFailureToast('api-keys', normalized)
@@ -560,11 +566,11 @@ export function useSettingsLiveState() {
         }
       }
     },
-    [],
+    [projectApiPath, projectId],
   )
 
   const refreshAlertRules = useCallback(
-    async ({ preserveStateOnFailure = false }: { preserveStateOnFailure?: boolean } = {}) => {
+    async ({ preserveStateOnFailure: _preserveStateOnFailure = false }: { preserveStateOnFailure?: boolean } = {}) => {
       alertRulesAbortRef.current?.abort()
       const abortController = new AbortController()
       alertRulesAbortRef.current = abortController
@@ -576,7 +582,7 @@ export function useSettingsLiveState() {
       }))
 
       try {
-        const rules = await fetchDefaultProjectAlertRules(abortController.signal)
+        const rules = await fetchProjectAlertRules(projectId, abortController.signal)
         if (abortController.signal.aborted) {
           return null
         }
@@ -595,11 +601,11 @@ export function useSettingsLiveState() {
           return null
         }
 
-        const normalized = toSectionError(error, '/api/v1/projects/default/alert-rules')
+        const normalized = toSectionError(error, `${projectApiPath}/alert-rules`)
         setAlertRules((current) => ({
           ...current,
           state: 'failed',
-          source: 'fallback',
+          source: 'live',
           error: normalized,
         }))
         showSectionFailureToast('alert-rules', normalized)
@@ -610,7 +616,7 @@ export function useSettingsLiveState() {
         }
       }
     },
-    [],
+    [projectApiPath, projectId],
   )
 
   useEffect(() => {
@@ -644,11 +650,11 @@ export function useSettingsLiveState() {
 
     if (!retention.value || sampleRate.value === null) {
       const validationError = toMutationError(
-        new MesherApiError('invalid-payload', '/api/v1/projects/default/settings', 'Settings form validation failed'),
+        new MesherApiError('invalid-payload', `${projectApiPath}/settings`, 'Settings form validation failed'),
         'general',
         'update-settings',
         'validation',
-        '/api/v1/projects/default/settings',
+        `${projectApiPath}/settings`,
       )
       setGeneral((current) => ({
         ...current,
@@ -668,12 +674,12 @@ export function useSettingsLiveState() {
     rememberMutation('general', 'update-settings', 'mutating', null)
 
     try {
-      await updateDefaultProjectSettings({
+      await updateProjectSettings(projectId, {
         retention_days: retention.value,
         sample_rate: sampleRate.value,
       })
     } catch (error) {
-      const mutationError = toMutationError(error, 'general', 'update-settings', 'mutation', '/api/v1/projects/default/settings')
+      const mutationError = toMutationError(error, 'general', 'update-settings', 'mutation', `${projectApiPath}/settings`)
       setGeneral((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -700,7 +706,7 @@ export function useSettingsLiveState() {
       }))
       rememberMutation('general', 'update-settings', 'idle', null)
     } catch (error) {
-      const refreshError = toMutationError(error, 'general', 'update-settings', 'refresh', '/api/v1/projects/default/settings')
+      const refreshError = toMutationError(error, 'general', 'update-settings', 'refresh', `${projectApiPath}/settings`)
       setGeneral((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -709,7 +715,7 @@ export function useSettingsLiveState() {
       rememberMutation('general', 'update-settings', 'failed', refreshError)
       showMutationFailureToast(refreshError)
     }
-  }, [general.form.retentionDays, general.form.sampleRatePercent, refreshGeneral, rememberMutation])
+  }, [general.form.retentionDays, general.form.sampleRatePercent, projectApiPath, projectId, refreshGeneral, rememberMutation])
 
   const createTeamMember = useCallback(async () => {
     const userId = team.createUserId.trim()
@@ -718,11 +724,11 @@ export function useSettingsLiveState() {
     if (!userId || !role.value) {
       const validationMessage = !userId ? 'Enter a raw user_id.' : role.error ?? 'Use owner, admin, or member.'
       const validationError = toMutationError(
-        new MesherApiError('invalid-payload', '/api/v1/orgs/default/members', 'Team form validation failed'),
+        new MesherApiError('invalid-payload', `${orgApiPath}/members`, 'Team form validation failed'),
         'team',
         'add-team-member',
         'validation',
-        '/api/v1/orgs/default/members',
+        `${orgApiPath}/members`,
       )
       setTeam((current) => ({
         ...current,
@@ -744,9 +750,9 @@ export function useSettingsLiveState() {
     rememberMutation('team', 'add-team-member', 'mutating', null)
 
     try {
-      await addOrgMember('default', { user_id: userId, role: role.value })
+      await addOrgMember(orgId, { user_id: userId, role: role.value })
     } catch (error) {
-      const mutationError = toMutationError(error, 'team', 'add-team-member', 'mutation', '/api/v1/orgs/default/members')
+      const mutationError = toMutationError(error, 'team', 'add-team-member', 'mutation', `${orgApiPath}/members`)
       setTeam((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -777,7 +783,7 @@ export function useSettingsLiveState() {
       }))
       rememberMutation('team', 'add-team-member', 'idle', null)
     } catch (error) {
-      const refreshError = toMutationError(error, 'team', 'add-team-member', 'refresh', '/api/v1/orgs/default/members')
+      const refreshError = toMutationError(error, 'team', 'add-team-member', 'refresh', `${orgApiPath}/members`)
       setTeam((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -786,17 +792,17 @@ export function useSettingsLiveState() {
       rememberMutation('team', 'add-team-member', 'failed', refreshError)
       showMutationFailureToast(refreshError)
     }
-  }, [refreshTeam, rememberMutation, team.createRole, team.createUserId])
+  }, [orgApiPath, orgId, refreshTeam, rememberMutation, team.createRole, team.createUserId])
 
   const updateTeamRole = useCallback(async (membershipId: string, roleRaw: string) => {
     const role = parseTeamRole(roleRaw)
     if (!role.value) {
       const validationError = toMutationError(
-        new MesherApiError('invalid-payload', `/api/v1/orgs/default/members/${encodeURIComponent(membershipId)}/role`, 'Team role validation failed'),
+        new MesherApiError('invalid-payload', `${orgApiPath}/members/${encodeURIComponent(membershipId)}/role`, 'Team role validation failed'),
         'team',
         'update-team-role',
         'validation',
-        `/api/v1/orgs/default/members/${encodeURIComponent(membershipId)}/role`,
+        `${orgApiPath}/members/${encodeURIComponent(membershipId)}/role`,
       )
       setTeam((current) => ({
         ...current,
@@ -816,9 +822,9 @@ export function useSettingsLiveState() {
     rememberMutation('team', 'update-team-role', 'mutating', null)
 
     try {
-      await updateOrgMemberRole('default', membershipId, role.value)
+      await updateOrgMemberRole(orgId, membershipId, role.value)
     } catch (error) {
-      const mutationError = toMutationError(error, 'team', 'update-team-role', 'mutation', `/api/v1/orgs/default/members/${encodeURIComponent(membershipId)}/role`)
+      const mutationError = toMutationError(error, 'team', 'update-team-role', 'mutation', `${orgApiPath}/members/${encodeURIComponent(membershipId)}/role`)
       setTeam((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -845,7 +851,7 @@ export function useSettingsLiveState() {
       }))
       rememberMutation('team', 'update-team-role', 'idle', null)
     } catch (error) {
-      const refreshError = toMutationError(error, 'team', 'update-team-role', 'refresh', '/api/v1/orgs/default/members')
+      const refreshError = toMutationError(error, 'team', 'update-team-role', 'refresh', `${orgApiPath}/members`)
       setTeam((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -854,7 +860,7 @@ export function useSettingsLiveState() {
       rememberMutation('team', 'update-team-role', 'failed', refreshError)
       showMutationFailureToast(refreshError)
     }
-  }, [refreshTeam, rememberMutation])
+  }, [orgApiPath, orgId, refreshTeam, rememberMutation])
 
   const removeTeamMember = useCallback(async (membershipId: string) => {
     setTeam((current) => ({
@@ -865,9 +871,9 @@ export function useSettingsLiveState() {
     rememberMutation('team', 'remove-team-member', 'mutating', null)
 
     try {
-      await removeOrgMember('default', membershipId)
+      await removeOrgMember(orgId, membershipId)
     } catch (error) {
-      const mutationError = toMutationError(error, 'team', 'remove-team-member', 'mutation', `/api/v1/orgs/default/members/${encodeURIComponent(membershipId)}/remove`)
+      const mutationError = toMutationError(error, 'team', 'remove-team-member', 'mutation', `${orgApiPath}/members/${encodeURIComponent(membershipId)}/remove`)
       setTeam((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -894,7 +900,7 @@ export function useSettingsLiveState() {
       }))
       rememberMutation('team', 'remove-team-member', 'idle', null)
     } catch (error) {
-      const refreshError = toMutationError(error, 'team', 'remove-team-member', 'refresh', '/api/v1/orgs/default/members')
+      const refreshError = toMutationError(error, 'team', 'remove-team-member', 'refresh', `${orgApiPath}/members`)
       setTeam((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -903,17 +909,17 @@ export function useSettingsLiveState() {
       rememberMutation('team', 'remove-team-member', 'failed', refreshError)
       showMutationFailureToast(refreshError)
     }
-  }, [refreshTeam, rememberMutation])
+  }, [orgApiPath, orgId, refreshTeam, rememberMutation])
 
   const createApiKey = useCallback(async () => {
     const label = apiKeys.createLabel.trim()
     if (!label) {
       const validationError = toMutationError(
-        new MesherApiError('invalid-payload', '/api/v1/projects/default/api-keys', 'API key label is required'),
+        new MesherApiError('invalid-payload', `${projectApiPath}/api-keys`, 'API key label is required'),
         'api-keys',
         'create-api-key',
         'validation',
-        '/api/v1/projects/default/api-keys',
+        `${projectApiPath}/api-keys`,
       )
       setApiKeys((current) => ({
         ...current,
@@ -939,10 +945,10 @@ export function useSettingsLiveState() {
     let createdKeyValue = ''
 
     try {
-      const created = await createDefaultProjectApiKey({ label })
+      const created = await createProjectApiKey(projectId, { label })
       createdKeyValue = created.key_value
     } catch (error) {
-      const mutationError = toMutationError(error, 'api-keys', 'create-api-key', 'mutation', '/api/v1/projects/default/api-keys')
+      const mutationError = toMutationError(error, 'api-keys', 'create-api-key', 'mutation', `${projectApiPath}/api-keys`)
       setApiKeys((current) => ({
         ...current,
         reveal: null,
@@ -977,7 +983,7 @@ export function useSettingsLiveState() {
       }))
       rememberMutation('api-keys', 'create-api-key', 'idle', null)
     } catch (error) {
-      const refreshError = toMutationError(error, 'api-keys', 'create-api-key', 'refresh', '/api/v1/projects/default/api-keys')
+      const refreshError = toMutationError(error, 'api-keys', 'create-api-key', 'refresh', `${projectApiPath}/api-keys`)
       setApiKeys((current) => ({
         ...current,
         reveal: null,
@@ -987,7 +993,7 @@ export function useSettingsLiveState() {
       rememberMutation('api-keys', 'create-api-key', 'failed', refreshError)
       showMutationFailureToast(refreshError)
     }
-  }, [apiKeys.createLabel, refreshApiKeys, rememberMutation])
+  }, [apiKeys.createLabel, projectApiPath, projectId, refreshApiKeys, rememberMutation])
 
   const revokeKey = useCallback(async (keyId: string) => {
     setApiKeys((current) => ({
@@ -1027,7 +1033,7 @@ export function useSettingsLiveState() {
       }))
       rememberMutation('api-keys', 'revoke-api-key', 'idle', null)
     } catch (error) {
-      const refreshError = toMutationError(error, 'api-keys', 'revoke-api-key', 'refresh', '/api/v1/projects/default/api-keys')
+      const refreshError = toMutationError(error, 'api-keys', 'revoke-api-key', 'refresh', `${projectApiPath}/api-keys`)
       setApiKeys((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -1036,7 +1042,7 @@ export function useSettingsLiveState() {
       rememberMutation('api-keys', 'revoke-api-key', 'failed', refreshError)
       showMutationFailureToast(refreshError)
     }
-  }, [refreshApiKeys, rememberMutation])
+  }, [projectApiPath, refreshApiKeys, rememberMutation])
 
   const createAlertRule = useCallback(async () => {
     const name = alertRules.createName.trim()
@@ -1057,11 +1063,11 @@ export function useSettingsLiveState() {
 
     if (!name || !condition.value || !action.value || !cooldown.value) {
       const validationError = toMutationError(
-        new MesherApiError('invalid-payload', '/api/v1/projects/default/alert-rules', 'Alert rule validation failed'),
+        new MesherApiError('invalid-payload', `${projectApiPath}/alert-rules`, 'Alert rule validation failed'),
         'alert-rules',
         'create-alert-rule',
         'validation',
-        '/api/v1/projects/default/alert-rules',
+        `${projectApiPath}/alert-rules`,
       )
       setAlertRules((current) => ({
         ...current,
@@ -1081,14 +1087,14 @@ export function useSettingsLiveState() {
     rememberMutation('alert-rules', 'create-alert-rule', 'mutating', null)
 
     try {
-      await createDefaultProjectAlertRule({
+      await createProjectAlertRule(projectId, {
         name,
         condition: condition.value,
         action: action.value,
         cooldown_minutes: cooldown.value,
       })
     } catch (error) {
-      const mutationError = toMutationError(error, 'alert-rules', 'create-alert-rule', 'mutation', '/api/v1/projects/default/alert-rules')
+      const mutationError = toMutationError(error, 'alert-rules', 'create-alert-rule', 'mutation', `${projectApiPath}/alert-rules`)
       setAlertRules((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -1121,7 +1127,7 @@ export function useSettingsLiveState() {
       }))
       rememberMutation('alert-rules', 'create-alert-rule', 'idle', null)
     } catch (error) {
-      const refreshError = toMutationError(error, 'alert-rules', 'create-alert-rule', 'refresh', '/api/v1/projects/default/alert-rules')
+      const refreshError = toMutationError(error, 'alert-rules', 'create-alert-rule', 'refresh', `${projectApiPath}/alert-rules`)
       setAlertRules((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -1135,6 +1141,8 @@ export function useSettingsLiveState() {
     alertRules.createConditionJson,
     alertRules.createCooldownMinutes,
     alertRules.createName,
+    projectApiPath,
+    projectId,
     refreshAlertRules,
     rememberMutation,
   ])
@@ -1177,7 +1185,7 @@ export function useSettingsLiveState() {
       }))
       rememberMutation('alert-rules', 'toggle-alert-rule', 'idle', null)
     } catch (error) {
-      const refreshError = toMutationError(error, 'alert-rules', 'toggle-alert-rule', 'refresh', '/api/v1/projects/default/alert-rules')
+      const refreshError = toMutationError(error, 'alert-rules', 'toggle-alert-rule', 'refresh', `${projectApiPath}/alert-rules`)
       setAlertRules((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -1186,7 +1194,7 @@ export function useSettingsLiveState() {
       rememberMutation('alert-rules', 'toggle-alert-rule', 'failed', refreshError)
       showMutationFailureToast(refreshError)
     }
-  }, [refreshAlertRules, rememberMutation])
+  }, [projectApiPath, refreshAlertRules, rememberMutation])
 
   const removeRule = useCallback(async (ruleId: string) => {
     setAlertRules((current) => ({
@@ -1226,7 +1234,7 @@ export function useSettingsLiveState() {
       }))
       rememberMutation('alert-rules', 'delete-alert-rule', 'idle', null)
     } catch (error) {
-      const refreshError = toMutationError(error, 'alert-rules', 'delete-alert-rule', 'refresh', '/api/v1/projects/default/alert-rules')
+      const refreshError = toMutationError(error, 'alert-rules', 'delete-alert-rule', 'refresh', `${projectApiPath}/alert-rules`)
       setAlertRules((current) => ({
         ...current,
         mutationPhase: 'failed',
@@ -1235,7 +1243,7 @@ export function useSettingsLiveState() {
       rememberMutation('alert-rules', 'delete-alert-rule', 'failed', refreshError)
       showMutationFailureToast(refreshError)
     }
-  }, [refreshAlertRules, rememberMutation])
+  }, [projectApiPath, refreshAlertRules, rememberMutation])
 
   const shellState = useMemo<SettingsSectionState>(() => {
     if ([general, team, apiKeys, alertRules].every((section) => section.state === 'ready')) {
@@ -1247,15 +1255,7 @@ export function useSettingsLiveState() {
     return 'loading'
   }, [alertRules, apiKeys, general, team])
 
-  const shellSource = useMemo<SettingsSectionSource>(() => {
-    if ([general, team, apiKeys, alertRules].every((section) => section.source === 'live')) {
-      return 'live'
-    }
-    if ([general, team, apiKeys, alertRules].every((section) => section.source === 'fallback')) {
-      return 'fallback'
-    }
-    return 'mixed'
-  }, [alertRules, apiKeys, general, team])
+  const shellSource: SettingsSectionSource = 'live'
 
   return {
     shellState,
